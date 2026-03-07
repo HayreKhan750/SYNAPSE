@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { GitBranch, TrendingUp } from 'lucide-react';
-import { api } from '@/utils/api';
+import api from '@/utils/api';
 import { RepositoryCard } from '@/components/cards';
 import { RepositorySkeleton } from '@/components/cards/SkeletonCard';
 import { cn } from '@/utils/helpers';

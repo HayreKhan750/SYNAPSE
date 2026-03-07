@@ -3,7 +3,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, TrendingUp, BookOpen, GitBranch } from 'lucide-react';
-import { api } from '@/utils/api';
+import api from '@/utils/api';
 import { ArticleCard, RepositoryCard, PaperCard } from '@/components/cards';
 import { ArticleSkeleton, RepositorySkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
 import { cn } from '@/utils/helpers';

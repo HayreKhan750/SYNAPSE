@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, Search } from 'lucide-react';
-import { api } from '@/utils/api';
+import api from '@/utils/api';
 import { ArticleCard } from '@/components/cards';
 import { ArticleSkeleton } from '@/components/cards/SkeletonCard';
 import { cn } from '@/utils/helpers';

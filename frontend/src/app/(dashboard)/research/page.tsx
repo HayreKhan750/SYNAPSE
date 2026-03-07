@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, ChevronDown, Search } from 'lucide-react';
-import { api } from '@/utils/api';
+import api from '@/utils/api';
 import { PaperCard } from '@/components/cards';
 import { PaperSkeleton } from '@/components/cards/SkeletonCard';
 import { cn } from '@/utils/helpers';
