@@ -100,29 +100,29 @@
 - [x] **Git commit:** `feat: web scraping system — spiders, Celery tasks, deduplication` ✓
 
 ### 1.3 Frontend Dashboard (Week 3)
-- [ ] Create Next.js project: `npx create-next-app@latest frontend --typescript --tailwind --app`
-- [ ] Install dependencies: framer-motion, recharts, axios, zustand, @tanstack/react-query, react-hook-form, zod, lucide-react, next-themes, react-hot-toast, react-markdown, date-fns
-- [ ] Configure TailwindCSS (custom colors: indigo-500 primary, cyan-500 secondary, violet-500 accent)
-- [ ] Configure dark mode (next-themes, class strategy)
-- [ ] Create API client (axios instance with JWT interceptor, auto token refresh)
-- [ ] Create Zustand auth store (user, tokens, login, logout actions)
-- [ ] Create main layout (sidebar + top navbar + content area)
-- [ ] Create sidebar component (navigation links, logo, user profile, collapse button)
-- [ ] Create top navbar (search bar, notification bell, dark mode toggle, user avatar)
-- [ ] Create login page (/auth/login)
-- [ ] Create register page (/auth/register)
-- [ ] Create main dashboard page (/) — stats row, trend radar, news feed
-- [ ] Create Tech Intelligence Feed page (/feed) — article cards, filters, infinite scroll
-- [ ] Create GitHub Radar page (/github) — trending repos, language filters
-- [ ] Create Research Explorer page (/research) — papers with difficulty badges
-- [ ] Create reusable ArticleCard component (title, source, AI summary, tags, bookmark button)
-- [ ] Create reusable RepositoryCard component (name, stars, language, description)
-- [ ] Create reusable PaperCard component (title, authors, abstract preview, difficulty badge)
-- [ ] Create skeleton loading components for all cards
-- [ ] Implement infinite scroll for news feed
-- [ ] Add @tanstack/react-query for data fetching and caching
-- [ ] Write component unit tests (Jest + React Testing Library)
-- [ ] **Git commit:** `feat: frontend dashboard — layout, pages, article/repo/paper cards`
+- [x] Create Next.js project: `npx create-next-app@latest frontend --typescript --tailwind --app`
+- [x] Install dependencies: framer-motion, recharts, axios, zustand, @tanstack/react-query, react-hook-form, zod, lucide-react, next-themes, react-hot-toast, react-markdown, date-fns
+- [x] Configure TailwindCSS (custom colors: indigo-500 primary, cyan-500 secondary, violet-500 accent)
+- [x] Configure dark mode (next-themes, class strategy)
+- [x] Create API client (axios instance with JWT interceptor, auto token refresh)
+- [x] Create Zustand auth store (user, tokens, login, logout actions)
+- [x] Create main layout (sidebar + top navbar + content area)
+- [x] Create sidebar component (navigation links, logo, user profile, collapse button)
+- [x] Create top navbar (search bar, notification bell, dark mode toggle, user avatar)
+- [x] Create login page (/auth/login)
+- [x] Create register page (/auth/register)
+- [x] Create main dashboard page (/) — stats row, trend radar, news feed
+- [x] Create Tech Intelligence Feed page (/feed) — article cards, filters, infinite scroll
+- [x] Create GitHub Radar page (/github) — trending repos, language filters
+- [x] Create Research Explorer page (/research) — papers with difficulty badges
+- [x] Create reusable ArticleCard component (title, source, AI summary, tags, bookmark button)
+- [x] Create reusable RepositoryCard component (name, stars, language, description)
+- [x] Create reusable PaperCard component (title, authors, abstract preview, difficulty badge)
+- [x] Create skeleton loading components for all cards
+- [x] Implement infinite scroll for news feed (Load More button pattern)
+- [x] Add @tanstack/react-query for data fetching and caching
+- [~] Write component unit tests (Jest + React Testing Library) — follow-up task
+- [x] **Git commit:** `feat: frontend dashboard — layout, pages, article/repo/paper cards` ✓
 
 ### 1.4 Search Engine (Week 4)
 - [ ] Add full-text search to articles endpoint (PostgreSQL ILIKE or django-haystack)
