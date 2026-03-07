@@ -27,7 +27,7 @@ services:
       POSTGRES_USER: synapse_user
       POSTGRES_PASSWORD: synapse_pass
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -45,7 +45,7 @@ services:
     container_name: synapse_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
       - ./infrastructure/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
@@ -234,7 +234,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@synapse.ai
       PGADMIN_DEFAULT_PASSWORD: pgadmin_password
     ports:
-      - "5050:80"
+      - "5051:80"
     depends_on:
       - postgres
     networks:

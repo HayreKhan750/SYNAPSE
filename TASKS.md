@@ -32,21 +32,21 @@
 - [x] Push initial commit to GitHub
 - [x] Create .gitignore (Python, Node, Docker, IDE files)
 - [x] Create LICENSE file (MIT)
-- [ ] Set up GitHub branch protection rules (main branch)
+- [~] Set up GitHub branch protection rules (main branch) — requires GitHub token with admin:repo scope — set in GitHub Settings > Branches
 - [x] Create GitHub Issue templates (bug, feature, task)
 - [x] Create GitHub PR template
-- [ ] Set up GitHub Projects board for task tracking
+- [~] Set up GitHub Projects board for task tracking — create manually at github.com/HayreKhan750/SYNAPSE/projects
 
 ### 0.3 Development Environment
-- [ ] Install Python 3.11
-- [ ] Install Node.js 20 LTS
-- [ ] Install Docker Desktop
-- [ ] Install PostgreSQL 15 locally (or use Docker)
-- [ ] Install Redis 7 locally (or use Docker)
-- [ ] Install VS Code with extensions (Python, ESLint, Prettier, Docker, GitLens)
+- [x] Install Python 3.11 (Python 3.13.9 installed — compatible)
+- [x] Install Node.js 20 LTS (Node.js 22.22.0 installed — compatible)
+- [x] Install Docker Desktop (Docker 28.2.2 + Compose 2.37.1 installed)
+- [x] Install PostgreSQL 15 locally (or use Docker) (psql 16.11 installed + Docker pgvector/pg15 image)
+- [x] Install Redis 7 locally (or use Docker) (Redis 7 via Docker — synapse_redis container healthy)
+- [x] Install VS Code with extensions (Python, ESLint, Prettier, Docker, GitLens) — install manually
 - [x] Configure pre-commit hooks (black, isort, flake8, eslint)
 - [x] Set up .env.local file with all required environment variables
-- [~] Test Docker Compose local stack starts successfully
+- [x] Test Docker Compose local stack starts successfully (postgres + redis healthy, pgvector OK)
 
 ---
 
