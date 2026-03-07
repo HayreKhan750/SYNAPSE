@@ -53,30 +53,30 @@
 ## PHASE 1 — Core Platform (Weeks 1–4)
 
 ### 1.1 Backend Foundation (Week 1)
-- [ ] Create Django project: `django-admin startproject config backend/`
-- [ ] Create Django apps: core, users, articles, repositories, papers, videos
-- [ ] Install and configure: djangorestframework, django-cors-headers, djangorestframework-simplejwt
-- [ ] Configure PostgreSQL database connection (settings.py)
-- [ ] Configure Redis cache backend (django-redis)
-- [ ] Set up Django admin customization
-- [ ] Create User model (extending AbstractUser, add role/preferences fields)
-- [ ] Create Article model (title, content, summary, url, source, topic, tags, keywords, sentiment_score, trending_score, embedding_id)
-- [ ] Create Source model (name, url, source_type, scrape_interval, config)
-- [ ] Create Repository model (github_id, name, stars, forks, language, topics, is_trending)
-- [ ] Create ResearchPaper model (arxiv_id, title, abstract, authors, categories, difficulty_level)
-- [ ] Create Video model (youtube_id, title, description, channel, transcript, topics)
-- [ ] Run initial migrations: `python manage.py migrate`
-- [ ] Create superuser: `python manage.py createsuperuser`
-- [ ] Set up JWT authentication endpoints (register, login, refresh, logout, me)
-- [ ] Create REST API endpoints for articles (list, detail, trending, search)
-- [ ] Create REST API endpoints for repositories (list, detail, trending)
-- [ ] Create REST API endpoints for research papers (list, detail, trending)
-- [ ] Create REST API endpoints for videos (list, detail)
-- [ ] Add pagination (page + page_size) to all list endpoints
-- [ ] Add filtering (topic, source, date_from, date_to) to article endpoints
-- [ ] Write unit tests for all models
-- [ ] Write unit tests for JWT auth endpoints
-- [ ] **Git commit:** `feat: backend foundation — models, auth, REST APIs`
+- [x] Create Django project: `django-admin startproject config backend/`
+- [x] Create Django apps: core, users, articles, repositories, papers, videos
+- [x] Install and configure: djangorestframework, django-cors-headers, djangorestframework-simplejwt
+- [x] Configure PostgreSQL database connection (settings.py)
+- [x] Configure Redis cache backend (django-redis)
+- [x] Set up Django admin customization
+- [x] Create User model (extending AbstractUser, add role/preferences fields)
+- [x] Create Article model (title, content, summary, url, source, topic, tags, keywords, sentiment_score, trending_score, embedding_id)
+- [x] Create Source model (name, url, source_type, scrape_interval, config)
+- [x] Create Repository model (github_id, name, stars, forks, language, topics, is_trending)
+- [x] Create ResearchPaper model (arxiv_id, title, abstract, authors, categories, difficulty_level)
+- [x] Create Video model (youtube_id, title, description, channel, transcript, topics)
+- [~] Run initial migrations: `python manage.py migrate` (pending psycopg3 install)
+- [~] Create superuser: `python manage.py createsuperuser` (pending migrations)
+- [x] Set up JWT authentication endpoints (register, login, refresh, logout, me)
+- [x] Create REST API endpoints for articles (list, detail, trending, search)
+- [x] Create REST API endpoints for repositories (list, detail, trending)
+- [x] Create REST API endpoints for research papers (list, detail, trending)
+- [x] Create REST API endpoints for videos (list, detail)
+- [x] Add pagination (page + page_size) to all list endpoints
+- [x] Add filtering (topic, source, date_from, date_to) to article endpoints
+- [x] Write unit tests for all models
+- [x] Write unit tests for JWT auth endpoints
+- [x] **Git commit:** `feat: backend foundation — models, auth, REST APIs` ✓ pushed 669ec3a
 
 ### 1.2 Web Scraping System (Week 2)
 - [ ] Create Scrapy project: `scrapy startproject synapse_scraper scraper/`
