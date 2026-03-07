@@ -33,7 +33,7 @@ THIRD_PARTY_APPS = [
     'axes',
     'django_celery_beat',
     'django_celery_results',
-    'django_prometheus',
+    # 'django_prometheus',  # Re-enable after upgrading: pip install django-prometheus>=2.3
 ]
 
 LOCAL_APPS = [
@@ -54,7 +54,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # ── Middleware ────────────────────────────────────────────────
 MIDDLEWARE = [
-    'django_prometheus.middleware.PrometheusBeforeMiddleware',
+    # 'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -64,7 +64,7 @@ MIDDLEWARE = [
     'axes.middleware.AxesMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django_prometheus.middleware.PrometheusAfterMiddleware',
+    # 'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -227,15 +227,15 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'json': {
-            '()': 'structlog.stdlib.ProcessorFormatter',
-            'processor': 'structlog.dev.ConsoleRenderer',
+        'simple': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
         },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'json',
+            'formatter': 'simple',
         },
     },
     'root': {

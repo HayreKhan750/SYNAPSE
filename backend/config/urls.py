@@ -16,5 +16,5 @@ urlpatterns = [
     path('api/v1/trends/', include('apps.trends.urls')),
     path('api/v1/notifications/', include('apps.notifications.urls')),
     path('api/v1/', include('apps.core.urls')),
-    path('', include('django_prometheus.urls')),
+    # path('', include('django_prometheus.urls')),  # Re-enable after upgrading django-prometheus
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
