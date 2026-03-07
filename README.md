@@ -113,3 +113,12 @@ npm run dev
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
+## GitHub Actions Workflows
+
+The CI/CD workflow files are in `_workflows_temp/`. To enable them:
+1. Go to your GitHub token settings and add the `workflow` scope
+2. Move files: `cp _workflows_temp/*.yml .github/workflows/`
+3. Push: `git add -A && git push origin main`
+
+Alternatively, create the workflow files directly in GitHub UI under **Actions → New workflow**.
