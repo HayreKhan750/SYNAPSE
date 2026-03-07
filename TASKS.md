@@ -79,25 +79,25 @@
 - [x] **Git commit:** `feat: backend foundation — models, auth, REST APIs` ✓ pushed 669ec3a
 
 ### 1.2 Web Scraping System (Week 2)
-- [ ] Create Scrapy project: `scrapy startproject synapse_scraper scraper/`
-- [ ] Install dependencies: scrapy, beautifulsoup4, playwright, httpx, feedparser, trafilatura
-- [ ] Install Playwright browsers: `playwright install chromium`
-- [ ] Create HackerNews spider (Firebase API: https://hacker-news.firebaseio.com/v0/)
-- [ ] Create GitHub trending spider (GitHub REST API v3, requires GITHUB_TOKEN)
-- [ ] Create arXiv spider (arXiv API: http://export.arxiv.org/api/query)
-- [ ] Create YouTube spider (YouTube Data API v3, requires YOUTUBE_API_KEY)
-- [ ] Create NewsAPI collector (newsapi.org, requires NEWS_API_KEY)
-- [ ] Set up Scrapy item pipelines (validation, deduplication, database storage)
-- [ ] Implement URL-based deduplication (SHA-256 hash stored in Redis)
-- [ ] Implement content deduplication (MinHash LSH via datasketch)
-- [ ] Configure Scrapy middlewares (retry, user-agent rotation, rate limiting)
-- [ ] Install and configure Celery (celery, django-celery-beat, django-celery-results)
-- [ ] Create Celery tasks for each scraper (scrape_hackernews, scrape_github, scrape_arxiv, scrape_youtube)
-- [ ] Configure Celery Beat schedules (HN every 30min, GitHub every 2hrs, arXiv every 6hrs)
-- [ ] Set up Flower monitoring for Celery: `flower --port=5555`
-- [ ] Test each scraper manually and verify data stored in DB
-- [ ] Write integration tests for scrapers (mock HTTP responses)
-- [ ] **Git commit:** `feat: web scraping system — spiders, Celery tasks, deduplication`
+- [x] Create Scrapy project: `scrapy startproject synapse_scraper scraper/`
+- [x] Install dependencies: scrapy, beautifulsoup4, playwright, httpx, feedparser, trafilatura
+- [~] Install Playwright browsers: `playwright install chromium` — install manually on server
+- [x] Create HackerNews spider (Firebase API: https://hacker-news.firebaseio.com/v0/)
+- [x] Create GitHub trending spider (GitHub REST API v3, requires GITHUB_TOKEN)
+- [x] Create arXiv spider (arXiv API: http://export.arxiv.org/api/query)
+- [x] Create YouTube spider (YouTube Data API v3, requires YOUTUBE_API_KEY)
+- [~] Create NewsAPI collector (newsapi.org, requires NEWS_API_KEY) — planned for Phase 2
+- [x] Set up Scrapy item pipelines (validation, deduplication, database storage)
+- [x] Implement URL-based deduplication (SHA-256 hash stored in Redis)
+- [~] Implement content deduplication (MinHash LSH via datasketch) — Phase 2 enhancement
+- [x] Configure Scrapy middlewares (retry, user-agent rotation, rate limiting)
+- [x] Install and configure Celery (celery, django-celery-beat, django-celery-results)
+- [x] Create Celery tasks for each scraper (scrape_hackernews, scrape_github, scrape_arxiv, scrape_youtube)
+- [x] Configure Celery Beat schedules (HN every 30min, GitHub every 2hrs, arXiv every 6hrs)
+- [~] Set up Flower monitoring for Celery: `flower --port=5555` — run manually: `celery -A config.celery flower`
+- [~] Test each scraper manually and verify data stored in DB — requires live API keys
+- [~] Write integration tests for scrapers (mock HTTP responses) — Phase 1.2 follow-up
+- [x] **Git commit:** `feat: web scraping system — spiders, Celery tasks, deduplication` ✓
 
 ### 1.3 Frontend Dashboard (Week 3)
 - [ ] Create Next.js project: `npx create-next-app@latest frontend --typescript --tailwind --app`
