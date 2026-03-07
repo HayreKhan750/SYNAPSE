@@ -29,12 +29,12 @@
 - [x] Initialize Git repository
 - [x] Create README.md
 - [x] Create project directory structure
-- [ ] Push initial commit to GitHub
-- [ ] Create .gitignore (Python, Node, Docker, IDE files)
-- [ ] Create LICENSE file (MIT)
+- [x] Push initial commit to GitHub
+- [x] Create .gitignore (Python, Node, Docker, IDE files)
+- [x] Create LICENSE file (MIT)
 - [ ] Set up GitHub branch protection rules (main branch)
-- [ ] Create GitHub Issue templates (bug, feature, task)
-- [ ] Create GitHub PR template
+- [x] Create GitHub Issue templates (bug, feature, task)
+- [x] Create GitHub PR template
 - [ ] Set up GitHub Projects board for task tracking
 
 ### 0.3 Development Environment
@@ -44,9 +44,9 @@
 - [ ] Install PostgreSQL 15 locally (or use Docker)
 - [ ] Install Redis 7 locally (or use Docker)
 - [ ] Install VS Code with extensions (Python, ESLint, Prettier, Docker, GitLens)
-- [ ] Configure pre-commit hooks (black, isort, flake8, eslint)
-- [ ] Set up .env.local file with all required environment variables
-- [ ] Test Docker Compose local stack starts successfully
+- [x] Configure pre-commit hooks (black, isort, flake8, eslint)
+- [x] Set up .env.local file with all required environment variables
+- [~] Test Docker Compose local stack starts successfully
 
 ---
 
