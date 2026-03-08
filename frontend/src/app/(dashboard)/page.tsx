@@ -36,9 +36,9 @@ export default function Dashboard() {
     queryFn: () => api.get('/papers/trending/'),
   });
 
-  const trendingArticles = articles?.results?.slice(0, 6) || [];
-  const trendingRepos = repos?.results?.slice(0, 3) || [];
-  const trendingPapers = papers?.results?.slice(0, 3) || [];
+  const trendingArticles = (articles?.data || articles?.results || []).slice(0, 6);
+  const trendingRepos = (repos?.data || repos?.results || []).slice(0, 3);
+  const trendingPapers = (papers?.data || papers?.results || []).slice(0, 3);
 
   return (
     <div className="space-y-8 pb-8">
@@ -53,25 +53,25 @@ export default function Dashboard() {
         <StatCard
           icon={BarChart3}
           label="Total Articles"
-          value={articles?.count || 0}
+          value={articles?.meta?.total || articles?.count || 0}
           gradient="bg-gradient-to-br from-indigo-500 to-indigo-600"
         />
         <StatCard
           icon={TrendingUp}
           label="Trending Topics"
-          value={articles?.results?.length || 0}
+          value={trendingArticles.length}
           gradient="bg-gradient-to-br from-cyan-500 to-cyan-600"
         />
         <StatCard
           icon={BookOpen}
           label="Papers Today"
-          value={papers?.results?.length || 0}
+          value={papers?.meta?.total || papers?.count || 0}
           gradient="bg-gradient-to-br from-violet-500 to-violet-600"
         />
         <StatCard
           icon={GitBranch}
           label="GitHub Stars"
-          value={repos?.count || 0}
+          value={repos?.meta?.total || repos?.count || 0}
           gradient="bg-gradient-to-br from-emerald-500 to-emerald-600"
         />
       </div>

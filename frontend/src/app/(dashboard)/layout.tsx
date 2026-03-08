@@ -9,7 +9,8 @@ import { useAuthStore } from '@/store/authStore'
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)   // desktop: collapsed/expanded
+  const [mobileOpen, setMobileOpen] = useState(false)     // mobile: sidebar open/closed
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -19,23 +20,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isAuthenticated, router])
 
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [])
+
   if (!isMounted || !isAuthenticated) {
     return null
   }
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Sidebar — fixed positioned */}
-      <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
 
-      {/* Main Content Area — offset by sidebar width with smooth transition */}
+      {/* Mobile backdrop — click to close */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <Sidebar
+        isCollapsed={isCollapsed}
+        onToggle={() => setIsCollapsed(!isCollapsed)}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+      />
+
+      {/* Main Content Area */}
+      {/* On desktop: offset by sidebar width. On mobile: no margin (sidebar overlays) */}
       <div
         className={`flex-1 flex flex-col overflow-hidden transition-all duration-200 ${
-          isCollapsed ? 'ml-20' : 'ml-64'
+          isCollapsed ? 'md:ml-20' : 'md:ml-64'
         }`}
       >
         {/* Navbar */}
-        <Navbar onMenuClick={() => setIsCollapsed(!isCollapsed)} />
+        <Navbar
+          onMenuClick={() => setIsCollapsed(!isCollapsed)}
+          onMobileMenuClick={() => setMobileOpen(true)}
+        />
 
         {/* Scrollable Content */}
         <main className="flex-1 overflow-y-auto p-6">

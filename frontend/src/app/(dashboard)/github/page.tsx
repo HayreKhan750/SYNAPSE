@@ -24,8 +24,8 @@ export default function GitHubPage() {
       }),
   });
 
-  const repos = data?.results || [];
-  const totalCount = data?.count || 0;
+  const repos = data?.data || data?.results || [];
+  const totalCount = data?.meta?.total || data?.count || 0;
 
   const filteredRepos = useMemo(() => {
     if (selectedLanguage === 'All') return repos;

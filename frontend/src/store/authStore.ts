@@ -127,6 +127,8 @@ export const useAuthStore = create<AuthStore>()(
       partialize: (state) => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+        user: state.user,
       }),
     }
   )

@@ -31,9 +31,9 @@ export default function FeedPage() {
       }),
   });
 
-  const articles = data?.results || [];
-  const totalCount = data?.count || 0;
-  const pageSize = data?.results?.length || 0;
+  const articles = data?.data || data?.results || [];
+  const totalCount = data?.meta?.total || data?.count || 0;
+  const pageSize = articles.length;
 
   const handleLoadMore = () => {
     setPage((p) => p + 1);

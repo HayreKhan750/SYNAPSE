@@ -21,9 +21,11 @@ import { useAuthStore } from '@/store/authStore'
 interface SidebarProps {
   isCollapsed: boolean
   onToggle: () => void
+  mobileOpen: boolean
+  onMobileClose: () => void
 }
 
-export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export function Sidebar({ isCollapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
 
@@ -42,9 +44,13 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen bg-slate-900 border-r border-slate-700 flex flex-col transition-all duration-200 z-40 ${
-        isCollapsed ? 'w-20' : 'w-64'
-      }`}
+      className={`
+        fixed left-0 top-0 h-screen bg-slate-900 border-r border-slate-700 flex flex-col z-50
+        transition-all duration-200
+        ${isCollapsed ? 'w-20' : 'w-64'}
+        md:translate-x-0
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}
     >
       {/* Header with Logo and Toggle */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-slate-700">
@@ -55,12 +61,21 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         )}
         {isCollapsed && <span className="text-xl font-bold text-indigo-500">S</span>}
 
+        {/* Desktop toggle — hidden on mobile */}
         <button
           onClick={onToggle}
-          className="p-1 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+          className="hidden md:block p-1 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+        </button>
+        {/* Mobile close button — hidden on desktop */}
+        <button
+          onClick={onMobileClose}
+          className="md:hidden p-1 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+          title="Close sidebar"
+        >
+          <ChevronLeft size={20} />
         </button>
       </div>
 

@@ -9,9 +9,10 @@ import { useAuthStore } from '@/store/authStore'
 
 interface NavbarProps {
   onMenuClick: () => void
+  onMobileMenuClick: () => void
 }
 
-export function Navbar({ onMenuClick }: NavbarProps) {
+export function Navbar({ onMenuClick, onMobileMenuClick }: NavbarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
@@ -58,6 +59,15 @@ export function Navbar({ onMenuClick }: NavbarProps) {
       <div className="flex items-center justify-between h-16 px-6">
         {/* Left: Page Title / Menu Button */}
         <div className="flex items-center gap-4">
+          {/* Mobile hamburger — visible only on mobile */}
+          <button
+            onClick={onMobileMenuClick}
+            className="md:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            title="Open sidebar"
+          >
+            <Menu size={20} />
+          </button>
+          {/* Desktop collapse toggle — visible only on desktop */}
           <button
             onClick={onMenuClick}
             className="hidden md:inline-flex p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"

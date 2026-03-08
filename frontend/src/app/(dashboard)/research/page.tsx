@@ -57,9 +57,9 @@ export default function ResearchPage() {
       }),
   });
 
-  const papers = data?.results || [];
-  const totalCount = data?.count || 0;
-  const pageSize = data?.results?.length || 0;
+  const papers = data?.data || data?.results || [];
+  const totalCount = data?.meta?.total || data?.count || 0;
+  const pageSize = papers.length;
 
   const handleLoadMore = () => {
     setPage((p) => p + 1);
