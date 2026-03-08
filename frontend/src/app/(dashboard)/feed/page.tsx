@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, Search } from 'lucide-react';
 import api from '@/utils/api';
 import { ArticleCard } from '@/components/cards';
+import RecommendedSection from './RecommendedSection';
 import { ArticleSkeleton } from '@/components/cards/SkeletonCard';
 import { cn } from '@/utils/helpers';
 
@@ -115,8 +116,11 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Articles grid */}
-      {isLoading ? (
+     {/* Recommended for You */}
+     <RecommendedSection />
+
+     {/* Articles grid */}
+     {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <ArticleSkeleton key={i} />
