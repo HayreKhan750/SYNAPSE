@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthStore>()(
       login: async (credentials: LoginCredentials) => {
         set({ isLoading: true })
         try {
-          const response = await authApi.post('/api/v1/auth/login/', credentials)
+          const response = await authApi.post('/auth/login/', credentials)
           const { access, refresh, user } = response.data
 
           set({
@@ -52,11 +52,11 @@ export const useAuthStore = create<AuthStore>()(
       register: async (data: RegisterData) => {
         set({ isLoading: true })
         try {
-          await authApi.post('/api/v1/auth/register/', data)
+          await authApi.post('/auth/register/', data)
 
           // Auto-login after successful registration
           const loginCredentials: LoginCredentials = {
-            username: data.username,
+            email: data.email,
             password: data.password,
           }
           await get().login(loginCredentials)
@@ -72,7 +72,7 @@ export const useAuthStore = create<AuthStore>()(
           const refreshToken = get().refreshToken
           if (refreshToken) {
             try {
-              await api.post('/api/v1/auth/logout/', {
+              await api.post('/auth/logout/', {
                 refresh: refreshToken,
               })
             } catch (error) {
@@ -103,7 +103,7 @@ export const useAuthStore = create<AuthStore>()(
       fetchUser: async () => {
         set({ isLoading: true })
         try {
-          const response = await api.get('/api/v1/auth/me/')
+          const response = await api.get('/auth/me/')
           set({ user: response.data, isLoading: false })
         } catch (error) {
           set({ isLoading: false })

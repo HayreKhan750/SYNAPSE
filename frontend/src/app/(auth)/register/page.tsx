@@ -45,7 +45,14 @@ export default function RegisterPage() {
     setError(null)
 
     try {
-      await registerUser(data.username, data.email, data.first_name, data.last_name, data.password)
+      await registerUser({
+        username: data.username,
+        email: data.email,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        password: data.password,
+        password2: data.confirm_password,
+      })
       toast.success('Account created successfully!')
       router.push('/')
     } catch (err) {

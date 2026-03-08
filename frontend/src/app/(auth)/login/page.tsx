@@ -11,7 +11,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
+  email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
 })
 
@@ -37,7 +37,7 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      await login(data.username, data.password)
+      await login({ email: data.email, password: data.password })
       toast.success('Signed in successfully!')
       router.push('/')
     } catch (err) {
@@ -62,14 +62,14 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
           <input
-            {...register('username')}
-            type="text"
-            placeholder="Enter your username"
+            {...register('email')}
+            type="email"
+            placeholder="Enter your email"
             className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
           />
-          {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
         </div>
 
         <div>

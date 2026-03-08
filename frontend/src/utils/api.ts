@@ -4,14 +4,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 // Create separate axios instances
 const api: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: `${API_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
 export const authApi: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: `${API_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -48,7 +48,7 @@ api.interceptors.response.use(
         }
 
         // Attempt token refresh
-        const response = await authApi.post('/api/v1/auth/token/refresh/', {
+        const response = await authApi.post('/auth/token/refresh/', {
           refresh: refreshToken,
         })
 
@@ -69,7 +69,7 @@ api.interceptors.response.use(
         localStorage.removeItem('synapse_refresh_token')
 
         if (typeof window !== 'undefined') {
-          window.location.href = '/auth/login'
+          window.location.href = '/login'
         }
 
         return Promise.reject(refreshError)

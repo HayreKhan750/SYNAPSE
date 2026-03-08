@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setIsMounted(true)
     if (!isAuthenticated) {
-      router.push('/auth/login')
+      router.push('/login')
     }
   }, [isAuthenticated, router])
 
@@ -25,11 +25,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Sidebar */}
+      {/* Sidebar — fixed positioned */}
       <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Main Content Area — offset by sidebar width with smooth transition */}
+      <div
+        className={`flex-1 flex flex-col overflow-hidden transition-all duration-200 ${
+          isCollapsed ? 'ml-20' : 'ml-64'
+        }`}
+      >
         {/* Navbar */}
         <Navbar onMenuClick={() => setIsCollapsed(!isCollapsed)} />
 

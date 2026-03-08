@@ -90,33 +90,47 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       {/* Bottom User Section */}
       <div className="border-t border-slate-700 p-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">
-              {user?.first_name?.[0]}
-              {user?.last_name?.[0]}
-            </span>
-          </div>
-          {!isCollapsed && (
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.first_name} {user?.last_name}
-              </p>
-              <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+        {isCollapsed ? (
+          /* Collapsed: just centered avatar */
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-xs">
+                {user?.first_name?.[0]}{user?.last_name?.[0]}
+              </span>
             </div>
-          )}
-        </div>
-
-        <button
-          onClick={logout}
-          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors text-sm ${
-            isCollapsed ? 'justify-center' : ''
-          }`}
-          title={isCollapsed ? 'Logout' : ''}
-        >
-          <LogOut size={18} className="flex-shrink-0" />
-          {!isCollapsed && <span>Logout</span>}
-        </button>
+            <button
+              onClick={logout}
+              className="p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              title="Logout"
+            >
+              <LogOut size={16} className="flex-shrink-0" />
+            </button>
+          </div>
+        ) : (
+          /* Expanded: avatar + name on left, logout icon on right — same row */
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-xs">
+                  {user?.first_name?.[0]}{user?.last_name?.[0]}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-white truncate">
+                  {user?.first_name} {user?.last_name}
+                </p>
+                <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-colors flex-shrink-0"
+              title="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   )
