@@ -193,17 +193,17 @@
 - [x] **Git commit:** `feat: vector search  pgvector embeddings, semantic search API`
 
 ### 2.4 Recommendation System (Week 8)
-- [ ] Create UserActivity model (user, action_type, content_type, content_id, timestamp)
-- [ ] Log user interactions (view article, bookmark, search query)
-- [ ] Create recommendation engine (content-based: find similar content via embeddings)
+- [x] Create UserActivity model (user, action_type, content_type, content_id, timestamp)
+- [x] Log user interactions (view article, bookmark, search query)
+- [x] Create recommendation engine (content-based: find similar content via embeddings)
 - [ ] Implement user interest vector (average of viewed content embeddings)
-- [ ] Create recommendation API endpoint (GET /api/v1/recommendations)
+- [x] Create recommendation API endpoint (GET /api/v1/recommendations)
 - [ ] Create TechnologyTrend model (technology_name, mention_count, trend_score, date)
 - [ ] Create trend analysis Celery task (analyze_trends — runs daily)
 - [ ] Create trend radar API endpoint (GET /api/v1/trends/radar)
 - [ ] Create trend timeline API endpoint (GET /api/v1/trends/timeline?tech=)
 - [ ] Add Technology Trend Radar chart to main dashboard (Recharts RadarChart)
-- [ ] Add "For You" personalized feed tab to Tech Intelligence Feed page
+- [~] Add "For You" personalized feed tab to Tech Intelligence Feed page (minimal section added)
 - [ ] Write unit tests for recommendation logic
 - [ ] **Git commit:** `feat: recommendations + trends — personalized feed, trend radar`
 
