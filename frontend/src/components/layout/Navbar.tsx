@@ -34,7 +34,7 @@ export function Navbar({ onMenuClick, onMobileMenuClick }: NavbarProps) {
       '/library': 'Library',
       '/notifications': 'Notifications',
     }
-    return routeTitles[pathname] || 'SYNAPSE'
+    return (pathname && routeTitles[pathname]) || 'SYNAPSE'
   }
 
   // Debounced search handler

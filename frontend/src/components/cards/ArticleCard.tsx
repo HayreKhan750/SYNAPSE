@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { Article } from '@/types';
@@ -11,7 +12,7 @@ interface ArticleCardProps {
 }
 
 export const ArticleCard = ({ article, onBookmark }: ArticleCardProps) => {
-  const [isBookmarked, setIsBookmarked] = React.useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -60,8 +61,8 @@ export const ArticleCard = ({ article, onBookmark }: ArticleCardProps) => {
     >
       {/* Top row: source badge + published time */}
       <div className="flex items-center justify-between mb-3">
-        <span className={cn('text-xs font-medium px-2 py-1 rounded-full', getSourceColor(article.source_type))}>
-          {article.source_type.charAt(0).toUpperCase() + article.source_type.slice(1)}
+        <span className={cn('text-xs font-medium px-2 py-1 rounded-full', getSourceColor(article.source?.source_type || article.source_type || 'blog'))}>
+          {(article.source?.name || article.source_type || 'Blog')}
         </span>
         <span className="text-xs text-slate-500 dark:text-slate-400">
           {formatRelativeTime(article.published_at)}

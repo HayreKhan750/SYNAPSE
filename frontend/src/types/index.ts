@@ -45,6 +45,7 @@ export interface Article {
   summary: string
   url: string
   source: Source | null
+  source_type?: string
   author: string
   published_at: string | null
   scraped_at: string
@@ -73,8 +74,10 @@ export interface Repository {
   language: string
   topics: string[]
   owner: string
+  owner_name?: string
   is_trending: boolean
   stars_today: number
+  scraped_at?: string
   repo_created_at: string | null
   metadata: Record<string, unknown>
 }
@@ -88,6 +91,7 @@ export interface ResearchPaper {
   summary: string
   authors: string[]
   categories: string[]
+  arxiv_categories?: string[]
   published_date: string | null
   url: string
   pdf_url: string

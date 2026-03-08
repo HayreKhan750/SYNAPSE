@@ -28,7 +28,7 @@ export default function FeedPage() {
           topic: topicParam,
           ordering: sortBy === 'trending' ? '-trending_score' : '-published_at',
         },
-      }),
+      }).then(r => r.data),
   });
 
   const articles = data?.data || data?.results || [];

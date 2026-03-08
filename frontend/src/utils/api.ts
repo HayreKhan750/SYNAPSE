@@ -17,10 +17,27 @@ export const authApi: AxiosInstance = axios.create({
   },
 })
 
+// Helper to get access token from either Zustand persist store or direct localStorage
+const getAccessToken = (): string | null => {
+  if (typeof window === 'undefined') return null
+  // First try the direct key (set on login)
+  const direct = localStorage.getItem('synapse_access_token')
+  if (direct) return direct
+  // Fallback: read from Zustand persisted JSON blob
+  try {
+    const raw = localStorage.getItem('synapse-auth')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      return parsed?.state?.accessToken || null
+    }
+  } catch {}
+  return null
+}
+
 // Request interceptor for main API client (with auth)
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const accessToken = typeof window !== 'undefined' ? localStorage.getItem('synapse_access_token') : null
+    const accessToken = getAccessToken()
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`
     }

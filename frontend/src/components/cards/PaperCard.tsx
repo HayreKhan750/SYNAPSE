@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, FileText, ExternalLink } from 'lucide-react';
 import { ResearchPaper } from '@/types';
@@ -20,7 +21,7 @@ const getDifficultyColor = (difficulty: string) => {
 };
 
 export const PaperCard = ({ paper, onBookmark }: PaperCardProps) => {
-  const [isBookmarked, setIsBookmarked] = React.useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -57,14 +58,14 @@ export const PaperCard = ({ paper, onBookmark }: PaperCardProps) => {
           {paper.difficulty_level.charAt(0).toUpperCase() + paper.difficulty_level.slice(1)}
         </span>
         <span className="text-xs text-slate-500 dark:text-slate-400">
-          {new Date(paper.published_date).toLocaleDateString()}
+          {paper.published_date ? new Date(paper.published_date).toLocaleDateString() : ''}
         </span>
       </div>
 
       {/* Category pills */}
-      {paper.arxiv_categories && paper.arxiv_categories.length > 0 && (
+      {(paper.categories || paper.arxiv_categories) && (paper.categories || paper.arxiv_categories)!.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-3">
-          {paper.arxiv_categories.map((category) => (
+          {(paper.categories || paper.arxiv_categories)!.map((category) => (
             <span
               key={category}
               className="text-xs px-2 py-0.5 rounded bg-indigo-100/50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 font-medium"

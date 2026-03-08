@@ -23,17 +23,17 @@ const StatCard = ({ icon: Icon, label, value, gradient }: any) => (
 export default function Dashboard() {
   const { data: articles, isLoading: articlesLoading } = useQuery({
     queryKey: ['articles', 'trending'],
-    queryFn: () => api.get('/articles/trending/'),
+    queryFn: () => api.get('/articles/trending/').then(r => r.data),
   });
 
   const { data: repos, isLoading: reposLoading } = useQuery({
     queryKey: ['repos', 'trending'],
-    queryFn: () => api.get('/repos/trending/'),
+    queryFn: () => api.get('/repos/trending/').then(r => r.data),
   });
 
   const { data: papers, isLoading: papersLoading } = useQuery({
     queryKey: ['papers', 'trending'],
-    queryFn: () => api.get('/papers/trending/'),
+    queryFn: () => api.get('/papers/trending/').then(r => r.data),
   });
 
   const trendingArticles = (articles?.data || articles?.results || []).slice(0, 6);

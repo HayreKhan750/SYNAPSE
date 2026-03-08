@@ -95,6 +95,14 @@ const config: Config = {
       },
     },
   },
+  safelist: [
+    'md:ml-20',
+    'md:ml-64',
+    'ml-20',
+    'ml-64',
+    '-translate-x-full',
+    'translate-x-0',
+  ],
   plugins: [],
 }
 

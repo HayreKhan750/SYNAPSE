@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Star, GitFork, AlertCircle } from 'lucide-react';
 import { Repository } from '@/types';
@@ -29,7 +30,7 @@ const getLanguageColor = (language?: string) => {
 };
 
 export const RepositoryCard = ({ repo, onBookmark }: RepositoryCardProps) => {
-  const [isBookmarked, setIsBookmarked] = React.useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -123,14 +124,16 @@ export const RepositoryCard = ({ repo, onBookmark }: RepositoryCardProps) => {
       {/* Bottom: owner + scraped date + bookmark */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
         <div className="flex flex-col gap-0.5 flex-1">
-          {repo.owner_name && (
+          {(repo.owner || repo.owner_name) && (
             <span className="text-xs text-slate-500 dark:text-slate-400">
-              by {repo.owner_name}
+              by {repo.owner || repo.owner_name}
             </span>
           )}
-          <span className="text-xs text-slate-400 dark:text-slate-500">
-            {new Date(repo.scraped_at).toLocaleDateString()}
-          </span>
+          {repo.scraped_at && (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              {new Date(repo.scraped_at).toLocaleDateString()}
+            </span>
+          )}
         </div>
         <button
           onClick={handleBookmark}

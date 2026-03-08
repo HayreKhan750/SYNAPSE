@@ -130,6 +130,15 @@ export const useAuthStore = create<AuthStore>()(
         isAuthenticated: state.isAuthenticated,
         user: state.user,
       }),
+      // On rehydration, sync tokens back to direct localStorage keys so the interceptor finds them
+      onRehydrateStorage: () => (state) => {
+        if (state?.accessToken) {
+          localStorage.setItem('synapse_access_token', state.accessToken)
+        }
+        if (state?.refreshToken) {
+          localStorage.setItem('synapse_refresh_token', state.refreshToken)
+        }
+      },
     }
   )
 )

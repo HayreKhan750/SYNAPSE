@@ -21,7 +21,7 @@ export default function GitHubPage() {
           language: selectedLanguage === 'All' ? undefined : selectedLanguage.toLowerCase(),
           is_trending: true,
         },
-      }),
+      }).then(r => r.data),
   });
 
   const repos = data?.data || data?.results || [];

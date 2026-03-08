@@ -54,7 +54,7 @@ export default function ResearchPage() {
           category: selectedCategory || undefined,
           ordering: getSortOrdering(),
         },
-      }),
+      }).then(r => r.data),
   });
 
   const papers = data?.data || data?.results || [];
