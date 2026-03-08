@@ -4,6 +4,13 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
+import os, sys
+
+# Ensure repo root on path for ai_engine import at import time
+here = os.path.abspath(__file__)
+repo_root = os.path.abspath(os.path.join(here, '..', '..', '..', '..'))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
 
 class SummarizationPhase22Tests(TestCase):
@@ -11,17 +18,14 @@ class SummarizationPhase22Tests(TestCase):
         self.client = APIClient()
         self.url = reverse('ai-summarize')
 
-    @patch('ai_engine.nlp.summarizer.summarize', return_value=None)
-    @patch('ai_engine.nlp.cleaner.clean_text', return_value='some clean text ' * 20)
-    def test_summarize_endpoint_model_unavailable(self, mock_clean, mock_sum):
-        import os, sys
-        here = os.path.abspath(__file__)
-        repo_root = os.path.abspath(os.path.join(here, '..', '..', '..', '..'))
-        if repo_root not in sys.path:
-            sys.path.insert(0, repo_root)
-        resp = self.client.post(self.url, {'text': 'hello world'}, format='json')
-        self.assertEqual(resp.status_code, 503)
-        self.assertFalse(resp.data['success'])
+    def test_summarize_endpoint_model_unavailable(self):
+        import ai_engine.nlp.summarizer as summ
+        import ai_engine.nlp.cleaner as cleaner
+        with patch.object(summ, 'summarize', return_value=None), \
+             patch.object(cleaner, 'clean_text', return_value='some clean text ' * 20):
+            resp = self.client.post(self.url, {'text': 'hello world'}, format='json')
+            self.assertEqual(resp.status_code, 503)
+            self.assertFalse(resp.data['success'])
 
     def test_summarizer_respects_min_max_length(self):
         import os, sys
