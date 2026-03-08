@@ -59,26 +59,25 @@ export function Navbar({ onMenuClick, onMobileMenuClick }: NavbarProps) {
       <div className="flex items-center justify-between h-16 px-6">
         {/* Left: Page Title / Menu Button */}
         <div className="flex items-center gap-3">
-          {/* Mobile hamburger — strictly hidden on md+ screens */}
-          <div className="md:hidden">
-            <button
-              onClick={onMobileMenuClick}
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-              title="Open sidebar"
-            >
-              <Menu size={20} />
-            </button>
-          </div>
-          {/* Desktop collapse toggle — strictly hidden below md */}
-          <div className="hidden md:block">
-            <button
-              onClick={onMenuClick}
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-              title="Toggle sidebar"
-            >
-              <Menu size={20} />
-            </button>
-          </div>
+          {/* Mobile hamburger — inline-flex on mobile, gone on md+ */}
+          <button
+            onClick={onMobileMenuClick}
+            style={{ display: undefined }}
+            className="inline-flex md:!hidden p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            title="Open sidebar"
+            aria-label="Open sidebar"
+          >
+            <Menu size={20} />
+          </button>
+          {/* Desktop collapse toggle — hidden on mobile, inline-flex on md+ */}
+          <button
+            onClick={onMenuClick}
+            className="!hidden md:!inline-flex p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            title="Toggle sidebar"
+            aria-label="Toggle sidebar"
+          >
+            <Menu size={20} />
+          </button>
           <h1 className="text-lg font-semibold text-white">{getPageTitle()}</h1>
         </div>
 

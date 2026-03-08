@@ -105,6 +105,10 @@ const config: Config = {
     'md:hidden',
     'md:block',
     'md:translate-x-0',
+    '!hidden',
+    'md:!hidden',
+    'md:!inline-flex',
+    'inline-flex',
   ],
   plugins: [],
 }
