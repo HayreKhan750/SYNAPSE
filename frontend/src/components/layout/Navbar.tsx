@@ -58,23 +58,27 @@ export function Navbar({ onMenuClick, onMobileMenuClick }: NavbarProps) {
     <nav className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur border-b border-slate-700">
       <div className="flex items-center justify-between h-16 px-6">
         {/* Left: Page Title / Menu Button */}
-        <div className="flex items-center gap-4">
-          {/* Mobile hamburger — visible only on mobile */}
-          <button
-            onClick={onMobileMenuClick}
-            className="md:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-            title="Open sidebar"
-          >
-            <Menu size={20} />
-          </button>
-          {/* Desktop collapse toggle — visible only on desktop */}
-          <button
-            onClick={onMenuClick}
-            className="hidden md:inline-flex p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-            title="Toggle sidebar"
-          >
-            <Menu size={20} />
-          </button>
+        <div className="flex items-center gap-3">
+          {/* Mobile hamburger — strictly hidden on md+ screens */}
+          <div className="md:hidden">
+            <button
+              onClick={onMobileMenuClick}
+              className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+              title="Open sidebar"
+            >
+              <Menu size={20} />
+            </button>
+          </div>
+          {/* Desktop collapse toggle — strictly hidden below md */}
+          <div className="hidden md:block">
+            <button
+              onClick={onMenuClick}
+              className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+              title="Toggle sidebar"
+            >
+              <Menu size={20} />
+            </button>
+          </div>
           <h1 className="text-lg font-semibold text-white">{getPageTitle()}</h1>
         </div>
 

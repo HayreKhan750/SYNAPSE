@@ -16,19 +16,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     setIsMounted(true)
-    if (!isAuthenticated) {
+  }, [])
+
+  useEffect(() => {
+    // Only redirect after mount so Zustand has time to rehydrate from localStorage
+    if (isMounted && !isAuthenticated) {
       router.push('/login')
     }
-  }, [isAuthenticated, router])
+  }, [isMounted, isAuthenticated, router])
 
   // Close mobile sidebar on route change
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
 
-  if (!isMounted || !isAuthenticated) {
-    return null
-  }
+  // Show nothing until mounted (avoids SSR/hydration flash)
+  if (!isMounted) return null
+  // After mount: if not authenticated, we're redirecting — show nothing
+  if (!isAuthenticated) return null
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900">

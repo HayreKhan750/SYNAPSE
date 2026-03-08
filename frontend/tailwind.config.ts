@@ -102,6 +102,9 @@ const config: Config = {
     'ml-64',
     '-translate-x-full',
     'translate-x-0',
+    'md:hidden',
+    'md:block',
+    'md:translate-x-0',
   ],
   plugins: [],
 }
