@@ -391,17 +391,30 @@ def recommendations(request):
     """
     GET /api/v1/recommendations/
 
-    Content-based recommendations derived from user's recent interactions.
-    Returns up to 10 items per content type the user has not seen/bookmarked yet.
+    Content-based recommendations derived from user's recent interactions using
+    a single User Interest Vector (mean of recent embeddings).
+
+    Query params:
+      - limit (int, default 12, max 50)
+      - offset (int, default 0)
     """
-    recs = recommend_for_user(request.user, limit=10)
+    try:
+        limit = min(int(request.GET.get('limit', 12)), 50)
+    except Exception:
+        limit = 12
+    try:
+        offset = max(int(request.GET.get('offset', 0)), 0)
+    except Exception:
+        offset = 0
+
+    recs = recommend_for_user(request.user, limit=limit, offset=offset)
     data = {
         'articles': ArticleListSerializer(recs['articles'], many=True).data,
         'papers': ResearchPaperSerializer(recs['papers'], many=True).data,
         'repos': RepositorySerializer(recs['repos'], many=True).data,
     }
     total = sum(len(v) for v in data.values())
-    return Response({'success': True, 'data': data, 'meta': {'total': total}})
+    return Response({'success': True, 'data': data, 'meta': {'total': total, 'limit': limit, 'offset': offset}})
 
 
 class CollectionBookmarkView(APIView):

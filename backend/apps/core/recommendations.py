@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import List, Tuple
-from django.db.models import Q
 from pgvector.django import CosineDistance
 
 from apps.articles.models import Article
@@ -10,126 +9,114 @@ from apps.repositories.models import Repository
 from apps.core.models import UserActivity
 
 
-def _recent_user_embedding_candidates(user, limit_per_type: int = 50):
-    """
-    Return recent content objects (articles, papers, repos) the user interacted with
-    (bookmark or view), limited and ordered by recency.
-    """
-    # Use activity logs to fetch object ids by content type
+def _get_recent_vectors(user, max_items: int = 20) -> tuple[list[list[float]], set, set, set]:
+    """Collect embeddings from the user's most recent bookmark/view activities."""
     activities = (
         UserActivity.objects
         .filter(user=user, interaction_type__in=["bookmark", "view"])  # prioritize bookmarks/views
-        .order_by('-timestamp')[:200]
+        .order_by('-timestamp')[: max_items]
     )
-
-    article_ids, paper_ids, repo_ids = set(), set(), set()
+    vectors: list[list[float]] = []
+    seen_articles: set = set()
+    seen_papers: set = set()
+    seen_repos: set = set()
 
     for act in activities:
+        if not act.content_type_id or not act.object_id:
+            continue
         model = act.content_type.model
         if model == 'article':
-            article_ids.add(act.object_id)
+            try:
+                obj = Article.objects.only('id', 'embedding').get(id=act.object_id)
+                if obj.embedding:
+                    vectors.append(list(obj.embedding))
+                    seen_articles.add(obj.id)
+            except Article.DoesNotExist:
+                pass
         elif model in ('researchpaper', 'paper', 'research_paper'):
-            paper_ids.add(act.object_id)
+            try:
+                obj = ResearchPaper.objects.only('id', 'embedding').get(id=act.object_id)
+                if obj.embedding:
+                    vectors.append(list(obj.embedding))
+                    seen_papers.add(obj.id)
+            except ResearchPaper.DoesNotExist:
+                pass
         elif model == 'repository':
-            repo_ids.add(act.object_id)
+            try:
+                obj = Repository.objects.only('id', 'embedding').get(id=act.object_id)
+                if obj.embedding:
+                    vectors.append(list(obj.embedding))
+                    seen_repos.add(obj.id)
+            except Repository.DoesNotExist:
+                pass
 
-    articles = list(Article.objects.filter(id__in=list(article_ids), embedding__isnull=False)[:limit_per_type])
-    papers = list(ResearchPaper.objects.filter(id__in=list(paper_ids), embedding__isnull=False)[:limit_per_type])
-    repos = list(Repository.objects.filter(id__in=list(repo_ids), embedding__isnull=False)[:limit_per_type])
-
-    return articles, papers, repos
+    return vectors, seen_articles, seen_papers, seen_repos
 
 
-def recommend_for_user(user, limit: int = 10) -> dict:
+def _mean_vector(vectors: list[list[float]]) -> list[float] | None:
+    if not vectors:
+        return None
+    dim = len(vectors[0])
+    acc = [0.0] * dim
+    count = 0
+    for v in vectors:
+        if not v or len(v) != dim:
+            continue
+        count += 1
+        for i, val in enumerate(v):
+            acc[i] += float(val)
+    if count == 0:
+        return None
+    return [x / count for x in acc]
+
+
+def recommend_for_user(user, limit: int = 12, offset: int = 0) -> dict:
     """
-    Content-based recommendations using pgvector cosine similarity.
-    Strategy:
-      - Take user's recent viewed/bookmarked items with embeddings
-      - For each group (articles, papers, repos), find similar items
-      - Exclude already seen items
-      - Return top N per group
+    Content-based recommendations using a single 'User Interest Vector'.
+    Steps:
+      - Gather recent bookmark/view embeddings (last 20)
+      - Compute the mean vector
+      - Query each table with a single cosine similarity search
+      - Exclude already seen items, apply offset/limit
     """
     results = {"articles": [], "papers": [], "repos": []}
 
     if not user or not user.is_authenticated:
         return results
 
-    articles, papers, repos = _recent_user_embedding_candidates(user)
-
-    # For each content type, search similar by averaging recent vectors or using query-per-item
-    # Here, for simplicity and performance, we do query-per-item and then merge unique results by id.
+    vectors, seen_articles, seen_papers, seen_repos = _get_recent_vectors(user, max_items=20)
+    user_vec = _mean_vector(vectors)
+    if not user_vec:
+        return results
 
     # Articles
-    seen_article_ids = {str(a.id) for a in articles}
-    similar_articles: List[Tuple[Article, float]] = []
-    for a in articles:
-        q = (
-            Article.objects
-            .filter(embedding__isnull=False)
-            .exclude(id=a.id)
-            .annotate(similarity=CosineDistance('embedding', a.embedding))
-            .order_by('similarity')[:limit]
-        )
-        for item in q:
-            similar_articles.append((item, getattr(item, 'similarity', None)))
-    # Deduplicate and take top by similarity
-    seen = set()
-    ranked = []
-    for item, dist in sorted(similar_articles, key=lambda x: x[1] or 9999):
-        if item.id in seen_article_ids or item.id in seen:
-            continue
-        seen.add(item.id)
-        ranked.append(item)
-        if len(ranked) >= limit:
-            break
-    results["articles"] = ranked
+    art_qs = (
+        Article.objects
+        .filter(embedding__isnull=False)
+        .exclude(id__in=list(seen_articles))
+        .annotate(similarity=CosineDistance('embedding', user_vec))
+        .order_by('similarity')
+    )
+    results["articles"] = list(art_qs[offset: offset + limit])
 
     # Papers
-    seen_paper_ids = {str(p.id) for p in papers}
-    similar_papers: List[Tuple[ResearchPaper, float]] = []
-    for p in papers:
-        q = (
-            ResearchPaper.objects
-            .filter(embedding__isnull=False)
-            .exclude(id=p.id)
-            .annotate(similarity=CosineDistance('embedding', p.embedding))
-            .order_by('similarity')[:limit]
-        )
-        for item in q:
-            similar_papers.append((item, getattr(item, 'similarity', None)))
-    seen = set()
-    ranked = []
-    for item, dist in sorted(similar_papers, key=lambda x: x[1] or 9999):
-        if item.id in seen_paper_ids or item.id in seen:
-            continue
-        seen.add(item.id)
-        ranked.append(item)
-        if len(ranked) >= limit:
-            break
-    results["papers"] = ranked
+    pap_qs = (
+        ResearchPaper.objects
+        .filter(embedding__isnull=False)
+        .exclude(id__in=list(seen_papers))
+        .annotate(similarity=CosineDistance('embedding', user_vec))
+        .order_by('similarity')
+    )
+    results["papers"] = list(pap_qs[offset: offset + limit])
 
     # Repositories
-    seen_repo_ids = {str(r.id) for r in repos}
-    similar_repos: List[Tuple[Repository, float]] = []
-    for r in repos:
-        q = (
-            Repository.objects
-            .filter(embedding__isnull=False)
-            .exclude(id=r.id)
-            .annotate(similarity=CosineDistance('embedding', r.embedding))
-            .order_by('similarity')[:limit]
-        )
-        for item in q:
-            similar_repos.append((item, getattr(item, 'similarity', None)))
-    seen = set()
-    ranked = []
-    for item, dist in sorted(similar_repos, key=lambda x: x[1] or 9999):
-        if item.id in seen_repo_ids or item.id in seen:
-            continue
-        seen.add(item.id)
-        ranked.append(item)
-        if len(ranked) >= limit:
-            break
-    results["repos"] = ranked
+    rep_qs = (
+        Repository.objects
+        .filter(embedding__isnull=False)
+        .exclude(id__in=list(seen_repos))
+        .annotate(similarity=CosineDistance('embedding', user_vec))
+        .order_by('similarity')
+    )
+    results["repos"] = list(rep_qs[offset: offset + limit])
 
     return results
