@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Q
+from django.contrib.contenttypes.models import ContentType
+from apps.core.models import UserActivity
 from .models import Article
 from .serializers import ArticleListSerializer, ArticleDetailSerializer
 from apps.core.pagination import StandardPagination
@@ -51,6 +53,15 @@ class ArticleDetailView(RetrieveAPIView):
         instance = self.get_object()
         instance.view_count += 1
         instance.save(update_fields=['view_count'])
+        # Log view activity (Phase 2.4)
+        try:
+            ct = ContentType.objects.get_for_model(Article)
+            if request.user and request.user.is_authenticated:
+                UserActivity.objects.create(
+                    user=request.user, content_type=ct, object_id=str(instance.id), interaction_type='view'
+                )
+        except Exception:
+            pass
         serializer = self.get_serializer(instance)
         return Response({'success': True, 'data': serializer.data})
 

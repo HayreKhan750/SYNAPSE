@@ -10,4 +10,5 @@ urlpatterns = [
     path('collections/', views.CollectionListCreateView.as_view(), name='collection-list'),
     path('collections/<uuid:pk>/', views.CollectionDetailView.as_view(), name='collection-detail'),
     path('collections/<uuid:pk>/bookmarks/', views.CollectionBookmarkView.as_view(), name='collection-bookmarks'),
+    path('recommendations/', views.recommendations, name='recommendations'),
 ]

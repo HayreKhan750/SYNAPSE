@@ -15,8 +15,9 @@ from apps.repositories.models import Repository
 from apps.repositories.serializers import RepositorySerializer
 from apps.papers.models import ResearchPaper
 from apps.papers.serializers import ResearchPaperSerializer
-from .models import UserBookmark, Collection
+from .models import UserBookmark, Collection, UserActivity
 from .serializers import BookmarkSerializer, CollectionSerializer, CollectionListSerializer
+from .recommendations import recommend_for_user
 
 
 @api_view(['GET'])
@@ -298,8 +299,28 @@ class BookmarkToggleView(APIView):
             }
         )
         if not created:
+            # Log unbookmark activity
+            try:
+                UserActivity.objects.create(
+                    user=request.user,
+                    content_type=ct,
+                    object_id=str(object_id),
+                    interaction_type='unbookmark',
+                )
+            except Exception:
+                pass
             bookmark.delete()
             return Response({'success': True, 'data': {'bookmarked': False, 'message': 'Bookmark removed'}})
+        # Log bookmark activity
+        try:
+            UserActivity.objects.create(
+                user=request.user,
+                content_type=ct,
+                object_id=str(object_id),
+                interaction_type='bookmark',
+            )
+        except Exception:
+            pass
         serializer = BookmarkSerializer(bookmark)
         return Response({'success': True, 'data': {'bookmarked': True, 'bookmark': serializer.data}}, status=201)
 
@@ -352,6 +373,25 @@ class CollectionDetailView(APIView):
             return Response({'success': False, 'error': {'message': 'Not found'}}, status=404)
         collection.delete()
         return Response({'success': True, 'data': {'message': 'Collection deleted'}}, status=204)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recommendations(request):
+    """
+    GET /api/v1/recommendations/
+
+    Content-based recommendations derived from user's recent interactions.
+    Returns up to 10 items per content type the user has not seen/bookmarked yet.
+    """
+    recs = recommend_for_user(request.user, limit=10)
+    data = {
+        'articles': ArticleListSerializer(recs['articles'], many=True).data,
+        'papers': ResearchPaperSerializer(recs['papers'], many=True).data,
+        'repos': RepositorySerializer(recs['repos'], many=True).data,
+    }
+    total = sum(len(v) for v in data.values())
+    return Response({'success': True, 'data': data, 'meta': {'total': total}})
 
 
 class CollectionBookmarkView(APIView):

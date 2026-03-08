@@ -8,7 +8,7 @@ FAKE_SUMMARY = ' '.join(['word'] * 80)  # 80 tokens, within 50..150 bounds
 
 # Ensure repo root on path for ai_engine import
 here = os.path.abspath(__file__)
-repo_root = os.path.abspath(os.path.join(here, '..', '..', '..', '..'))
+repo_root = os.path.abspath(os.path.join(here, '..', '..', '..', '..', '..'))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
