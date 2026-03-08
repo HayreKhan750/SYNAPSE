@@ -164,7 +164,7 @@
 
 ### 2.2 Article Summarization (Week 6)
 - [x] Install transformers (already done) + accelerate for GPU support
-- [ ] Download/cache facebook/bart-large-cnn model
+- [x] Download/cache facebook/bart-large-cnn model
 - [x] Create summarization Celery task (summarize_article)
 - [x] Implement summarization with BART (max_length=150, min_length=50)
 - [x] Handle long articles (chunk and summarize then combine)
