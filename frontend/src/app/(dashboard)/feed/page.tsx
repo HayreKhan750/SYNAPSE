@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import ForYouTab from './ForYouTab';
+import TrendingTab from './TrendingTab';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, Search } from 'lucide-react';
 import api from '@/utils/api';
@@ -18,7 +19,7 @@ export default function FeedPage() {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<'latest' | 'trending'>('latest');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [activeTab, setActiveTab] = useState<'latest' | 'for-you'>('latest');
+  const [activeTab, setActiveTab] = useState<'latest' | 'for-you' | 'trending'>('latest');
 
   const topicParam = selectedTopic === 'All' ? undefined : selectedTopic.toLowerCase();
 
@@ -132,10 +133,18 @@ export default function FeedPage() {
        >
          For You
        </button>
+       <button
+         onClick={() => setActiveTab('trending')}
+         className={cn('px-4 py-2 rounded-lg font-medium', activeTab === 'trending' ? 'bg-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300')}
+       >
+         Trending
+       </button>
      </div>
 
      {activeTab === 'for-you' ? (
        <ForYouTab />
+     ) : activeTab === 'trending' ? (
+       <TrendingTab />
      ) : (
        <>
          {/* Articles grid */}

@@ -18,6 +18,7 @@ from apps.papers.serializers import ResearchPaperSerializer
 from .models import UserBookmark, Collection, UserActivity
 from .serializers import BookmarkSerializer, CollectionSerializer, CollectionListSerializer
 from .recommendations import recommend_for_user
+from .trending import get_trending
 
 
 @api_view(['GET'])
@@ -415,6 +416,65 @@ def recommendations(request):
     }
     total = sum(len(v) for v in data.values())
     return Response({'success': True, 'data': data, 'meta': {'total': total, 'limit': limit, 'offset': offset}})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def trending(request):
+    """
+    GET /api/v1/trending/
+
+    Returns trending items across articles, papers, and repositories in the last N hours (default 48),
+    scored by weighted user interactions (bookmark > like > view).
+
+    Query params:
+      - limit (int, default 20, max 50)
+      - hours (int, default 48)
+    """
+    try:
+        limit = min(int(request.GET.get('limit', 20)), 50)
+    except Exception:
+        limit = 20
+    try:
+        hours = max(int(request.GET.get('hours', 48)), 1)
+    except Exception:
+        hours = 48
+
+    res = get_trending(limit_per_type=limit, hours=hours)
+
+    art_objs = [o for (o, s) in res['articles']]
+    pap_objs = [o for (o, s) in res['papers']]
+    rep_objs = [o for (o, s) in res['repos']]
+
+    arts = ArticleListSerializer(art_objs, many=True).data
+    paps = ResearchPaperSerializer(pap_objs, many=True).data
+    reps = RepositorySerializer(rep_objs, many=True).data
+
+    # Inject trend_score preserving the ranking order
+    for i, (_, score) in enumerate(res['articles']):
+        if i < len(arts):
+            arts[i]['trend_score'] = round(float(score), 3)
+    for i, (_, score) in enumerate(res['papers']):
+        if i < len(paps):
+            paps[i]['trend_score'] = round(float(score), 3)
+    for i, (_, score) in enumerate(res['repos']):
+        if i < len(reps):
+            reps[i]['trend_score'] = round(float(score), 3)
+
+    return Response({
+        'success': True,
+        'data': {
+            'articles': arts,
+            'papers': paps,
+            'repos': reps,
+        },
+        'meta': {
+            'limit': limit,
+            'hours': hours,
+            'since': res['since'].isoformat(),
+            'total': len(arts) + len(paps) + len(reps),
+        }
+    })
 
 
 class CollectionBookmarkView(APIView):
