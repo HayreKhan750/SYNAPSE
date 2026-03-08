@@ -48,6 +48,11 @@ class Article(models.Model):
     embedding_id    = models.CharField(max_length=200, blank=True)
     url_hash        = models.CharField(max_length=64, unique=True, blank=True)
     metadata        = models.JSONField(default=dict, blank=True)
+    nlp_processed   = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True once the NLP pipeline (keywords, topic, sentiment) has run.",
+    )
     updated_at      = models.DateTimeField(auto_now=True)
 
     class Meta:

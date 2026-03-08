@@ -55,6 +55,9 @@ CELERY_TASK_ROUTES = {
     'backend.apps.core.tasks.scrape_arxiv': {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_youtube': {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_all': {'queue': 'scraping'},
+    # NLP processing tasks — Phase 2.1
+    'apps.articles.tasks.process_article_nlp': {'queue': 'nlp'},
+    'apps.articles.tasks.process_pending_articles_nlp': {'queue': 'nlp'},
 }
 
 # Default queue for non-routed tasks
@@ -85,6 +88,14 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 12 * 60 * 60,  # 12 hours in seconds
         'args': (30, 20),  # days_back=30, max_results=20
         'options': {'queue': 'scraping'},
+    },
+    # NLP processing — Phase 2.1
+    # Run every 10 minutes to pick up newly scraped articles
+    'process-pending-nlp-every-10min': {
+        'task': 'apps.articles.tasks.process_pending_articles_nlp',
+        'schedule': 10 * 60,  # 10 minutes in seconds
+        'args': (50,),         # batch_size=50
+        'options': {'queue': 'nlp'},
     },
 }
 

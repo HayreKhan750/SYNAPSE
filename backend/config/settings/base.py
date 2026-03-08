@@ -201,6 +201,9 @@ CELERY_TASK_ROUTES = {
     'apps.repositories.tasks.*': {'queue': 'scraping'},
     'apps.videos.tasks.*': {'queue': 'scraping'},
     'apps.agents.tasks.*': {'queue': 'agents'},
+    # NLP processing — Phase 2.1
+    'apps.articles.tasks.process_article_nlp': {'queue': 'nlp'},
+    'apps.articles.tasks.process_pending_articles_nlp': {'queue': 'nlp'},
 }
 
 # ── Axes (Login Rate Limiting) ────────────────────────────────

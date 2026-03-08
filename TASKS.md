@@ -147,20 +147,20 @@
 ## PHASE 2 — AI Layer (Weeks 5–8)
 
 ### 2.1 NLP Processing Pipeline (Week 5)
-- [ ] Install NLP dependencies: spacy, transformers, sentence-transformers, keybert, langdetect, datasketch
-- [ ] Download spaCy model: `python -m spacy download en_core_web_sm`
-- [ ] Create NLP processing Celery task (process_article_nlp)
-- [ ] Implement text cleaning (BeautifulSoup HTML stripping, whitespace normalization)
-- [ ] Implement language detection (langdetect) — skip non-English articles
-- [ ] Implement keyword extraction (KeyBERT with all-MiniLM-L6-v2)
-- [ ] Implement topic classification (zero-shot with facebook/bart-large-mnli)
-- [ ] Implement sentiment analysis (cardiffnlp/twitter-roberta-base-sentiment)
-- [ ] Implement named entity recognition (spaCy NER for tech terms)
-- [ ] Update Article model fields (keywords, topic, sentiment_score populated by NLP)
-- [ ] Chain NLP task after scraping: scrape_article -> process_nlp
-- [ ] Add NLP processing metrics to Prometheus (processing_time, articles_per_minute)
-- [ ] Write unit tests for each NLP function
-- [ ] **Git commit:** `feat: NLP pipeline — keyword extraction, topic classification, sentiment`
+- [x] Install NLP dependencies: spacy, transformers, sentence-transformers, keybert, langdetect, datasketch
+- [x] Download spaCy model: `python -m spacy download en_core_web_sm`
+- [x] Create NLP processing Celery task (process_article_nlp)
+- [x] Implement text cleaning (BeautifulSoup HTML stripping, whitespace normalization)
+- [x] Implement language detection (langdetect) — skip non-English articles
+- [x] Implement keyword extraction (KeyBERT with all-MiniLM-L6-v2)
+- [x] Implement topic classification (zero-shot with facebook/bart-large-mnli)
+- [x] Implement sentiment analysis (cardiffnlp/twitter-roberta-base-sentiment)
+- [x] Implement named entity recognition (spaCy NER for tech terms)
+- [x] Update Article model fields (keywords, topic, sentiment_score populated by NLP)
+- [x] Chain NLP task after scraping: scrape_article -> process_nlp
+- [x] Add NLP processing metrics to Prometheus (processing_time, articles_per_minute)
+- [x] Write unit tests for each NLP function
+- [x] **Git commit:** `feat: NLP pipeline — keyword extraction, topic classification, sentiment`
 
 ### 2.2 Article Summarization (Week 6)
 - [ ] Install transformers (already done) + accelerate for GPU support
