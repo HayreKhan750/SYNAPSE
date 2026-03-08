@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import ForYouTab from './ForYouTab';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, Search } from 'lucide-react';
 import api from '@/utils/api';
@@ -17,6 +18,7 @@ export default function FeedPage() {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<'latest' | 'trending'>('latest');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [activeTab, setActiveTab] = useState<'latest' | 'for-you'>('latest');
 
   const topicParam = selectedTopic === 'All' ? undefined : selectedTopic.toLowerCase();
 
@@ -116,11 +118,28 @@ export default function FeedPage() {
         </div>
       </div>
 
-     {/* Recommended for You */}
-     <RecommendedSection />
+     {/* Tabs */}
+     <div className="flex gap-2 mb-2">
+       <button
+         onClick={() => setActiveTab('latest')}
+         className={cn('px-4 py-2 rounded-lg font-medium', activeTab === 'latest' ? 'bg-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300')}
+       >
+         Latest
+       </button>
+       <button
+         onClick={() => setActiveTab('for-you')}
+         className={cn('px-4 py-2 rounded-lg font-medium', activeTab === 'for-you' ? 'bg-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300')}
+       >
+         For You
+       </button>
+     </div>
 
-     {/* Articles grid */}
-     {isLoading ? (
+     {activeTab === 'for-you' ? (
+       <ForYouTab />
+     ) : (
+       <>
+         {/* Articles grid */}
+         {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <ArticleSkeleton key={i} />
