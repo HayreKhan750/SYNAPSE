@@ -1,23 +1,29 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import api from '@/utils/api';
 import { ArticleCard, PaperCard } from '@/components/cards';
 import { ArticleSkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
+
+interface RecoResponse {
+  data?: { articles?: any[]; papers?: any[] };
+  articles?: any[];
+  papers?: any[];
+}
 
 export default function ForYouTab() {
   const [offset, setOffset] = useState(0);
   const limit = 12;
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching } = useQuery<RecoResponse>({
     queryKey: ['recommendations', offset],
     queryFn: () => api.get('/recommendations/', { params: { limit, offset } }).then(r => r.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
-  const articles = data?.data?.articles || [];
-  const papers = data?.data?.papers || [];
+  const articles = data?.data?.articles ?? data?.articles ?? [];
+  const papers = data?.data?.papers ?? data?.papers ?? [];
   const hasMore = (articles.length + papers.length) >= limit; // naive hasMore for minimal path
 
   const loadMore = () => {

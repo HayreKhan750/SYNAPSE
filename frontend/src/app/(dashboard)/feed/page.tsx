@@ -141,57 +141,59 @@ export default function FeedPage() {
        </button>
      </div>
 
-     {activeTab === 'for-you' ? (
-       <ForYouTab />
-     ) : activeTab === 'trending' ? (
-       <TrendingTab />
-     ) : (
-       <>
-         {/* Articles grid */}
-         {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <ArticleSkeleton key={i} />
-          ))}
-        </div>
-      ) : articles.length > 0 ? (
+      {activeTab === 'for-you' ? (
+        <ForYouTab />
+      ) : activeTab === 'trending' ? (
+        <TrendingTab />
+      ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {articles.map((article: any) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
+          {/* Articles grid */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ArticleSkeleton key={i} />
+              ))}
+            </div>
+          ) : articles.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {articles.map((article: any) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
+              </div>
 
-          {/* Load More button */}
-          {pageSize >= 12 && articles.length < totalCount && (
-            <div className="flex justify-center mt-8">
+              {/* Load More button */}
+              {pageSize >= 12 && articles.length < totalCount && (
+                <div className="flex justify-center mt-8">
+                  <button
+                    onClick={handleLoadMore}
+                    className={cn(
+                      'px-6 py-3 rounded-lg font-medium transition-all',
+                      'bg-indigo-500 hover:bg-indigo-600 text-white',
+                      'hover:shadow-lg'
+                    )}
+                  >
+                    Load More Articles
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <Search size={48} className="mx-auto text-slate-400 dark:text-slate-500 mb-4" />
+              <p className="text-slate-600 dark:text-slate-400">No articles found for your filters</p>
               <button
-                onClick={handleLoadMore}
-                className={cn(
-                  'px-6 py-3 rounded-lg font-medium transition-all',
-                  'bg-indigo-500 hover:bg-indigo-600 text-white',
-                  'hover:shadow-lg'
-                )}
+                onClick={() => {
+                  setSelectedTopic('All');
+                  setPage(1);
+                }}
+                className="text-indigo-500 hover:text-indigo-600 font-medium mt-2"
               >
-                Load More Articles
+                Clear filters
               </button>
             </div>
           )}
         </>
-      ) : (
-        <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-          <Search size={48} className="mx-auto text-slate-400 dark:text-slate-500 mb-4" />
-          <p className="text-slate-600 dark:text-slate-400">No articles found for your filters</p>
-          <button
-            onClick={() => {
-              setSelectedTopic('All');
-              setPage(1);
-            }}
-            className="text-indigo-500 hover:text-indigo-600 font-medium mt-2"
-          >
-            Clear filters
-          </button>
-        </div>
       )}
     </div>
   );
