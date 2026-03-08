@@ -11,7 +11,15 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Ensure ai_engine is importable
         project_root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(
+                        os.path.dirname(
+                            os.path.dirname(os.path.abspath(__file__))
+                        )
+                    )
+                )
+            )
         )
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
@@ -25,9 +33,9 @@ class Command(BaseCommand):
             pipe = summ._get_summarizer()
             if pipe is None:
                 self.stderr.write(self.style.ERROR("Failed to initialize summarizer pipeline."))
-                return 1
+                return
             self.stdout.write(self.style.SUCCESS("Summarizer ready and cached."))
-            return 0
+            return
         except Exception as exc:
             self.stderr.write(self.style.ERROR(f"Warmup failed: {exc}"))
-            return 1
+            return
