@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from pgvector.django import VectorField
 
 
 class Video(models.Model):
@@ -20,6 +21,7 @@ class Video(models.Model):
     transcript    = models.TextField(blank=True)
     topics        = ArrayField(models.CharField(max_length=100), default=list, blank=True)
     embedding_id  = models.CharField(max_length=200, blank=True)
+    embedding     = VectorField(dimensions=384, null=True, blank=True)
     fetched_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from pgvector.django import VectorField
 
 
 class Repository(models.Model):
@@ -21,6 +22,7 @@ class Repository(models.Model):
     is_trending  = models.BooleanField(default=False)
     readme_summary = models.TextField(blank=True)
     embedding_id = models.CharField(max_length=200, blank=True)
+    embedding    = VectorField(dimensions=384, null=True, blank=True)
     scraped_at   = models.DateTimeField(auto_now=True)
     repo_created_at = models.DateTimeField(null=True, blank=True)
     stars_today  = models.IntegerField(default=0)

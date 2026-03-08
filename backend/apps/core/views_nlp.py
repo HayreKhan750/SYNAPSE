@@ -2,11 +2,17 @@
 NLP / AI on-demand API views for SYNAPSE.
 
 Phase 2.1 — NLP Processing Pipeline
+Phase 2.3 — Vector Embeddings (trigger embedding generation for individual items)
 
 Endpoints:
-  POST /api/v1/ai/summarize   — Summarise arbitrary text on demand
-  POST /api/v1/ai/nlp         — Run full NLP pipeline on arbitrary text
-  POST /api/v1/ai/process/{id} — Trigger NLP processing for a specific article
+  POST /api/v1/ai/summarize              — Summarise arbitrary text on demand
+  POST /api/v1/ai/nlp                    — Run full NLP pipeline on arbitrary text
+  POST /api/v1/ai/process/{id}           — Trigger NLP for a specific article
+  POST /api/v1/ai/embed/article/{id}     — Trigger embedding for a specific article
+  POST /api/v1/ai/embed/paper/{id}       — Trigger embedding for a specific paper
+  POST /api/v1/ai/embed/repo/{id}        — Trigger embedding for a specific repository
+  POST /api/v1/ai/embed/video/{id}       — Trigger embedding for a specific video
+  POST /api/v1/ai/embed/batch/           — Trigger batch embedding for all pending items
 """
 import logging
 import sys
@@ -213,5 +219,213 @@ def trigger_article_nlp(request, article_id):
         logger.error("trigger_article_nlp error: %s", exc)
         return Response(
             {"success": False, "error": {"message": "Failed to dispatch NLP task.", "detail": str(exc)}},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+# ── Phase 2.3 — Embedding trigger endpoints ───────────────────────────────────
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def trigger_article_embedding(request, article_id):
+    """
+    Dispatch the embedding Celery task for a specific Article.
+
+    URL param:
+        article_id (UUID) — The article to embed.
+
+    Response (202):
+        {"success": true, "data": {"task_id": "...", "article_id": "..."}}
+    """
+    try:
+        from apps.articles.models import Article                                    # noqa: PLC0415
+        from apps.articles.embedding_tasks import generate_article_embedding       # noqa: PLC0415
+
+        try:
+            article = Article.objects.get(pk=article_id)
+        except Article.DoesNotExist:
+            return Response(
+                {"success": False, "error": {"message": "Article not found."}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        task = generate_article_embedding.delay(str(article.id))
+        return Response(
+            {"success": True, "data": {"task_id": task.id, "article_id": str(article.id)}},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    except Exception as exc:
+        logger.error("trigger_article_embedding error: %s", exc)
+        return Response(
+            {"success": False, "error": {"message": "Failed to dispatch embedding task.", "detail": str(exc)}},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def trigger_paper_embedding(request, paper_id):
+    """
+    Dispatch the embedding Celery task for a specific ResearchPaper.
+
+    URL param:
+        paper_id (UUID) — The research paper to embed.
+    """
+    try:
+        from apps.papers.models import ResearchPaper                               # noqa: PLC0415
+        from apps.papers.embedding_tasks import generate_paper_embedding           # noqa: PLC0415
+
+        try:
+            paper = ResearchPaper.objects.get(pk=paper_id)
+        except ResearchPaper.DoesNotExist:
+            return Response(
+                {"success": False, "error": {"message": "Research paper not found."}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        task = generate_paper_embedding.delay(str(paper.id))
+        return Response(
+            {"success": True, "data": {"task_id": task.id, "paper_id": str(paper.id)}},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    except Exception as exc:
+        logger.error("trigger_paper_embedding error: %s", exc)
+        return Response(
+            {"success": False, "error": {"message": "Failed to dispatch embedding task.", "detail": str(exc)}},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def trigger_repo_embedding(request, repo_id):
+    """
+    Dispatch the embedding Celery task for a specific Repository.
+
+    URL param:
+        repo_id (UUID) — The repository to embed.
+    """
+    try:
+        from apps.repositories.models import Repository                            # noqa: PLC0415
+        from apps.repositories.embedding_tasks import generate_repo_embedding     # noqa: PLC0415
+
+        try:
+            repo = Repository.objects.get(pk=repo_id)
+        except Repository.DoesNotExist:
+            return Response(
+                {"success": False, "error": {"message": "Repository not found."}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        task = generate_repo_embedding.delay(str(repo.id))
+        return Response(
+            {"success": True, "data": {"task_id": task.id, "repo_id": str(repo.id)}},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    except Exception as exc:
+        logger.error("trigger_repo_embedding error: %s", exc)
+        return Response(
+            {"success": False, "error": {"message": "Failed to dispatch embedding task.", "detail": str(exc)}},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def trigger_video_embedding(request, video_id):
+    """
+    Dispatch the embedding Celery task for a specific Video.
+
+    URL param:
+        video_id (UUID) — The video to embed.
+    """
+    try:
+        from apps.videos.models import Video                                       # noqa: PLC0415
+        from apps.videos.embedding_tasks import generate_video_embedding           # noqa: PLC0415
+
+        try:
+            video = Video.objects.get(pk=video_id)
+        except Video.DoesNotExist:
+            return Response(
+                {"success": False, "error": {"message": "Video not found."}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        task = generate_video_embedding.delay(str(video.id))
+        return Response(
+            {"success": True, "data": {"task_id": task.id, "video_id": str(video.id)}},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    except Exception as exc:
+        logger.error("trigger_video_embedding error: %s", exc)
+        return Response(
+            {"success": False, "error": {"message": "Failed to dispatch embedding task.", "detail": str(exc)}},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def trigger_batch_embeddings(request):
+    """
+    Trigger batch embedding generation for all content types that have
+    unembedded items.
+
+    Request body (JSON, all optional):
+        batch_size  (int)  — Items to queue per content type (default 100).
+        types       (list) — Which types to process: articles, papers, repos, videos.
+                             Defaults to all four.
+
+    Response (202):
+        {
+          "success": true,
+          "data": {
+            "articles": {"queued": 45},
+            "papers":   {"queued": 12},
+            "repos":    {"queued": 8},
+            "videos":   {"queued": 3}
+          }
+        }
+    """
+    batch_size = int(request.data.get("batch_size", 100))
+    types = request.data.get("types", ["articles", "papers", "repos", "videos"])
+
+    results = {}
+
+    try:
+        if "articles" in types:
+            from apps.articles.embedding_tasks import generate_pending_article_embeddings  # noqa: PLC0415
+            result = generate_pending_article_embeddings(batch_size=batch_size)
+            results["articles"] = {"queued": result.get("queued", 0)}
+
+        if "papers" in types:
+            from apps.papers.embedding_tasks import generate_pending_paper_embeddings      # noqa: PLC0415
+            result = generate_pending_paper_embeddings(batch_size=batch_size)
+            results["papers"] = {"queued": result.get("queued", 0)}
+
+        if "repos" in types:
+            from apps.repositories.embedding_tasks import generate_pending_repo_embeddings  # noqa: PLC0415
+            result = generate_pending_repo_embeddings(batch_size=batch_size)
+            results["repos"] = {"queued": result.get("queued", 0)}
+
+        if "videos" in types:
+            from apps.videos.embedding_tasks import generate_pending_video_embeddings      # noqa: PLC0415
+            result = generate_pending_video_embeddings(batch_size=batch_size)
+            results["videos"] = {"queued": result.get("queued", 0)}
+
+        total_queued = sum(v.get("queued", 0) for v in results.values())
+        return Response(
+            {"success": True, "data": results, "meta": {"total_queued": total_queued}},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    except Exception as exc:
+        logger.error("trigger_batch_embeddings error: %s", exc)
+        return Response(
+            {"success": False, "error": {"message": "Batch embedding dispatch failed.", "detail": str(exc)}},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

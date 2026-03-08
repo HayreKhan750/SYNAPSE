@@ -177,20 +177,20 @@
 - [ ] **Git commit:** `feat: AI summarization — BART model, auto-summary pipeline`
 
 ### 2.3 Vector Search (Week 7)
-- [ ] Install pgvector: `pip install pgvector`
-- [ ] Install pgvector extension in PostgreSQL: `CREATE EXTENSION vector;`
-- [ ] Add embedding column to Article model (VectorField, dimensions=1536 for OpenAI)
-- [ ] Create embedding generation Celery task (generate_embeddings)
-- [ ] Implement embedding generation (OpenAI text-embedding-ada-002 OR sentence-transformers/all-MiniLM-L6-v2)
-- [ ] Batch process embeddings (process 100 at a time to manage API costs)
-- [ ] Create semantic search API endpoint (POST /api/v1/search/semantic)
-- [ ] Implement cosine similarity search with pgvector (<=> operator)
-- [ ] Apply same embeddings to ResearchPaper and Repository models
-- [ ] Create ivfflat index on embedding column for performance
+- [x] Install pgvector: `pip install pgvector`
+- [x] Install pgvector extension in PostgreSQL: `CREATE EXTENSION vector;`
+- [x] Add embedding column to Article model (VectorField, dimensions=384 for MiniLM)
+- [x] Create embedding generation Celery task (generate_embeddings)
+- [x] Implement embedding generation (sentence-transformers/all-MiniLM-L6-v2 by default; OpenAI optional)
+- [x] Batch process embeddings (process 100 at a time to manage API costs)
+- [x] Create semantic search API endpoint (POST /api/v1/search/semantic)
+- [x] Implement cosine similarity search with pgvector (<=> operator)
+- [x] Apply same embeddings to ResearchPaper and Repository models
+- [x] Create ivfflat index on embedding column for performance
 - [ ] Update search results page to use semantic search by default
-- [ ] Add similarity score display in search results
-- [ ] Write integration tests for semantic search
-- [ ] **Git commit:** `feat: vector search — pgvector embeddings, semantic search API`
+- [x] Add similarity score display in search results (API)
+- [x] Write integration tests for semantic search
+- [x] **Git commit:** `feat: vector search  pgvector embeddings, semantic search API`
 
 ### 2.4 Recommendation System (Week 8)
 - [ ] Create UserActivity model (user, action_type, content_type, content_id, timestamp)

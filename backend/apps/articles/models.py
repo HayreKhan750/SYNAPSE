@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from pgvector.django import VectorField
 
 
 class Source(models.Model):
@@ -46,6 +47,7 @@ class Article(models.Model):
     trending_score  = models.FloatField(default=0.0)
     view_count      = models.IntegerField(default=0)
     embedding_id    = models.CharField(max_length=200, blank=True)
+    embedding       = VectorField(dimensions=384, null=True, blank=True)
     url_hash        = models.CharField(max_length=64, unique=True, blank=True)
     metadata        = models.JSONField(default=dict, blank=True)
     nlp_processed   = models.BooleanField(

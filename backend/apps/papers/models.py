@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from pgvector.django import VectorField
 
 
 class ResearchPaper(models.Model):
@@ -24,6 +25,7 @@ class ResearchPaper(models.Model):
     key_contributions = models.TextField(blank=True)
     applications      = models.TextField(blank=True)
     embedding_id      = models.CharField(max_length=200, blank=True)
+    embedding         = VectorField(dimensions=384, null=True, blank=True)
     fetched_at        = models.DateTimeField(auto_now_add=True)
     updated_at        = models.DateTimeField(auto_now=True)
 

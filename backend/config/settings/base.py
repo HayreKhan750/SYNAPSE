@@ -207,6 +207,11 @@ CELERY_TASK_ROUTES = {
     # Summarization — Phase 2.2
     'apps.articles.tasks.summarize_article': {'queue': 'nlp'},
     'apps.articles.tasks.summarize_pending_articles': {'queue': 'nlp'},
+    # Vector Embeddings — Phase 2.3
+    'apps.articles.embedding_tasks.*': {'queue': 'embeddings'},
+    'apps.papers.embedding_tasks.*': {'queue': 'embeddings'},
+    'apps.repositories.embedding_tasks.*': {'queue': 'embeddings'},
+    'apps.videos.embedding_tasks.*': {'queue': 'embeddings'},
 }
 
 # ── Axes (Login Rate Limiting) ────────────────────────────────
