@@ -8,11 +8,11 @@ import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User } from 'lucide-re
 import { useAuthStore } from '@/store/authStore'
 
 interface NavbarProps {
-  onMenuClick: () => void
+  onMenuClick?: () => void
   onMobileMenuClick: () => void
 }
 
-export function Navbar({ onMenuClick, onMobileMenuClick }: NavbarProps) {
+export function Navbar({ onMobileMenuClick }: NavbarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
@@ -66,15 +66,6 @@ export function Navbar({ onMenuClick, onMobileMenuClick }: NavbarProps) {
             className="inline-flex md:!hidden p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
             title="Open sidebar"
             aria-label="Open sidebar"
-          >
-            <Menu size={20} />
-          </button>
-          {/* Desktop collapse toggle — hidden on mobile, inline-flex on md+ */}
-          <button
-            onClick={onMenuClick}
-            className="!hidden md:!inline-flex p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-            title="Toggle sidebar"
-            aria-label="Toggle sidebar"
           >
             <Menu size={20} />
           </button>
