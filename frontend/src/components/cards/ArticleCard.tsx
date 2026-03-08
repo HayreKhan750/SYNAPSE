@@ -1,6 +1,28 @@
 'use client';
 
 import React from 'react';
+
+function SummaryText({ text }: { text: string }) {
+  const [expanded, setExpanded] = React.useState(false);
+  if (!text) return null;
+  return (
+    <div>
+      <p className={expanded ? 'text-sm text-slate-600 dark:text-slate-400' : 'line-clamp-3 text-sm text-slate-600 dark:text-slate-400'}>
+        {text}
+      </p>
+      {text.split(' ').length > 40 && (
+        <button
+          type="button"
+          className="mt-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+        >
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 import { motion } from 'framer-motion';
 import { Article } from '@/types';
 import { formatRelativeTime, cn } from '@/utils/helpers';
@@ -78,9 +100,7 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
               AI Summary
             </span>
           </div>
-          <p className="line-clamp-3 text-sm text-slate-600 dark:text-slate-400">
-            {article.summary}
-          </p>
+          <SummaryText text={article.summary} />
         </div>
       ) : article.nlp_processed === false && (
         /* Show a subtle "Processing…" pill when the NLP job is still pending */

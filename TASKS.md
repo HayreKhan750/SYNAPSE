@@ -163,17 +163,17 @@
 - [x] **Git commit:** `feat: NLP pipeline — keyword extraction, topic classification, sentiment`
 
 ### 2.2 Article Summarization (Week 6)
-- [ ] Install transformers (already done) + accelerate for GPU support
+- [x] Install transformers (already done) + accelerate for GPU support
 - [ ] Download/cache facebook/bart-large-cnn model
-- [ ] Create summarization Celery task (summarize_article)
-- [ ] Implement summarization with BART (max_length=150, min_length=50)
-- [ ] Handle long articles (chunk and summarize then combine)
-- [ ] Update Article model: populate summary field after summarization
+- [x] Create summarization Celery task (summarize_article)
+- [x] Implement summarization with BART (max_length=150, min_length=50)
+- [x] Handle long articles (chunk and summarize then combine)
+- [x] Update Article model: populate summary field after summarization
 - [ ] Chain tasks: scrape -> nlp -> summarize -> embed
-- [ ] Display summaries in ArticleCard component (3-line truncated, expand on click)
-- [ ] Add AI summary badge on cards ("AI Summary" chip)
-- [ ] Create summarize-on-demand API endpoint (POST /api/v1/ai/summarize)
-- [ ] Write unit tests for summarizer (test output length, ROUGE score)
+- [x] Display summaries in ArticleCard component (3-line truncated, expand on click)
+- [x] Add AI summary badge on cards ("AI Summary" chip)
+- [x] Create summarize-on-demand API endpoint (POST /api/v1/ai/summarize)
+- [x] Write unit tests for summarizer (test output length, ROUGE score)
 - [ ] **Git commit:** `feat: AI summarization — BART model, auto-summary pipeline`
 
 ### 2.3 Vector Search (Week 7)
