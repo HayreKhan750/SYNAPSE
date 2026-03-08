@@ -31,7 +31,7 @@ export default function FeedPage() {
       }).then(r => r.data),
   });
 
-  const articles = data?.data || data?.results || [];
+  const articles = Array.isArray(data?.data) ? data.data : Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
   const totalCount = data?.meta?.total || data?.count || 0;
   const pageSize = articles.length;
 

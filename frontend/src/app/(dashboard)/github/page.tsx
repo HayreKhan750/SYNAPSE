@@ -24,7 +24,7 @@ export default function GitHubPage() {
       }).then(r => r.data),
   });
 
-  const repos = data?.data || data?.results || [];
+  const repos = Array.isArray(data?.data) ? data.data : Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
   const totalCount = data?.meta?.total || data?.count || 0;
 
   const filteredRepos = useMemo(() => {

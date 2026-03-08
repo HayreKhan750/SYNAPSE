@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Navbar } from '@/components/layout/Navbar'
 import { useAuthStore } from '@/store/authStore'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { isAuthenticated } = useAuthStore()
   const [isCollapsed, setIsCollapsed] = useState(false)   // desktop: collapsed/expanded
   const [mobileOpen, setMobileOpen] = useState(false)     // mobile: sidebar open/closed
@@ -23,7 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Close mobile sidebar on route change
   useEffect(() => {
     setMobileOpen(false)
-  }, [])
+  }, [pathname])
 
   if (!isMounted || !isAuthenticated) {
     return null

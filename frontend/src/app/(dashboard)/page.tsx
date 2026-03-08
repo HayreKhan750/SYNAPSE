@@ -36,9 +36,15 @@ export default function Dashboard() {
     queryFn: () => api.get('/papers/trending/').then(r => r.data),
   });
 
-  const trendingArticles = (articles?.data || articles?.results || []).slice(0, 6);
-  const trendingRepos = (repos?.data || repos?.results || []).slice(0, 3);
-  const trendingPapers = (papers?.data || papers?.results || []).slice(0, 3);
+  const trendingArticles = Array.isArray(articles?.data) ? articles.data.slice(0, 6)
+    : Array.isArray(articles?.results) ? articles.results.slice(0, 6)
+    : Array.isArray(articles) ? (articles as any[]).slice(0, 6) : [];
+  const trendingRepos = Array.isArray(repos?.data) ? repos.data.slice(0, 3)
+    : Array.isArray(repos?.results) ? repos.results.slice(0, 3)
+    : Array.isArray(repos) ? (repos as any[]).slice(0, 3) : [];
+  const trendingPapers = Array.isArray(papers?.data) ? papers.data.slice(0, 3)
+    : Array.isArray(papers?.results) ? papers.results.slice(0, 3)
+    : Array.isArray(papers) ? (papers as any[]).slice(0, 3) : [];
 
   return (
     <div className="space-y-8 pb-8">
