@@ -80,6 +80,16 @@ def global_search(request):
         results['papers'] = ResearchPaperSerializer(papers, many=True).data
 
     total = sum(len(v) for v in results.values())
+    # Log search activity (Phase 2.4)
+    try:
+        if request.user and request.user.is_authenticated:
+            UserActivity.objects.create(
+                user=request.user,
+                interaction_type='search',
+                metadata={'query': query}
+            )
+    except Exception:
+        pass
     return Response({
         'success': True,
         'data': results,

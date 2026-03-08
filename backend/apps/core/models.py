@@ -41,10 +41,11 @@ class UserActivity(models.Model):
     )
 
     user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='activities')
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id    = models.CharField(max_length=50)  # UUID as string
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id    = models.CharField(max_length=50, blank=True, null=True)  # UUID as string or free-form for search
     content_object = GenericForeignKey('content_type', 'object_id')
     interaction_type = models.CharField(max_length=32, choices=ACTION_CHOICES)
+    metadata     = models.JSONField(default=dict, blank=True)
     timestamp    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
