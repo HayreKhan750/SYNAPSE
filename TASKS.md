@@ -125,22 +125,22 @@
 - [x] **Git commit:** `feat: frontend dashboard — layout, pages, article/repo/paper cards` ✓
 
 ### 1.4 Search Engine (Week 4)
-- [ ] Add full-text search to articles endpoint (PostgreSQL ILIKE or django-haystack)
-- [ ] Add tag-based filtering to articles endpoint
-- [ ] Add topic-based filtering
-- [ ] Create global search bar component (debounced input, 300ms)
-- [ ] Create search results page (/search?q=)
-- [ ] Create UserBookmark model (user, content_type, content_id, notes, tags)
-- [ ] Create bookmark API endpoints (POST/DELETE /articles/{id}/bookmark, etc.)
-- [ ] Create bookmark button component (heart icon, toggle state, optimistic UI)
-- [ ] Create Knowledge Library page (/library) — bookmarked items grid
-- [ ] Create Collection model (name, description, user, is_public)
-- [ ] Create collection API endpoints (CRUD + add/remove items)
-- [ ] Create collections UI in Knowledge Library page
-- [ ] Add django-axes for login rate limiting (lockout after 5 failed attempts)
-- [ ] Write integration tests for search endpoints
-- [ ] Write E2E test for search flow (Playwright)
-- [ ] **Git commit:** `feat: search, bookmarks, collections — knowledge library complete`
+- [x] Add full-text search to articles endpoint (PostgreSQL ILIKE or django-haystack)
+- [x] Add tag-based filtering to articles endpoint
+- [x] Add topic-based filtering
+- [x] Create global search bar component (debounced input, 300ms)
+- [x] Create search results page (/search?q=)
+- [x] Create UserBookmark model (user, content_type, content_id, notes, tags)
+- [x] Create bookmark API endpoints (POST/DELETE /articles/{id}/bookmark, etc.)
+- [x] Create bookmark button component (heart icon, toggle state, optimistic UI)
+- [x] Create Knowledge Library page (/library) — bookmarked items grid
+- [x] Create Collection model (name, description, user, is_public)
+- [x] Create collection API endpoints (CRUD + add/remove items)
+- [x] Create collections UI in Knowledge Library page
+- [x] Add django-axes for login rate limiting (lockout after 5 failed attempts)
+- [x] Write integration tests for search endpoints
+- [ ] Write E2E test for search flow (Playwright) — deferred to Phase 8 (testing strategy)
+- [x] **Git commit:** `feat: search, bookmarks, collections — knowledge library complete`
 
 ---
 
