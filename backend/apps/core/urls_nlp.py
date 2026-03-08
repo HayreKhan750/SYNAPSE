@@ -4,7 +4,7 @@ URL patterns for NLP / AI on-demand endpoints.
 Mounted at /api/v1/ai/ by config/urls.py.
 """
 from django.urls import path
-from . import views_nlp
+from . import views_nlp, views_chat
 
 urlpatterns = [
     # Phase 2.1 — NLP
@@ -17,4 +17,10 @@ urlpatterns = [
     path("embed/repo/<uuid:repo_id>/",       views_nlp.trigger_repo_embedding,    name="ai-embed-repo"),
     path("embed/video/<uuid:video_id>/",     views_nlp.trigger_video_embedding,   name="ai-embed-video"),
     path("embed/batch/",                     views_nlp.trigger_batch_embeddings,  name="ai-embed-batch"),
+    # Phase 3.1 — RAG Chat
+    path("chat/", views_chat.ChatView.as_view(), name="ai-chat"),
+    path("chat/stream/", views_chat.ChatStreamView.as_view(), name="ai-chat-stream"),
+    path("chat/conversations/", views_chat.ConversationListView.as_view(), name="ai-conversations"),
+    path("chat/<str:conversation_id>/history/", views_chat.ConversationHistoryView.as_view(), name="ai-chat-history"),
+    path("chat/<str:conversation_id>/", views_chat.ConversationDeleteView.as_view(), name="ai-conversation-delete"),
 ]

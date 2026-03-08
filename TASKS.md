@@ -174,7 +174,7 @@
 - [x] Add AI summary badge on cards ("AI Summary" chip)
 - [x] Create summarize-on-demand API endpoint (POST /api/v1/ai/summarize)
 - [x] Write unit tests for summarizer (test output length, ROUGE score)
-- [ ] **Git commit:** `feat: AI summarization — BART model, auto-summary pipeline`
+- [x] **Git commit:** `feat: AI summarization — BART model, auto-summary pipeline`
 
 ### 2.3 Vector Search (Week 7)
 - [x] Install pgvector: `pip install pgvector`
@@ -212,21 +212,21 @@
 ## PHASE 3 — AI Chat Assistant (Weeks 9–10)
 
 ### 3.1 LangChain RAG Pipeline (Week 9)
-- [ ] Install: langchain, langchain-openai, langchain-community, openai, tiktoken
-- [ ] Create FastAPI AI service project (ai_engine/)
-- [ ] Set up OpenAI client with API key
-- [ ] Create vector store retriever using pgvector + LangChain PGVector
-- [ ] Create RecursiveCharacterTextSplitter (chunk_size=1000, overlap=200)
-- [ ] Create ConversationalRetrievalChain with retriever + OpenAI LLM
-- [ ] Design system prompt (grounded in knowledge base, cite sources)
-- [ ] Implement conversation history management (ConversationBufferWindowMemory, last 10 turns)
-- [ ] Create Conversation model (user, conversation_id, messages JSONB)
-- [ ] Create chat API endpoint (POST /api/v1/ai/chat)
-- [ ] Create conversation history endpoint (GET /api/v1/ai/chat/{conversation_id}/history)
-- [ ] Implement SSE (Server-Sent Events) for streaming responses
-- [ ] Add source citations to chat responses (return retrieved documents)
-- [ ] Write integration tests for RAG pipeline (mock OpenAI)
-- [ ] **Git commit:** `feat: RAG pipeline — LangChain, pgvector retriever, conversation memory`
+- [x] Install: langchain, langchain-openai, langchain-community, openai, tiktoken
+- [x] Create FastAPI AI service project (ai_engine/)
+- [x] Set up OpenAI client with API key
+- [x] Create vector store retriever using pgvector + LangChain PGVector
+- [x] Create RecursiveCharacterTextSplitter (chunk_size=1000, overlap=200)
+- [x] Create ConversationalRetrievalChain with retriever + OpenAI LLM
+- [x] Design system prompt (grounded in knowledge base, cite sources)
+- [x] Implement conversation history management (ConversationBufferWindowMemory, last 10 turns)
+- [x] Create Conversation model (user, conversation_id, messages JSONB)
+- [x] Create chat API endpoint (POST /api/v1/ai/chat)
+- [x] Create conversation history endpoint (GET /api/v1/ai/chat/{conversation_id}/history)
+- [x] Implement SSE (Server-Sent Events) for streaming responses
+- [x] Add source citations to chat responses (return retrieved documents)
+- [x] Write integration tests for RAG pipeline (mock OpenAI)
+- [x] **Git commit:** `feat: RAG pipeline — LangChain, pgvector retriever, conversation memory`
 
 ### 3.2 AI Chat UI (Week 10)
 - [ ] Create AI Chat page (/chat)

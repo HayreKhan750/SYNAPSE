@@ -1,4 +1,5 @@
 import uuid
+import time
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
@@ -75,3 +76,41 @@ class Collection(models.Model):
 
     def __str__(self):
         return f"{self.user.email}: {self.name}"
+
+
+class Conversation(models.Model):
+    """Stores AI chat conversation history per user."""
+    conversation_id = models.CharField(max_length=255, unique=True, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='conversations',
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=500, blank=True, default='')
+    messages = models.JSONField(default=list)  # [{"role": "human"|"ai", "content": str, "ts": float}]
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['user', '-updated_at']),
+            models.Index(fields=['conversation_id']),
+        ]
+
+    def __str__(self):
+        return f'Conversation {self.conversation_id} ({self.user})'
+
+    def add_message(self, role: str, content: str) -> None:
+        self.messages.append({'role': role, 'content': content, 'ts': time.time()})
+        self.save(update_fields=['messages', 'updated_at'])
+
+    def get_title(self) -> str:
+        if self.title:
+            return self.title
+        for msg in self.messages:
+            if msg.get('role') == 'human':
+                return msg['content'][:100]
+        return f'Conversation {self.conversation_id[:8]}'
