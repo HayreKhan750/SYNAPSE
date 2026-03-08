@@ -2,6 +2,10 @@
 Database Pipeline for SYNAPSE
 Saves validated items to the Django PostgreSQL database.
 Handles setup/teardown of Django ORM and provides robust error handling.
+
+Uses twisted.internet.threads.deferToThread so Django ORM calls run in a
+thread pool instead of the async Twisted reactor loop, avoiding the
+"You cannot call this from an async context" error.
 """
 
 import os
@@ -12,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 import django
+from twisted.internet import threads
 
 logger = logging.getLogger(__name__)
 
@@ -77,20 +82,27 @@ class DatabasePipeline:
 
     def process_item(self, item, spider):
         """
-        Process an item and save to database.
-        
+        Process an item and save to database via a thread pool.
+
+        Runs the synchronous Django ORM save in a Twisted thread so it does
+        not block the async reactor loop.
+
         Args:
             item: Scrapy item to save
             spider: Spider instance
-            
+
         Returns:
-            item: Passed through after save attempt
+            Deferred that resolves to item after save attempt.
         """
         if not self.django_setup_complete:
             logger.warning("Django not initialized, skipping item save")
             self.items_failed += 1
             return item
 
+        return threads.deferToThread(self._save_item_sync, item, spider)
+
+    def _save_item_sync(self, item, spider):
+        """Synchronous save — runs in a thread, not the reactor loop."""
         item_type = item.__class__.__name__
 
         try:
@@ -124,18 +136,20 @@ class DatabasePipeline:
             item: ArticleItem
             spider: Spider instance
         """
-        from backend.apps.articles.models import Article, Source
+        from apps.articles.models import Article, Source
 
         url = item.get("url", "")
         url_hash = hashlib.sha256(url.encode()).hexdigest()
 
         # Get or create source
-        source_name = item.get("source", "Unknown")
+        source_name = item.get("source_name") or item.get("source") or "Unknown"
+        source_url = item.get("source_url", "") or ""
+        source_type = item.get("source_type", "news") or "news"
         source, _ = Source.objects.get_or_create(
             name=source_name,
             defaults={
-                "url": item.get("source_url", ""),
-                "source_type": "news",
+                "url": source_url,
+                "source_type": source_type,
                 "is_active": True,
             },
         )
@@ -160,7 +174,7 @@ class DatabasePipeline:
                 "tags": item.get("tags", []),
                 "keywords": item.get("keywords", []),
                 "sentiment_score": item.get("sentiment_score"),
-                "trending_score": item.get("trending_score"),
+                "trending_score": item.get("trending_score") or 0.0,
                 "view_count": item.get("view_count", 0),
                 "metadata": item.get("metadata", {}),
             },
@@ -174,7 +188,7 @@ class DatabasePipeline:
             item: RepositoryItem
             spider: Spider instance
         """
-        from backend.apps.repositories.models import Repository
+        from apps.repositories.models import Repository
 
         # Parse repo_created_at if provided
         repo_created_at = None
@@ -212,7 +226,7 @@ class DatabasePipeline:
             item: ResearchPaperItem
             spider: Spider instance
         """
-        from backend.apps.papers.models import ResearchPaper
+        from apps.papers.models import ResearchPaper
 
         # Parse published_date if provided
         published_date = None
@@ -246,7 +260,7 @@ class DatabasePipeline:
             item: VideoItem
             spider: Spider instance
         """
-        from backend.apps.videos.models import Video
+        from apps.videos.models import Video
 
         # Parse published_at if provided
         published_at = None

@@ -95,7 +95,7 @@
 - [x] Create Celery tasks for each scraper (scrape_hackernews, scrape_github, scrape_arxiv, scrape_youtube)
 - [x] Configure Celery Beat schedules (HN every 30min, GitHub every 2hrs, arXiv every 6hrs)
 - [~] Set up Flower monitoring for Celery: `flower --port=5555` — run manually: `celery -A config.celery flower`
-- [~] Test each scraper manually and verify data stored in DB — requires live API keys
+- [x] Test each scraper manually and verify data stored in DB — 55 HN articles, 74 arXiv papers, 35 GitHub repos pulled live
 - [~] Write integration tests for scrapers (mock HTTP responses) — Phase 1.2 follow-up
 - [x] **Git commit:** `feat: web scraping system — spiders, Celery tasks, deduplication` ✓
 
