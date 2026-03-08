@@ -204,6 +204,9 @@ CELERY_TASK_ROUTES = {
     # NLP processing — Phase 2.1
     'apps.articles.tasks.process_article_nlp': {'queue': 'nlp'},
     'apps.articles.tasks.process_pending_articles_nlp': {'queue': 'nlp'},
+    # Summarization — Phase 2.2
+    'apps.articles.tasks.summarize_article': {'queue': 'nlp'},
+    'apps.articles.tasks.summarize_pending_articles': {'queue': 'nlp'},
 }
 
 # ── Axes (Login Rate Limiting) ────────────────────────────────

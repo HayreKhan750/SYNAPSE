@@ -160,7 +160,7 @@ class DatabasePipeline:
             published_at = self._parse_datetime(item["published_at"])
 
         # Update or create article
-        Article.objects.update_or_create(
+        article, created = Article.objects.update_or_create(
             url_hash=url_hash,
             defaults={
                 "url": url,
@@ -179,6 +179,27 @@ class DatabasePipeline:
                 "metadata": item.get("metadata", {}),
             },
         )
+
+        # Phase 2.2 — Auto-trigger NLP pipeline (incl. BART summarization)
+        # after saving a new article. Existing articles that are already
+        # nlp_processed are skipped to avoid redundant work.
+        if created or not article.nlp_processed:
+            try:
+                # Import via Django's app registry to keep scraper decoupled
+                from django.db import connection as _conn  # noqa: PLC0415
+                # Use Celery task if broker is reachable; fail silently otherwise
+                import importlib  # noqa: PLC0415
+                tasks_mod = importlib.import_module("apps.articles.tasks")
+                tasks_mod.process_article_nlp.delay(str(article.id))
+                logger.info(
+                    "Queued NLP/summarization task for article %s (created=%s)",
+                    article.id, created,
+                )
+            except Exception as nlp_exc:
+                logger.warning(
+                    "Could not queue NLP task for article %s: %s",
+                    article.id, nlp_exc,
+                )
 
     def _save_repository(self, item, spider):
         """

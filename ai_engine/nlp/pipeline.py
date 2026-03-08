@@ -8,6 +8,7 @@ Orchestrates all NLP steps in sequence:
   4. Topic classification (zero-shot BART)
   5. Sentiment analysis  (RoBERTa)
   6. Named Entity Recognition (spaCy)
+  7. Summarization        (BART facebook/bart-large-cnn)  ← Phase 2.2
 
 Returns a structured NLPResult dataclass that the Celery task uses to
 update the Article model fields.
@@ -38,6 +39,7 @@ class NLPResult:
     sentiment_label: str = "NEUTRAL"
     sentiment_score: Optional[float] = None   # signed float in [-1, 1]
     entities: List[Dict] = field(default_factory=list)
+    summary: Optional[str] = None             # BART-generated summary (Phase 2.2)
     skipped: bool = False
     skip_reason: str = ""
     error: str = ""
@@ -50,6 +52,7 @@ def run_pipeline(
     run_topic: bool = True,
     run_sentiment: bool = True,
     run_ner: bool = True,
+    run_summarization: bool = True,
 ) -> NLPResult:
     """
     Run the full NLP pipeline on *text*.
@@ -58,12 +61,13 @@ def run_pipeline(
     topics, and entities.  Sentiment is analysed on content only.
 
     Args:
-        text:          Raw article content (may contain HTML).
-        title:         Article title (prepended to NLP input for context).
-        run_keywords:  Whether to run keyword extraction.
-        run_topic:     Whether to run topic classification.
-        run_sentiment: Whether to run sentiment analysis.
-        run_ner:       Whether to run named entity recognition.
+        text:             Raw article content (may contain HTML).
+        title:            Article title (prepended to NLP input for context).
+        run_keywords:     Whether to run keyword extraction.
+        run_topic:        Whether to run topic classification.
+        run_sentiment:    Whether to run sentiment analysis.
+        run_ner:          Whether to run named entity recognition.
+        run_summarization: Whether to run BART summarization (Phase 2.2).
 
     Returns:
         :class:`NLPResult` populated with all extracted fields.
@@ -144,5 +148,20 @@ def run_pipeline(
             logger.debug("Entities found: %d", len(result.entities))
         except Exception as exc:
             logger.warning("NLP pipeline: NER failed: %s", exc)
+
+    # ── 7. Summarization (BART) ─────────────────────────────────────────────
+    # Phase 2.2: Auto-run BART summarization as part of the pipeline.
+    # Uses the article content (clean) rather than full_text to avoid
+    # title duplication in the generated summary.
+    if run_summarization:
+        try:
+            from .summarizer import summarize  # noqa: PLC0415
+            result.summary = summarize(clean)
+            logger.debug(
+                "Summary generated (%d chars).",
+                len(result.summary) if result.summary else 0,
+            )
+        except Exception as exc:
+            logger.warning("NLP pipeline: summarization failed: %s", exc)
 
     return result

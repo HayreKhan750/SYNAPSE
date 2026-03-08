@@ -42,6 +42,7 @@ export interface Article {
   id: string
   title: string
   content: string
+  /** BART-generated abstractive summary (Phase 2.2). Empty string when not yet summarized. */
   summary: string
   url: string
   source: Source | null
@@ -55,6 +56,8 @@ export interface Article {
   sentiment_score: number | null
   trending_score: number
   view_count: number
+  /** True once the full NLP pipeline (keywords + topic + sentiment + summary) has run. */
+  nlp_processed: boolean
   metadata: Record<string, unknown>
 }
 

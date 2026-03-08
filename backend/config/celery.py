@@ -58,6 +58,9 @@ CELERY_TASK_ROUTES = {
     # NLP processing tasks — Phase 2.1
     'apps.articles.tasks.process_article_nlp': {'queue': 'nlp'},
     'apps.articles.tasks.process_pending_articles_nlp': {'queue': 'nlp'},
+    # Summarization tasks — Phase 2.2
+    'apps.articles.tasks.summarize_article': {'queue': 'nlp'},
+    'apps.articles.tasks.summarize_pending_articles': {'queue': 'nlp'},
 }
 
 # Default queue for non-routed tasks
@@ -95,6 +98,15 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.articles.tasks.process_pending_articles_nlp',
         'schedule': 10 * 60,  # 10 minutes in seconds
         'args': (50,),         # batch_size=50
+        'options': {'queue': 'nlp'},
+    },
+    # Summarization catch-up — Phase 2.2
+    # Runs every 15 minutes to summarize articles that missed the pipeline
+    # (e.g. imported before Phase 2.2, or whose summarization failed)
+    'summarize-pending-articles-every-15min': {
+        'task': 'apps.articles.tasks.summarize_pending_articles',
+        'schedule': 15 * 60,  # 15 minutes in seconds
+        'args': (20,),          # batch_size=20
         'options': {'queue': 'nlp'},
     },
 }

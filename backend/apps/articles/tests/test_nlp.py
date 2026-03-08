@@ -512,6 +512,128 @@ class TestNLPPipeline(unittest.TestCase):
             mock_ner.assert_not_called()
             mock_sent.assert_called_once()
 
+    def test_summarization_included_in_pipeline(self):
+        """Phase 2.2 — pipeline should populate result.summary via BART."""
+        expected_summary = "AI systems are transforming modern technology."
+        with patch("ai_engine.nlp.pipeline.clean_text", return_value="ai machine learning " * 15), \
+             patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)), \
+             patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ai"]), \
+             patch("ai_engine.nlp.pipeline.classify_topic", return_value=("Machine Learning", 0.9)), \
+             patch("ai_engine.nlp.pipeline.analyze_sentiment", return_value=("POSITIVE", 0.85)), \
+             patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.85), \
+             patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]), \
+             patch("ai_engine.nlp.summarizer.summarize", return_value=expected_summary):
+            result = self.run_pipeline(
+                "AI machine learning is transforming modern technology in remarkable ways.",
+                run_summarization=True,
+            )
+            self.assertEqual(result.summary, expected_summary)
+
+    def test_summarization_disabled_by_flag(self):
+        """Phase 2.2 — run_summarization=False must skip summarization."""
+        with patch("ai_engine.nlp.pipeline.clean_text", return_value="ai machine learning " * 15), \
+             patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)), \
+             patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ai"]), \
+             patch("ai_engine.nlp.pipeline.classify_topic", return_value=("Machine Learning", 0.9)), \
+             patch("ai_engine.nlp.pipeline.analyze_sentiment", return_value=("POSITIVE", 0.85)), \
+             patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.85), \
+             patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]):
+            result = self.run_pipeline(
+                "AI machine learning research.",
+                run_summarization=False,
+            )
+            self.assertIsNone(result.summary)
+
+    def test_pipeline_summary_field_exists(self):
+        """NLPResult dataclass must have a summary field (Phase 2.2)."""
+        result = self.NLPResult()
+        self.assertTrue(hasattr(result, "summary"))
+        self.assertIsNone(result.summary)
+
+
+# ── Summarization Celery task tests ───────────────────────────────────────────
+
+class TestSummarizeArticleTask(unittest.TestCase):
+    """
+    Phase 2.2 — unit tests for the summarize_article Celery task logic.
+
+    We test the inner logic directly (without Django ORM or Celery broker)
+    by mocking the Article model import inside the task function.
+    """
+
+    def _make_article(self, content="", summary="", nlp_processed=False):
+        article = MagicMock()
+        article.id = "test-uuid-1234"
+        article.content = content
+        article.summary = summary
+        article.nlp_processed = nlp_processed
+        article.save = MagicMock()
+        return article
+
+    def _make_self(self):
+        """Create a minimal mock of the Celery task `self` object."""
+        self_mock = MagicMock()
+        self_mock.request.id = "test-task-id"
+        self_mock.request.retries = 0
+        self_mock.retry.side_effect = Exception("retry called")
+        return self_mock
+
+    def _call_task(self, task_fn, *args, **kwargs):
+        """
+        Call a bound Celery task's underlying function directly.
+        __wrapped__ is the raw function without the Celery bind injection,
+        so it does NOT receive `self` — just the task arguments.
+        """
+        return task_fn.__wrapped__(*args, **kwargs)
+
+    def test_skips_when_already_summarized(self):
+        """Task must return skipped when article already has a summary and force=False."""
+        article = self._make_article(content="some content", summary="existing summary")
+
+        mock_article_cls = MagicMock()
+        mock_article_cls.objects.get.return_value = article
+        mock_article_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
+
+        import apps.articles.tasks as tasks_mod
+        import builtins
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "apps.articles.models":
+                mod = MagicMock()
+                mod.Article = mock_article_cls
+                return mod
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            result = self._call_task(tasks_mod.summarize_article, str(article.id), False)
+            self.assertEqual(result["status"], "skipped")
+            self.assertEqual(result["reason"], "already_summarized")
+
+    def test_skips_when_no_content(self):
+        """Task must return skipped when article has no content."""
+        article = self._make_article(content="", summary="")
+
+        mock_article_cls = MagicMock()
+        mock_article_cls.objects.get.return_value = article
+        mock_article_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
+
+        import apps.articles.tasks as tasks_mod
+        import builtins
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "apps.articles.models":
+                mod = MagicMock()
+                mod.Article = mock_article_cls
+                return mod
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            result = self._call_task(tasks_mod.summarize_article, str(article.id), False)
+            self.assertEqual(result["status"], "skipped")
+            self.assertEqual(result["reason"], "no_content")
+
 
 if __name__ == "__main__":
     unittest.main()
