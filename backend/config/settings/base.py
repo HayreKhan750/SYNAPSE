@@ -205,8 +205,10 @@ CELERY_TASK_ROUTES = {
 
 # ── Axes (Login Rate Limiting) ────────────────────────────────
 AXES_FAILURE_LIMIT = 5
-AXES_COOLOFF_TIME = timedelta(minutes=15)
-AXES_LOCKOUT_CALLABLE = 'apps.core.utils.axes_lockout_response'
+AXES_COOLOFF_TIME = 1  # hours
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = None
+AXES_ENABLED = True
 
 # ── Internationalization ──────────────────────────────────────
 LANGUAGE_CODE = 'en-us'

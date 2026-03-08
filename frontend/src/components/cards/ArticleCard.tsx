@@ -1,25 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
 import { Article } from '@/types';
 import { formatRelativeTime, cn } from '@/utils/helpers';
+import { BookmarkButton } from '@/components/BookmarkButton';
 
 interface ArticleCardProps {
   article: Article;
   onBookmark?: (id: string) => void;
 }
 
-export const ArticleCard = ({ article, onBookmark }: ArticleCardProps) => {
-  const [isBookmarked, setIsBookmarked] = useState(false);
-
-  const handleBookmark = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsBookmarked(!isBookmarked);
-    onBookmark?.(article.id);
-  };
-
+export const ArticleCard = ({ article }: ArticleCardProps) => {
   const handleCardClick = () => {
     window.open(article.url, '_blank');
   };
@@ -117,20 +109,7 @@ export const ArticleCard = ({ article, onBookmark }: ArticleCardProps) => {
             {readingTime} min read
           </span>
         </div>
-        <button
-          onClick={handleBookmark}
-          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-        >
-          <Heart
-            size={16}
-            className={cn(
-              'transition-colors',
-              isBookmarked
-                ? 'fill-red-500 text-red-500'
-                : 'text-slate-400 dark:text-slate-500 hover:text-red-500'
-            )}
-          />
-        </button>
+        <BookmarkButton contentType="article" objectId={article.id} size={16} />
       </div>
     </motion.div>
   );

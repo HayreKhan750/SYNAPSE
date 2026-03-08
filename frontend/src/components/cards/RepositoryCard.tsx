@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Star, GitFork, AlertCircle } from 'lucide-react';
+import { Star, GitFork, AlertCircle } from 'lucide-react';
 import { Repository } from '@/types';
 import { formatNumber, cn } from '@/utils/helpers';
+import { BookmarkButton } from '@/components/BookmarkButton';
 
 interface RepositoryCardProps {
   repo: Repository;
@@ -29,15 +30,7 @@ const getLanguageColor = (language?: string) => {
   return languageColors[language.toLowerCase()] || 'bg-slate-400';
 };
 
-export const RepositoryCard = ({ repo, onBookmark }: RepositoryCardProps) => {
-  const [isBookmarked, setIsBookmarked] = useState(false);
-
-  const handleBookmark = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsBookmarked(!isBookmarked);
-    onBookmark?.(repo.id);
-  };
-
+export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
   const handleCardClick = () => {
     window.open(repo.url, '_blank');
   };
@@ -135,20 +128,7 @@ export const RepositoryCard = ({ repo, onBookmark }: RepositoryCardProps) => {
             </span>
           )}
         </div>
-        <button
-          onClick={handleBookmark}
-          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-        >
-          <Heart
-            size={16}
-            className={cn(
-              'transition-colors',
-              isBookmarked
-                ? 'fill-red-500 text-red-500'
-                : 'text-slate-400 dark:text-slate-500 hover:text-red-500'
-            )}
-          />
-        </button>
+        <BookmarkButton contentType="repository" objectId={repo.id} size={16} />
       </div>
     </motion.div>
   );

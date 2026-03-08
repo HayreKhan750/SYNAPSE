@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart, FileText, ExternalLink } from 'lucide-react';
+import { FileText, ExternalLink } from 'lucide-react';
 import { ResearchPaper } from '@/types';
 import { cn } from '@/utils/helpers';
+import { BookmarkButton } from '@/components/BookmarkButton';
 
 interface PaperCardProps {
   paper: ResearchPaper;
@@ -20,15 +21,7 @@ const getDifficultyColor = (difficulty: string) => {
   return colors[difficulty.toLowerCase()] || 'bg-slate-100 dark:bg-slate-700/30 text-slate-700 dark:text-slate-300';
 };
 
-export const PaperCard = ({ paper, onBookmark }: PaperCardProps) => {
-  const [isBookmarked, setIsBookmarked] = useState(false);
-
-  const handleBookmark = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsBookmarked(!isBookmarked);
-    onBookmark?.(paper.id);
-  };
-
+export const PaperCard = ({ paper }: PaperCardProps) => {
   const handlePdfClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (paper.pdf_url) {
@@ -119,20 +112,7 @@ export const PaperCard = ({ paper, onBookmark }: PaperCardProps) => {
             <ExternalLink size={16} />
           </button>
         </div>
-        <button
-          onClick={handleBookmark}
-          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-        >
-          <Heart
-            size={16}
-            className={cn(
-              'transition-colors',
-              isBookmarked
-                ? 'fill-red-500 text-red-500'
-                : 'text-slate-400 dark:text-slate-500 hover:text-red-500'
-            )}
-          />
-        </button>
+        <BookmarkButton contentType="researchpaper" objectId={paper.id} size={16} />
       </div>
     </motion.div>
   );

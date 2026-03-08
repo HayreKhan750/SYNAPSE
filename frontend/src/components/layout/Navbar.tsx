@@ -33,6 +33,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
       '/documents': 'Documents',
       '/library': 'Library',
       '/notifications': 'Notifications',
+      '/search': 'Search',
     }
     return (pathname && routeTitles[pathname]) || 'SYNAPSE'
   }
@@ -41,7 +42,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
   const handleSearch = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' && searchQuery.trim()) {
-        router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
+        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
         setSearchQuery('')
       }
     },
