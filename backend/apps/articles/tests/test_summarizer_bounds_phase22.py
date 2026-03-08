@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 from django.test import TestCase
+import os, sys
 
 FAKE_SUMMARY = ' '.join(['word'] * 80)  # 80 tokens, within 50..150 bounds
+
+# Ensure repo root on path for ai_engine import
+here = os.path.abspath(__file__)
+repo_root = os.path.abspath(os.path.join(here, '..', '..', '..', '..'))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
 
 class SummarizerBoundsTests(TestCase):
