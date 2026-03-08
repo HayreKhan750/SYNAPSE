@@ -18,6 +18,7 @@ urlpatterns = [
     path("embed/video/<uuid:video_id>/",     views_nlp.trigger_video_embedding,   name="ai-embed-video"),
     path("embed/batch/",                     views_nlp.trigger_batch_embeddings,  name="ai-embed-batch"),
     # Phase 3.1 — RAG Chat
+    path("explain/", views_chat.ExplainView.as_view(), name="ai-explain"),
     path("chat/", views_chat.ChatView.as_view(), name="ai-chat"),
     path("chat/stream/", views_chat.ChatStreamView.as_view(), name="ai-chat-stream"),
     path("chat/conversations/", views_chat.ConversationListView.as_view(), name="ai-conversations"),

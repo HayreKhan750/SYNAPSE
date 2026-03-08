@@ -19,6 +19,83 @@ from apps.core.models import Conversation
 
 logger = logging.getLogger(__name__)
 
+# ─── Explain endpoint (Phase 3.2) ────────────────────────────────────────────
+
+
+class ExplainView(APIView):
+    """
+    POST /api/v1/ai/explain
+
+    Ask the RAG pipeline to explain a specific content item (article, paper, repo).
+
+    Request body::
+
+        {
+            "content_type": "article" | "paper" | "repository",
+            "content_id": "<uuid>",
+            "title": "Optional title for context",
+            "conversation_id": "optional-uuid"
+        }
+
+    Response: same shape as ChatView — {answer, sources, conversation_id}
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        content_type = request.data.get('content_type', '').strip()
+        content_id = request.data.get('content_id', '').strip()
+        title = request.data.get('title', '').strip()
+        conversation_id = request.data.get('conversation_id') or str(uuid.uuid4())
+
+        if not content_type or not content_id:
+            return Response(
+                {'error': 'content_type and content_id are required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Build a focused question
+        type_label = {'article': 'article', 'paper': 'research paper', 'repository': 'GitHub repository'}.get(
+            content_type, content_type
+        )
+        if title:
+            question = f'Explain this {type_label}: "{title}"'
+        else:
+            question = f'Explain the {type_label} with ID {content_id}'
+
+        pipeline = _get_pipeline()
+        if pipeline is None:
+            return Response(
+                {'error': 'AI pipeline is temporarily unavailable'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            result = pipeline.chat(
+                question=question,
+                conversation_id=conversation_id,
+                content_types=[content_type + 's'] if not content_type.endswith('s') else [content_type],
+            )
+        except Exception as exc:
+            logger.error("RAG explain error: %s", exc)
+            return Response(
+                {'error': 'Failed to process explain request. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Persist
+        try:
+            user = request.user if request.user.is_authenticated else None
+            conv = _get_or_create_conversation(conversation_id, user=user)
+            conv.add_message('human', question)
+            conv.add_message('ai', result['answer'])
+            if not conv.title and title:
+                conv.title = f'Explain: {title}'[:100]
+                conv.save(update_fields=['title'])
+        except Exception as exc:
+            logger.warning("Failed to persist explain conversation: %s", exc)
+
+        return Response({**result, 'conversation_id': conversation_id}, status=status.HTTP_200_OK)
+
 
 def _get_pipeline():
     """Lazy-import RAG pipeline to avoid loading at Django startup."""

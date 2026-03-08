@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 function SummaryText({ text }: { text: string }) {
   const [expanded, setExpanded] = React.useState(false);
@@ -24,6 +25,7 @@ function SummaryText({ text }: { text: string }) {
 }
 
 import { motion } from 'framer-motion';
+import { MessageSquare } from 'lucide-react';
 import { Article } from '@/types';
 import { formatRelativeTime, cn } from '@/utils/helpers';
 import { BookmarkButton } from '@/components/BookmarkButton';
@@ -34,8 +36,16 @@ interface ArticleCardProps {
 }
 
 export const ArticleCard = ({ article }: ArticleCardProps) => {
+  const router = useRouter();
+
   const handleCardClick = () => {
     window.open(article.url, '_blank');
+  };
+
+  const handleAskAI = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const q = encodeURIComponent(`Explain this article: "${article.title}"`);
+    router.push(`/chat?q=${q}`);
   };
 
   const getSourceColor = (sourceType: string) => {
@@ -144,7 +154,17 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
             {readingTime} min read
           </span>
         </div>
-        <BookmarkButton contentType="article" objectId={article.id} size={16} />
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleAskAI}
+            title="Ask AI about this article"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-indigo-400 hover:text-white hover:bg-indigo-600 transition-colors border border-indigo-500/30 hover:border-indigo-500"
+          >
+            <MessageSquare size={12} />
+            Ask AI
+          </button>
+          <BookmarkButton contentType="article" objectId={article.id} size={16} />
+        </div>
       </div>
     </motion.div>
   );

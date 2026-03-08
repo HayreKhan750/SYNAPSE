@@ -229,19 +229,19 @@
 - [x] **Git commit:** `feat: RAG pipeline — LangChain, pgvector retriever, conversation memory`
 
 ### 3.2 AI Chat UI (Week 10)
-- [ ] Create AI Chat page (/chat)
-- [ ] Create conversation list sidebar (past conversations, new chat button)
-- [ ] Create ChatMessage component (user message right-aligned, AI response left-aligned)
-- [ ] Create AI response component with source citation cards
-- [ ] Implement SSE streaming in frontend (EventSource or fetch with ReadableStream)
-- [ ] Add streaming text animation (token-by-token display)
-- [ ] Add copy button to AI responses
-- [ ] Add suggested prompt chips on empty chat state
-- [ ] Create AI explain endpoint (POST /api/v1/ai/explain — for papers/repos)
-- [ ] Add "Ask AI" button on ArticleCard and PaperCard
-- [ ] Add typing indicator while AI generates response
+- [x] Create AI Chat page (/chat)
+- [x] Create conversation list sidebar (past conversations, new chat button)
+- [x] Create ChatMessage component (user message right-aligned, AI response left-aligned)
+- [x] Create AI response component with source citation cards
+- [x] Implement SSE streaming in frontend (EventSource or fetch with ReadableStream)
+- [x] Add streaming text animation (token-by-token display)
+- [x] Add copy button to AI responses
+- [x] Add suggested prompt chips on empty chat state
+- [x] Create AI explain endpoint (POST /api/v1/ai/explain — for papers/repos)
+- [x] Add "Ask AI" button on ArticleCard and PaperCard
+- [x] Add typing indicator while AI generates response
 - [ ] Write E2E test for full chat flow (Playwright)
-- [ ] **Git commit:** `feat: AI chat UI — streaming responses, source citations, conversation history`
+- [~] **Git commit:** `feat: AI chat UI — streaming responses, source citations, conversation history`
 
 ---
 

@@ -138,3 +138,43 @@ export interface ApiError {
   errors?: Record<string, string[]>
   status?: number
 }
+
+// ─── AI Chat (Phase 3.2) ─────────────────────────────────────────────────────
+
+export interface ChatSource {
+  title: string
+  url: string
+  content_type: 'article' | 'paper' | 'repository' | 'video' | string
+  snippet: string
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'human' | 'ai'
+  content: string
+  ts: number
+  sources?: ChatSource[]
+  isStreaming?: boolean
+}
+
+export interface Conversation {
+  conversation_id: string
+  title: string
+  message_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatResponse {
+  answer: string
+  sources: ChatSource[]
+  conversation_id: string
+}
+
+export interface ConversationHistory {
+  conversation_id: string
+  title: string
+  messages: Array<{ role: 'human' | 'ai'; content: string; ts: number }>
+  created_at: string
+  updated_at: string
+}

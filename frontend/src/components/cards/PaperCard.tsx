@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { FileText, ExternalLink } from 'lucide-react';
+import { FileText, ExternalLink, MessageSquare } from 'lucide-react';
 import { ResearchPaper } from '@/types';
 import { cn } from '@/utils/helpers';
 import { BookmarkButton } from '@/components/BookmarkButton';
@@ -22,6 +23,14 @@ const getDifficultyColor = (difficulty: string) => {
 };
 
 export const PaperCard = ({ paper }: PaperCardProps) => {
+  const router = useRouter();
+
+  const handleAskAI = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const q = encodeURIComponent(`Explain this research paper: "${paper.title}"`);
+    router.push(`/chat?q=${q}`);
+  };
+
   const handlePdfClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (paper.pdf_url) {
@@ -112,7 +121,17 @@ export const PaperCard = ({ paper }: PaperCardProps) => {
             <ExternalLink size={16} />
           </button>
         </div>
-        <BookmarkButton contentType="researchpaper" objectId={paper.id} size={16} />
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleAskAI}
+            title="Ask AI about this paper"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-violet-400 hover:text-white hover:bg-violet-600 transition-colors border border-violet-500/30 hover:border-violet-500"
+          >
+            <MessageSquare size={12} />
+            Ask AI
+          </button>
+          <BookmarkButton contentType="researchpaper" objectId={paper.id} size={16} />
+        </div>
       </div>
     </motion.div>
   );
