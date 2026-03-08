@@ -223,19 +223,64 @@ export default function ChatPage() {
     onError: () => toast.error('Failed to delete conversation.'),
   });
 
-  // Start a new chat
-  const startNewChat = () => {
+  // Start a new chat — reset ALL conversation state completely
+  const startNewChat = useCallback(() => {
     setActiveConversationId('');
     setMessages([]);
     setInputValue('');
+    setIsGenerating(false);
+    didAutoSend.current = false;
     textareaRef.current?.focus();
-  };
+  }, []);
 
-  // Send message
+  // Delete a message pair from UI and backend
+  const deleteMessagePair = useCallback(
+    async (msgIndex: number) => {
+      if (!activeConversationId) {
+        // No backend record yet — just remove from local state
+        setMessages((prev) => {
+          const next = [...prev];
+          // remove AI reply if present
+          if (next[msgIndex + 1]?.role === 'ai') next.splice(msgIndex + 1, 1);
+          next.splice(msgIndex, 1);
+          return next;
+        });
+        return;
+      }
+      // Find the DB index (count only persisted messages up to this point)
+      const dbIndex = msgIndex; // 1:1 with messages array since we persist in order
+      try {
+        await api.delete(`/ai/chat/${activeConversationId}/messages/${dbIndex}/`);
+      } catch {
+        // best-effort
+      }
+      setMessages((prev) => {
+        const next = [...prev];
+        if (next[msgIndex + 1]?.role === 'ai') next.splice(msgIndex + 1, 1);
+        next.splice(msgIndex, 1);
+        return next;
+      });
+    },
+    [activeConversationId]
+  );
+
+  // Edit a message — repopulate input and strip messages from that point
+  const editMessage = useCallback(
+    (msgIndex: number, content: string) => {
+      setInputValue(content);
+      setMessages((prev) => prev.slice(0, msgIndex));
+      textareaRef.current?.focus();
+    },
+    []
+  );
+
+  // Send message — always creates a fresh conversation_id when activeConversationId is empty
   const sendMessage = useCallback(
     async (question: string) => {
       if (!question.trim() || isGenerating) return;
 
+      // IMPORTANT: generate a brand-new ID when starting fresh so backend
+      // creates a new Conversation record, not appending to an old one.
       const conversationId = activeConversationId || nanoid();
       if (!activeConversationId) setActiveConversationId(conversationId);
 
@@ -532,14 +577,19 @@ export default function ChatPage() {
             /* ── Messages ── */
             <>
               <AnimatePresence initial={false}>
-                {messages.map((msg) => (
+                {messages.map((msg, idx) => (
                   <motion.div
                     key={msg.id}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <ChatMessage message={msg} />
+                    <ChatMessage
+                      message={msg}
+                      messageIndex={idx}
+                      onEdit={msg.role === 'human' ? editMessage : undefined}
+                      onDelete={msg.role === 'human' ? deleteMessagePair : undefined}
+                    />
                   </motion.div>
                 ))}
               </AnimatePresence>

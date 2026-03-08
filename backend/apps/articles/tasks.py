@@ -21,6 +21,44 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
+    """
+    Summarize text using Google Gemini 1.5 Flash.
+    Returns None if GOOGLE_API_KEY is not set or the call fails.
+    """
+    import os
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key or api_key.startswith("your-"):
+        return None
+    try:
+        import sys
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
+        from langchain_core.messages import HumanMessage  # noqa: PLC0415
+
+        llm = ChatGoogleGenerativeAI(
+            model=os.environ.get("GEMINI_MODEL","gemini-2.0-flash"),
+            temperature=0.2,
+            max_output_tokens=300,
+            google_api_key=api_key,
+        )
+        prompt = (
+            "You are a technical summarizer. Write a concise 2-3 sentence summary "
+            "of the following article, focusing on the key findings and takeaways.\n\n"
+            f"Article:\n{text[:max_chars]}\n\nSummary:"
+        )
+        result = llm.invoke([HumanMessage(content=prompt)])
+        summary = result.content.strip() if hasattr(result, "content") else ""
+        return summary or None
+    except Exception as exc:
+        logger.warning("Gemini summarization failed: %s", exc)
+        return None
+
+
 def _run_nlp(text: str, title: str = "") -> Optional[object]:
     """
     Import and run the NLP pipeline.  Handles import errors gracefully so
@@ -260,7 +298,7 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
             logger.warning("[%s] Article %s has no content to summarize.", task_id, article_id)
             return {"status": "skipped", "reason": "no_content", "article_id": article_id}
 
-        # Import summarizer
+        # Import summarizer — tries Gemini first, falls back to BART
         try:
             project_root = os.path.dirname(
                 os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -272,7 +310,7 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
             logger.error("[%s] summarizer import failed: %s", task_id, exc)
             return {"status": "error", "reason": "import_failed", "article_id": article_id}
 
-        summary = summarize(text)
+        summary = _summarize_with_gemini(text) or summarize(text)
 
         if not summary:
             logger.warning("[%s] BART returned no summary for article %s.", task_id, article_id)

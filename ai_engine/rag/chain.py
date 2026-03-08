@@ -11,7 +11,7 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .memory import ConversationMemoryManager
 from .retriever import SynapseRetriever
@@ -102,12 +102,13 @@ class SynapseRAGChain:
         self.max_tokens = max_tokens
         self.streaming = streaming
 
-        self._llm = ChatOpenAI(
-            model=model_name,
+        self._llm = ChatGoogleGenerativeAI(
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
             temperature=temperature,
-            max_tokens=max_tokens,
+            max_output_tokens=max_tokens,
+            google_api_key=os.environ.get("GEMINI_API_KEY", ""),
             streaming=streaming,
-            openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
+            convert_system_message_to_human=True,
         )
 
         # Text splitter for chunking long retrieved documents
@@ -241,10 +242,9 @@ class SynapseRAGChain:
         content_types: Optional[List[str]] = None,
     ) -> Iterator[str]:
         """
-        Stream chat response token-by-token. Returns an iterator of token strings.
+        Stream chat response token-by-token via Gemini.
         Final item is a JSON-encoded metadata dict prefixed with '__SOURCES__:'.
         """
-        from langchain_openai import ChatOpenAI as StreamingChatOpenAI
         import json
 
         memory = self.memory_manager.get_or_create(conversation_id)
@@ -267,19 +267,21 @@ class SynapseRAGChain:
         messages.extend(chat_history)
         messages.append(HumanMessage(content=condensed_question))
 
-        streaming_llm = ChatOpenAI(
-            model=self.model_name,
+        streaming_llm = ChatGoogleGenerativeAI(
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
             temperature=self.temperature,
-            max_tokens=self.max_tokens,
+            max_output_tokens=self.max_tokens,
+            google_api_key=os.environ.get("GEMINI_API_KEY", ""),
             streaming=True,
-            openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
+            convert_system_message_to_human=True,
         )
 
         full_answer = []
         for chunk in streaming_llm.stream(messages):
             token = chunk.content if hasattr(chunk, "content") else str(chunk)
-            full_answer.append(token)
-            yield token
+            if token:
+                full_answer.append(token)
+                yield token
 
         complete_answer = "".join(full_answer)
         self.memory_manager.save_turn(conversation_id, question, complete_answer)
@@ -300,21 +302,22 @@ class SynapseRAGChain:
         ])
 
     def _condense_question(self, question: str, chat_history: list) -> str:
-        """Use LLM to rephrase follow-up question as standalone."""
+        """Use Gemini to rephrase follow-up question as standalone."""
         try:
             history_str = "\n".join(
-                f"{'Human' if isinstance(m, type(chat_history[0])) else 'AI'}: {m.content}"
-                for m in chat_history[-6:]  # last 3 turns
+                f"{'Human' if i % 2 == 0 else 'AI'}: {m.content}"
+                for i, m in enumerate(chat_history[-6:])
             )
             prompt = CONDENSE_QUESTION_PROMPT.format(
                 chat_history=history_str,
                 question=question,
             )
-            condensed_llm = ChatOpenAI(
-                model=self.model_name,
+            condensed_llm = ChatGoogleGenerativeAI(
+                model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
                 temperature=0,
-                max_tokens=256,
-                openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
+                max_output_tokens=256,
+                google_api_key=os.environ.get("GEMINI_API_KEY", ""),
+                convert_system_message_to_human=True,
             )
             result = condensed_llm.invoke(prompt)
             return result.content if hasattr(result, "content") else question

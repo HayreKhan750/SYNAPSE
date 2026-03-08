@@ -20,6 +20,7 @@ urlpatterns = [
     # Phase 3.1 — RAG Chat
     path("explain/", views_chat.ExplainView.as_view(), name="ai-explain"),
     path("chat/", views_chat.ChatView.as_view(), name="ai-chat"),
+    path("chat/<str:conversation_id>/messages/<int:index>/", views_chat.MessageDeleteView.as_view(), name="ai-message-delete"),
     path("chat/stream/", views_chat.ChatStreamView.as_view(), name="ai-chat-stream"),
     path("chat/conversations/", views_chat.ConversationListView.as_view(), name="ai-conversations"),
     path("chat/<str:conversation_id>/history/", views_chat.ConversationHistoryView.as_view(), name="ai-chat-history"),

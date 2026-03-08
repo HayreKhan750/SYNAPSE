@@ -103,6 +103,27 @@ class Conversation(models.Model):
     def __str__(self):
         return f'Conversation {self.conversation_id} ({self.user})'
 
+    def delete_message_pair(self, message_index: int) -> bool:
+        """
+        Delete a human message at *message_index* and the AI reply immediately
+        after it (if it exists).  Returns True if anything was deleted.
+        """
+        messages = list(self.messages)
+        if message_index < 0 or message_index >= len(messages):
+            return False
+        # Remove the AI reply first (if present and is an AI message)
+        if message_index + 1 < len(messages) and messages[message_index + 1].get("role") == "ai":
+            messages.pop(message_index + 1)
+        messages.pop(message_index)
+        self.messages = messages
+        self.save(update_fields=["messages", "updated_at"])
+        return True
+
+    def truncate_from(self, message_index: int) -> None:
+        """Remove all messages from *message_index* onwards (inclusive)."""
+        self.messages = list(self.messages)[:message_index]
+        self.save(update_fields=["messages", "updated_at"])
+
     def add_message(self, role: str, content: str) -> None:
         self.messages.append({'role': role, 'content': content, 'ts': time.time()})
         self.save(update_fields=['messages', 'updated_at'])

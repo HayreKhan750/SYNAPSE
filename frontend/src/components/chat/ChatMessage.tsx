@@ -2,13 +2,16 @@
 
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Copy, Check, Bot, User } from 'lucide-react';
-import { ChatMessage as ChatMessageType, ChatSource } from '@/types';
+import { Copy, Check, Bot, User, Pencil, Trash2 } from 'lucide-react';
+import { ChatMessage as ChatMessageType } from '@/types';
 import { cn } from '@/utils/helpers';
 import { SourceCitationCard } from './SourceCitationCard';
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  messageIndex?: number;
+  onEdit?: (index: number, content: string) => void;
+  onDelete?: (index: number) => void;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -35,16 +38,25 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: ChatMessageProps) {
   const isHuman = message.role === 'human';
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleEdit = () => {
+    onEdit?.(messageIndex, message.content);
+  };
+
+  const handleDelete = () => {
+    if (confirmDelete) {
+      onDelete?.(messageIndex);
+    } else {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
+    }
+  };
 
   return (
-    <div
-      className={cn(
-        'flex gap-3 w-full',
-        isHuman ? 'flex-row-reverse' : 'flex-row'
-      )}
-    >
+    <div className={cn('flex gap-3 w-full', isHuman ? 'flex-row-reverse' : 'flex-row')}>
       {/* Avatar */}
       <div
         className={cn(
@@ -61,13 +73,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
         )}
       </div>
 
-      {/* Bubble */}
-      <div
-        className={cn(
-          'flex flex-col gap-2 max-w-[80%]',
-          isHuman ? 'items-end' : 'items-start'
-        )}
-      >
+      {/* Bubble + actions */}
+      <div className={cn('flex flex-col gap-1.5 max-w-[80%]', isHuman ? 'items-end' : 'items-start')}>
         <div
           className={cn(
             'rounded-2xl px-4 py-3 text-sm leading-relaxed',
@@ -88,14 +95,42 @@ export function ChatMessage({ message }: ChatMessageProps) {
           )}
         </div>
 
-        {/* Actions row for AI messages */}
-        {!isHuman && !message.isStreaming && (
-          <div className="flex items-center gap-1 px-1">
+        {/* Action row */}
+        <div className={cn('flex items-center gap-1 px-1', isHuman ? 'flex-row-reverse' : 'flex-row')}>
+          {isHuman && !message.isStreaming && (
+            <>
+              {onEdit && (
+                <button
+                  onClick={handleEdit}
+                  title="Edit message"
+                  className="p-1.5 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-slate-700 transition-colors"
+                >
+                  <Pencil size={13} />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={handleDelete}
+                  title={confirmDelete ? 'Click again to confirm delete' : 'Delete message'}
+                  className={cn(
+                    'p-1.5 rounded-md transition-colors text-xs flex items-center gap-1',
+                    confirmDelete
+                      ? 'text-red-400 bg-red-900/30 hover:bg-red-900/50'
+                      : 'text-slate-400 hover:text-red-400 hover:bg-slate-700'
+                  )}
+                >
+                  <Trash2 size={13} />
+                  {confirmDelete && <span className="text-[10px] font-medium">Confirm?</span>}
+                </button>
+              )}
+            </>
+          )}
+          {!isHuman && !message.isStreaming && (
             <CopyButton text={message.content} />
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Source citations */}
+        {/* Source citations (AI only) */}
         {!isHuman && message.sources && message.sources.length > 0 && (
           <div className="w-full space-y-2">
             <p className="text-xs text-slate-500 px-1 font-medium">Sources</p>
