@@ -1,4 +1,4 @@
-fastapi==0.104.1
+fastapi
 uvicorn==0.24.0
 langchain
 langchain-openai
@@ -13,7 +13,7 @@ pgvector==0.2.4
 rouge-score==0.1.2
 psycopg2-binary==2.9.9
 redis==5.0.1
-pydantic==2.5.3
+pydantic
 python-dotenv==1.0.0
 httpx==0.25.2
 structlog==23.3.0
