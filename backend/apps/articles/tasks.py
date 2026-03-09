@@ -25,11 +25,15 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
     """
     Summarize text using Google Gemini 1.5 Flash.
     Returns None if GOOGLE_API_KEY is not set or the call fails.
+
+    Rate-limit handling:
+    - On a 429 / ResourceExhausted response, sleeps 60 seconds and retries once.
     """
     import os
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key or api_key.startswith("your-"):
         return None
+
     try:
         import sys
         project_root = os.path.dirname(
@@ -41,7 +45,7 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
         from langchain_core.messages import HumanMessage  # noqa: PLC0415
 
         llm = ChatGoogleGenerativeAI(
-            model=os.environ.get("GEMINI_MODEL","gemini-2.0-flash"),
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
             temperature=0.2,
             max_output_tokens=300,
             google_api_key=api_key,
@@ -51,9 +55,28 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
             "of the following article, focusing on the key findings and takeaways.\n\n"
             f"Article:\n{text[:max_chars]}\n\nSummary:"
         )
-        result = llm.invoke([HumanMessage(content=prompt)])
-        summary = result.content.strip() if hasattr(result, "content") else ""
+
+        def _invoke():
+            result = llm.invoke([HumanMessage(content=prompt)])
+            return result.content.strip() if hasattr(result, "content") else ""
+
+        try:
+            summary = _invoke()
+        except Exception as exc:
+            # Detect 429 / ResourceExhausted rate-limit errors and retry once
+            # after a 60-second back-off window.
+            exc_str = str(exc).lower()
+            if "429" in exc_str or "resource exhausted" in exc_str or "rate limit" in exc_str:
+                logger.warning(
+                    "Gemini rate limit hit (429). Sleeping 60 s before retry. Error: %s", exc
+                )
+                time.sleep(60)
+                summary = _invoke()
+            else:
+                raise
+
         return summary or None
+
     except Exception as exc:
         logger.warning("Gemini summarization failed: %s", exc)
         return None
@@ -159,12 +182,17 @@ def process_article_nlp(self, article_id: str) -> Dict:
             article.sentiment_score = result.sentiment_score
             update_fields.append("sentiment_score")
 
-        # Phase 2.2 — Persist BART-generated summary.
-        # Only overwrite if the article does not already have a human-supplied
-        # summary (scraped/imported) so we don't destroy richer content.
-        if result.summary and not article.summary:
-            article.summary = result.summary
-            update_fields.append("summary")
+        # Phase 2.2 — Persist summary.
+        # Prefer a Gemini-generated summary; fall back to whatever the NLP
+        # pipeline produced (BART / extractive).  Only write if the article
+        # does not already have a human-supplied summary so we don't destroy
+        # richer scraped content.
+        if not article.summary:
+            gemini_summary = _summarize_with_gemini(text)
+            chosen_summary = gemini_summary or result.summary
+            if chosen_summary:
+                article.summary = chosen_summary
+                update_fields.append("summary")
 
         # Store NER entities in metadata JSON field
         if result.entities:
@@ -239,6 +267,9 @@ def process_pending_articles_nlp(self, batch_size: int = 50) -> Dict:
         for article_id in pending:
             process_article_nlp.delay(str(article_id))
             queued += 1
+            # Throttle dispatch: each article task calls Gemini once.
+            # 5 s between dispatches keeps us well under the 15 RPM free-tier limit.
+            time.sleep(5)
 
         logger.info("[%s] Queued %d NLP tasks.", task_id, queued)
         return {"status": "success", "queued": queued}
@@ -379,6 +410,8 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
         for article_id in pending:
             summarize_article.delay(str(article_id))
             queued += 1
+            # Throttle dispatch: stay well under Gemini's 15 RPM free-tier limit.
+            time.sleep(5)
 
         logger.info("[%s] Queued %d summarization tasks.", task_id, queued)
         return {"status": "success", "queued": queued}
