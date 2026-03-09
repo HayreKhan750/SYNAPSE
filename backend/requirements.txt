@@ -23,12 +23,9 @@ flower==2.0.1
 
 # ── AI / ML ──────────────────────────────────────────────────
 langchain
-langchain-openai
 langchain-community
 langchain-google-genai
 langsmith
-openai==1.68.2
-tiktoken==0.7.0
 spacy==3.7.2
 transformers==4.36.2
 accelerate==0.26.0
