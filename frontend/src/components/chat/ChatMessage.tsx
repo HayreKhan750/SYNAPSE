@@ -2,9 +2,6 @@
 
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeHighlight from 'rehype-highlight';
-import 'highlight.js/styles/github-dark.css';
 import { Copy, Check, Bot, User, Pencil, Trash2 } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '@/types';
 import { cn } from '@/utils/helpers';
@@ -91,15 +88,49 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
           {isHuman ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <div className="prose prose-sm prose-invert max-w-none
-              [&_pre]:bg-slate-900 [&_pre]:rounded-lg [&_pre]:p-4 [&_pre]:overflow-x-auto
-              [&_code]:text-indigo-300 [&_pre_code]:text-slate-100
-              [&_h1]:text-white [&_h2]:text-white [&_h3]:text-slate-100
-              [&_a]:text-indigo-400 [&_a:hover]:text-indigo-300
-              [&_blockquote]:border-l-indigo-500 [&_blockquote]:text-slate-400">
+            <div className="prose prose-sm prose-invert max-w-none">
               <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeHighlight]}
+                components={{
+                  code({ className, children, ...props }: any) {
+                    const isBlock = className?.includes('language-');
+                    return isBlock ? (
+                      <pre className="bg-slate-900 rounded-lg p-4 overflow-x-auto my-3 border border-slate-700">
+                        <code className="text-slate-100 text-xs font-mono leading-relaxed" {...props}>
+                          {children}
+                        </code>
+                      </pre>
+                    ) : (
+                      <code className="bg-slate-900 text-indigo-300 rounded px-1.5 py-0.5 text-xs font-mono" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  h1: ({ children }: any) => <h1 className="text-xl font-bold text-white mt-4 mb-2">{children}</h1>,
+                  h2: ({ children }: any) => <h2 className="text-lg font-semibold text-white mt-3 mb-2">{children}</h2>,
+                  h3: ({ children }: any) => <h3 className="text-base font-semibold text-slate-100 mt-3 mb-1">{children}</h3>,
+                  p: ({ children }: any) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                  ul: ({ children }: any) => <ul className="list-disc list-inside mb-2 space-y-1 pl-2">{children}</ul>,
+                  ol: ({ children }: any) => <ol className="list-decimal list-inside mb-2 space-y-1 pl-2">{children}</ol>,
+                  li: ({ children }: any) => <li className="text-slate-200">{children}</li>,
+                  strong: ({ children }: any) => <strong className="font-semibold text-white">{children}</strong>,
+                  em: ({ children }: any) => <em className="italic text-slate-300">{children}</em>,
+                  blockquote: ({ children }: any) => (
+                    <blockquote className="border-l-4 border-indigo-500 pl-4 my-2 text-slate-400 italic">{children}</blockquote>
+                  ),
+                  a: ({ href, children }: any) => (
+                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
+                      {children}
+                    </a>
+                  ),
+                  hr: () => <hr className="border-slate-700 my-3" />,
+                  table: ({ children }: any) => (
+                    <div className="overflow-x-auto my-3">
+                      <table className="min-w-full border border-slate-700 rounded text-sm">{children}</table>
+                    </div>
+                  ),
+                  th: ({ children }: any) => <th className="border border-slate-700 px-3 py-2 bg-slate-800 text-white font-semibold text-left">{children}</th>,
+                  td: ({ children }: any) => <td className="border border-slate-700 px-3 py-2 text-slate-300">{children}</td>,
+                }}
               >
                 {message.content}
               </ReactMarkdown>
