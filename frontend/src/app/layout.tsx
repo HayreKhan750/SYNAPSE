@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Providers } from '@/components/Providers'
 import '@/styles/globals.css'
+import 'katex/dist/katex.min.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
