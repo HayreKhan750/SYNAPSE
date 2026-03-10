@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const { isAuthenticated } = useAuthStore()
-  const [isCollapsed, setIsCollapsed] = useState(false)   // desktop: collapsed/expanded
+  const [isCollapsed, setIsCollapsed] = useState(true)    // desktop: collapsed/expanded
   const [mobileOpen, setMobileOpen] = useState(false)     // mobile: sidebar open/closed
   const [isMounted, setIsMounted] = useState(false)
 

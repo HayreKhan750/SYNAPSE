@@ -99,6 +99,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
         <div className={cn('flex items-center gap-1 px-1', isHuman ? 'flex-row-reverse' : 'flex-row')}>
           {isHuman && !message.isStreaming && (
             <>
+              <CopyButton text={message.content} />
               {onEdit && (
                 <button
                   onClick={handleEdit}

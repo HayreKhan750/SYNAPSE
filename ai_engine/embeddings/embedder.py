@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 # ── Configuration ──────────────────────────────────────────────────────────────
 _MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 _BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE", "32"))
-_USE_OPENAI = os.environ.get("USE_OPENAI_EMBEDDINGS", "false").lower() == "true"
-_OPENAI_MODEL = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-ada-002")
-_OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "")
+# OpenAI embeddings are no longer supported — always use sentence-transformers.
+# The EMBEDDING_PROVIDER and USE_OPENAI_EMBEDDINGS env vars are ignored.
+_USE_OPENAI = False
 
 # Singleton instance (loaded lazily)
 _embedder_instance: Optional["SynapseEmbedder"] = None
@@ -47,10 +47,7 @@ class SynapseEmbedder:
 
     def _load_model(self) -> None:
         """Load the embedding model (lazy, called once at startup)."""
-        if _USE_OPENAI and _OPENAI_KEY:
-            self._load_openai()
-        else:
-            self._load_sentence_transformers()
+        self._load_sentence_transformers()
 
     def _load_sentence_transformers(self) -> None:
         try:
@@ -67,16 +64,6 @@ class SynapseEmbedder:
                 "sentence-transformers not installed. "
                 "Run: pip install sentence-transformers"
             )
-            raise
-
-    def _load_openai(self) -> None:
-        try:
-            from openai import OpenAI  # noqa: PLC0415
-            self._openai_client = OpenAI(api_key=_OPENAI_KEY)
-            self.dimensions = 1536  # text-embedding-ada-002 fixed dims
-            logger.info("OpenAI embedding client loaded — model=%s", _OPENAI_MODEL)
-        except ImportError:
-            logger.error("openai package not installed. Run: pip install openai")
             raise
 
     # ── Public API ─────────────────────────────────────────────────────────────
@@ -96,8 +83,6 @@ class SynapseEmbedder:
 
         text = _truncate_text(text)
 
-        if self._openai_client:
-            return self._embed_openai([text])[0]
         return self._embed_local([text])[0]
 
     def embed_batch(self, texts: List[str], batch_size: int = _BATCH_SIZE) -> List[List[float]]:
@@ -121,10 +106,7 @@ class SynapseEmbedder:
         for i in range(0, len(clean_texts), batch_size):
             batch = clean_texts[i: i + batch_size]
             start = time.time()
-            if self._openai_client:
-                batch_embeddings = self._embed_openai(batch)
-            else:
-                batch_embeddings = self._embed_local(batch)
+            batch_embeddings = self._embed_local(batch)
             elapsed = round(time.time() - start, 2)
             logger.debug(
                 "Embedded batch %d-%d in %.2fs",
@@ -145,19 +127,6 @@ class SynapseEmbedder:
             normalize_embeddings=True,
         )
         return [emb.tolist() for emb in embeddings]
-
-    def _embed_openai(self, texts: List[str]) -> List[List[float]]:
-        """Embed texts using the OpenAI Embeddings API."""
-        # Replace empty strings (OpenAI rejects them)
-        safe_texts = [t if t.strip() else "." for t in texts]
-        response = self._openai_client.embeddings.create(
-            input=safe_texts,
-            model=_OPENAI_MODEL,
-        )
-        # Sort by index to preserve order
-        data = sorted(response.data, key=lambda x: x.index)
-        return [item.embedding for item in data]
-
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 

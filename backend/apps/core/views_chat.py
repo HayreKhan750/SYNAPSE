@@ -129,7 +129,7 @@ class ExplainView(APIView):
             conv.add_message('ai', result['answer'])
             if not conv.title and title:
                 conv.title = f'Explain: {title}'[:100]
-                conv.save(update_fields=['title'])
+            conv.save()
         except Exception as exc:
             logger.warning("Failed to persist explain conversation: %s", exc)
 
@@ -139,135 +139,97 @@ class ExplainView(APIView):
 def _get_pipeline():
     """
     Lazy-import RAG pipeline to avoid loading at Django startup.
-    Uses Google Gemini when GOOGLE_API_KEY is set; falls back to mock otherwise.
+    Uses Google Gemini when GEMINI_API_KEY is set.
+    Tries the full RAG pipeline first; falls back to direct Gemini if pgvector
+    retriever is unavailable. Raises 503 only if no API key is configured at all.
     """
     import os
     google_key = os.environ.get("GEMINI_API_KEY", "")
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
     has_real_key = bool(google_key and not google_key.startswith("your-"))
 
-    if has_real_key:
-        try:
-            from ai_engine.rag import get_rag_pipeline
-            return get_rag_pipeline()
-        except Exception as exc:
-            logger.error("Failed to load RAG pipeline: %s", exc)
-            # fall through to mock
+    if not has_real_key:
+        logger.error("No valid GEMINI_API_KEY configured — chat is unavailable.")
+        return None
 
-    logger.warning("Using mock RAG pipeline (no valid GEMINI_API_KEY configured).")
-    return _MockPipeline()
+    # Try the full RAG pipeline (requires pgvector + embeddings)
+    try:
+        from ai_engine.rag import get_rag_pipeline
+        return get_rag_pipeline()
+    except Exception as exc:
+        logger.warning(
+            "Full RAG pipeline unavailable (%s). Falling back to direct Gemini.", exc
+        )
+
+    # Fallback: direct Gemini without retrieval
+    return _GeminiDirectPipeline(api_key=google_key, model=model)
 
 
-class _MockPipeline:
+class _GeminiDirectPipeline:
     """
-    Lightweight demo pipeline used when no real OpenAI key is configured.
-    Returns plausible-looking responses drawn from the local DB so the UI
-    can be tested end-to-end without any external API calls.
+    Fallback pipeline that calls Google Gemini directly via langchain-google-genai
+    when the full RAG pipeline (pgvector retriever) is unavailable.
+    Still persists conversations to DB and provides real AI answers.
     """
+
+    def __init__(self, api_key: str, model: str) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._histories: Dict[str, list] = {}
+
+    def _build_llm(self):
+        from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
+        return ChatGoogleGenerativeAI(
+            model=self._model,
+            temperature=0.7,
+            google_api_key=self._api_key,
+        )
 
     def chat(self, question: str, conversation_id: str, content_types=None) -> dict:
-        answer = self._generate_answer(question)
-        sources = self._fetch_sources(content_types)
-        return {"answer": answer, "sources": sources, "conversation_id": conversation_id}
+        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: PLC0415
+        history = self._histories.get(conversation_id, [])
+        messages = [
+            SystemMessage(content=(
+                "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
+                "Answer questions clearly and concisely."
+            ))
+        ] + history + [HumanMessage(content=question)]
+        llm = self._build_llm()
+        response = llm.invoke(messages)
+        answer = response.content.strip()
+        self._histories.setdefault(conversation_id, [])
+        self._histories[conversation_id].append(HumanMessage(content=question))
+        self._histories[conversation_id].append(response)
+        return {"answer": answer, "sources": [], "conversation_id": conversation_id}
 
     def stream_chat(self, question: str, conversation_id: str, content_types=None):
-        import json, time
-        answer = self._generate_answer(question)
-        sources = self._fetch_sources(content_types)
-        # Yield answer word by word to simulate streaming
-        words = answer.split(" ")
-        for i, word in enumerate(words):
-            yield (word + " ") if i < len(words) - 1 else word
-        # Yield sources metadata
-        yield f"__SOURCES__:{json.dumps(sources)}"
+        import json  # noqa: PLC0415
+        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: PLC0415
+        history = self._histories.get(conversation_id, [])
+        messages = [
+            SystemMessage(content=(
+                "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
+                "Answer questions clearly and concisely."
+            ))
+        ] + history + [HumanMessage(content=question)]
+        llm = self._build_llm()
+        full_answer = ""
+        for chunk in llm.stream(messages):
+            token = chunk.content
+            if token:
+                full_answer += token
+                yield token
+        self._histories.setdefault(conversation_id, [])
+        self._histories[conversation_id].append(HumanMessage(content=question))
+        from langchain_core.messages import AIMessage  # noqa: PLC0415
+        self._histories[conversation_id].append(AIMessage(content=full_answer))
+        yield f"__SOURCES__:{json.dumps([])}"
 
     def get_history(self, conversation_id: str):
         return []
 
     def delete_conversation(self, conversation_id: str):
-        pass
-
-    def _generate_answer(self, question: str) -> str:
-        q = question.lower()
-        if any(w in q for w in ["rag", "retrieval", "augmented"]):
-            return (
-                "**Retrieval-Augmented Generation (RAG)** is a technique that combines "
-                "a retrieval system with a generative language model.\n\n"
-                "Instead of relying solely on the model's parametric knowledge, RAG first "
-                "**retrieves relevant documents** from a knowledge base (using semantic search "
-                "over embeddings stored in pgvector), then feeds those documents as context "
-                "into the LLM to generate a grounded answer.\n\n"
-                "SYNAPSE uses RAG to answer questions about articles, research papers, "
-                "GitHub repositories, and videos indexed in the platform."
-            )
-        if any(w in q for w in ["llm", "large language", "gpt", "transformer"]):
-            return (
-                "**Large Language Models (LLMs)** are neural networks trained on massive "
-                "text corpora using the transformer architecture.\n\n"
-                "Key properties:\n"
-                "- **Scale** — billions of parameters enable emergent reasoning abilities\n"
-                "- **In-context learning** — can follow instructions without fine-tuning\n"
-                "- **Few-shot prompting** — examples in the prompt guide behaviour\n\n"
-                "Popular LLMs include GPT-4, Claude, Gemini, LLaMA, and Mistral."
-            )
-        if any(w in q for w in ["trend", "trending", "popular", "top"]):
-            return (
-                "Based on the SYNAPSE knowledge base, here are the **top technology trends** "
-                "right now:\n\n"
-                "1. **Agentic AI** — autonomous agents that plan and execute multi-step tasks\n"
-                "2. **Multimodal models** — vision + language + audio in a single model\n"
-                "3. **Inference efficiency** — quantisation, speculative decoding, MoE\n"
-                "4. **Edge AI** — running small models on devices (Phi-3, Gemma)\n"
-                "5. **AI-assisted coding** — Copilot, Cursor, Devin-style tools\n\n"
-                "*Note: this is a demo response — connect an OpenAI key for live RAG answers.*"
-            )
-        if any(w in q for w in ["explain", "summarize", "summary", "what is", "describe"]):
-            topic = question.replace("Explain this", "").replace("Explain the", "").strip('" ')
-            return (
-                f"Here is a summary of **{topic}**:\n\n"
-                "This content covers cutting-edge developments in AI and software engineering. "
-                "Key themes include neural architecture innovations, scalable systems design, "
-                "and practical engineering trade-offs.\n\n"
-                "The work demonstrates significant improvements over prior baselines and "
-                "introduces novel techniques that are likely to influence the field.\n\n"
-                "*Note: this is a demo response — connect an OpenAI API key for real RAG-powered answers.*"
-            )
-        return (
-            f"You asked: *\"{question}\"*\n\n"
-            "SYNAPSE AI is ready to answer questions grounded in your knowledge base — "
-            "articles, research papers, GitHub repositories, and videos.\n\n"
-            "**To enable real AI answers**, set a valid `OPENAI_API_KEY` in your `.env` file "
-            "and restart the backend server.\n\n"
-            "In the meantime, I can demonstrate the chat UI with this demo mode. "
-            "Try asking about **RAG**, **LLMs**, **trending technologies**, or click "
-            "**Ask AI** on any article or paper card."
-        )
-
-    def _fetch_sources(self, content_types=None) -> list:
-        """Pull a few real records from the DB to show as demo sources."""
-        sources = []
-        try:
-            from apps.articles.models import Article
-            for a in Article.objects.order_by("-published_at")[:2]:
-                sources.append({
-                    "title": a.title,
-                    "url": a.url or "",
-                    "content_type": "article",
-                    "snippet": (a.summary or a.content or "")[:160],
-                })
-        except Exception:
-            pass
-        try:
-            from apps.papers.models import ResearchPaper
-            for p in ResearchPaper.objects.order_by("-published_at")[:1]:
-                sources.append({
-                    "title": p.title,
-                    "url": p.pdf_url or p.arxiv_url or "",
-                    "content_type": "paper",
-                    "snippet": (p.summary or p.abstract or "")[:160],
-                })
-        except Exception:
-            pass
-        return sources
+        self._histories.pop(conversation_id, None)
 
 
 def _get_or_create_conversation(conversation_id: str, user=None) -> Conversation:
@@ -340,7 +302,7 @@ class ChatView(APIView):
             conv.add_message('ai', result['answer'])
             if not conv.title and question:
                 conv.title = question[:100]
-                conv.save(update_fields=['title'])
+            conv.save()
         except Exception as exc:
             logger.warning("Failed to persist conversation: %s", exc)
 
@@ -372,7 +334,10 @@ class ChatStreamView(APIView):
                 yield 'data: {"error": "AI pipeline unavailable"}\n\n'
             return StreamingHttpResponse(_unavailable(), content_type='text/event-stream')
 
+        user = request.user if request.user.is_authenticated else None
+
         def _stream_generator():
+            full_answer = ""
             try:
                 for token in pipeline.stream_chat(
                     question=question,
@@ -383,11 +348,24 @@ class ChatStreamView(APIView):
                         meta = token[len('__SOURCES__:'):]
                         yield f'event: sources\ndata: {meta}\n\n'
                     else:
+                        full_answer += token
                         safe = json.dumps(token)
                         yield f'data: {safe}\n\n'
             except Exception as exc:
                 logger.error("SSE stream error: %s", exc)
                 yield f'data: {{"error": "{str(exc)}"}}\n\n'
+
+            # Persist conversation to DB after streaming completes
+            try:
+                conv = _get_or_create_conversation(conversation_id, user=user)
+                conv.add_message('human', question)
+                conv.add_message('ai', full_answer)
+                if not conv.title and question:
+                    conv.title = question[:100]
+                conv.save()
+            except Exception as exc:
+                logger.warning("Failed to persist streamed conversation: %s", exc)
+
             yield 'event: done\ndata: {}\n\n'
 
         response = StreamingHttpResponse(
