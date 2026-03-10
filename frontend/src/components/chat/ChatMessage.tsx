@@ -2,6 +2,9 @@
 
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github-dark.css';
 import { Copy, Check, Bot, User, Pencil, Trash2 } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '@/types';
 import { cn } from '@/utils/helpers';
@@ -73,7 +76,9 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
         )}
       </div>
 
-      {/* Bubble + actions */}
+      {/* Bubble + actions — hide bubble entirely when AI placeholder is empty
+          (TypingIndicator is shown instead, so we only render the avatar) */}
+      {(!message.isStreaming || message.content !== '') && (
       <div className={cn('flex flex-col gap-1.5 max-w-[80%]', isHuman ? 'items-end' : 'items-start')}>
         <div
           className={cn(
@@ -86,8 +91,18 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
           {isHuman ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <div className="prose prose-sm prose-invert max-w-none">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+            <div className="prose prose-sm prose-invert max-w-none
+              [&_pre]:bg-slate-900 [&_pre]:rounded-lg [&_pre]:p-4 [&_pre]:overflow-x-auto
+              [&_code]:text-indigo-300 [&_pre_code]:text-slate-100
+              [&_h1]:text-white [&_h2]:text-white [&_h3]:text-slate-100
+              [&_a]:text-indigo-400 [&_a:hover]:text-indigo-300
+              [&_blockquote]:border-l-indigo-500 [&_blockquote]:text-slate-400">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+              >
+                {message.content}
+              </ReactMarkdown>
               {message.isStreaming && (
                 <span className="inline-block w-2 h-4 bg-indigo-400 animate-pulse ml-0.5 rounded-sm align-middle" />
               )}
@@ -143,6 +158,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

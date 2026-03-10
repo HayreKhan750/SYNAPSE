@@ -70,7 +70,7 @@ async function streamChat(
   onDone: () => void,
   onError: (err: string) => void,
 ) {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/api\/v1\/?$/, '');
   const accessToken =
     typeof window !== 'undefined'
       ? localStorage.getItem('synapse_access_token') || ''
@@ -594,9 +594,14 @@ export default function ChatPage() {
                 ))}
               </AnimatePresence>
 
-              {/* Typing indicator — shown while waiting for first token */}
+              {/* Typing indicator — shown while waiting for first token.
+                  Only render when the last AI placeholder has NO content yet
+                  AND is not already showing a streaming cursor in ChatMessage.
+                  This prevents the double-bot-icon bug where TypingIndicator
+                  and the streaming ChatMessage avatar both appear at once. */}
               {isGenerating &&
                 messages[messages.length - 1]?.role === 'ai' &&
+                messages[messages.length - 1]?.isStreaming === true &&
                 messages[messages.length - 1]?.content === '' && (
                   <TypingIndicator />
                 )}

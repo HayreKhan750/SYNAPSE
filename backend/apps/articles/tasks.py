@@ -403,7 +403,7 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
 
         # Target articles that are NLP-processed but lack a summary
         pending = Article.objects.filter(
-            summary=""
+            summary__in=["", None]
         ).values_list("id", flat=True)[:batch_size]
 
         queued = 0
