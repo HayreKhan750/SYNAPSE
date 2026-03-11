@@ -388,17 +388,17 @@ export default function ChatPage() {
       const currentAttachments = [...attachedFiles];
       setAttachedFiles([]);
 
-      // Build display content: question + file names if any
-      const fileNote = currentAttachments.length > 0
-        ? `\n\n📎 ${currentAttachments.map((a) => a.file.name).join(', ')}`
-        : '';
-
-      // Append user message immediately
+      // Append user message immediately with attachment metadata for rendering
       const userMsg: ChatMessageType = {
         id: nanoid(),
         role: 'human',
-        content: question.trim() + fileNote,
+        content: question.trim(),
         ts: Date.now() / 1000,
+        attachments: currentAttachments.map((a) => ({
+          name: a.file.name,
+          type: a.file.type,
+          preview: a.preview,
+        })),
       };
       setMessages((prev) => [...prev, userMsg]);
       setInputValue('');

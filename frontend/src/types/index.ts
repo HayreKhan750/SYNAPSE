@@ -148,6 +148,12 @@ export interface ChatSource {
   snippet: string
 }
 
+export interface ChatMessageAttachment {
+  name: string
+  type: string      // MIME type e.g. "image/jpeg"
+  preview?: string  // data URL for images
+}
+
 export interface ChatMessage {
   id: string
   role: 'human' | 'ai'
@@ -155,6 +161,7 @@ export interface ChatMessage {
   ts: number
   sources?: ChatSource[]
   isStreaming?: boolean
+  attachments?: ChatMessageAttachment[]
 }
 
 export interface Conversation {

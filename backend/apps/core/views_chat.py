@@ -281,33 +281,73 @@ class _GeminiDirectPipeline:
                 raise
         raise last_exc or Exception("All Gemini API keys exhausted")
 
-    def chat(self, question: str, conversation_id: str, content_types=None) -> dict:
+    def _build_human_message(self, question: str, files=None):
+        """
+        Build a HumanMessage that includes any uploaded files as inline data parts.
+        Supports images (sent as base64 inline) and text files (sent as text).
+        """
+        from langchain_core.messages import HumanMessage  # noqa: PLC0415
+        import base64  # noqa: PLC0415
+
+        if not files:
+            return HumanMessage(content=question)
+
+        # Build multipart content list for Gemini vision
+        content_parts = []
+        for f in files:
+            mime = f.content_type or 'application/octet-stream'
+            if mime.startswith('image/'):
+                data = base64.b64encode(f.read()).decode('utf-8')
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime};base64,{data}"},
+                })
+            else:
+                # Text-based files — read and inject as text
+                try:
+                    text = f.read().decode('utf-8', errors='replace')
+                    content_parts.append({
+                        "type": "text",
+                        "text": f"[File: {f.name}]\n{text}",
+                    })
+                except Exception:
+                    pass
+
+        if question:
+            content_parts.append({"type": "text", "text": question})
+
+        return HumanMessage(content=content_parts)
+
+    def chat(self, question: str, conversation_id: str, content_types=None, files=None) -> dict:
         from langchain_core.messages import HumanMessage, SystemMessage  # noqa: PLC0415
         history = self._histories.get(conversation_id, [])
+        human_msg = self._build_human_message(question, files)
         messages = [
             SystemMessage(content=(
                 "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
-                "Answer questions clearly and concisely."
+                "Answer questions clearly and concisely. When images are provided, describe and analyse them thoroughly."
             ))
-        ] + history + [HumanMessage(content=question)]
+        ] + history + [human_msg]
         response = self._invoke_with_rotation(messages)
         raw = response.content if hasattr(response, 'content') else response
         answer = _extract_text_content(raw).strip()
         self._histories.setdefault(conversation_id, [])
-        self._histories[conversation_id].append(HumanMessage(content=question))
+        # Store only plain text version in history to avoid huge base64 in memory
+        self._histories[conversation_id].append(HumanMessage(content=question or '[image/file]'))
         self._histories[conversation_id].append(response)
         return {"answer": answer, "sources": [], "conversation_id": conversation_id}
 
-    def stream_chat(self, question: str, conversation_id: str, content_types=None):
+    def stream_chat(self, question: str, conversation_id: str, content_types=None, files=None):
         import json  # noqa: PLC0415
         from langchain_core.messages import HumanMessage, SystemMessage, AIMessage  # noqa: PLC0415
         history = self._histories.get(conversation_id, [])
+        human_msg = self._build_human_message(question, files)
         messages = [
             SystemMessage(content=(
                 "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
-                "Answer questions clearly and concisely."
+                "Answer questions clearly and concisely. When images are provided, describe and analyse them thoroughly."
             ))
-        ] + history + [HumanMessage(content=question)]
+        ] + history + [human_msg]
         full_answer = ""
         for chunk in self._stream_with_rotation(messages):
             token = _extract_text_content(chunk.content if hasattr(chunk, 'content') else chunk)
@@ -315,7 +355,7 @@ class _GeminiDirectPipeline:
                 full_answer += token
                 yield token
         self._histories.setdefault(conversation_id, [])
-        self._histories[conversation_id].append(HumanMessage(content=question))
+        self._histories[conversation_id].append(HumanMessage(content=question or '[image/file]'))
         self._histories[conversation_id].append(AIMessage(content=full_answer))
         yield f"__SOURCES__:{json.dumps([])}"
 
@@ -368,6 +408,7 @@ class ChatView(APIView):
         conversation_id = request.data.get('conversation_id') or str(uuid.uuid4())
         content_types = request.data.get('content_types') or None
         model = request.data.get('model', '').strip() or None
+        files = request.FILES.getlist('files') or []
 
         pipeline = _get_pipeline(model=model)
         if pipeline is None:
@@ -381,6 +422,7 @@ class ChatView(APIView):
                 question=question,
                 conversation_id=conversation_id,
                 content_types=content_types,
+                files=files if hasattr(pipeline, '_build_human_message') else None,
             )
         except Exception as exc:
             logger.error("RAG chat error: %s", exc)
@@ -423,6 +465,7 @@ class ChatStreamView(APIView):
         conversation_id = request.data.get('conversation_id') or str(uuid.uuid4())
         content_types = request.data.get('content_types') or None
         model = request.data.get('model', '').strip() or None
+        files = request.FILES.getlist('files') or []
 
         pipeline = _get_pipeline(model=model)
         if pipeline is None:
@@ -431,6 +474,7 @@ class ChatStreamView(APIView):
             return StreamingHttpResponse(_unavailable(), content_type='text/event-stream')
 
         user = request.user if request.user.is_authenticated else None
+        use_files = files if hasattr(pipeline, '_build_human_message') else None
 
         def _stream_generator():
             full_answer = ""
@@ -439,6 +483,7 @@ class ChatStreamView(APIView):
                     question=question,
                     conversation_id=conversation_id,
                     content_types=content_types,
+                    **({"files": use_files} if use_files is not None else {}),
                 ):
                     if token.startswith('__SOURCES__:'):
                         meta = token[len('__SOURCES__:'):]

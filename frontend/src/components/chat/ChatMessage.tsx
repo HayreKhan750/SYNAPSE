@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Copy, Check, Bot, User, Pencil, Trash2, Terminal } from 'lucide-react';
+import { Copy, Check, Bot, User, Pencil, Trash2, Terminal, Paperclip } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '@/types';
 import { cn } from '@/utils/helpers';
 import { SourceCitationCard } from './SourceCitationCard';
@@ -162,7 +162,33 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
             )}
           >
             {isHuman ? (
-              <p className="whitespace-pre-wrap">{contentStr}</p>
+              <>
+                {/* Attachment previews above the message text */}
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {message.attachments.map((att, i) =>
+                      att.type.startsWith('image/') && att.preview ? (
+                        <div key={i} className="relative group">
+                          <img
+                            src={att.preview}
+                            alt={att.name}
+                            className="max-h-48 max-w-xs rounded-xl object-cover border border-slate-600 shadow-md"
+                          />
+                          <div className="absolute bottom-1 left-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-lg truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                            {att.name}
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={i} className="flex items-center gap-1.5 bg-slate-700/60 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
+                          <Paperclip size={11} className="text-slate-400 flex-shrink-0" />
+                          <span className="truncate max-w-[160px]">{att.name}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+                {contentStr && <p className="whitespace-pre-wrap">{contentStr}</p>}
+              </>
             ) : (
               <div className="prose prose-sm prose-invert max-w-none">
                 <ReactMarkdown
