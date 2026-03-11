@@ -57,13 +57,25 @@ class AgentToolRegistry:
             make_search_github_tool,
             make_fetch_arxiv_papers_tool,
         )
+        from ai_engine.agents.doc_tools import (
+            make_generate_pdf_tool,
+            make_generate_ppt_tool,
+            make_generate_word_doc_tool,
+            make_generate_markdown_tool,
+        )
 
         tool_factories = [
+            # Phase 5.1 — research & analysis tools
             make_search_knowledge_base_tool,
             make_fetch_articles_tool,
             make_analyze_trends_tool,
             make_search_github_tool,
             make_fetch_arxiv_papers_tool,
+            # Phase 5.2 — document generation tools
+            make_generate_pdf_tool,
+            make_generate_ppt_tool,
+            make_generate_word_doc_tool,
+            make_generate_markdown_tool,
         ]
 
         for factory in tool_factories:

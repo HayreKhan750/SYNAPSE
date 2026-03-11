@@ -297,21 +297,23 @@
 - [x] **Git commit:** `feat: agent framework — ReAct agent, search/fetch/analyze tools`
 
 ### 5.2 Document Generation (Week 14)
-- [ ] Install: reportlab, python-pptx, python-docx, jinja2, pillow
-- [ ] Create tool: generate_pdf(title, sections, content) using ReportLab
-- [ ] Implement PDF with: cover page, table of contents, sections, styled paragraphs, footer
-- [ ] Create tool: generate_ppt(title, slides) using python-pptx
-- [ ] Implement PPT with: title slide, content slides with bullet points, styled theme
-- [ ] Create tool: generate_word_doc(title, content) using python-docx
-- [ ] Implement Word doc with: styles, headers, table of contents, structured content
-- [ ] Create GeneratedDocument model (user, title, doc_type, file_path, cloud_url, agent_prompt)
-- [ ] Store generated files in local media/ folder (then S3 in Phase 6)
-- [ ] Create document API endpoints (generate, list, download, delete)
-- [ ] Create Document Studio page (/documents)
-- [ ] Create document generation form (prompt input, type selector)
-- [ ] Create documents library grid (title, type badge, date, download button)
-- [ ] Write unit tests for document generation tools
-- [ ] **Git commit:** `feat: document generation — PDF/PPT/Word tools, Document Studio UI`
+- [x] Install: reportlab, python-pptx, python-docx, lxml, pillow
+- [x] Create tool: generate_pdf(title, sections, content) using ReportLab
+- [x] Implement PDF with: cover page, sections, styled paragraphs, branded footer
+- [x] Create tool: generate_ppt(title, slides) using python-pptx
+- [x] Implement PPT with: branded title slide, content slides with bullets, slide numbers
+- [x] Create tool: generate_word_doc(title, content) using python-docx
+- [x] Implement Word doc with: styles, heading levels, TOC field, page footer
+- [x] Create tool: generate_markdown(title, sections) — .md with auto-TOC
+- [x] Create GeneratedDocument model (user, title, doc_type, file_path, cloud_url, agent_prompt) ✓ existed
+- [x] Store generated files in local media/ folder (then S3 in Phase 6)
+- [x] Create document API endpoints (generate, list, download, delete)
+- [x] Register 4 doc tools in AgentToolRegistry (9 total tools)
+- [x] Create Document Studio page (/documents)
+- [x] Create document generation form (prompt input, type selector, subtitle, author)
+- [x] Create documents library grid (title, type badge, size, date, download + delete buttons)
+- [x] Write unit tests for document generation tools (13 tests all passing)
+- [x] **Git commit:** `feat: document generation — PDF/PPT/Word tools, Document Studio UI`
 
 ### 5.3 Project Builder (Week 15)
 - [ ] Create tool: create_project(project_type, name, features)
