@@ -98,12 +98,16 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
         {article.title}
       </h3>
 
-      {/* AI Summary — displayed when BART has generated a summary (Phase 2.2) */}
-      {article.summary ? (
+      {/* Summary section:
+          1. Real AI summary → show with sparkle badge (swapped in by polling)
+          2. Pending (empty summary, not sentinel) → show excerpt/title instantly
+             with a subtle "AI Summarizing" pill — no empty space, no long wait
+          3. Failed sentinel → show nothing (article had no summarizable content) */}
+      {article.summary && article.summary !== '__failed__' ? (
+        /* ── Real AI summary available ── */
         <div className="mb-3">
           <div className="flex items-center gap-2 mb-1">
             <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">
-              {/* Sparkle icon to indicate AI-generated content */}
               <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
@@ -112,18 +116,36 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
           </div>
           <SummaryText text={article.summary} />
         </div>
-      ) : article.nlp_processed === false && (
-        /* Show a subtle "Processing…" pill when the NLP job is still pending */
+      ) : !article.summary || article.summary === '' ? (
+        /* ── Summary pending: show best available content immediately ── */
         <div className="mb-3">
-          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-            AI Summary pending…
-          </span>
+          {/* Priority: real web excerpt → tags/topic description → nothing */}
+          {(article as any).excerpt ? (
+            <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-400 mb-1.5">
+              {(article as any).excerpt}
+            </p>
+          ) : (article.tags?.length > 0 || article.topic) ? (
+            /* Build a readable description from tags + topic when no excerpt */
+            <p className="line-clamp-2 text-sm text-slate-500 dark:text-slate-400 mb-1.5">
+              {[
+                article.topic ? `A ${article.topic} article` : null,
+                article.tags?.length > 0 ? `covering ${article.tags.slice(0, 3).join(', ')}` : null,
+              ].filter(Boolean).join(' ')}
+              {article.tags?.length > 0 || article.topic ? '.' : ''}
+            </p>
+          ) : null}
+          {/* Subtle pill — only shown when no real excerpt yet */}
+          {!(article as any).excerpt && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60 text-slate-400 dark:text-slate-500">
+              <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              AI summarizing…
+            </span>
+          )}
         </div>
-      )}
+      ) : null /* sentinel (__failed__): render nothing */}
 
       {/* Tags row */}
       <div className="flex flex-wrap gap-1 mb-3">

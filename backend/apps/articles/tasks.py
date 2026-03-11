@@ -2,13 +2,19 @@
 Celery tasks for NLP processing of articles.
 
 Phase 2.1 — NLP Processing Pipeline
-Phase 2.2 — Article Summarization (BART auto-run after scraping)
+Phase 2.2 — Article Summarization (Gemini / BART auto-run after scraping)
 
 Tasks:
   process_article_nlp           — Full pipeline: clean → lang → keywords →
-                                   topic → sentiment → NER → summary (BART)
+                                   topic → sentiment → NER → summary (Gemini/BART)
   process_pending_articles_nlp  — Batch-queue unprocessed articles
-  summarize_article             — Standalone BART summarization task
+  summarize_article             — Standalone summarization task (Gemini → BART)
+  summarize_pending_articles    — Queue summarization for articles without summary
+
+Summary failure sentinel:
+  Articles that fail summarization are marked with summary="__failed__" so they
+  are excluded from future batch runs and never enter an infinite retry loop.
+  Force-resetting: set summary="" and call summarize_article.delay(id, force=True).
 """
 import logging
 import sys
@@ -20,22 +26,75 @@ from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
+# Sentinel value written to Article.summary when all summarization attempts fail.
+# Prevents the article from being re-queued on every beat-schedule run.
+SUMMARY_FAILED_SENTINEL = "__failed__"
+
+
+def _get_gemini_api_keys() -> list:
+    """
+    Return all configured Gemini API keys for round-robin rotation.
+
+    Reads:
+      GEMINI_API_KEY        — primary key (always checked)
+      GEMINI_API_KEY_1 … GEMINI_API_KEY_10 — additional keys
+
+    This lets you add up to 10 free-tier accounts and multiply the daily
+    quota proportionally (e.g. 10 keys × 20 req/day = 200 req/day).
+    """
+    keys = []
+    # Primary key
+    primary = os.environ.get("GEMINI_API_KEY", "")
+    if primary and not primary.startswith("your-"):
+        keys.append(primary)
+    # Additional keys GEMINI_API_KEY_1 … GEMINI_API_KEY_10
+    for i in range(1, 11):
+        k = os.environ.get(f"GEMINI_API_KEY_{i}", "")
+        if k and not k.startswith("your-") and k not in keys:
+            keys.append(k)
+    return keys
+
+
+# Module-level key rotation index (per-worker process, resets on restart)
+_key_index = 0
+
+
+def _next_api_key(keys: list) -> str:
+    """Return the next API key in round-robin order."""
+    global _key_index
+    key = keys[_key_index % len(keys)]
+    _key_index = (_key_index + 1) % len(keys)
+    return key
+
 
 def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
     """
-    Summarize text using Google Gemini 1.5 Flash.
-    Returns None if GOOGLE_API_KEY is not set or the call fails.
+    Summarize text using Google Gemini Flash.
+    Returns None if GEMINI_API_KEY is not set or the call fails.
 
-    Rate-limit handling:
-    - On a 429 / ResourceExhausted response, sleeps 60 seconds and retries once.
+    Every failure path logs at ERROR level with full exc_info so the exact
+    rejection reason (invalid key, quota, model name, network) is visible in
+    Celery worker logs.
     """
-    import os
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    if not api_key or api_key.startswith("your-"):
+    keys = _get_gemini_api_keys()
+    if not keys:
+        logger.error(
+            "GEMINI API ERROR: No valid GEMINI_API_KEY found. "
+            "Set GEMINI_API_KEY (and optionally GEMINI_API_KEY_1..10) in .env."
+        )
         return None
 
+    model_name = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+    logger.info(
+        "_summarize_with_gemini: START model=%s text_length=%d keys_available=%d",
+        model_name, len(text), len(keys),
+    )
+
+    # Try each key in rotation; if one is quota-exhausted, move to the next
+    api_key = _next_api_key(keys)
+
+    # ── Step 1: import LangChain Gemini ────────────────────────────────────────
     try:
-        import sys
         project_root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         )
@@ -43,43 +102,121 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
             sys.path.insert(0, project_root)
         from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
         from langchain_core.messages import HumanMessage  # noqa: PLC0415
+    except ImportError as exc:
+        logger.error(
+            "GEMINI API ERROR: Cannot import langchain_google_genai. "
+            "Run: pip install langchain-google-genai\nError: %s",
+            exc,
+            exc_info=True,
+        )
+        return None
 
+    # ── Step 2: build the LLM client ───────────────────────────────────────────
+    try:
         llm = ChatGoogleGenerativeAI(
-            model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+            model=model_name,
             temperature=0.2,
             max_output_tokens=300,
             google_api_key=api_key,
         )
+    except Exception as exc:
+        logger.error(
+            "GEMINI API ERROR: Failed to construct ChatGoogleGenerativeAI "
+            "(model=%s). Error: %s",
+            model_name, exc,
+            exc_info=True,
+        )
+        return None
+
+    # ── Step 3: build prompt ───────────────────────────────────────────────────
+    # Adapt prompt based on whether we have full content or just metadata
+    has_full_content = len(text) > 300 and "Article Content:" in text
+    if has_full_content:
         prompt = (
             "You are a technical summarizer. Write a concise 2-3 sentence summary "
             "of the following article, focusing on the key findings and takeaways.\n\n"
             f"Article:\n{text[:max_chars]}\n\nSummary:"
         )
+    else:
+        prompt = (
+            "You are a tech news summarizer. Based on the title and metadata below, "
+            "write a concise 1-2 sentence description of what this article is likely about. "
+            "Be informative and specific based on the title.\n\n"
+            f"{text[:max_chars]}\n\nDescription:"
+        )
 
-        def _invoke():
-            result = llm.invoke([HumanMessage(content=prompt)])
-            return result.content.strip() if hasattr(result, "content") else ""
+    # ── Step 4: invoke with retry on rate-limit ────────────────────────────────
+    def _invoke() -> str:
+        result = llm.invoke([HumanMessage(content=prompt)])
+        return result.content.strip() if hasattr(result, "content") else ""
 
+    for attempt in range(2):  # max 2 attempts (original + 1 retry on 429)
         try:
             summary = _invoke()
-        except Exception as exc:
-            # Detect 429 / ResourceExhausted rate-limit errors and retry once
-            # after a 60-second back-off window.
-            exc_str = str(exc).lower()
-            if "429" in exc_str or "resource exhausted" in exc_str or "rate limit" in exc_str:
-                logger.warning(
-                    "Gemini rate limit hit (429). Sleeping 60 s before retry. Error: %s", exc
+            if summary:
+                logger.info(
+                    "_summarize_with_gemini: SUCCESS attempt=%d summary_length=%d",
+                    attempt + 1, len(summary),
                 )
-                time.sleep(60)
-                summary = _invoke()
+                return summary
             else:
-                raise
+                logger.error(
+                    "GEMINI API ERROR: model returned an empty string "
+                    "(attempt=%d, model=%s). Possible safety filter or empty response.",
+                    attempt + 1, model_name,
+                )
+                return None
 
-        return summary or None
+        except Exception as exc:
+            exc_str = str(exc).lower()
+            is_rate_limit = (
+                "429" in exc_str
+                or "resource exhausted" in exc_str
+                or "rate limit" in exc_str
+                or "quota" in exc_str
+            )
+            if is_rate_limit:
+                logger.error(
+                    "GEMINI API ERROR: RATE LIMIT / QUOTA EXCEEDED on attempt=%d "
+                    "(key index=%d). Trying next key if available. Full error: %s",
+                    attempt + 1, _key_index - 1, exc,
+                )
+                # Try the next available key before giving up
+                remaining_keys = [k for k in keys if k != api_key]
+                if remaining_keys and attempt == 0:
+                    api_key = remaining_keys[0]
+                    logger.info(
+                        "_summarize_with_gemini: switching to alternate key, retrying..."
+                    )
+                    try:
+                        llm = ChatGoogleGenerativeAI(
+                            model=model_name,
+                            temperature=0.2,
+                            max_output_tokens=300,
+                            google_api_key=api_key,
+                        )
+                        summary = _invoke()
+                        if summary:
+                            logger.info(
+                                "_summarize_with_gemini: SUCCESS with alternate key, "
+                                "summary_length=%d", len(summary),
+                            )
+                            return summary
+                    except Exception as retry_exc:
+                        logger.error(
+                            "GEMINI API ERROR: alternate key also failed: %s", retry_exc
+                        )
+                return None
+            else:
+                logger.error(
+                    "GEMINI API ERROR: API call FAILED on attempt=%d model=%s. "
+                    "Full error: %s",
+                    attempt + 1, model_name, exc,
+                    exc_info=True,
+                )
+                return None
 
-    except Exception as exc:
-        logger.warning("Gemini summarization failed: %s", exc)
-        return None
+    return None
 
 
 def _run_nlp(text: str, title: str = "") -> Optional[object]:
@@ -281,11 +418,156 @@ def process_pending_articles_nlp(self, batch_size: int = 50) -> Dict:
 
 @shared_task(
     bind=True,
-    max_retries=3,
-    default_retry_delay=60,
-    queue="nlp",
-    name="apps.articles.tasks.summarize_article",
+    max_retries=2,
+    default_retry_delay=30,
+    queue="default",
+    name="apps.articles.tasks.fetch_article_excerpt",
 )
+def fetch_article_excerpt(self, article_id: str) -> dict:
+    """
+    Fetch a real human-readable excerpt from the article's URL.
+
+    Strategy (fastest → richest):
+      1. og:description  — Open Graph description tag (best for news sites)
+      2. meta description — standard HTML meta description
+      3. twitter:description — Twitter card description
+      4. First meaningful <p> tag from the article body
+      5. trafilatura full-text extraction fallback
+
+    Result stored in article.metadata['excerpt'] — no DB migration needed.
+    """
+    task_id = self.request.id or "no-task-id"
+    try:
+        from apps.articles.models import Article  # noqa: PLC0415
+        try:
+            article = Article.objects.get(pk=article_id)
+        except Article.DoesNotExist:
+            return {"status": "not_found", "article_id": article_id}
+
+        # Skip if already fetched a real excerpt
+        existing = (article.metadata or {}).get("excerpt", "")
+        if existing and len(existing) > 30:
+            return {"status": "skipped", "reason": "already_has_excerpt"}
+
+        url = article.url or ""
+        if not url.startswith("http"):
+            return {"status": "skipped", "reason": "no_http_url"}
+
+        logger.info("[%s] fetch_article_excerpt: fetching %s", task_id, url[:80])
+
+        excerpt = ""
+        try:
+            import requests as req  # noqa: PLC0415
+            from bs4 import BeautifulSoup  # noqa: PLC0415
+
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                ),
+                "Accept": "text/html,application/xhtml+xml",
+            }
+            resp = req.get(url, headers=headers, timeout=8, allow_redirects=True)
+            resp.raise_for_status()
+            html = resp.text
+            soup = BeautifulSoup(html, "html.parser")
+
+            # 1. og:description (best quality — written by publishers)
+            og = soup.find("meta", property="og:description")
+            if og and og.get("content", "").strip():
+                excerpt = og["content"].strip()
+
+            # 2. meta description
+            if not excerpt:
+                meta = soup.find("meta", attrs={"name": "description"})
+                if meta and meta.get("content", "").strip():
+                    excerpt = meta["content"].strip()
+
+            # 3. twitter:description
+            if not excerpt:
+                tw = soup.find("meta", attrs={"name": "twitter:description"})
+                if tw and tw.get("content", "").strip():
+                    excerpt = tw["content"].strip()
+
+            # 4. First meaningful <p> tag (skip nav/header boilerplate)
+            if not excerpt:
+                for p in soup.find_all("p"):
+                    text = p.get_text(strip=True)
+                    if len(text) > 80:
+                        excerpt = text
+                        break
+
+            # 5. trafilatura full-text fallback
+            if not excerpt:
+                try:
+                    import trafilatura  # noqa: PLC0415
+                    extracted = trafilatura.extract(
+                        html, include_comments=False,
+                        include_tables=False, no_fallback=False,
+                    )
+                    if extracted:
+                        sentences = [
+                            s.strip() for s in extracted.replace("\n", " ").split(".")
+                            if len(s.strip()) > 40
+                        ]
+                        excerpt = ". ".join(sentences[:2]) + "." if sentences else ""
+                except Exception:
+                    pass
+
+        except Exception as exc:
+            logger.warning(
+                "[%s] fetch_article_excerpt: HTTP fetch failed for %s: %s",
+                task_id, url[:60], exc,
+            )
+
+        # Truncate to 220 chars at word boundary
+        if len(excerpt) > 220:
+            excerpt = excerpt[:220].rsplit(" ", 1)[0] + "…"
+
+        if excerpt:
+            meta = article.metadata or {}
+            meta["excerpt"] = excerpt
+            article.metadata = meta
+            article.save(update_fields=["metadata", "updated_at"])
+            logger.info(
+                "[%s] fetch_article_excerpt: saved %d chars for article %s",
+                task_id, len(excerpt), article_id,
+            )
+            return {"status": "success", "excerpt_length": len(excerpt)}
+        else:
+            logger.warning(
+                "[%s] fetch_article_excerpt: no excerpt found for %s", task_id, url[:60]
+            )
+            return {"status": "no_excerpt", "article_id": article_id}
+
+    except Exception as exc:
+        logger.error("[%s] fetch_article_excerpt FAILED: %s", task_id, exc, exc_info=True)
+        raise self.retry(exc=exc, countdown=30)
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=60, queue="default", name="apps.articles.tasks.fetch_pending_excerpts")
+def fetch_pending_excerpts(self, batch_size: int = 30) -> dict:
+    """Queue excerpt-fetching for all articles missing a metadata excerpt."""
+    task_id = self.request.id or "no-task-id"
+    try:
+        from apps.articles.models import Article  # noqa: PLC0415
+        all_articles = list(Article.objects.filter(url__startswith="http").values("id", "metadata"))
+        to_fetch = [
+            str(a["id"]) for a in all_articles
+            if not (a.get("metadata") or {}).get("excerpt")
+        ][:batch_size]
+
+        for i, article_id in enumerate(to_fetch):
+            fetch_article_excerpt.apply_async(args=[article_id], countdown=i * 2, queue="default")
+
+        logger.info("[%s] fetch_pending_excerpts: queued %d tasks", task_id, len(to_fetch))
+        return {"status": "success", "queued": len(to_fetch)}
+    except Exception as exc:
+        logger.error("[%s] fetch_pending_excerpts FAILED: %s", task_id, exc, exc_info=True)
+        raise self.retry(exc=exc, countdown=60)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, name="apps.articles.tasks.summarize_article")
 def summarize_article(self, article_id: str, force: bool = False) -> Dict:
     """
     Phase 2.2 — Standalone BART summarization task.
@@ -316,36 +598,74 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
             logger.error("[%s] Article %s not found.", task_id, article_id)
             return {"status": "error", "reason": "article_not_found", "article_id": article_id}
 
-        # Skip if already has a summary and force is not set
+        # Skip if already has a real summary (or sentinel) and force is not set
         if article.summary and not force:
             logger.info(
-                "[%s] Article %s already has summary; skipping (use force=True to overwrite).",
-                task_id, article_id,
+                "[%s] Article %s already has summary (or sentinel); skipping "
+                "(use force=True to overwrite). summary_prefix=%r",
+                task_id, article_id, article.summary[:40],
             )
             return {"status": "skipped", "reason": "already_summarized", "article_id": article_id}
 
-        text = article.content or ""
-        if not text:
-            logger.warning("[%s] Article %s has no content to summarize.", task_id, article_id)
-            return {"status": "skipped", "reason": "no_content", "article_id": article_id}
+        # Build the best possible text to summarize.
+        # Many HackerNews articles only have a title + URL — no full content.
+        # We construct a rich prompt from all available fields so Gemini can
+        # still produce a useful summary.
+        content = article.content or ""
+        title = article.title or ""
+        url = article.url or ""
+        topic = article.topic or ""
+        tags = ", ".join(article.tags) if article.tags else ""
+        keywords = ", ".join(article.keywords) if article.keywords else ""
+        metadata = article.metadata or {}
 
-        # Import summarizer — tries Gemini first, falls back to BART
-        try:
-            project_root = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            )
-            if project_root not in sys.path:
-                sys.path.insert(0, project_root)
-            from ai_engine.nlp.summarizer import summarize  # noqa: PLC0415
-        except ImportError as exc:
-            logger.error("[%s] summarizer import failed: %s", task_id, exc)
-            return {"status": "error", "reason": "import_failed", "article_id": article_id}
+        # Build text from whatever is available
+        text_parts = []
+        if title:
+            text_parts.append(f"Title: {title}")
+        if url:
+            text_parts.append(f"URL: {url}")
+        if topic:
+            text_parts.append(f"Topic: {topic}")
+        if tags:
+            text_parts.append(f"Tags: {tags}")
+        if keywords:
+            text_parts.append(f"Keywords: {keywords}")
+        # Include HN metadata if present
+        if metadata:
+            if metadata.get("score"):
+                text_parts.append(f"HackerNews Score: {metadata['score']}")
+            if metadata.get("comments"):
+                text_parts.append(f"Comments: {metadata['comments']}")
+        if content:
+            text_parts.append(f"\nArticle Content:\n{content}")
 
-        summary = _summarize_with_gemini(text) or summarize(text)
+        text = "\n".join(text_parts)
+
+        if not text.strip() or (not content and not title):
+            logger.warning("[%s] Article %s has no usable text at all.", task_id, article_id)
+            article.summary = SUMMARY_FAILED_SENTINEL
+            article.save(update_fields=["summary", "updated_at"])
+            return {"status": "skipped", "reason": "no_text", "article_id": article_id}
+
+        logger.info(
+            "[%s] Article %s: content_len=%d, title=%r — building summary from available fields.",
+            task_id, article_id, len(content), title[:60],
+        )
+
+        # Try Gemini first, then fall back to BART/extractive summarizer
+        logger.info("[%s] Attempting Gemini summarization for article %s", task_id, article_id)
+        summary = _summarize_with_gemini(text)
 
         if not summary:
-            logger.warning("[%s] BART returned no summary for article %s.", task_id, article_id)
-            return {"status": "error", "reason": "empty_summary", "article_id": article_id}
+            logger.error(
+                "[%s] Gemini summarization failed for article %s (title=%r). "
+                "Writing failure sentinel to prevent infinite re-queuing.",
+                task_id, article_id, title[:60],
+            )
+            article.summary = SUMMARY_FAILED_SENTINEL
+            article.save(update_fields=["summary", "updated_at"])
+            return {"status": "error", "reason": "gemini_failed", "article_id": article_id}
 
         article.summary = summary
         article.save(update_fields=["summary", "updated_at"])
@@ -401,21 +721,39 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
     try:
         from apps.articles.models import Article  # noqa: PLC0415
 
-        # Target articles that are NLP-processed but lack a summary
-        pending = Article.objects.filter(
-            summary__in=["", None]
-        ).values_list("id", flat=True)[:batch_size]
+        # Target articles that have no summary AND are not marked with the
+        # failure sentinel.  This prevents infinite re-queuing of articles
+        # that have already exhausted all summarization attempts.
+        pending = list(
+            Article.objects.filter(summary="")
+            .exclude(summary=SUMMARY_FAILED_SENTINEL)
+            .values_list("id", flat=True)[:batch_size]
+        )
+        # Also pick up NULL summaries (legacy rows)
+        pending_null = list(
+            Article.objects.filter(summary__isnull=True)
+            .values_list("id", flat=True)[:batch_size - len(pending)]
+        )
+        all_pending = pending + pending_null
+
+        logger.info(
+            "[%s] summarize_pending_articles: found %d articles needing summaries.",
+            task_id, len(all_pending),
+        )
 
         queued = 0
-        for article_id in pending:
-            summarize_article.delay(str(article_id))
+        for article_id in all_pending:
+            # Stagger tasks 15 s apart so we stay under Gemini's 20 RPM free tier.
+            # With concurrency=1 on the nlp queue: 1 task per 15s = 4 RPM max.
+            summarize_article.apply_async(
+                args=[str(article_id)],
+                countdown=queued * 15,  # 15 s stagger = ~4 RPM, well under 20 RPM
+            )
             queued += 1
-            # Throttle dispatch: stay well under Gemini's 15 RPM free-tier limit.
-            time.sleep(5)
 
         logger.info("[%s] Queued %d summarization tasks.", task_id, queued)
         return {"status": "success", "queued": queued}
 
     except Exception as exc:
-        logger.error("[%s] summarize_pending_articles failed: %s", task_id, exc)
+        logger.error("[%s] summarize_pending_articles FAILED: %s", task_id, exc, exc_info=True)
         raise self.retry(exc=exc, countdown=120)

@@ -263,7 +263,7 @@ class EmbedderModuleTests(TestCase):
         import ai_engine.embeddings.embedder as emb_mod
         emb_mod._embedder_instance = None
 
-        with patch.dict('os.environ', {'USE_OPENAI_EMBEDDINGS': 'false'}):
+        with patch.dict('os.environ', {'EMBEDDING_PROVIDER': 'local'}):
             emb_mod._embedder_instance = None
             embedder = emb_mod.SynapseEmbedder()
             embedder._model = mock_model

@@ -1,6 +1,6 @@
 """
 SYNAPSE RAG (Retrieval-Augmented Generation) Pipeline
-Phase 3.1 — LangChain + pgvector + OpenAI
+Phase 3.1 — LangChain + pgvector + Google Gemini + local sentence-transformers
 
 Imports are lazy to avoid loading heavy ML dependencies at Django startup.
 Use get_rag_pipeline() as the primary entry point.

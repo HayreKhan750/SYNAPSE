@@ -1,5 +1,8 @@
 """
 SYNAPSE RAG Retriever — pgvector-backed document retrieval using LangChain PGVector.
+
+Embeddings: always sentence-transformers (local, free, no API key required).
+OpenAI / langchain_openai is NOT used anywhere in this file.
 """
 
 import logging
@@ -10,7 +13,6 @@ from langchain_community.vectorstores import PGVector
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
-from langchain_openai import OpenAIEmbeddings
 from pydantic import Field
 
 from ai_engine.embeddings import get_embedder
@@ -59,12 +61,7 @@ class SynapseEmbeddingWrapper:
 
 
 def _get_lc_embeddings():
-    """Return LangChain-compatible embedding function."""
-    if os.environ.get("USE_OPENAI_EMBEDDINGS", "false").lower() == "true":
-        return OpenAIEmbeddings(
-            model="text-embedding-ada-002",
-            openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
-        )
+    """Return LangChain-compatible embedding function (always local sentence-transformers)."""
     return SynapseEmbeddingWrapper()
 
 

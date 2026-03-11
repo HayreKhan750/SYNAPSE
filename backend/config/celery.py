@@ -49,7 +49,16 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
 CELERY_RESULT_EXPIRES = 3600  # Results expire after 1 hour
 
 # Task routing - send scraping tasks to specific queue
+# NOTE: task names must match the `name=` argument on the @shared_task decorator
+# (or the dotted module path when no explicit name is given).
 CELERY_TASK_ROUTES = {
+    # Scraping — core tasks
+    'apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_github': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_arxiv': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_youtube': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_all': {'queue': 'scraping'},
+    # Keep legacy prefixed names in case older beat entries exist
     'backend.apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_github': {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_arxiv': {'queue': 'scraping'},
@@ -69,25 +78,25 @@ CELERY_DEFAULT_QUEUE = 'default'
 # Beat scheduler configuration (django-celery-beat)
 CELERY_BEAT_SCHEDULE = {
     'scrape-hackernews-every-30min': {
-        'task': 'backend.apps.core.tasks.scrape_hackernews',
+        'task': 'apps.core.tasks.scrape_hackernews',
         'schedule': 30 * 60,  # 30 minutes in seconds
         'args': ('top', 100),  # story_type='top', limit=100
         'options': {'queue': 'scraping'},
     },
     'scrape-github-every-2hrs': {
-        'task': 'backend.apps.core.tasks.scrape_github',
+        'task': 'apps.core.tasks.scrape_github',
         'schedule': 2 * 60 * 60,  # 2 hours in seconds
         'args': (1, None, 100),  # days_back=1, language=None, limit=100
         'options': {'queue': 'scraping'},
     },
     'scrape-arxiv-every-6hrs': {
-        'task': 'backend.apps.core.tasks.scrape_arxiv',
+        'task': 'apps.core.tasks.scrape_arxiv',
         'schedule': 6 * 60 * 60,  # 6 hours in seconds
         'args': (None, 7, 500),  # categories=None, days_back=7, max_papers=500
         'options': {'queue': 'scraping'},
     },
     'scrape-youtube-every-12hrs': {
-        'task': 'backend.apps.core.tasks.scrape_youtube',
+        'task': 'apps.core.tasks.scrape_youtube',
         'schedule': 12 * 60 * 60,  # 12 hours in seconds
         'args': (30, 20),  # days_back=30, max_results=20
         'options': {'queue': 'scraping'},
@@ -103,11 +112,23 @@ CELERY_BEAT_SCHEDULE = {
     # Summarization catch-up — Phase 2.2
     # Runs every 15 minutes to summarize articles that missed the pipeline
     # (e.g. imported before Phase 2.2, or whose summarization failed)
+    'fetch-pending-excerpts-every-5min': {
+        'task': 'apps.articles.tasks.fetch_pending_excerpts',
+        'schedule': 5 * 60,  # every 5 minutes — fast HTTP fetches, not Gemini
+        'options': {'queue': 'default'},  # separate from nlp so Gemini can't block it
+    },
     'summarize-pending-articles-every-15min': {
         'task': 'apps.articles.tasks.summarize_pending_articles',
         'schedule': 15 * 60,  # 15 minutes in seconds
         'args': (20,),          # batch_size=20
         'options': {'queue': 'nlp'},
+    },
+    # Phase 4.1 — Workflow Engine
+    # Periodic cleanup: mark stale 'running' workflow runs as failed (every hour)
+    'cleanup-stale-workflow-runs-every-hour': {
+        'task': 'apps.automation.tasks.cleanup_stale_runs',
+        'schedule': 60 * 60,  # 1 hour
+        'options': {'queue': 'default'},
     },
 }
 

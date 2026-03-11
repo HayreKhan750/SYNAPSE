@@ -35,7 +35,7 @@ class RAGPipeline:
         max_tokens: int = 1024,
     ) -> None:
         self.retrieval_k = retrieval_k
-        self.model_name = model_name or os.environ.get("OPENAI_CHAT_MODEL", "gpt-3.5-turbo")
+        self.model_name = model_name or os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
         self.temperature = temperature
         self.max_tokens = max_tokens
 
@@ -142,9 +142,9 @@ class RAGPipeline:
         except Exception as exc:
             status["components"]["redis"] = f"error: {exc}"
 
-        # Check OpenAI key presence
-        has_key = bool(os.environ.get("OPENAI_API_KEY"))
-        status["components"]["openai_key"] = "configured" if has_key else "missing"
+        # Check Gemini key presence
+        has_key = bool(os.environ.get("GEMINI_API_KEY"))
+        status["components"]["gemini_key"] = "configured" if has_key else "missing"
 
         # Check DB connection string
         try:

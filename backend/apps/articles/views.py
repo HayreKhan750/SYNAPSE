@@ -1,6 +1,6 @@
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -10,6 +10,9 @@ from apps.core.models import UserActivity
 from .models import Article
 from .serializers import ArticleListSerializer, ArticleDetailSerializer
 from apps.core.pagination import StandardPagination
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ArticleListView(ListAPIView):
@@ -96,3 +99,59 @@ def article_search(request):
     ).select_related('source').order_by('-trending_score')[:20]
     serializer = ArticleListSerializer(results, many=True)
     return Response({'success': True, 'data': serializer.data, 'meta': {'query': q, 'total': len(serializer.data)}})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def trigger_summarization(request):
+    """
+    Manually trigger summarization of pending articles.
+
+    POST /api/v1/articles/summarize/
+    Optional body: { "batch_size": 20 }
+
+    This endpoint is called by the frontend when the feed loads so that
+    summaries are generated even if the Celery beat worker is not running.
+    It is intentionally open (AllowAny) for development; restrict to
+    IsAdminUser or IsAuthenticated in production if preferred.
+    """
+    from .tasks import summarize_pending_articles  # noqa: PLC0415
+
+    batch_size = int(request.data.get('batch_size', 20))
+    batch_size = max(1, min(batch_size, 50))  # clamp 1–50
+
+    # Count how many articles actually need summaries before dispatching
+    from .tasks import SUMMARY_FAILED_SENTINEL  # noqa: PLC0415
+    pending_count = (
+        Article.objects.filter(summary="").exclude(summary=SUMMARY_FAILED_SENTINEL).count()
+        + Article.objects.filter(summary__isnull=True).count()
+    )
+
+    if pending_count == 0:
+        return Response({
+            'success': True,
+            'message': 'No articles pending summarization.',
+            'pending': 0,
+            'queued': 0,
+        })
+
+    try:
+        task = summarize_pending_articles.delay(batch_size)
+        logger.info(
+            "trigger_summarization: dispatched summarize_pending_articles "
+            "(task_id=%s, pending=%d, batch_size=%d)",
+            task.id, pending_count, batch_size,
+        )
+        return Response({
+            'success': True,
+            'message': f'Summarization task queued for up to {batch_size} articles.',
+            'task_id': task.id,
+            'pending': pending_count,
+            'queued': min(pending_count, batch_size),
+        })
+    except Exception as exc:
+        logger.error("trigger_summarization: failed to dispatch task: %s", exc, exc_info=True)
+        return Response(
+            {'success': False, 'error': str(exc)},
+            status=500,
+        )

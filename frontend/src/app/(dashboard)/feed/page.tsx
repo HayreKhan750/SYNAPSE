@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ForYouTab from './ForYouTab';
 import TrendingTab from './TrendingTab';
 import { useQuery } from '@tanstack/react-query';
@@ -14,6 +14,9 @@ import { cn } from '@/utils/helpers';
 const TOPICS = ['All', 'AI', 'Web Dev', 'Security', 'Cloud', 'Research', 'DevOps'];
 const SORT_OPTIONS = ['Latest', 'Trending'];
 
+// How often to refetch articles while there are still pending summaries (ms).
+const SUMMARY_POLL_INTERVAL = 15_000; // 15 s
+
 export default function FeedPage() {
   const [selectedTopic, setSelectedTopic] = useState('All');
   const [page, setPage] = useState(1);
@@ -22,6 +25,17 @@ export default function FeedPage() {
   const [activeTab, setActiveTab] = useState<'latest' | 'for-you' | 'trending'>('latest');
 
   const topicParam = selectedTopic === 'All' ? undefined : selectedTopic.toLowerCase();
+
+  // Fire-and-forget: kick off summarization when the feed mounts so articles
+  // get summaries even if the Celery beat worker hasn't run yet.
+  const didTrigger = useRef(false);
+  useEffect(() => {
+    if (didTrigger.current) return;
+    didTrigger.current = true;
+    api.post('/articles/summarize/', { batch_size: 20 }).catch(() => {
+      // Non-critical — silently ignore if the worker/endpoint is unavailable
+    });
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ['articles', topicParam, page, sortBy],
@@ -33,6 +47,20 @@ export default function FeedPage() {
           ordering: sortBy === 'trending' ? '-trending_score' : '-published_at',
         },
       }).then(r => r.data),
+    // Poll every 15 s while any article on this page still has no summary.
+    // React Query will stop polling automatically when refetchInterval returns false.
+    refetchInterval: (query) => {
+      const articles: any[] = Array.isArray(query.state.data?.data)
+        ? query.state.data.data
+        : Array.isArray(query.state.data?.results)
+        ? query.state.data.results
+        : [];
+      const hasPending = articles.some(
+        (a: any) => !a.summary || a.summary === ''
+      );
+      return hasPending ? SUMMARY_POLL_INTERVAL : false;
+    },
+    refetchIntervalInBackground: false, // only poll when the tab is visible
   });
 
   const articles = Array.isArray(data?.data) ? data.data : Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
@@ -44,7 +72,8 @@ export default function FeedPage() {
   };
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="flex-1 overflow-y-auto p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-4xl font-bold text-slate-900 dark:text-white">Tech Intelligence Feed</h1>
@@ -195,6 +224,7 @@ export default function FeedPage() {
           )}
         </>
       )}
+    </div>
     </div>
   );
 }

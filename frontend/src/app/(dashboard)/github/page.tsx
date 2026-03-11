@@ -37,6 +37,7 @@ export default function GitHubPage() {
   const trendingToday = filteredRepos.filter((repo: any) => repo.stars_today && repo.stars_today > 0).length;
 
   return (
+    <div className="flex-1 overflow-y-auto p-6">
     <div className="space-y-6 pb-8">
       {/* Header */}
       <div>
@@ -109,6 +110,7 @@ export default function GitHubPage() {
           </button>
         </div>
       )}
+    </div>
     </div>
   );
 }

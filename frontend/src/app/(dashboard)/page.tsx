@@ -47,6 +47,7 @@ export default function Dashboard() {
     : Array.isArray(papers) ? (papers as any[]).slice(0, 3) : [];
 
   return (
+    <div className="flex-1 overflow-y-auto p-6">
     <div className="space-y-8 pb-8">
       {/* Header */}
       <div>
@@ -162,6 +163,7 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

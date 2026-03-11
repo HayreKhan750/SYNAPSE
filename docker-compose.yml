@@ -70,13 +70,17 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://synapse_user:synapse_pass@postgres:5432/synapse_db
+      DB_HOST: postgres
+      DB_PORT: "5432"
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      PYTHONPATH: /app:/ai_engine_pkg
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./ai_engine:/ai_engine_pkg/ai_engine
       - media_files:/app/media
       - static_files:/app/staticfiles
     depends_on:
@@ -165,8 +169,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      # ai_engine is mounted at /ai_engine and added to PYTHONPATH so that
+      # 'import ai_engine' works inside summarization / NLP tasks.
+      PYTHONPATH: /app:/ai_engine_pkg
     volumes:
       - ./backend:/app
+      - ./ai_engine:/ai_engine_pkg/ai_engine
       - media_files:/app/media
     depends_on:
       postgres:
@@ -175,7 +183,13 @@ services:
         condition: service_healthy
     networks:
       - synapse_network
-    command: celery -A config.celery worker --loglevel=info --concurrency=4 -Q default,scraping,nlp,agents
+    # concurrency=2 for scraping/agents; NLP/summarization is rate-limited by
+    # Gemini free tier (20 RPM), so tasks are staggered via countdown in tasks.py.
+    # Running 2 workers with 15s stagger = ~8 RPM, safely under the 20 RPM limit.
+    command: >
+      bash -c "celery -A config.celery worker --loglevel=info --concurrency=2 -Q default,scraping,agents &
+               celery -A config.celery worker --loglevel=info --concurrency=1 -Q nlp &
+               wait"
 
   # ── Celery Beat Scheduler ───────────────────────────────
   celery_beat:
@@ -192,8 +206,10 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      PYTHONPATH: /app:/ai_engine_pkg
     volumes:
       - ./backend:/app
+      - ./ai_engine:/ai_engine_pkg/ai_engine
     depends_on:
       postgres:
         condition: service_healthy

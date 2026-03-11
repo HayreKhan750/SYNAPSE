@@ -67,8 +67,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onMobileMenuClick={() => setMobileOpen(true)}
         />
 
-        {/* Scrollable Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        {/* Page Content — overflow-hidden so each page controls its own scroll.
+            The chat page uses an internal flex layout with a scrollable message
+            area and a pinned input bar. Other pages wrap their content in a
+            scrollable div via the page-scroll utility class. */}
+        <main className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
           {children}
         </main>
       </div>

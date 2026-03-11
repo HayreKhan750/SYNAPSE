@@ -248,17 +248,17 @@
 ## PHASE 4 — Automation System (Weeks 11–12)
 
 ### 4.1 Workflow Engine (Week 11)
-- [ ] Create AutomationWorkflow model (name, trigger_type, cron_expression, actions JSONB, is_active)
-- [ ] Create WorkflowRun model (workflow, status, started_at, completed_at, result, error)
-- [ ] Create workflow CRUD API endpoints
-- [ ] Create workflow execution engine (Celery task: execute_workflow)
-- [ ] Implement action types: collect_news, summarize_content, generate_pdf, send_email, upload_to_drive
-- [ ] Set up Celery Beat for cron-based workflow scheduling
-- [ ] Handle missed tasks (django-celery-beat reschedule logic)
-- [ ] Create workflow builder UI (Automation Center page /automation)
-- [ ] Create workflow form (name, description, trigger picker, action builder)
-- [ ] Create cron expression picker UI component
-- [ ] **Git commit:** `feat: automation workflow engine — Celery Beat, action system, workflow builder`
+- [x] Create AutomationWorkflow model (name, trigger_type, cron_expression, actions JSONB, is_active)
+- [x] Create WorkflowRun model (workflow, status, started_at, completed_at, result, error)
+- [x] Create workflow CRUD API endpoints
+- [x] Create workflow execution engine (Celery task: execute_workflow)
+- [x] Implement action types: collect_news, summarize_content, generate_pdf, send_email, upload_to_drive
+- [x] Set up Celery Beat for cron-based workflow scheduling
+- [x] Handle missed tasks (django-celery-beat reschedule logic — cleanup_stale_runs task)
+- [x] Create workflow builder UI (Automation Center page /automation)
+- [x] Create workflow form (name, description, trigger picker, action builder)
+- [x] Create cron expression picker UI component
+- [x] **Git commit:** `feat: automation workflow engine — Celery Beat, action system, workflow builder`
 
 ### 4.2 Notifications (Week 12)
 - [ ] Create Notification model (user, title, message, notif_type, is_read, metadata)

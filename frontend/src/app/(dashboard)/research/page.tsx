@@ -66,6 +66,7 @@ export default function ResearchPage() {
   };
 
   return (
+    <div className="flex-1 overflow-y-auto p-6">
     <div className="space-y-6 pb-8">
       {/* Header */}
       <div>
@@ -246,6 +247,7 @@ export default function ResearchPage() {
           </button>
         </div>
       )}
+    </div>
     </div>
   );
 }

@@ -12,7 +12,6 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import redis
-from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
@@ -47,35 +46,51 @@ def _get_redis_client() -> Optional[redis.Redis]:
 # ConversationMemoryManager
 # ---------------------------------------------------------------------------
 
+class SimpleWindowMemory:
+    """
+    Lightweight replacement for ConversationBufferWindowMemory.
+    Stores the last k turns as LangChain message objects.
+    """
+
+    def __init__(self, k: int = MEMORY_WINDOW_K) -> None:
+        self.k = k
+        self._messages: List[BaseMessage] = []
+
+    @property
+    def messages(self) -> List[BaseMessage]:
+        """Return the last 2*k messages (k human + k ai pairs)."""
+        return self._messages[-(self.k * 2):]
+
+    def add_user_message(self, content: str) -> None:
+        self._messages.append(HumanMessage(content=content))
+
+    def add_ai_message(self, content: str) -> None:
+        self._messages.append(AIMessage(content=content))
+
+
 class ConversationMemoryManager:
     """
-    Manages LangChain ConversationBufferWindowMemory instances keyed by
-    conversation_id.  Persists message history to Redis so memory survives
-    worker restarts.
+    Manages SimpleWindowMemory instances keyed by conversation_id.
+    Persists message history to Redis so memory survives worker restarts.
     """
 
     def __init__(self) -> None:
-        self._cache: Dict[str, ConversationBufferWindowMemory] = {}
+        self._cache: Dict[str, SimpleWindowMemory] = {}
         self._redis = _get_redis_client()
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def get_or_create(self, conversation_id: str) -> ConversationBufferWindowMemory:
+    def get_or_create(self, conversation_id: str) -> SimpleWindowMemory:
         """Return existing memory for *conversation_id* or create a new one."""
         if conversation_id not in self._cache:
-            memory = ConversationBufferWindowMemory(
-                k=MEMORY_WINDOW_K,
-                memory_key="chat_history",
-                return_messages=True,
-                output_key="answer",
-            )
+            memory = SimpleWindowMemory(k=MEMORY_WINDOW_K)
             # Hydrate from Redis if history exists
             history = self._load_history(conversation_id)
             for turn in history:
-                memory.chat_memory.add_user_message(turn["human"])
-                memory.chat_memory.add_ai_message(turn["ai"])
+                memory.add_user_message(turn["human"])
+                memory.add_ai_message(turn["ai"])
             self._cache[conversation_id] = memory
         return self._cache[conversation_id]
 

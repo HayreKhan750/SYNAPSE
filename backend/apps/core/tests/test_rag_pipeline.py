@@ -1,6 +1,6 @@
 """
 Integration tests for Phase 3.1 — RAG Pipeline
-Tests the chat API endpoints and RAG pipeline components with mocked OpenAI.
+Tests the chat API endpoints and RAG pipeline components with mocked Gemini/LangChain.
 """
 
 import json
@@ -327,7 +327,7 @@ class ConversationMemoryManagerTests(TestCase):
         stubs = {}
         for mod in [
             "langchain", "langchain.memory", "langchain_core",
-            "langchain_core.messages", "langchain_openai", "langchain_community",
+            "langchain_core.messages", "langchain_community",
             "langchain_community.vectorstores",
         ]:
             if mod not in sys.modules:
@@ -398,7 +398,7 @@ class RAGPipelineHealthTests(TestCase):
             "langchain.text_splitter", "langchain_core", "langchain_core.messages",
             "langchain_core.documents", "langchain_core.prompts",
             "langchain_core.retrievers", "langchain_core.callbacks",
-            "langchain_openai", "langchain_community",
+            "langchain_community",
             "langchain_community.vectorstores", "pgvector", "pgvector.django",
         ]:
             if mod not in sys.modules:
@@ -417,5 +417,6 @@ class RAGPipelineHealthTests(TestCase):
             health = pipeline.health_check()
             self.assertIn("status", health)
             self.assertIn("components", health)
-            self.assertIn("openai_key", health["components"])
+            # Project uses Gemini, not OpenAI — check gemini_key
+            self.assertIn("gemini_key", health["components"])
             self.assertIn("database", health["components"])

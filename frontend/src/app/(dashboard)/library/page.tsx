@@ -165,6 +165,7 @@ export default function LibraryPage() {
   }
 
   return (
+    <div className="flex-1 overflow-y-auto p-6">
     <div className="space-y-8 pb-8">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -337,6 +338,7 @@ export default function LibraryPage() {
           />
         )}
       </AnimatePresence>
+    </div>
     </div>
   )
 }

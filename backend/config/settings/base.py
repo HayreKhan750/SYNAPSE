@@ -6,7 +6,8 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the project root (one level above the backend/ directory)
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent.parent / ".env")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -212,6 +213,9 @@ CELERY_TASK_ROUTES = {
     'apps.papers.embedding_tasks.*': {'queue': 'embeddings'},
     'apps.repositories.embedding_tasks.*': {'queue': 'embeddings'},
     'apps.videos.embedding_tasks.*': {'queue': 'embeddings'},
+    # Automation — Phase 4.1
+    'apps.automation.tasks.execute_workflow': {'queue': 'default'},
+    'apps.automation.tasks.cleanup_stale_runs': {'queue': 'default'},
 }
 
 # ── Axes (Login Rate Limiting) ────────────────────────────────

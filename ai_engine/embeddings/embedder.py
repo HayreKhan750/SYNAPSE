@@ -3,9 +3,9 @@ ai_engine.embeddings.embedder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Embedding generation using sentence-transformers (all-MiniLM-L6-v2).
 
-Model choice per documentation:
-  - Primary:  sentence-transformers/all-MiniLM-L6-v2  (384 dims, local, free)
-  - Optional: OpenAI text-embedding-ada-002 (1536 dims) — set USE_OPENAI_EMBEDDINGS=true
+Model choice:
+  - Primary (and only): sentence-transformers/all-MiniLM-L6-v2 (384 dims, local, free)
+  - No OpenAI or external embedding API is used — EMBEDDING_PROVIDER=local always.
 
 Batch processing defaults: 32 items per batch (configurable via env).
 
@@ -23,9 +23,7 @@ logger = logging.getLogger(__name__)
 # ── Configuration ──────────────────────────────────────────────────────────────
 _MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 _BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE", "32"))
-# OpenAI embeddings are no longer supported — always use sentence-transformers.
-# The EMBEDDING_PROVIDER and USE_OPENAI_EMBEDDINGS env vars are ignored.
-_USE_OPENAI = False
+# EMBEDDING_PROVIDER is always "local" — sentence-transformers, no API key needed.
 
 # Singleton instance (loaded lazily)
 _embedder_instance: Optional["SynapseEmbedder"] = None
@@ -33,13 +31,12 @@ _embedder_instance: Optional["SynapseEmbedder"] = None
 
 class SynapseEmbedder:
     """
-    Wraps either sentence-transformers or OpenAI embeddings behind a
-    unified interface.  Use :func:`get_embedder` to obtain the singleton.
+    Local sentence-transformers embedding engine.
+    Use :func:`get_embedder` to obtain the module-level singleton.
     """
 
     def __init__(self) -> None:
         self._model = None
-        self._openai_client = None
         self.dimensions: int = 384
         self._load_model()
 

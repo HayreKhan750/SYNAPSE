@@ -7,4 +7,6 @@ urlpatterns = [
     path('trending/',   views.TrendingArticleListView.as_view(), name='article-trending'),
     path('topics/',     views.article_topics,               name='article-topics'),
     path('search/',     views.article_search,               name='article-search'),
+    # Trigger summarization manually (called by frontend on feed load)
+    path('summarize/',  views.trigger_summarization,        name='article-summarize'),
 ]
