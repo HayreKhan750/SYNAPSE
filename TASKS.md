@@ -280,21 +280,21 @@
 ## PHASE 5 — Agentic AI (Weeks 13–16)
 
 ### 5.1 Agent Framework (Week 13)
-- [ ] Install: langchain, langgraph (for complex workflows)
-- [ ] Create LangChain ReAct agent base class
-- [ ] Register agent tools with LangChain StructuredTool
-- [ ] Create tool: search_knowledge_base(query, limit, filters)
-- [ ] Create tool: fetch_articles(topic, date_range, limit)
-- [ ] Create tool: analyze_trends(technologies, period)
-- [ ] Create tool: search_github(query, language, stars_min)
-- [ ] Create tool: fetch_arxiv_papers(query, max_results)
-- [ ] Create AgentTask model (user, task_type, prompt, status, result, celery_task_id)
-- [ ] Create agent task Celery task (execute_agent_task — async execution)
-- [ ] Create agent task API endpoints (create, status, cancel, list)
-- [ ] Add token usage tracking (tiktoken) and cost logging per task
-- [ ] Add safety limits (max 10000 tokens per task, 5min timeout)
-- [ ] Write unit tests for each agent tool
-- [ ] **Git commit:** `feat: agent framework — ReAct agent, search/fetch/analyze tools`
+- [x] Install: langchain, langgraph (for complex workflows)
+- [x] Create LangChain ReAct agent base class (ai_engine/agents/base.py — LangGraph create_react_agent)
+- [x] Register agent tools with LangChain StructuredTool (ai_engine/agents/registry.py)
+- [x] Create tool: search_knowledge_base(query, limit, filters)
+- [x] Create tool: fetch_articles(topic, date_range, limit)
+- [x] Create tool: analyze_trends(technologies, period)
+- [x] Create tool: search_github(query, language, stars_min)
+- [x] Create tool: fetch_arxiv_papers(query, max_results)
+- [x] Create AgentTask model (user, task_type, prompt, status, result, celery_task_id)
+- [x] Create agent task Celery task (execute_agent_task — async execution)
+- [x] Create agent task API endpoints (create, status, cancel, list)
+- [x] Add token usage tracking (tiktoken) and cost logging per task
+- [x] Add safety limits (max 10000 tokens per task, 5min timeout)
+- [x] Write unit tests for each agent tool
+- [x] **Git commit:** `feat: agent framework — ReAct agent, search/fetch/analyze tools`
 
 ### 5.2 Document Generation (Week 14)
 - [ ] Install: reportlab, python-pptx, python-docx, jinja2, pillow
