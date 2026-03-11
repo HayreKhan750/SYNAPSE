@@ -461,12 +461,90 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── Delete Confirmation Modal ─────────────────────────────────────────────────
+
+function DeleteConfirmModal({
+  workflow,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  workflow: Workflow;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        {/* Red accent bar */}
+        <div className="h-1 w-full bg-gradient-to-r from-red-500 to-rose-600" />
+
+        <div className="p-6">
+          {/* Icon + heading */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center text-2xl">
+              🗑
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Delete Workflow</h2>
+              <p className="text-sm text-slate-400">This action cannot be undone.</p>
+            </div>
+          </div>
+
+          {/* Workflow name callout */}
+          <div className="bg-slate-900/70 border border-slate-700 rounded-xl px-4 py-3 mb-6">
+            <p className="text-xs text-slate-400 mb-0.5">Workflow to delete</p>
+            <p className="text-white font-medium truncate">{workflow.name}</p>
+            {workflow.description && (
+              <p className="text-slate-400 text-xs mt-0.5 truncate">{workflow.description}</p>
+            )}
+          </div>
+
+          <p className="text-sm text-slate-400 mb-6">
+            All run history associated with this workflow will also be permanently deleted.
+          </p>
+
+          {/* Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              disabled={isPending}
+              className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-300 text-sm rounded-xl transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isPending}
+              className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm rounded-xl transition-colors font-medium flex items-center justify-center gap-2"
+            >
+              {isPending ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Deleting…
+                </>
+              ) : (
+                'Delete Workflow'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AutomationPage() {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null);
 
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['workflows'],
@@ -496,14 +574,14 @@ export default function AutomationPage() {
     onSuccess: () => {
       toast.success('Workflow deleted.');
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
+      setWorkflowToDelete(null);
     },
     onError: () => toast.error('Failed to delete workflow.'),
   });
 
   const handleDelete = (id: string) => {
-    if (confirm('Delete this workflow? This cannot be undone.')) {
-      deleteMutation.mutate(id);
-    }
+    const workflow = workflows.find((w) => w.id === id) ?? null;
+    setWorkflowToDelete(workflow);
   };
 
   const activeCount = workflows.filter((w) => w.is_active).length;
@@ -598,6 +676,14 @@ export default function AutomationPage() {
       {showCreate && <CreateWorkflowModal onClose={() => setShowCreate(false)} />}
       {selectedWorkflow && (
         <RunHistoryModal workflow={selectedWorkflow} onClose={() => setSelectedWorkflow(null)} />
+      )}
+      {workflowToDelete && (
+        <DeleteConfirmModal
+          workflow={workflowToDelete}
+          onConfirm={() => deleteMutation.mutate(workflowToDelete.id)}
+          onCancel={() => setWorkflowToDelete(null)}
+          isPending={deleteMutation.isPending}
+        />
       )}
     </div>
     </div>
