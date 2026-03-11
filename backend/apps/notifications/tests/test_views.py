@@ -47,12 +47,24 @@ class NotificationAPITestCase(APITestCase):
 
     # ── List ──────────────────────────────────────────────────────────────────
 
+    def _get_results(self, data):
+        """Handle wrapped, paginated, and plain list API responses."""
+        if isinstance(data, dict):
+            # Custom wrapper: {'success': True, 'data': [...], 'meta': {...}}
+            if 'data' in data:
+                return list(data['data'])
+            # Standard DRF pagination: {'count': N, 'results': [...]}
+            if 'results' in data:
+                return list(data['results'])
+        if isinstance(data, list):
+            return data
+        return list(data)
+
     def test_list_notifications(self):
         url = reverse('notification-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.data
-        results = data.get('results', data) if isinstance(data, dict) else data
+        results = self._get_results(response.data)
         titles = [n['title'] for n in results]
         self.assertIn('Notification 1', titles)
         self.assertIn('Notification 2', titles)
@@ -62,8 +74,7 @@ class NotificationAPITestCase(APITestCase):
         url = reverse('notification-list') + '?is_read=false'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.data
-        results = data.get('results', data) if isinstance(data, dict) else data
+        results = self._get_results(response.data)
         for n in results:
             self.assertFalse(n['is_read'])
 
@@ -71,8 +82,7 @@ class NotificationAPITestCase(APITestCase):
         url = reverse('notification-list') + '?is_read=true'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.data
-        results = data.get('results', data) if isinstance(data, dict) else data
+        results = self._get_results(response.data)
         for n in results:
             self.assertTrue(n['is_read'])
 

@@ -19,6 +19,7 @@ class AutomationWorkflow(models.Model):
     trigger_type    = models.CharField(max_length=20, choices=TriggerType.choices, default=TriggerType.SCHEDULE)
     cron_expression = models.CharField(max_length=100, blank=True)
     actions         = models.JSONField(default=list)
+    status          = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     is_active       = models.BooleanField(default=True)
     last_run_at     = models.DateTimeField(null=True, blank=True)
     next_run_at     = models.DateTimeField(null=True, blank=True)
