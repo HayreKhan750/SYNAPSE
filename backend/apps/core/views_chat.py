@@ -186,16 +186,22 @@ def _next_chat_key(keys: list) -> str:
     return key
 
 
-def _get_pipeline():
+def _get_pipeline(model: str = None):
     """
     Lazy-import RAG pipeline to avoid loading at Django startup.
     Uses Google Gemini when GEMINI_API_KEY is set.
     Tries the full RAG pipeline first; falls back to direct Gemini if pgvector
     retriever is unavailable. Raises 503 only if no API key is configured at all.
+
+    Args:
+        model: Optional Gemini model ID requested by the client. Falls back to
+               the GEMINI_MODEL env var, then 'gemini-flash-latest'.
     """
     import os
     keys = _get_gemini_keys()
-    model = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+    default_model = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+    # Client-requested model takes priority over the env default
+    resolved_model = model or default_model
 
     if not keys:
         logger.error("No valid GEMINI_API_KEY configured — chat is unavailable.")
@@ -203,19 +209,22 @@ def _get_pipeline():
 
     # Pick next key in rotation
     api_key = _next_chat_key(keys)
-    logger.info("_get_pipeline: using model=%s, keys_available=%d", model, len(keys))
+    logger.info("_get_pipeline: using model=%s, keys_available=%d", resolved_model, len(keys))
 
     # Try the full RAG pipeline (requires pgvector + embeddings)
-    try:
-        from ai_engine.rag import get_rag_pipeline
-        return get_rag_pipeline()
-    except Exception as exc:
-        logger.warning(
-            "Full RAG pipeline unavailable (%s). Falling back to direct Gemini.", exc
-        )
+    # If the client requested a specific model, use direct pipeline so the
+    # model override is respected (RAG pipeline uses its own configured model).
+    if not model:
+        try:
+            from ai_engine.rag import get_rag_pipeline
+            return get_rag_pipeline()
+        except Exception as exc:
+            logger.warning(
+                "Full RAG pipeline unavailable (%s). Falling back to direct Gemini.", exc
+            )
 
-    # Fallback: direct Gemini without retrieval
-    return _GeminiDirectPipeline(api_key=api_key, model=model, all_keys=keys)
+    # Fallback / model-override: direct Gemini without retrieval
+    return _GeminiDirectPipeline(api_key=api_key, model=resolved_model, all_keys=keys)
 
 
 class _GeminiDirectPipeline:
@@ -358,8 +367,9 @@ class ChatView(APIView):
 
         conversation_id = request.data.get('conversation_id') or str(uuid.uuid4())
         content_types = request.data.get('content_types') or None
+        model = request.data.get('model', '').strip() or None
 
-        pipeline = _get_pipeline()
+        pipeline = _get_pipeline(model=model)
         if pipeline is None:
             return Response(
                 {'error': 'AI pipeline is temporarily unavailable'},
@@ -412,8 +422,9 @@ class ChatStreamView(APIView):
 
         conversation_id = request.data.get('conversation_id') or str(uuid.uuid4())
         content_types = request.data.get('content_types') or None
+        model = request.data.get('model', '').strip() or None
 
-        pipeline = _get_pipeline()
+        pipeline = _get_pipeline(model=model)
         if pipeline is None:
             def _unavailable():
                 yield 'data: {"error": "AI pipeline unavailable"}\n\n'

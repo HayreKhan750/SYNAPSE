@@ -45,6 +45,27 @@ function CopyButton({ text, size = 14 }: { text: string; size?: number }) {
   );
 }
 
+// ── Copy-table button (stateful copied flash) ─────────────────────────────────
+function CopyTableButton({ onCopy }: { onCopy: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const handle = () => {
+    onCopy();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={handle}
+      title={copied ? 'Copied!' : 'Copy table as markdown'}
+      className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 transition-colors px-2 py-0.5 rounded hover:bg-slate-700"
+    >
+      {copied
+        ? <><Check size={11} className="text-green-400" /><span className="text-green-400">Copied!</span></>
+        : <><Copy size={11} /><span>Copy</span></>}
+    </button>
+  );
+}
+
 // ── Advanced code block with header bar + copy button ─────────────────────────
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false);
@@ -232,14 +253,57 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
 
                     hr: () => <hr className="border-slate-700 my-4" />,
 
-                    // ── Tables ────────────────────────────────────────────
-                    table: ({ children }: any) => (
-                      <div className="overflow-x-auto my-4 rounded-lg border border-slate-700">
-                        <table className="min-w-full text-sm border-collapse">
-                          {children}
-                        </table>
-                      </div>
-                    ),
+                    // ── Tables (with copy-as-markdown button) ─────────────
+                    table: ({ children, node }: any) => {
+                      const copyTableAsMarkdown = () => {
+                        try {
+                          // Walk the HAST node to rebuild markdown table text
+                          const rows: string[][] = [];
+                          const thead = node?.children?.find((c: any) => c.tagName === 'thead');
+                          const tbody = node?.children?.find((c: any) => c.tagName === 'tbody');
+                          const extractCellText = (cell: any): string => {
+                            const texts: string[] = [];
+                            const walk = (n: any) => {
+                              if (n.type === 'text') texts.push(n.value);
+                              if (n.children) n.children.forEach(walk);
+                            };
+                            walk(cell);
+                            return texts.join('').trim();
+                          };
+                          const parseRow = (tr: any): string[] =>
+                            (tr.children || [])
+                              .filter((c: any) => c.tagName === 'th' || c.tagName === 'td')
+                              .map(extractCellText);
+                          if (thead) {
+                            const headerRow = (thead.children || [])
+                              .filter((c: any) => c.tagName === 'tr')
+                              .flatMap(parseRow);
+                            rows.push(headerRow);
+                            rows.push(headerRow.map(() => '---'));
+                          }
+                          if (tbody) {
+                            (tbody.children || [])
+                              .filter((c: any) => c.tagName === 'tr')
+                              .forEach((tr: any) => rows.push(parseRow(tr)));
+                          }
+                          const md = rows.map((r) => `| ${r.join(' | ')} |`).join('\n');
+                          navigator.clipboard.writeText(md);
+                        } catch { /* noop */ }
+                      };
+                      return (
+                        <div className="my-4 rounded-lg border border-slate-700 overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-700">
+                            <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Table</span>
+                            <CopyTableButton onCopy={copyTableAsMarkdown} />
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm border-collapse">
+                              {children}
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    },
                     thead: ({ children }: any) => (
                       <thead className="bg-slate-900">{children}</thead>
                     ),

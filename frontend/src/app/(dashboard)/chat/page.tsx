@@ -12,6 +12,10 @@ import {
   Sparkles,
   ChevronRight,
   Bot,
+  ChevronDown,
+  Paperclip,
+  X,
+  Zap,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -20,6 +24,26 @@ import { ChatMessage as ChatMessageType, Conversation, ChatSource } from '@/type
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { cn } from '@/utils/helpers';
+
+// ─── Available free-tier Gemini models ───────────────────────────────────────
+const GEMINI_MODELS = [
+  { id: 'gemini-2.5-flash',                        label: 'Gemini 2.5 Flash',              badge: 'Latest' },
+  { id: 'gemini-2.5-flash-lite',                   label: 'Gemini 2.5 Flash Lite',         badge: 'Fast' },
+  { id: 'gemini-2.0-flash',                        label: 'Gemini 2.0 Flash',              badge: null },
+  { id: 'gemini-2.0-flash-001',                    label: 'Gemini 2.0 Flash 001',          badge: null },
+  { id: 'gemini-2.0-flash-lite',                   label: 'Gemini 2.0 Flash Lite',         badge: 'Light' },
+  { id: 'gemini-2.0-flash-lite-001',               label: 'Gemini 2.0 Flash Lite 001',     badge: null },
+  { id: 'gemini-flash-latest',                     label: 'Gemini Flash Latest',           badge: null },
+  { id: 'gemini-flash-lite-latest',                label: 'Gemini Flash Lite Latest',      badge: null },
+  { id: 'gemini-3-flash-preview',                  label: 'Gemini 3 Flash Preview',        badge: 'Preview' },
+  { id: 'gemini-3.1-flash-lite-preview',           label: 'Gemini 3.1 Flash Lite Preview', badge: 'Preview' },
+  { id: 'gemini-2.5-flash-preview-tts',            label: 'Gemini 2.5 Flash TTS',          badge: 'TTS' },
+  { id: 'gemini-2.5-flash-image',                  label: 'Gemini 2.5 Flash Image',        badge: 'Vision' },
+  { id: 'gemini-3.1-flash-image-preview',          label: 'Gemini 3.1 Flash Image Preview',badge: 'Vision' },
+  { id: 'gemini-2.0-flash-exp-image-generation',  label: 'Gemini 2.0 Flash Image Gen',    badge: 'Exp' },
+  { id: 'gemini-2.5-flash-lite-preview-09-2025',  label: 'Gemini 2.5 Flash Lite (Sep 25)',badge: 'Preview' },
+];
+const DEFAULT_MODEL = GEMINI_MODELS[0].id;
 
 // ─── Suggested prompts shown on empty chat ────────────────────────────────────
 const SUGGESTED_PROMPTS = [
@@ -69,6 +93,8 @@ async function streamChat(
   onSources: (sources: ChatSource[]) => void,
   onDone: () => void,
   onError: (err: string) => void,
+  model?: string,
+  attachments?: AttachedFile[],
 ) {
   const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/api\/v1\/?$/, '');
   const accessToken =
@@ -76,15 +102,29 @@ async function streamChat(
       ? localStorage.getItem('synapse_access_token') || ''
       : '';
 
+  // If there are file attachments, use multipart/form-data
+  let body: BodyInit;
+  let headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  if (attachments && attachments.length > 0) {
+    const form = new FormData();
+    form.append('question', question);
+    form.append('conversation_id', conversationId);
+    if (model) form.append('model', model);
+    attachments.forEach((a) => form.append('files', a.file));
+    body = form;
+  } else {
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify({ question, conversation_id: conversationId, model });
+  }
+
   let response: Response;
   try {
     response = await fetch(`${API_URL}/api/v1/ai/chat/stream/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
-      body: JSON.stringify({ question, conversation_id: conversationId }),
+      headers,
+      body,
     });
   } catch (e) {
     onError('Network error — please check your connection.');
@@ -146,9 +186,16 @@ async function streamChat(
 }
 
 // ─── Fallback non-streaming chat ──────────────────────────────────────────────
-async function regularChat(question: string, conversationId: string) {
-  const res = await api.post('/ai/chat/', { question, conversation_id: conversationId });
+async function regularChat(question: string, conversationId: string, model?: string) {
+  const res = await api.post('/ai/chat/', { question, conversation_id: conversationId, model });
   return res.data;
+}
+
+// ─── Attached file type ───────────────────────────────────────────────────────
+interface AttachedFile {
+  id: string;
+  file: File;
+  preview?: string; // data URL for images
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -161,10 +208,15 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
 
   const searchParams = useSearchParams();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
   const didAutoSend = useRef(false);
 
   // Fetch conversation list
@@ -181,6 +233,18 @@ export default function ChatPage() {
     if (!container) return;
     container.scrollTop = container.scrollHeight;
   }, [messages]);
+
+  // Close model dropdown when clicking outside
+  useEffect(() => {
+    if (!modelDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setModelDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [modelDropdownOpen]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -284,6 +348,32 @@ export default function ChatPage() {
     []
   );
 
+  // File attachment helpers
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const newAttachments: AttachedFile[] = files.map((file) => {
+      const id = nanoid();
+      const af: AttachedFile = { id, file };
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setAttachedFiles((prev) =>
+            prev.map((a) => a.id === id ? { ...a, preview: ev.target?.result as string } : a)
+          );
+        };
+        reader.readAsDataURL(file);
+      }
+      return af;
+    });
+    setAttachedFiles((prev) => [...prev, ...newAttachments]);
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, []);
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachedFiles((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
   // Send message — always creates a fresh conversation_id when activeConversationId is empty
   const sendMessage = useCallback(
     async (question: string) => {
@@ -294,11 +384,20 @@ export default function ChatPage() {
       const conversationId = activeConversationId || nanoid();
       if (!activeConversationId) setActiveConversationId(conversationId);
 
+      // Snapshot attachments and clear them immediately
+      const currentAttachments = [...attachedFiles];
+      setAttachedFiles([]);
+
+      // Build display content: question + file names if any
+      const fileNote = currentAttachments.length > 0
+        ? `\n\n📎 ${currentAttachments.map((a) => a.file.name).join(', ')}`
+        : '';
+
       // Append user message immediately
       const userMsg: ChatMessageType = {
         id: nanoid(),
         role: 'human',
-        content: question.trim(),
+        content: question.trim() + fileNote,
         ts: Date.now() / 1000,
       };
       setMessages((prev) => [...prev, userMsg]);
@@ -358,7 +457,7 @@ export default function ChatPage() {
           (err) => {
             if (!streamingWorked) {
               // Fall back to regular (non-streaming) endpoint
-              regularChat(question.trim(), conversationId)
+              regularChat(question.trim(), conversationId, selectedModel)
                 .then((data) => {
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -396,7 +495,9 @@ export default function ChatPage() {
               );
               setIsGenerating(false);
             }
-          }
+          },
+          selectedModel,
+          currentAttachments,
         );
       } catch {
         setMessages((prev) =>
@@ -409,7 +510,7 @@ export default function ChatPage() {
         setIsGenerating(false);
       }
     },
-    [activeConversationId, isGenerating, queryClient]
+    [activeConversationId, isGenerating, queryClient, selectedModel, attachedFiles]
   );
 
   // Auto-send ?q= prompt from "Ask AI" card buttons (runs once after sendMessage is stable)
@@ -542,6 +643,69 @@ export default function ChatPage() {
               <p className="text-[10px] text-slate-400">RAG-powered · grounded in your knowledge base</p>
             </div>
           </div>
+
+          {/* ── Model selector ── */}
+          <div ref={modelDropdownRef} className="relative ml-3">
+            <button
+              onClick={() => setModelDropdownOpen((v) => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 hover:text-white transition-colors"
+            >
+              <Zap size={12} className="text-indigo-400" />
+              <span className="max-w-[120px] truncate">
+                {GEMINI_MODELS.find((m) => m.id === selectedModel)?.label ?? selectedModel}
+              </span>
+              <ChevronDown size={12} className={cn('transition-transform', modelDropdownOpen && 'rotate-180')} />
+            </button>
+
+            <AnimatePresence>
+              {modelDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute left-0 top-full mt-1 z-50 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden"
+                >
+                  <div className="px-3 py-2 border-b border-slate-700">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Free-tier Gemini Models</p>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto py-1">
+                    {GEMINI_MODELS.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}
+                        className={cn(
+                          'w-full flex items-center justify-between px-3 py-2 text-xs transition-colors text-left',
+                          selectedModel === m.id
+                            ? 'bg-indigo-600/20 text-indigo-300'
+                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                        )}
+                      >
+                        <span className="flex items-center gap-2">
+                          {selectedModel === m.id && <Zap size={10} className="text-indigo-400 flex-shrink-0" />}
+                          {selectedModel !== m.id && <span className="w-[10px]" />}
+                          {m.label}
+                        </span>
+                        {m.badge && (
+                          <span className={cn(
+                            'text-[9px] px-1.5 py-0.5 rounded-full font-medium',
+                            m.badge === 'Latest' ? 'bg-green-900/50 text-green-400' :
+                            m.badge === 'Preview' ? 'bg-amber-900/50 text-amber-400' :
+                            m.badge === 'Vision' ? 'bg-blue-900/50 text-blue-400' :
+                            m.badge === 'Fast' || m.badge === 'Light' ? 'bg-cyan-900/50 text-cyan-400' :
+                            'bg-slate-700 text-slate-400'
+                          )}>
+                            {m.badge}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {activeConversationId && (
             <button
               onClick={startNewChat}
@@ -630,14 +794,60 @@ export default function ChatPage() {
         {/* ── Input Area ── */}
         <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/50 px-4 py-4">
           <div className="max-w-4xl mx-auto">
+
+            {/* ── File attachment previews ── */}
+            {attachedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {attachedFiles.map((af) => (
+                  <div
+                    key={af.id}
+                    className="relative flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 max-w-[200px]"
+                  >
+                    {af.preview ? (
+                      <img src={af.preview} alt={af.file.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                    ) : (
+                      <Paperclip size={14} className="text-slate-400 flex-shrink-0" />
+                    )}
+                    <span className="truncate">{af.file.name}</span>
+                    <button
+                      onClick={() => removeAttachment(af.id)}
+                      className="ml-1 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div
               className={cn(
-                'flex items-end gap-3 bg-slate-800 border rounded-2xl px-4 py-3 transition-colors',
+                'flex items-end gap-2 bg-slate-800 border rounded-2xl px-3 py-3 transition-colors',
                 isGenerating
                   ? 'border-slate-700'
                   : 'border-slate-600 focus-within:border-indigo-500'
               )}
             >
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.txt,.md,.csv,.json,.py,.js,.ts,.jsx,.tsx"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+
+              {/* Attach button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isGenerating}
+                title="Attach file"
+                className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-40"
+              >
+                <Paperclip size={18} />
+              </button>
+
               <textarea
                 ref={textareaRef}
                 value={inputValue}
@@ -650,10 +860,10 @@ export default function ChatPage() {
               />
               <button
                 onClick={() => sendMessage(inputValue)}
-                disabled={!inputValue.trim() || isGenerating}
+                disabled={(!inputValue.trim() && attachedFiles.length === 0) || isGenerating}
                 className={cn(
                   'flex-shrink-0 p-2 rounded-xl transition-all',
-                  inputValue.trim() && !isGenerating
+                  (inputValue.trim() || attachedFiles.length > 0) && !isGenerating
                     ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-900/40'
                     : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                 )}
