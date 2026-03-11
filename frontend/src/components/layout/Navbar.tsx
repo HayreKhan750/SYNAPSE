@@ -43,13 +43,14 @@ const fetchUnreadCount = async (): Promise<number> => {
   if (!data || typeof data !== 'object') return 0
   const obj = data as Record<string, unknown>
 
-  // Custom wrapper: { success: true, data: { unread_count: N } }
+  // Flat response: { unread_count: N }  ← what the view actually returns
+  if (typeof obj['unread_count'] === 'number') return obj['unread_count']
+
+  // Wrapped: { success: true, data: { unread_count: N } }
   if (obj['data'] && typeof obj['data'] === 'object') {
     const inner = obj['data'] as Record<string, unknown>
     if (typeof inner['unread_count'] === 'number') return inner['unread_count']
   }
-  // Flat: { unread_count: N }
-  if (typeof obj['unread_count'] === 'number') return obj['unread_count']
 
   return 0
 }
@@ -374,7 +375,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg shadow-indigo-500/30 animate-pulse">
+                <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] bg-red-500 text-white text-[11px] font-black rounded-full flex items-center justify-center px-1 ring-2 ring-slate-900 z-10 shadow-lg">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
