@@ -85,6 +85,30 @@ async function deleteConversation(conversationId: string) {
   await api.delete(`/ai/chat/${conversationId}/`);
 }
 
+// ─── Client-side image compression (before upload) ───────────────────────────
+async function compressImage(file: File, maxDim = 1024, quality = 0.82): Promise<File> {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) { resolve(file); return; }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file),
+        'image/jpeg', quality,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 // ─── Streaming chat via SSE ───────────────────────────────────────────────────
 async function streamChat(
   question: string,
@@ -96,13 +120,15 @@ async function streamChat(
   model?: string,
   attachments?: AttachedFile[],
 ) {
-  const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/api\/v1\/?$/, '');
   const accessToken =
     typeof window !== 'undefined'
       ? localStorage.getItem('synapse_access_token') || ''
       : '';
 
-  // If there are file attachments, use multipart/form-data
+  // Use a relative URL so the request goes through Next.js's dev proxy,
+  // avoiding ERR_ALPN_NEGOTIATION_FAILED from direct http→https mismatches.
+  const STREAM_URL = '/api/v1/ai/chat/stream/';
+
   let body: BodyInit;
   let headers: Record<string, string> = {};
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
@@ -112,7 +138,11 @@ async function streamChat(
     form.append('question', question);
     form.append('conversation_id', conversationId);
     if (model) form.append('model', model);
-    attachments.forEach((a) => form.append('files', a.file));
+    // Compress images before upload to speed up Gemini processing
+    for (const a of attachments) {
+      const compressed = await compressImage(a.file);
+      form.append('files', compressed, a.file.name);
+    }
     body = form;
   } else {
     headers['Content-Type'] = 'application/json';
@@ -121,7 +151,7 @@ async function streamChat(
 
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/api/v1/ai/chat/stream/`, {
+    response = await fetch(STREAM_URL, {
       method: 'POST',
       headers,
       body,
@@ -377,7 +407,8 @@ export default function ChatPage() {
   // Send message — always creates a fresh conversation_id when activeConversationId is empty
   const sendMessage = useCallback(
     async (question: string) => {
-      if (!question.trim() || isGenerating) return;
+      // Allow sending with files even if there's no text
+      if ((!question.trim() && attachedFiles.length === 0) || isGenerating) return;
 
       // IMPORTANT: generate a brand-new ID when starting fresh so backend
       // creates a new Conversation record, not appending to an old one.
@@ -525,7 +556,9 @@ export default function ChatPage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage(inputValue);
+      if (inputValue.trim() || attachedFiles.length > 0) {
+        sendMessage(inputValue);
+      }
     }
   };
 
@@ -792,91 +825,118 @@ export default function ChatPage() {
         </div>
 
         {/* ── Input Area ── */}
-        <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/50 px-4 py-4">
+        <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/50 px-4 py-3">
           <div className="max-w-4xl mx-auto">
 
-            {/* ── File attachment previews ── */}
-            {attachedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {attachedFiles.map((af) => (
-                  <div
-                    key={af.id}
-                    className="relative flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 max-w-[200px]"
-                  >
-                    {af.preview ? (
-                      <img src={af.preview} alt={af.file.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
-                    ) : (
-                      <Paperclip size={14} className="text-slate-400 flex-shrink-0" />
-                    )}
-                    <span className="truncate">{af.file.name}</span>
-                    <button
-                      onClick={() => removeAttachment(af.id)}
-                      className="ml-1 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
-                    >
-                      <X size={12} />
-                    </button>
+            {/* ── Gemini-style input card ── */}
+            <div className={cn(
+              'bg-slate-800 border rounded-3xl transition-colors overflow-hidden',
+              isGenerating ? 'border-slate-700' : 'border-slate-600 focus-within:border-indigo-500/70'
+            )}>
+
+              {/* Image grid staging area — shown above textarea when files are attached */}
+              {attachedFiles.length > 0 && (
+                <div className="px-4 pt-3 pb-1">
+                  <div className={cn(
+                    'grid gap-2',
+                    attachedFiles.length === 1 ? 'grid-cols-1' :
+                    attachedFiles.length === 2 ? 'grid-cols-2' :
+                    'grid-cols-3'
+                  )}>
+                    {attachedFiles.map((af) => (
+                      <div key={af.id} className="relative group rounded-xl overflow-hidden">
+                        {af.preview ? (
+                          <>
+                            <img
+                              src={af.preview}
+                              alt={af.file.name}
+                              className="w-full object-cover rounded-xl"
+                              style={{ maxHeight: attachedFiles.length === 1 ? 240 : 140 }}
+                            />
+                            {/* Dark overlay on hover */}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors rounded-xl" />
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 rounded-xl px-3 py-3 text-xs text-slate-300">
+                            <Paperclip size={13} className="text-indigo-400 flex-shrink-0" />
+                            <span className="truncate">{af.file.name}</span>
+                          </div>
+                        )}
+                        {/* Remove button */}
+                        <button
+                          onClick={() => removeAttachment(af.id)}
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        >
+                          <X size={12} />
+                        </button>
+                        {/* Filename badge for images */}
+                        {af.preview && (
+                          <div className="absolute bottom-1.5 left-1.5 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-md truncate max-w-[80%] opacity-0 group-hover:opacity-100 transition-opacity">
+                            {af.file.name}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-
-            <div
-              className={cn(
-                'flex items-end gap-2 bg-slate-800 border rounded-2xl px-3 py-3 transition-colors',
-                isGenerating
-                  ? 'border-slate-700'
-                  : 'border-slate-600 focus-within:border-indigo-500'
+                </div>
               )}
-            >
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*,.pdf,.txt,.md,.csv,.json,.py,.js,.ts,.jsx,.tsx"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
 
-              {/* Attach button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isGenerating}
-                title="Attach file"
-                className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-40"
-              >
-                <Paperclip size={18} />
-              </button>
+              {/* Text input row */}
+              <div className="flex items-end gap-2 px-3 py-3">
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.txt,.md,.csv,.json,.py,.js,.ts,.jsx,.tsx"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
 
-              <textarea
-                ref={textareaRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about articles, papers, repos… (Enter to send, Shift+Enter for newline)"
-                disabled={isGenerating}
-                rows={1}
-                className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm resize-none focus:outline-none min-h-[24px] max-h-[160px] py-0.5 disabled:opacity-50"
-              />
-              <button
-                onClick={() => sendMessage(inputValue)}
-                disabled={(!inputValue.trim() && attachedFiles.length === 0) || isGenerating}
-                className={cn(
-                  'flex-shrink-0 p-2 rounded-xl transition-all',
-                  (inputValue.trim() || attachedFiles.length > 0) && !isGenerating
-                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-900/40'
-                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                )}
-                title="Send message"
-              >
-                {isGenerating ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Send size={18} />
-                )}
-              </button>
+                {/* Attach button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isGenerating}
+                  title="Attach files"
+                  className="flex-shrink-0 p-2 rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-40"
+                >
+                  <Paperclip size={18} />
+                </button>
+
+                <textarea
+                  ref={textareaRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={attachedFiles.length > 0
+                    ? 'Add a message or just press Send…'
+                    : 'Ask about articles, papers, repos… (Enter to send)'}
+                  disabled={isGenerating}
+                  rows={1}
+                  className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm resize-none focus:outline-none min-h-[24px] max-h-[160px] py-1.5 disabled:opacity-50"
+                />
+
+                <button
+                  onClick={() => sendMessage(inputValue)}
+                  disabled={(!inputValue.trim() && attachedFiles.length === 0) || isGenerating}
+                  className={cn(
+                    'flex-shrink-0 p-2.5 rounded-full transition-all',
+                    (inputValue.trim() || attachedFiles.length > 0) && !isGenerating
+                      ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/40'
+                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  )}
+                  title="Send message"
+                >
+                  {isGenerating ? (
+                    <Loader2 size={17} className="animate-spin" />
+                  ) : (
+                    <Send size={17} />
+                  )}
+                </button>
+              </div>
             </div>
-            <p className="text-center text-[11px] text-slate-600 mt-2">
+
+            <p className="text-center text-[10px] text-slate-600 mt-2">
               Responses are grounded in the SYNAPSE knowledge base. Always verify important information.
             </p>
           </div>

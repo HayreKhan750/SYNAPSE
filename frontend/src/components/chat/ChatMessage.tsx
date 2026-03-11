@@ -163,30 +163,55 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
           >
             {isHuman ? (
               <>
-                {/* Attachment previews above the message text */}
-                {message.attachments && message.attachments.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {message.attachments.map((att, i) =>
-                      att.type.startsWith('image/') && att.preview ? (
-                        <div key={i} className="relative group">
-                          <img
-                            src={att.preview}
-                            alt={att.name}
-                            className="max-h-48 max-w-xs rounded-xl object-cover border border-slate-600 shadow-md"
-                          />
-                          <div className="absolute bottom-1 left-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-lg truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                            {att.name}
-                          </div>
+                {/* ── Gemini-style attachment grid ── */}
+                {message.attachments && message.attachments.length > 0 && (() => {
+                  const images = message.attachments.filter(a => a.type.startsWith('image/') && a.preview);
+                  const files  = message.attachments.filter(a => !a.type.startsWith('image/') || !a.preview);
+                  return (
+                    <div className="mb-2 space-y-2">
+                      {/* Image grid */}
+                      {images.length > 0 && (
+                        <div className={cn(
+                          'grid gap-1.5 rounded-2xl overflow-hidden',
+                          images.length === 1 ? 'grid-cols-1' :
+                          images.length === 2 ? 'grid-cols-2' :
+                          images.length === 3 ? 'grid-cols-3' :
+                          'grid-cols-2'
+                        )}>
+                          {images.map((att, i) => (
+                            <div key={i} className="relative group overflow-hidden rounded-xl">
+                              <img
+                                src={att.preview!}
+                                alt={att.name}
+                                className="w-full object-cover"
+                                style={{
+                                  maxHeight: images.length === 1 ? 280
+                                           : images.length <= 2 ? 180
+                                           : 130,
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-[9px] px-2 py-1 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                {att.name}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ) : (
-                        <div key={i} className="flex items-center gap-1.5 bg-slate-700/60 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
-                          <Paperclip size={11} className="text-slate-400 flex-shrink-0" />
-                          <span className="truncate max-w-[160px]">{att.name}</span>
+                      )}
+                      {/* Non-image file chips */}
+                      {files.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {files.map((att, i) => (
+                            <div key={i} className="flex items-center gap-1.5 bg-indigo-700/40 border border-indigo-500/30 rounded-lg px-2.5 py-1.5 text-xs text-indigo-200">
+                              <Paperclip size={11} className="flex-shrink-0" />
+                              <span className="truncate max-w-[160px]">{att.name}</span>
+                            </div>
+                          ))}
                         </div>
-                      )
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  );
+                })()}
                 {contentStr && <p className="whitespace-pre-wrap">{contentStr}</p>}
               </>
             ) : (
