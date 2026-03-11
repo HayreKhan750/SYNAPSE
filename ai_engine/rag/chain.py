@@ -1,22 +1,54 @@
 """
-SYNAPSE RAG Chain — ConversationalRetrievalChain powered by LangChain + OpenAI.
+SYNAPSE RAG Chain — powered by LangChain + Google Gemini.
 Includes system prompt grounded in the knowledge base with source citation support.
 """
 
 import logging
 import os
-from typing import Any, AsyncIterator, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
-from langchain.chains import ConversationalRetrievalChain
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .memory import ConversationMemoryManager
 from .retriever import SynapseRetriever
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _extract_text(content: Any) -> str:
+    """
+    Safely extract a plain string from an LLM response's content field.
+
+    Gemini (and some other providers) can return content as:
+      - A plain string  → return as-is
+      - A list of content blocks, e.g.:
+          [{'type': 'text', 'text': '...'}, ...]
+        or the older Anthropic-style:
+          [{'type': 'text', 'text': '...', 'extras': {...}}, ...]
+    In list form we concatenate all 'text' values.
+    Any other type is coerced with str().
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                # 'text' key is standard across Gemini / Anthropic block formats
+                parts.append(str(block.get('text', '')))
+            else:
+                parts.append(str(block))
+        return ''.join(parts)
+    return str(content) if content is not None else ''
+
 
 # ---------------------------------------------------------------------------
 # Prompt templates
@@ -103,19 +135,12 @@ class SynapseRAGChain:
         self.streaming = streaming
 
         self._llm = ChatGoogleGenerativeAI(
-            model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+            model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
             temperature=temperature,
             max_output_tokens=max_tokens,
             google_api_key=os.environ.get("GEMINI_API_KEY", ""),
             streaming=streaming,
             convert_system_message_to_human=True,
-        )
-
-        # Text splitter for chunking long retrieved documents
-        self._text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-            separators=["\n\n", "\n", ". ", " ", ""],
         )
 
     # ------------------------------------------------------------------
@@ -130,63 +155,13 @@ class SynapseRAGChain:
     ) -> Dict[str, Any]:
         """
         Process a user question and return the answer with source citations.
-
-        Returns:
-            {
-                "answer": str,
-                "sources": [{"title": str, "url": str, "content_type": str, "snippet": str}],
-                "conversation_id": str,
-            }
+        Delegates to chat_with_context for a clean, dependency-free implementation.
         """
-        memory = self.memory_manager.get_or_create(conversation_id)
-
-        # Override retriever content types if specified
-        if content_types:
-            self.retriever.content_types = content_types
-
-        # Retrieve relevant documents
-        docs = self.retriever.get_relevant_documents(question)
-
-        # Build context string
-        context = _format_context_with_sources(docs) if docs else "No relevant documents found in the knowledge base."
-
-        # Build the full prompt with context injected
-        system_msg_with_ctx = SYSTEM_PROMPT.format(context=context)
-
-        # Build conversation messages
-        chat_history = memory.chat_memory.messages
-
-        # Build chain
-        chain = ConversationalRetrievalChain.from_llm(
-            llm=self._llm,
-            retriever=self.retriever,
-            memory=memory,
-            condense_question_prompt=CONDENSE_QUESTION_PROMPT,
-            return_source_documents=True,
-            verbose=False,
-            combine_docs_chain_kwargs={
-                "prompt": self._build_qa_prompt(system_msg_with_ctx),
-                "document_variable_name": "context",
-            },
+        return self.chat_with_context(
+            question=question,
+            conversation_id=conversation_id,
+            content_types=content_types,
         )
-
-        try:
-            result = chain({"question": question})
-        except Exception as exc:
-            logger.error("RAG chain error: %s", exc)
-            raise
-
-        answer = result.get("answer", "")
-        source_docs = result.get("source_documents", docs)
-
-        # Persist turn to Redis
-        self.memory_manager.save_turn(conversation_id, question, answer)
-
-        return {
-            "answer": answer,
-            "sources": self._extract_sources(source_docs),
-            "conversation_id": conversation_id,
-        }
 
     def chat_with_context(
         self,
@@ -204,11 +179,11 @@ class SynapseRAGChain:
             self.retriever.content_types = content_types
 
         # Step 1: Retrieve docs
-        docs = self.retriever.get_relevant_documents(question)
+        docs = self.retriever.invoke(question)
         context = _format_context_with_sources(docs) if docs else "No relevant documents found."
 
         # Step 2: Condense question if there's history
-        chat_history = memory.chat_memory.messages
+        chat_history = memory.messages
         condensed_question = question
         if chat_history:
             condensed_question = self._condense_question(question, chat_history)
@@ -224,7 +199,7 @@ class SynapseRAGChain:
 
         # Step 4: Call LLM
         response = self._llm.invoke(messages)
-        answer = response.content if hasattr(response, "content") else str(response)
+        answer = _extract_text(response.content) if hasattr(response, "content") else str(response)
 
         # Persist
         self.memory_manager.save_turn(conversation_id, question, answer)
@@ -252,10 +227,10 @@ class SynapseRAGChain:
         if content_types:
             self.retriever.content_types = content_types
 
-        docs = self.retriever.get_relevant_documents(question)
+        docs = self.retriever.invoke(question)
         context = _format_context_with_sources(docs) if docs else "No relevant documents found."
 
-        chat_history = memory.chat_memory.messages
+        chat_history = memory.messages
         condensed_question = question
         if chat_history:
             condensed_question = self._condense_question(question, chat_history)
@@ -268,7 +243,7 @@ class SynapseRAGChain:
         messages.append(HumanMessage(content=condensed_question))
 
         streaming_llm = ChatGoogleGenerativeAI(
-            model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+            model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
             temperature=self.temperature,
             max_output_tokens=self.max_tokens,
             google_api_key=os.environ.get("GEMINI_API_KEY", ""),
@@ -278,7 +253,7 @@ class SynapseRAGChain:
 
         full_answer = []
         for chunk in streaming_llm.stream(messages):
-            token = chunk.content if hasattr(chunk, "content") else str(chunk)
+            token = _extract_text(chunk.content) if hasattr(chunk, "content") else str(chunk)
             if token:
                 full_answer.append(token)
                 yield token
@@ -293,14 +268,6 @@ class SynapseRAGChain:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _build_qa_prompt(self, system_message: str) -> ChatPromptTemplate:
-        """Build the QA prompt template for the chain."""
-        return ChatPromptTemplate.from_messages([
-            ("system", system_message),
-            MessagesPlaceholder(variable_name="chat_history"),
-            ("human", "{question}"),
-        ])
-
     def _condense_question(self, question: str, chat_history: list) -> str:
         """Use Gemini to rephrase follow-up question as standalone."""
         try:
@@ -313,14 +280,14 @@ class SynapseRAGChain:
                 question=question,
             )
             condensed_llm = ChatGoogleGenerativeAI(
-                model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+                model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
                 temperature=0,
                 max_output_tokens=256,
                 google_api_key=os.environ.get("GEMINI_API_KEY", ""),
                 convert_system_message_to_human=True,
             )
             result = condensed_llm.invoke(prompt)
-            return result.content if hasattr(result, "content") else question
+            return _extract_text(result.content) if hasattr(result, "content") else question
         except Exception as exc:
             logger.warning("Question condensation failed: %s", exc)
             return question

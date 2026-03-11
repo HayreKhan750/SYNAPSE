@@ -19,6 +19,28 @@ from apps.core.models import Conversation
 
 logger = logging.getLogger(__name__)
 
+
+def _extract_text_content(content) -> str:
+    """
+    Safely extract a plain string from an LLM response content field.
+    Gemini can return content as a string or as a list of content blocks
+    e.g. [{'type': 'text', 'text': '...', 'extras': {...}}].
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                parts.append(str(block.get('text', '')))
+            else:
+                parts.append(str(block))
+        return ''.join(parts)
+    return str(content) if content is not None else ''
+
+
 # ─── Explain endpoint (Phase 3.2) ────────────────────────────────────────────
 
 
@@ -136,6 +158,34 @@ class ExplainView(APIView):
         return Response({**result, 'conversation_id': conversation_id}, status=status.HTTP_200_OK)
 
 
+def _get_gemini_keys() -> list:
+    """
+    Collect all configured Gemini API keys for round-robin rotation.
+    Reads GEMINI_API_KEY (primary) + GEMINI_API_KEY_1 … GEMINI_API_KEY_10.
+    """
+    import os
+    keys = []
+    primary = os.environ.get("GEMINI_API_KEY", "")
+    if primary and not primary.startswith("your-"):
+        keys.append(primary)
+    for i in range(1, 11):
+        k = os.environ.get(f"GEMINI_API_KEY_{i}", "")
+        if k and not k.startswith("your-") and k not in keys:
+            keys.append(k)
+    return keys
+
+
+# Module-level rotation index for chat key rotation
+_chat_key_index = 0
+
+
+def _next_chat_key(keys: list) -> str:
+    global _chat_key_index
+    key = keys[_chat_key_index % len(keys)]
+    _chat_key_index = (_chat_key_index + 1) % len(keys)
+    return key
+
+
 def _get_pipeline():
     """
     Lazy-import RAG pipeline to avoid loading at Django startup.
@@ -144,13 +194,16 @@ def _get_pipeline():
     retriever is unavailable. Raises 503 only if no API key is configured at all.
     """
     import os
-    google_key = os.environ.get("GEMINI_API_KEY", "")
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-    has_real_key = bool(google_key and not google_key.startswith("your-"))
+    keys = _get_gemini_keys()
+    model = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 
-    if not has_real_key:
+    if not keys:
         logger.error("No valid GEMINI_API_KEY configured — chat is unavailable.")
         return None
+
+    # Pick next key in rotation
+    api_key = _next_chat_key(keys)
+    logger.info("_get_pipeline: using model=%s, keys_available=%d", model, len(keys))
 
     # Try the full RAG pipeline (requires pgvector + embeddings)
     try:
@@ -162,28 +215,62 @@ def _get_pipeline():
         )
 
     # Fallback: direct Gemini without retrieval
-    return _GeminiDirectPipeline(api_key=google_key, model=model)
+    return _GeminiDirectPipeline(api_key=api_key, model=model, all_keys=keys)
 
 
 class _GeminiDirectPipeline:
     """
     Fallback pipeline that calls Google Gemini directly via langchain-google-genai
     when the full RAG pipeline (pgvector retriever) is unavailable.
-    Still persists conversations to DB and provides real AI answers.
+    Supports multi-key rotation — tries next key on 429 quota errors.
     """
 
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: str, model: str, all_keys: list = None) -> None:
         self._api_key = api_key
         self._model = model
+        self._all_keys = all_keys or [api_key]
         self._histories: Dict[str, list] = {}
 
-    def _build_llm(self):
+    def _build_llm(self, api_key: str = None):
         from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
         return ChatGoogleGenerativeAI(
             model=self._model,
             temperature=0.7,
-            google_api_key=self._api_key,
+            google_api_key=api_key or self._api_key,
         )
+
+    def _invoke_with_rotation(self, messages):
+        """Try each API key in rotation until one succeeds."""
+        last_exc = None
+        for key in self._all_keys:
+            try:
+                llm = self._build_llm(api_key=key)
+                return llm.invoke(messages)
+            except Exception as exc:
+                exc_str = str(exc).lower()
+                if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
+                    logger.warning("Key quota exhausted, trying next key. Error: %s", exc)
+                    last_exc = exc
+                    continue
+                raise  # non-quota error — raise immediately
+        raise last_exc or Exception("All Gemini API keys exhausted")
+
+    def _stream_with_rotation(self, messages):
+        """Try each API key in rotation for streaming until one succeeds."""
+        last_exc = None
+        for key in self._all_keys:
+            try:
+                llm = self._build_llm(api_key=key)
+                yield from llm.stream(messages)
+                return
+            except Exception as exc:
+                exc_str = str(exc).lower()
+                if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
+                    logger.warning("Key quota exhausted for streaming, trying next. Error: %s", exc)
+                    last_exc = exc
+                    continue
+                raise
+        raise last_exc or Exception("All Gemini API keys exhausted")
 
     def chat(self, question: str, conversation_id: str, content_types=None) -> dict:
         from langchain_core.messages import HumanMessage, SystemMessage  # noqa: PLC0415
@@ -194,9 +281,9 @@ class _GeminiDirectPipeline:
                 "Answer questions clearly and concisely."
             ))
         ] + history + [HumanMessage(content=question)]
-        llm = self._build_llm()
-        response = llm.invoke(messages)
-        answer = response.content.strip()
+        response = self._invoke_with_rotation(messages)
+        raw = response.content if hasattr(response, 'content') else response
+        answer = _extract_text_content(raw).strip()
         self._histories.setdefault(conversation_id, [])
         self._histories[conversation_id].append(HumanMessage(content=question))
         self._histories[conversation_id].append(response)
@@ -204,7 +291,7 @@ class _GeminiDirectPipeline:
 
     def stream_chat(self, question: str, conversation_id: str, content_types=None):
         import json  # noqa: PLC0415
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: PLC0415
+        from langchain_core.messages import HumanMessage, SystemMessage, AIMessage  # noqa: PLC0415
         history = self._histories.get(conversation_id, [])
         messages = [
             SystemMessage(content=(
@@ -212,16 +299,14 @@ class _GeminiDirectPipeline:
                 "Answer questions clearly and concisely."
             ))
         ] + history + [HumanMessage(content=question)]
-        llm = self._build_llm()
         full_answer = ""
-        for chunk in llm.stream(messages):
-            token = chunk.content
+        for chunk in self._stream_with_rotation(messages):
+            token = _extract_text_content(chunk.content if hasattr(chunk, 'content') else chunk)
             if token:
                 full_answer += token
                 yield token
         self._histories.setdefault(conversation_id, [])
         self._histories[conversation_id].append(HumanMessage(content=question))
-        from langchain_core.messages import AIMessage  # noqa: PLC0415
         self._histories[conversation_id].append(AIMessage(content=full_answer))
         yield f"__SOURCES__:{json.dumps([])}"
 
@@ -352,8 +437,15 @@ class ChatStreamView(APIView):
                         safe = json.dumps(token)
                         yield f'data: {safe}\n\n'
             except Exception as exc:
-                logger.error("SSE stream error: %s", exc)
-                yield f'data: {{"error": "{str(exc)}"}}\n\n'
+                exc_str = str(exc).lower()
+                logger.error("SSE stream error: %s", exc, exc_info=True)
+                if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
+                    msg = "All AI quota limits reached. Please try again in a few minutes or add more API keys."
+                elif "api_key" in exc_str or "invalid" in exc_str or "authentication" in exc_str:
+                    msg = "AI service authentication error. Please check your API key configuration."
+                else:
+                    msg = "AI service temporarily unavailable. Please try again."
+                yield f'data: {{"error": {json.dumps(msg)}}}\n\n'
 
             # Persist conversation to DB after streaming completes
             try:
@@ -394,9 +486,27 @@ class ConversationHistoryView(APIView):
             if pipeline:
                 history = pipeline.get_history(conversation_id)
                 if history:
+                    # Normalize: pipeline memory stores turns as {"human": ..., "ai": ..., "ts": ...}
+                    # but the frontend expects {"role": ..., "content": ..., "ts": ...}
+                    normalized = []
+                    for turn in history:
+                        if 'role' in turn and 'content' in turn:
+                            # Already in the correct format
+                            normalized.append({
+                                'role': turn['role'],
+                                'content': str(turn['content']) if not isinstance(turn['content'], str) else turn['content'],
+                                'ts': turn.get('ts', 0),
+                            })
+                        else:
+                            # Convert from {"human": ..., "ai": ..., "ts": ...} format
+                            ts = turn.get('ts', 0)
+                            if 'human' in turn:
+                                normalized.append({'role': 'human', 'content': str(turn['human']), 'ts': ts})
+                            if 'ai' in turn:
+                                normalized.append({'role': 'ai', 'content': str(turn['ai']), 'ts': ts})
                     return Response({
                         'conversation_id': conversation_id,
-                        'messages': history,
+                        'messages': normalized,
                         'title': '',
                     })
             return Response(
@@ -404,10 +514,19 @@ class ConversationHistoryView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Ensure every message's content is a plain string — legacy records may
+        # have had a dict/object accidentally stored as content.
+        safe_messages = []
+        for m in conv.messages:
+            content = m.get('content', '')
+            if not isinstance(content, str):
+                content = str(content)
+            safe_messages.append({**m, 'content': content})
+
         return Response({
             'conversation_id': conv.conversation_id,
             'title': conv.get_title(),
-            'messages': conv.messages,
+            'messages': safe_messages,
             'created_at': conv.created_at.isoformat(),
             'updated_at': conv.updated_at.isoformat(),
         })

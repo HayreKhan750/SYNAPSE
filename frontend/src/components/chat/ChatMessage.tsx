@@ -92,7 +92,10 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
   const isHuman = message.role === 'human';
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const handleEdit = () => onEdit?.(messageIndex, message.content);
+  // Guard against non-string content arriving from the API/SSE stream at runtime
+  const contentStr = typeof message.content === 'string' ? message.content : String(message.content ?? '');
+
+  const handleEdit = () => onEdit?.(messageIndex, contentStr);
 
   const handleDelete = () => {
     if (confirmDelete) {
@@ -102,6 +105,15 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
       setTimeout(() => setConfirmDelete(false), 3000);
     }
   };
+
+  // When the AI placeholder is empty (no tokens yet), the TypingIndicator
+  // renders instead. We must suppress the entire ChatMessage row — including
+  // the avatar — to prevent TWO bot icons appearing simultaneously.
+  const isEmptyAIPlaceholder = !isHuman && message.isStreaming && contentStr === '';
+
+  if (isEmptyAIPlaceholder) {
+    return null;
+  }
 
   return (
     <div className={cn('flex gap-3 w-full', isHuman ? 'flex-row-reverse' : 'flex-row')}>
@@ -118,9 +130,8 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
         {isHuman ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
       </div>
 
-      {/* Bubble — hidden when AI placeholder is empty (TypingIndicator shows instead) */}
-      {(!message.isStreaming || message.content !== '') && (
-        <div className={cn('flex flex-col gap-1.5 max-w-[80%]', isHuman ? 'items-end' : 'items-start')}>
+      {/* Bubble */}
+      <div className={cn('flex flex-col gap-1.5 max-w-[80%]', isHuman ? 'items-end' : 'items-start')}>
           <div
             className={cn(
               'rounded-2xl px-4 py-3 text-sm leading-relaxed',
@@ -130,7 +141,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
             )}
           >
             {isHuman ? (
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              <p className="whitespace-pre-wrap">{contentStr}</p>
             ) : (
               <div className="prose prose-sm prose-invert max-w-none">
                 <ReactMarkdown
@@ -250,7 +261,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                     ),
                   }}
                 >
-                  {message.content}
+                  {contentStr}
                 </ReactMarkdown>
 
                 {/* Streaming cursor */}
@@ -265,7 +276,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
           <div className={cn('flex items-center gap-1 px-1', isHuman ? 'flex-row-reverse' : 'flex-row')}>
             {isHuman && !message.isStreaming && (
               <>
-                <CopyButton text={message.content} />
+                <CopyButton text={contentStr} />
                 {onEdit && (
                   <button
                     onClick={handleEdit}
@@ -293,7 +304,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
               </>
             )}
             {!isHuman && !message.isStreaming && (
-              <CopyButton text={message.content} />
+              <CopyButton text={contentStr} />
             )}
           </div>
 
@@ -309,7 +320,6 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
             </div>
           )}
         </div>
-      )}
-    </div>
+      </div>
   );
 }

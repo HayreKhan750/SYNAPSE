@@ -163,7 +163,7 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const searchParams = useSearchParams();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const didAutoSend = useRef(false);
 
@@ -174,9 +174,12 @@ export default function ChatPage() {
     staleTime: 30_000,
   });
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom — scroll within the messages container only,
+  // never the document body.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
   }, [messages]);
 
   // Auto-resize textarea
@@ -194,10 +197,17 @@ export default function ChatPage() {
       try {
         const data = await fetchHistory(conversationId);
         const loaded: ChatMessageType[] = (data.messages || []).map(
-          (m: { role: 'human' | 'ai'; content: string; ts: number }) => ({
+          (m: { role: 'human' | 'ai'; content: unknown; ts: number }) => ({
             id: nanoid(),
             role: m.role,
-            content: m.content,
+            // Backend may return content as a nested object; always extract a plain string
+            content: typeof m.content === 'string'
+              ? m.content
+              : typeof (m.content as any)?.answer === 'string'
+                ? (m.content as any).answer
+                : typeof (m.content as any)?.text === 'string'
+                  ? (m.content as any).text
+                  : String(m.content ?? ''),
             ts: m.ts,
           })
         );
@@ -420,7 +430,9 @@ export default function ChatPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-4rem)] -m-6 overflow-hidden">
+    // Absolutely fill the parent <main> element which is flex-1.
+    // Using absolute inset-0 makes this 100% immune to any ancestor flex chain.
+    <div className="absolute inset-0 flex overflow-hidden bg-slate-950">
 
       {/* ── Conversation Sidebar ── */}
       <AnimatePresence initial={false}>
@@ -507,7 +519,7 @@ export default function ChatPage() {
       </AnimatePresence>
 
       {/* ── Main Chat Area ── */}
-      <div className="flex flex-col flex-1 min-w-0 bg-slate-950">
+      <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden bg-slate-950">
 
         {/* Chat header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-900/50 flex-shrink-0">
@@ -542,7 +554,7 @@ export default function ChatPage() {
         </div>
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
           {messages.length === 0 ? (
             /* ── Empty state ── */
             <div className="flex flex-col items-center justify-center h-full gap-8 text-center px-4">
@@ -594,20 +606,25 @@ export default function ChatPage() {
                 ))}
               </AnimatePresence>
 
-              {/* Typing indicator — shown while waiting for first token.
-                  Only render when the last AI placeholder has NO content yet
-                  AND is not already showing a streaming cursor in ChatMessage.
-                  This prevents the double-bot-icon bug where TypingIndicator
-                  and the streaming ChatMessage avatar both appear at once. */}
-              {isGenerating &&
-                messages[messages.length - 1]?.role === 'ai' &&
-                messages[messages.length - 1]?.isStreaming === true &&
-                messages[messages.length - 1]?.content === '' && (
-                  <TypingIndicator />
-                )}
+              {/* Typing indicator — shown ONLY while waiting for the very first
+                  token (content is still empty string).
+                  Once ANY content arrives, ChatMessage takes over and renders
+                  a streaming cursor instead — TypingIndicator must be gone.
+                  Condition: generating + last msg is AI + streaming + NO content yet.
+                  ChatMessage returns null for this same state, so exactly ONE
+                  bot avatar is ever visible at a time. */}
+              {(() => {
+                const last = messages[messages.length - 1];
+                const showTyping =
+                  isGenerating &&
+                  last?.role === 'ai' &&
+                  last?.isStreaming === true &&
+                  (last?.content ?? '') === '';
+                return showTyping ? <TypingIndicator /> : null;
+              })()}
             </>
           )}
-          <div ref={messagesEndRef} />
+          <div />
         </div>
 
         {/* ── Input Area ── */}
