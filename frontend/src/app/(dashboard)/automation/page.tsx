@@ -47,16 +47,28 @@ interface PaginatedResponse<T> {
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
+// Helper: extract array from any API response shape:
+//   { success, data: [...], meta }  — custom wrapper
+//   { count, results: [...] }       — standard DRF pagination
+//   [...]                           — plain array
+function extractList<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj['data'])) return obj['data'] as T[];
+    if (Array.isArray(obj['results'])) return obj['results'] as T[];
+  }
+  return [];
+}
+
 const fetchWorkflows = async (): Promise<Workflow[]> => {
-  const { data } = await api.get<PaginatedResponse<Workflow>>('/automation/workflows/');
-  return data.results ?? (data as unknown as Workflow[]);
+  const { data } = await api.get('/automation/workflows/');
+  return extractList<Workflow>(data);
 };
 
 const fetchRuns = async (workflowId: string): Promise<WorkflowRun[]> => {
-  const { data } = await api.get<PaginatedResponse<WorkflowRun>>(
-    `/automation/workflows/${workflowId}/runs/`
-  );
-  return data.results ?? (data as unknown as WorkflowRun[]);
+  const { data } = await api.get(`/automation/workflows/${workflowId}/runs/`);
+  return extractList<WorkflowRun>(data);
 };
 
 const createWorkflow = async (payload: Partial<Workflow>) => {
