@@ -40,16 +40,28 @@ function extractList<T>(raw: unknown): T[] {
 
 const fetchUnreadCount = async (): Promise<number> => {
   const { data } = await api.get('/notifications/unread-count/')
-  if (data && typeof data === 'object') {
-    const obj = data as Record<string, unknown>
-    return (obj['unread_count'] as number) ?? (obj['data'] as Record<string, number>)?.['unread_count'] ?? 0
+  if (!data || typeof data !== 'object') return 0
+  const obj = data as Record<string, unknown>
+
+  // Custom wrapper: { success: true, data: { unread_count: N } }
+  if (obj['data'] && typeof obj['data'] === 'object') {
+    const inner = obj['data'] as Record<string, unknown>
+    if (typeof inner['unread_count'] === 'number') return inner['unread_count']
   }
+  // Flat: { unread_count: N }
+  if (typeof obj['unread_count'] === 'number') return obj['unread_count']
+
   return 0
 }
 
 const fetchRecentNotifications = async (): Promise<Notification[]> => {
   const { data } = await api.get('/notifications/?is_read=false')
-  return extractList<Notification>(data).slice(0, 8)
+  // Unwrap custom wrapper first: { success, data: { results: [...] } } or { success, data: [...] }
+  const unwrapped =
+    data && typeof data === 'object' && !Array.isArray(data) && 'data' in data
+      ? (data as Record<string, unknown>)['data']
+      : data
+  return extractList<Notification>(unwrapped).slice(0, 8)
 }
 
 const markAllRead = async () => {
