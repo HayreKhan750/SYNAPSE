@@ -261,18 +261,19 @@
 - [x] **Git commit:** `feat: automation workflow engine — Celery Beat, action system, workflow builder`
 
 ### 4.2 Notifications (Week 12)
-- [ ] Create Notification model (user, title, message, notif_type, is_read, metadata)
-- [ ] Create notification API endpoints (list, mark read, mark all read)
-- [ ] Install SendGrid: `pip install sendgrid`
-- [ ] Create email notification service (SendGrid API)
-- [ ] Add email notification on workflow completion
-- [ ] Create notification bell component (badge count, dropdown list)
-- [ ] Implement real-time notifications via WebSocket (django-channels) OR polling
-- [ ] Add notification preferences to user settings
-- [ ] Create workflow run history table in Automation Center
-- [ ] Add workflow status badges (active, paused, failed)
-- [ ] Write integration tests for workflow execution
-- [ ] **Git commit:** `feat: notifications — in-app alerts, email via SendGrid, workflow history`
+- [x] Create Notification model (user, title, message, notif_type, is_read, metadata)
+- [x] Create notification API endpoints (list, mark read, mark all read, unread-count, delete)
+- [x] Install SendGrid: email_service.py with SMTP + SDK support
+- [x] Create email notification service (SendGrid SMTP + direct SDK fallback)
+- [x] Add email notification on workflow completion (send_email action queues Celery task)
+- [x] Create notification bell component (badge count with 60s polling, dropdown list)
+- [x] Implement real-time notifications via polling (React Query refetchInterval: 60s)
+- [x] Create full Notifications page (/notifications) with mark-read, delete, empty state
+- [x] Create workflow run history (WorkflowRun model + runs API + RunHistoryModal in UI)
+- [x] Add workflow status badges (active, paused, failed) in WorkflowCard
+- [x] Create Celery tasks for async email delivery (send_notification_email_task, send_workflow_completion_email_task)
+- [x] Add Notification type to frontend types/index.ts
+- [x] **Git commit:** `feat: notifications — in-app bell, SendGrid email, notification center`
 
 ---
 

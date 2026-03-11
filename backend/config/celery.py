@@ -130,6 +130,8 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60 * 60,  # 1 hour
         'options': {'queue': 'default'},
     },
+    # Phase 4.2 — Notifications: poll for unread count every 5 minutes via Celery
+    # (Frontend uses polling via React Query — no WebSocket needed for MVP)
 }
 
 # Apply configuration to app

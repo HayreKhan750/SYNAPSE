@@ -88,10 +88,12 @@ def _action_generate_pdf(params: dict) -> dict:
 
 
 def _action_send_email(workflow, params: dict) -> dict:
-    """Send a notification email to the workflow owner."""
+    """Create an in-app notification and queue a SendGrid email for the workflow owner."""
     try:
         from apps.notifications.models import Notification
-        Notification.objects.create(
+        from apps.notifications.tasks import send_notification_email_task
+
+        notif = Notification.objects.create(
             user=workflow.user,
             title=params.get('subject', f"Workflow '{workflow.name}' completed"),
             message=params.get(
@@ -101,7 +103,14 @@ def _action_send_email(workflow, params: dict) -> dict:
             notif_type='workflow_complete',
             metadata={'workflow_id': str(workflow.id)},
         )
-        return {'action': 'send_email', 'status': 'notification_created'}
+        # Queue email delivery asynchronously so it doesn't block the workflow
+        send_notification_email_task.delay(str(notif.id))
+
+        return {
+            'action': 'send_email',
+            'status': 'notification_created',
+            'notification_id': str(notif.id),
+        }
     except Exception as exc:
         logger.warning(f"send_email action failed: {exc}")
         return {'action': 'send_email', 'status': 'failed', 'error': str(exc)}

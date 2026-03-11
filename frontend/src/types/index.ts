@@ -185,3 +185,22 @@ export interface ConversationHistory {
   created_at: string
   updated_at: string
 }
+
+// ─── Notifications (Phase 4.2) ───────────────────────────────────────────────
+
+export type NotifType =
+  | 'info'
+  | 'warning'
+  | 'error'
+  | 'success'
+  | 'workflow_complete'
+
+export interface Notification {
+  id: string
+  title: string
+  message: string
+  notif_type: NotifType
+  is_read: boolean
+  created_at: string
+  metadata: Record<string, unknown>
+}

@@ -1,16 +1,233 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User } from 'lucide-react'
+import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import api from '@/utils/api'
 
 interface NavbarProps {
   onMenuClick?: () => void
   onMobileMenuClick: () => void
 }
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface Notification {
+  id: string
+  title: string
+  message: string
+  notif_type: string
+  is_read: boolean
+  created_at: string
+  metadata: Record<string, unknown>
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+
+function extractList<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[]
+  if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>
+    if (Array.isArray(obj['data'])) return obj['data'] as T[]
+    if (Array.isArray(obj['results'])) return obj['results'] as T[]
+  }
+  return []
+}
+
+const fetchUnreadCount = async (): Promise<number> => {
+  const { data } = await api.get('/notifications/unread-count/')
+  if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>
+    return (obj['unread_count'] as number) ?? (obj['data'] as Record<string, number>)?.['unread_count'] ?? 0
+  }
+  return 0
+}
+
+const fetchRecentNotifications = async (): Promise<Notification[]> => {
+  const { data } = await api.get('/notifications/?is_read=false')
+  return extractList<Notification>(data).slice(0, 8)
+}
+
+const markAllRead = async () => {
+  await api.post('/notifications/read-all/')
+}
+
+const markOneRead = async (id: string) => {
+  await api.post(`/notifications/${id}/read/`)
+}
+
+const deleteNotification = async (id: string) => {
+  await api.delete(`/notifications/${id}/`)
+}
+
+// ── NotifType icon/colour map ─────────────────────────────────────────────────
+
+const NOTIF_STYLES: Record<string, { icon: string; colour: string }> = {
+  workflow_complete: { icon: '⚙️', colour: 'text-indigo-400' },
+  info:             { icon: 'ℹ️', colour: 'text-blue-400' },
+  warning:          { icon: '⚠️', colour: 'text-yellow-400' },
+  error:            { icon: '❌', colour: 'text-red-400' },
+  success:          { icon: '✅', colour: 'text-green-400' },
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
+// ── Notification Dropdown ─────────────────────────────────────────────────────
+
+function NotificationDropdown({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient()
+  const router = useRouter()
+
+  const { data: notifications = [], isLoading } = useQuery({
+    queryKey: ['navbar-notifications'],
+    queryFn: fetchRecentNotifications,
+    staleTime: 30_000,
+  })
+
+  const markAllMutation = useMutation({
+    mutationFn: markAllRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] })
+      queryClient.invalidateQueries({ queryKey: ['navbar-notifications'] })
+    },
+  })
+
+  const markOneMutation = useMutation({
+    mutationFn: markOneRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] })
+      queryClient.invalidateQueries({ queryKey: ['navbar-notifications'] })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteNotification,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] })
+      queryClient.invalidateQueries({ queryKey: ['navbar-notifications'] })
+    },
+  })
+
+  return (
+    <div className="absolute right-0 top-full mt-2 w-96 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden z-50">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+        <h3 className="text-sm font-semibold text-white">Notifications</h3>
+        <div className="flex items-center gap-2">
+          {notifications.length > 0 && (
+            <button
+              onClick={() => markAllMutation.mutate()}
+              disabled={markAllMutation.isPending}
+              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50 flex items-center gap-1"
+            >
+              <Check size={12} />
+              Mark all read
+            </button>
+          )}
+          <button
+            onClick={() => { router.push('/notifications'); onClose() }}
+            className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            See all
+          </button>
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="max-h-[360px] overflow-y-auto">
+        {isLoading && (
+          <div className="px-4 py-8 text-center text-slate-400 text-sm animate-pulse">
+            Loading…
+          </div>
+        )}
+        {!isLoading && notifications.length === 0 && (
+          <div className="px-4 py-10 text-center">
+            <p className="text-2xl mb-2">🔔</p>
+            <p className="text-slate-400 text-sm">You're all caught up!</p>
+          </div>
+        )}
+        {notifications.map((n) => {
+          const style = NOTIF_STYLES[n.notif_type] ?? NOTIF_STYLES['info']
+          return (
+            <div
+              key={n.id}
+              className={`flex items-start gap-3 px-4 py-3 border-b border-slate-700/50 hover:bg-slate-700/40 transition-colors group ${
+                !n.is_read ? 'bg-indigo-500/5' : ''
+              }`}
+            >
+              {/* Unread dot */}
+              <div className="mt-1 flex-shrink-0">
+                {!n.is_read ? (
+                  <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                ) : (
+                  <div className="w-2 h-2" />
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-white truncate">
+                    <span className="mr-1">{style.icon}</span>
+                    {n.title}
+                  </p>
+                  <span className="text-xs text-slate-500 flex-shrink-0 mt-0.5">
+                    {timeAgo(n.created_at)}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+              </div>
+
+              {/* Actions (appear on hover) */}
+              <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                {!n.is_read && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); markOneMutation.mutate(n.id) }}
+                    className="p-1 hover:bg-slate-600 rounded text-slate-400 hover:text-green-400 transition-colors"
+                    title="Mark as read"
+                  >
+                    <Check size={12} />
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(n.id) }}
+                  className="p-1 hover:bg-slate-600 rounded text-slate-400 hover:text-red-400 transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 py-2.5 border-t border-slate-700">
+        <button
+          onClick={() => { router.push('/notifications'); onClose() }}
+          className="w-full text-center text-xs text-indigo-400 hover:text-indigo-300 transition-colors py-1"
+        >
+          View all notifications →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Main Navbar ───────────────────────────────────────────────────────────────
 
 export function Navbar({ onMobileMenuClick }: NavbarProps) {
   const router = useRouter()
@@ -19,9 +236,31 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
   const { user, logout } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
-  const [notificationCount] = useState(3) // Mock notification count
+  const [isNotifOpen, setIsNotifOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
+  const queryClient = useQueryClient()
 
-  // Get page title based on route
+  // ── Poll unread count every 60 seconds ──────────────────────────────────────
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: fetchUnreadCount,
+    refetchInterval: 60_000,   // poll every 60s
+    staleTime: 30_000,
+    enabled: !!user,           // only when logged in
+  })
+
+  // ── Close dropdown when clicking outside ────────────────────────────────────
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false)
+      }
+    }
+    if (isNotifOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isNotifOpen])
+
+  // ── Page title ───────────────────────────────────────────────────────────────
   const getPageTitle = () => {
     const routeTitles: Record<string, string> = {
       '/': 'Dashboard',
@@ -38,7 +277,6 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
     return (pathname && routeTitles[pathname]) || 'SYNAPSE'
   }
 
-  // Debounced search handler
   const handleSearch = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' && searchQuery.trim()) {
@@ -55,17 +293,29 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
     setIsUserMenuOpen(false)
   }
 
+  const handleBellClick = () => {
+    setIsNotifOpen((prev) => {
+      if (!prev) {
+        // Pre-fetch when opening
+        queryClient.prefetchQuery({
+          queryKey: ['navbar-notifications'],
+          queryFn: fetchRecentNotifications,
+        })
+      }
+      return !prev
+    })
+    setIsUserMenuOpen(false)
+  }
+
   return (
     <nav className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur border-b border-slate-700">
       <div className="flex items-center justify-between h-16 px-6">
-        {/* Left: Page Title / Menu Button */}
+
+        {/* Left: Page title / Mobile menu */}
         <div className="flex items-center gap-3">
-          {/* Mobile hamburger — inline-flex on mobile, gone on md+ */}
           <button
             onClick={onMobileMenuClick}
-            style={{ display: undefined }}
             className="inline-flex md:!hidden p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-            title="Open sidebar"
             aria-label="Open sidebar"
           >
             <Menu size={20} />
@@ -73,7 +323,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           <h1 className="text-lg font-semibold text-white">{getPageTitle()}</h1>
         </div>
 
-        {/* Center: Search Bar */}
+        {/* Center: Search */}
         <div className="hidden md:flex flex-1 max-w-md mx-8">
           <div className="w-full relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -83,14 +333,15 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearch}
               placeholder="Search articles, papers, repos..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
         </div>
 
-        {/* Right: Theme Toggle, Notifications, User Menu */}
-        <div className="flex items-center gap-4">
-          {/* Dark Mode Toggle */}
+        {/* Right: Theme, Bell, User */}
+        <div className="flex items-center gap-2">
+
+          {/* Dark mode toggle */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
@@ -99,67 +350,70 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
-          {/* Notifications */}
-          <Link
-            href="/notifications"
-            className="relative p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-            title="Notifications"
-          >
-            <Bell size={20} />
-            {notificationCount > 0 && (
-              <span className="absolute top-0 right-0 w-5 h-5 bg-cyan-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                {notificationCount > 9 ? '9+' : notificationCount}
-              </span>
-            )}
-          </Link>
+          {/* Notification bell */}
+          <div ref={notifRef} className="relative">
+            <button
+              onClick={handleBellClick}
+              className={`relative p-2 rounded-lg transition-colors text-slate-400 hover:text-white hover:bg-slate-800 ${
+                isNotifOpen ? 'bg-slate-800 text-white' : ''
+              }`}
+              title="Notifications"
+              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg shadow-indigo-500/30 animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
 
-          {/* User Menu */}
+            {isNotifOpen && (
+              <NotificationDropdown onClose={() => setIsNotifOpen(false)} />
+            )}
+          </div>
+
+          {/* User menu */}
           <div className="relative">
             <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              onClick={() => { setIsUserMenuOpen(!isUserMenuOpen); setIsNotifOpen(false) }}
               className="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center">
                 <span className="text-white font-bold text-xs">
-                  {user?.first_name?.[0]}
-                  {user?.last_name?.[0]}
+                  {user?.first_name?.[0]}{user?.last_name?.[0]}
                 </span>
               </div>
               <span className="hidden sm:inline text-sm text-slate-300">{user?.first_name}</span>
             </button>
 
-            {/* User Dropdown Menu */}
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-lg overflow-hidden">
+              <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-lg overflow-hidden z-50">
                 <div className="px-4 py-3 border-b border-slate-700">
-                  <p className="text-sm font-medium text-white">{user?.first_name} {user?.last_name}</p>
+                  <p className="text-sm font-medium text-white">
+                    {user?.first_name} {user?.last_name}
+                  </p>
                   <p className="text-xs text-slate-400">{user?.email}</p>
                 </div>
-
                 <Link
                   href="/profile"
                   onClick={() => setIsUserMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors"
                 >
-                  <User size={16} />
-                  <span className="text-sm">Profile</span>
+                  <User size={16} /><span className="text-sm">Profile</span>
                 </Link>
-
                 <Link
                   href="/settings"
                   onClick={() => setIsUserMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors"
                 >
-                  <Settings size={16} />
-                  <span className="text-sm">Settings</span>
+                  <Settings size={16} /><span className="text-sm">Settings</span>
                 </Link>
-
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors border-t border-slate-700"
                 >
-                  <LogOut size={16} />
-                  <span className="text-sm">Logout</span>
+                  <LogOut size={16} /><span className="text-sm">Logout</span>
                 </button>
               </div>
             )}
