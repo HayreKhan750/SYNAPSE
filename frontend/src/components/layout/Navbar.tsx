@@ -39,20 +39,25 @@ function extractList<T>(raw: unknown): T[] {
 }
 
 const fetchUnreadCount = async (): Promise<number> => {
-  const { data } = await api.get('/notifications/unread-count/')
-  if (!data || typeof data !== 'object') return 0
-  const obj = data as Record<string, unknown>
+  try {
+    const { data } = await api.get('/notifications/unread-count/')
+    if (!data || typeof data !== 'object') return 0
+    const obj = data as Record<string, unknown>
 
-  // Flat response: { unread_count: N }  ← what the view actually returns
-  if (typeof obj['unread_count'] === 'number') return obj['unread_count']
+    // Flat: { unread_count: N }
+    if (typeof obj['unread_count'] === 'number') return obj['unread_count']
+    if (typeof obj['unread_count'] === 'string') return parseInt(obj['unread_count'], 10) || 0
 
-  // Wrapped: { success: true, data: { unread_count: N } }
-  if (obj['data'] && typeof obj['data'] === 'object') {
-    const inner = obj['data'] as Record<string, unknown>
-    if (typeof inner['unread_count'] === 'number') return inner['unread_count']
+    // Wrapped: { success: true, data: { unread_count: N } }
+    if (obj['data'] && typeof obj['data'] === 'object') {
+      const inner = obj['data'] as Record<string, unknown>
+      if (typeof inner['unread_count'] === 'number') return inner['unread_count']
+      if (typeof inner['unread_count'] === 'string') return parseInt(inner['unread_count'], 10) || 0
+    }
+    return 0
+  } catch {
+    return 0
   }
-
-  return 0
 }
 
 const fetchRecentNotifications = async (): Promise<Notification[]> => {
@@ -246,7 +251,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
-  const { user, logout } = useAuthStore()
+  const { user, logout, isAuthenticated } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isNotifOpen, setIsNotifOpen] = useState(false)
@@ -254,12 +259,18 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
   const queryClient = useQueryClient()
 
   // ── Poll unread count every 60 seconds ──────────────────────────────────────
+  // Use accessToken from localStorage directly to avoid Zustand hydration delay
+  const hasToken = typeof window !== 'undefined'
+    ? !!localStorage.getItem('synapse_access_token')
+    : isAuthenticated
+
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['unread-count'],
     queryFn: fetchUnreadCount,
-    refetchInterval: 60_000,   // poll every 60s
+    refetchInterval: 60_000,
     staleTime: 30_000,
-    enabled: !!user,           // only when logged in
+    enabled: hasToken,         // token in localStorage = user is logged in
+    retry: false,
   })
 
   // ── Close dropdown when clicking outside ────────────────────────────────────
