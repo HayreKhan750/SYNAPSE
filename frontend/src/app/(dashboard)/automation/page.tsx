@@ -159,13 +159,15 @@ function WorkflowCard({
       </div>
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-1.5">
-        {workflow.actions.map((a, i) => (
-          <span key={i} className="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded px-2 py-0.5">
-            {ACTION_LABELS[a.type] ?? a.type}
-          </span>
-        ))}
-      </div>
+      {(workflow.actions ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {(workflow.actions ?? []).map((a, i) => (
+            <span key={i} className="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded px-2 py-0.5">
+              {ACTION_LABELS[a.type] ?? a.type}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Buttons */}
       <div className="flex gap-2 pt-1">
