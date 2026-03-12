@@ -282,7 +282,15 @@ export default function AgentsPage() {
   const fetchTasks = useCallback(async () => {
     try {
       const res = await api.get('/agents/tasks/?ordering=-created_at')
-      setTasks(res.data.results ?? res.data)
+      // StandardPagination returns {success, data, meta}
+      // Fall back through common shapes to always get an array
+      const payload = res.data
+      const items: AgentTask[] =
+        Array.isArray(payload)            ? payload            :
+        Array.isArray(payload?.data)      ? payload.data       :
+        Array.isArray(payload?.results)   ? payload.results    :
+        []
+      setTasks(items)
     } catch {
       // silently fail on background refreshes
     } finally {
