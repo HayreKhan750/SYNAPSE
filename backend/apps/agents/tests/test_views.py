@@ -43,6 +43,16 @@ def auth_client(user):
 @pytest.mark.django_db
 class TestAgentTaskListView:
 
+    def _get_items(self, resp):
+        """Extract task list from StandardPagination response {success, data, meta}."""
+        body = resp.json()
+        return body.get("data", body.get("results", []))
+
+    def _get_total(self, resp):
+        """Extract total count from StandardPagination response."""
+        body = resp.json()
+        return body.get("meta", {}).get("total", body.get("count", len(self._get_items(resp))))
+
     def test_list_returns_user_tasks_only(self):
         user_a = make_user("a@test.com")
         user_b = make_user("b@test.com")
@@ -51,10 +61,9 @@ class TestAgentTaskListView:
 
         resp = auth_client(user_a).get("/api/v1/agents/tasks/")
         assert resp.status_code == status.HTTP_200_OK
-        data = resp.json()
-        # StandardPagination returns {count, next, previous, results}
-        assert data["count"] == 1
-        assert len(data["results"]) == 1
+        # StandardPagination returns {success, data, meta}
+        assert self._get_total(resp) == 1
+        assert len(self._get_items(resp)) == 1
 
     def test_list_requires_auth(self):
         resp = APIClient().get("/api/v1/agents/tasks/")
@@ -74,7 +83,7 @@ class TestAgentTaskListView:
         )
         resp = auth_client(user).get("/api/v1/agents/tasks/?status=completed")
         assert resp.status_code == status.HTTP_200_OK
-        assert resp.json()["count"] == 1
+        assert self._get_total(resp) == 1
 
     def test_list_filter_by_task_type(self):
         user = make_user("typefilt@test.com")
@@ -86,7 +95,7 @@ class TestAgentTaskListView:
         )
         resp = auth_client(user).get("/api/v1/agents/tasks/?task_type=arxiv")
         assert resp.status_code == status.HTTP_200_OK
-        assert resp.json()["count"] == 1
+        assert self._get_total(resp) == 1
 
     def test_list_response_fields(self):
         user = make_user("fields@test.com")
@@ -94,7 +103,9 @@ class TestAgentTaskListView:
             user=user, task_type="github", prompt="Check trending GitHub repos today"
         )
         resp = auth_client(user).get("/api/v1/agents/tasks/")
-        item = resp.json()["results"][0]
+        items = self._get_items(resp)
+        assert len(items) > 0
+        item = items[0]
         for field in ["id", "task_type", "prompt", "status", "tokens_used", "created_at"]:
             assert field in item, f"Missing field: {field}"
 

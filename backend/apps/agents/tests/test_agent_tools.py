@@ -93,22 +93,25 @@ class TestFetchArticles(TestCase):
         from ai_engine.agents.tools import _fetch_articles
         return _fetch_articles(topic, days_back, limit, source)
 
-    @patch("ai_engine.agents.tools.django")
-    def test_no_articles_found(self, mock_django):
-        """When Django queryset is empty, return 'No articles found' message."""
-        mock_django.setup = MagicMock()
-
+    def test_no_articles_found(self):
+        """When Django queryset is empty, return a non-empty string result."""
         mock_qs = MagicMock()
         mock_qs.filter.return_value = mock_qs
         mock_qs.order_by.return_value = mock_qs
-        mock_qs.__getitem__ = MagicMock(return_value=mock_qs)
+        mock_qs.__iter__ = MagicMock(return_value=iter([]))
         mock_qs.exists.return_value = False
+        mock_qs.__getitem__ = MagicMock(return_value=mock_qs)
 
-        with patch.dict("sys.modules", {"apps.articles.models": MagicMock(Article=MagicMock(objects=mock_qs))}):
+        mock_article_model = MagicMock()
+        mock_article_model.objects = mock_qs
+
+        with patch.dict("sys.modules", {
+            "apps.articles.models": MagicMock(Article=mock_article_model),
+        }):
             result = self._run(topic="obscure-topic-xyz")
-            # Should contain error or no-result message (Django not fully set up in tests)
+            # Should always return a non-empty string (articles found, none found, or error)
             self.assertIsInstance(result, str)
-            self.assertTrue(len(result) > 0)
+            self.assertGreater(len(result), 0)
 
     def test_tool_metadata(self):
         from ai_engine.agents.tools import make_fetch_articles_tool
@@ -345,21 +348,31 @@ class TestAgentToolRegistry(TestCase):
     @patch("ai_engine.agents.tools.make_analyze_trends_tool")
     @patch("ai_engine.agents.tools.make_search_github_tool")
     @patch("ai_engine.agents.tools.make_fetch_arxiv_papers_tool")
-    def test_build_registers_all_5_tools(self, m1, m2, m3, m4, m5):
+    @patch("ai_engine.agents.doc_tools.make_generate_pdf_tool")
+    @patch("ai_engine.agents.doc_tools.make_generate_ppt_tool")
+    @patch("ai_engine.agents.doc_tools.make_generate_word_doc_tool")
+    @patch("ai_engine.agents.doc_tools.make_generate_markdown_tool")
+    @patch("ai_engine.agents.project_tools.make_create_project_tool")
+    def test_build_registers_all_10_tools(self, mp, m9, m8, m7, m6, m1, m2, m3, m4, m5):
+        """Registry now has 10 tools: 5 research (5.1) + 4 doc (5.2) + 1 project (5.3)."""
         from ai_engine.agents.registry import AgentToolRegistry
 
         # Create fresh registry
         registry = AgentToolRegistry()
 
-        # Make each factory return a mock tool with a unique name
         tool_names = [
-            "fetch_arxiv_papers",
-            "search_github",
-            "analyze_trends",
-            "fetch_articles",
             "search_knowledge_base",
+            "fetch_articles",
+            "analyze_trends",
+            "search_github",
+            "fetch_arxiv_papers",
+            "generate_pdf",
+            "generate_ppt",
+            "generate_word_doc",
+            "generate_markdown",
+            "create_project",
         ]
-        mocks = [m1, m2, m3, m4, m5]
+        mocks = [m5, m4, m3, m2, m1, m6, m7, m8, m9, mp]
         for mock, name in zip(mocks, tool_names):
             fake_tool = MagicMock()
             fake_tool.name = name
@@ -367,7 +380,7 @@ class TestAgentToolRegistry(TestCase):
 
         registry.build()
 
-        self.assertEqual(len(registry), 5)
+        self.assertEqual(len(registry), 10)
         for name in tool_names:
             self.assertIn(name, registry.list_tool_names())
 

@@ -189,30 +189,70 @@ class AgentToolListView(APIView):
 # SSE streaming — real-time task progress (Phase 5.4)
 # ---------------------------------------------------------------------------
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def agent_task_stream(request: Request, task_id: str) -> StreamingHttpResponse:
+def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
     """
     GET /api/v1/agents/tasks/{id}/stream/
 
-    Server-Sent Events endpoint that polls the AgentTask row every second
-    and pushes status updates to the browser until the task reaches a
-    terminal state (completed / failed) or the client disconnects.
+    Server-Sent Events endpoint — plain Django view (bypasses DRF content
+    negotiation so it can return text/event-stream without a 406 error).
+
+    Authentication: Bearer JWT token in Authorization header, or
+                    ?token=<jwt> query-param for EventSource clients
+                    (EventSource API cannot set custom headers).
+
+    Polls the AgentTask row every second and pushes status updates until
+    the task reaches a terminal state (completed / failed) or 6 min timeout.
 
     Event format (JSON payload per SSE message):
         { "status": "...", "answer": "...", "tokens_used": 0,
           "cost_usd": "0.000000", "execution_time_s": null,
           "intermediate_steps": [], "error_message": "" }
     """
+    from django.http import HttpResponse, JsonResponse
 
+    # ── Authenticate: JWT Bearer token (header or ?token= query param) ────────
+    user = None
+    token_str = None
+
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    if auth_header.startswith("Bearer "):
+        token_str = auth_header[7:].strip()
+    if not token_str:
+        token_str = request.GET.get("token", "")
+
+    if token_str:
+        try:
+            from rest_framework_simplejwt.tokens import UntypedToken
+            from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+            from rest_framework_simplejwt.authentication import JWTAuthentication
+
+            jwt_auth = JWTAuthentication()
+            validated = jwt_auth.get_validated_token(token_str.encode())
+            user = jwt_auth.get_user(validated)
+        except Exception:
+            return JsonResponse({"error": "Invalid or expired token."}, status=401)
+    else:
+        # Fall back to session authentication (for same-origin requests)
+        if request.user and request.user.is_authenticated:
+            user = request.user
+        else:
+            return JsonResponse({"error": "Authentication required."}, status=401)
+
+    # ── Validate task ownership ───────────────────────────────────────────────
+    try:
+        AgentTask.objects.get(id=task_id, user=user)
+    except AgentTask.DoesNotExist:
+        return JsonResponse({"error": "Agent task not found."}, status=404)
+
+    # ── SSE generator ─────────────────────────────────────────────────────────
     def _event_stream():
         terminal = {AgentTask.TaskStatus.COMPLETED, AgentTask.TaskStatus.FAILED}
-        poll_interval = 1.0          # seconds between DB reads
-        max_polls = 360              # safety: give up after 6 minutes
+        poll_interval = 1.0
+        max_polls = 360              # give up after 6 minutes
 
         for _ in range(max_polls):
             try:
-                task_obj = AgentTask.objects.get(id=task_id, user=request.user)
+                task_obj = AgentTask.objects.get(id=task_id, user=user)
             except AgentTask.DoesNotExist:
                 payload = json.dumps({"error": "Task not found."})
                 yield f"event: error\ndata: {payload}\n\n"
@@ -221,14 +261,14 @@ def agent_task_stream(request: Request, task_id: str) -> StreamingHttpResponse:
             serializer = AgentTaskSerializer(task_obj)
             data = serializer.data
             payload = json.dumps({
-                "status":            data.get("status"),
-                "answer":            data.get("answer") or "",
-                "tokens_used":       data.get("tokens_used", 0),
-                "cost_usd":          str(data.get("cost_usd", "0.000000")),
-                "execution_time_s":  data.get("execution_time_s"),
+                "status":             data.get("status"),
+                "answer":             data.get("answer") or "",
+                "tokens_used":        data.get("tokens_used", 0),
+                "cost_usd":           str(data.get("cost_usd", "0.000000")),
+                "execution_time_s":   data.get("execution_time_s"),
                 "intermediate_steps": data.get("intermediate_steps") or [],
-                "error_message":     data.get("error_message") or "",
-                "completed_at":      data.get("completed_at"),
+                "error_message":      data.get("error_message") or "",
+                "completed_at":       data.get("completed_at"),
             })
             yield f"data: {payload}\n\n"
 
@@ -238,14 +278,7 @@ def agent_task_stream(request: Request, task_id: str) -> StreamingHttpResponse:
 
             time.sleep(poll_interval)
 
-        # Timed-out — tell the client
         yield "event: timeout\ndata: {}\n\n"
-
-    try:
-        # Validate the task belongs to this user before opening the stream
-        AgentTask.objects.get(id=task_id, user=request.user)
-    except AgentTask.DoesNotExist:
-        return Response({"error": "Agent task not found."}, status=status.HTTP_404_NOT_FOUND)
 
     response = StreamingHttpResponse(
         streaming_content=_event_stream(),

@@ -54,7 +54,7 @@ class SynapseAgentExecutor:
         max_execution_time: int = 300,
         verbose: bool = True,
     ) -> None:
-        self.registry = registry or get_registry()
+        self.registry = registry if registry is not None else get_registry()
         self.model_name = model_name
         self.temperature = temperature
         self.max_tokens = max_tokens
