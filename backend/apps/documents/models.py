@@ -8,6 +8,7 @@ class GeneratedDocument(models.Model):
         PPT      = 'ppt',      'PowerPoint'
         WORD     = 'word',     'Word'
         MARKDOWN = 'markdown', 'Markdown'
+        PROJECT  = 'project',  'Project Scaffold'
 
     id              = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user            = models.ForeignKey(User, on_delete=models.CASCADE, related_name='documents')

@@ -16,6 +16,9 @@ urlpatterns = [
     path("tasks/<uuid:task_id>/", views.AgentTaskDetailView.as_view(), name="agent-task-detail"),
     path("tasks/<uuid:task_id>/cancel/", views.AgentTaskCancelView.as_view(), name="agent-task-cancel"),
 
+    # SSE real-time streaming (Phase 5.4)
+    path("tasks/<uuid:task_id>/stream/", views.agent_task_stream, name="agent-task-stream"),
+
     # Tool registry
     path("tools/", views.AgentToolListView.as_view(), name="agent-tool-list"),
 

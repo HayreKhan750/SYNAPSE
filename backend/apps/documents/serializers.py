@@ -9,6 +9,41 @@ from rest_framework import serializers
 from .models import GeneratedDocument
 
 
+class ProjectGenerateSerializer(serializers.Serializer):
+    """Input serializer for project scaffold generation requests (Phase 5.3)."""
+
+    VALID_PROJECT_TYPES = ["django", "fastapi", "nextjs", "datascience", "react_lib"]
+    VALID_FEATURES = ["auth", "testing", "ci_cd"]
+
+    project_type = serializers.ChoiceField(
+        choices=VALID_PROJECT_TYPES,
+        help_text="Project template type: django, fastapi, nextjs, datascience, or react_lib",
+    )
+    name = serializers.CharField(
+        max_length=100,
+        help_text="Project name (kebab-case recommended, e.g. 'my-api')",
+    )
+    features = serializers.ListField(
+        child=serializers.ChoiceField(choices=VALID_FEATURES),
+        required=False,
+        allow_empty=True,
+        default=list,
+        help_text="Optional feature flags: 'auth', 'testing', 'ci_cd'",
+    )
+
+    def validate_name(self, value: str) -> str:
+        value = value.strip()
+        if len(value) < 2:
+            raise serializers.ValidationError("Project name must be at least 2 characters.")
+        # Allow alphanumeric, hyphens, underscores
+        import re
+        if not re.match(r'^[a-zA-Z0-9_\-]+$', value):
+            raise serializers.ValidationError(
+                "Project name may only contain letters, numbers, hyphens, and underscores."
+            )
+        return value
+
+
 class DocumentGenerateSerializer(serializers.Serializer):
     """Input serializer for document generation requests."""
 

@@ -3,14 +3,16 @@ backend.apps.documents.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 REST API views for Document Studio.
 
-Endpoints (Phase 5.2):
+Endpoints (Phase 5.2 + 5.3):
   POST  /api/v1/documents/generate/          — generate a document via agent tools
+  POST  /api/v1/documents/generate-project/  — generate a project scaffold (.zip)
   GET   /api/v1/documents/                   — list user's documents
   GET   /api/v1/documents/{id}/              — retrieve document metadata
   GET   /api/v1/documents/{id}/download/     — stream the file for download
   DELETE /api/v1/documents/{id}/             — delete a document
 
 Phase 5.2 — Document Generation (Week 14)
+Phase 5.3 — Project Builder (Week 15)
 """
 from __future__ import annotations
 
@@ -45,6 +47,7 @@ _MIME_MAP = {
     "ppt":      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "word":     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "markdown": "text/markdown",
+    "project":  "application/zip",
 }
 
 _EXT_MAP = {
@@ -52,6 +55,7 @@ _EXT_MAP = {
     "ppt":      ".pptx",
     "word":     ".docx",
     "markdown": ".md",
+    "project":  ".zip",
 }
 
 
@@ -208,6 +212,91 @@ class DocumentGenerateView(APIView):
                 break
 
         return result, file_path
+
+
+# ---------------------------------------------------------------------------
+# Generate Project (Phase 5.3)
+# ---------------------------------------------------------------------------
+
+class ProjectGenerateView(APIView):
+    """
+    POST /api/v1/documents/generate-project/
+
+    Generates a project scaffold (.zip) using the create_project agent tool.
+    Supported project_type values: django, fastapi, nextjs, datascience, react_lib
+    Optional features list: ['auth', 'testing', 'ci_cd']
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        from .serializers import ProjectGenerateSerializer
+
+        serializer = ProjectGenerateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        project_type = data["project_type"]
+        name         = data["name"]
+        features     = data.get("features", [])
+        user_id      = str(request.user.id)
+
+        try:
+            from ai_engine.agents.project_tools import _create_project
+            result_str = _create_project(
+                project_type=project_type,
+                name=name,
+                features=features,
+                user_id=user_id,
+            )
+        except Exception as exc:
+            logger.error("Project generation failed: %s", exc)
+            return Response(
+                {"error": f"Project generation failed: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if "failed" in result_str.lower() or "unknown project_type" in result_str.lower():
+            return Response({"error": result_str}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Parse file path from result string ("Path: /abs/path")
+        abs_path_str = ""
+        for line in result_str.splitlines():
+            if line.startswith("Path:"):
+                abs_path_str = line.replace("Path:", "").strip()
+                break
+
+        abs_path = Path(abs_path_str) if abs_path_str else None
+        rel_path = ""
+        file_size = 0
+        if abs_path and abs_path.exists():
+            media_root = Path(settings.MEDIA_ROOT)
+            try:
+                rel_path = str(abs_path.relative_to(media_root))
+            except ValueError:
+                rel_path = str(abs_path)
+            file_size = abs_path.stat().st_size
+
+        title = f"{name} ({project_type} scaffold)"
+        doc_obj = GeneratedDocument.objects.create(
+            user=request.user,
+            title=title,
+            doc_type="project",
+            file_path=rel_path,
+            file_size_bytes=file_size,
+            agent_prompt=f"Generate {project_type} project: {name}",
+            metadata={
+                "project_type": project_type,
+                "project_name": name,
+                "features": features,
+                "tool_result": result_str[:500],
+            },
+        )
+
+        return Response(
+            GeneratedDocumentSerializer(doc_obj, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ---------------------------------------------------------------------------

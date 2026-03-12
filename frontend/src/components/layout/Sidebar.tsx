@@ -15,6 +15,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Bot,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -36,6 +37,7 @@ export function Sidebar({ isCollapsed, onToggle, mobileOpen, onMobileClose }: Si
     { href: '/research', label: 'Research', icon: BookOpen },
     { href: '/chat', label: 'AI Chat', icon: MessageSquare },
     { href: '/automation', label: 'Automation', icon: Zap },
+    { href: '/agents', label: 'AI Agents', icon: Bot },
     { href: '/documents', label: 'Documents', icon: FileText },
     { href: '/library', label: 'Library', icon: Library },
   ]

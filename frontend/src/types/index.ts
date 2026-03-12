@@ -186,6 +186,64 @@ export interface ConversationHistory {
   updated_at: string
 }
 
+// ─── Agentic AI (Phase 5.1–5.4) ─────────────────────────────────────────────
+
+export type AgentTaskType =
+  | 'research'
+  | 'trends'
+  | 'github'
+  | 'arxiv'
+  | 'general'
+  | 'document'
+  | 'project'
+
+export type AgentTaskStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
+export interface AgentIntermediateStep {
+  tool: string
+  input: string | Record<string, unknown>
+  output: string
+}
+
+export interface AgentTaskResult {
+  answer?: string
+  intermediate_steps?: AgentIntermediateStep[]
+  tokens_used?: number
+  cost_usd?: number
+  execution_time_s?: number
+  file_path?: string
+  file_name?: string
+  file_size_bytes?: number
+  download_url?: string
+  [key: string]: unknown
+}
+
+export interface AgentTask {
+  id: string
+  task_type: AgentTaskType
+  prompt: string
+  status: AgentTaskStatus
+  result: AgentTaskResult
+  answer?: string
+  intermediate_steps?: AgentIntermediateStep[]
+  error_message: string
+  tokens_used: number
+  cost_usd: string
+  execution_time_s?: number
+  created_at: string
+  completed_at: string | null
+}
+
+export interface AgentTool {
+  name: string
+  description: string
+}
+
+export interface AgentTaskCreate {
+  task_type: AgentTaskType
+  prompt: string
+}
+
 // ─── Notifications (Phase 4.2) ───────────────────────────────────────────────
 
 export type NotifType =

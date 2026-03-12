@@ -3,20 +3,25 @@ backend.apps.agents.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 REST API views for the SYNAPSE Agentic AI framework.
 
-Endpoints (Phase 5.1):
+Endpoints (Phase 5.1 + 5.4):
   POST   /api/v1/agents/tasks/              — create + queue an agent task
   GET    /api/v1/agents/tasks/              — list user's tasks (paginated)
   GET    /api/v1/agents/tasks/{id}/         — retrieve task detail + result
   POST   /api/v1/agents/tasks/{id}/cancel/  — cancel a running task
+  GET    /api/v1/agents/tasks/{id}/stream/  — SSE stream for real-time progress
   GET    /api/v1/agents/tools/              — list all registered tools
   GET    /api/v1/agents/health/             — executor health check
 
 Phase 5.1 — Agent Framework (Week 13)
+Phase 5.4 — Agent UI / SSE Streaming (Week 16)
 """
 from __future__ import annotations
 
+import json
 import logging
+import time
 
+from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -178,6 +183,77 @@ class AgentToolListView(APIView):
 
         serializer = AgentToolDescriptionSerializer(tools, many=True)
         return Response({"tools": serializer.data, "count": len(tools)})
+
+
+# ---------------------------------------------------------------------------
+# SSE streaming — real-time task progress (Phase 5.4)
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def agent_task_stream(request: Request, task_id: str) -> StreamingHttpResponse:
+    """
+    GET /api/v1/agents/tasks/{id}/stream/
+
+    Server-Sent Events endpoint that polls the AgentTask row every second
+    and pushes status updates to the browser until the task reaches a
+    terminal state (completed / failed) or the client disconnects.
+
+    Event format (JSON payload per SSE message):
+        { "status": "...", "answer": "...", "tokens_used": 0,
+          "cost_usd": "0.000000", "execution_time_s": null,
+          "intermediate_steps": [], "error_message": "" }
+    """
+
+    def _event_stream():
+        terminal = {AgentTask.TaskStatus.COMPLETED, AgentTask.TaskStatus.FAILED}
+        poll_interval = 1.0          # seconds between DB reads
+        max_polls = 360              # safety: give up after 6 minutes
+
+        for _ in range(max_polls):
+            try:
+                task_obj = AgentTask.objects.get(id=task_id, user=request.user)
+            except AgentTask.DoesNotExist:
+                payload = json.dumps({"error": "Task not found."})
+                yield f"event: error\ndata: {payload}\n\n"
+                return
+
+            serializer = AgentTaskSerializer(task_obj)
+            data = serializer.data
+            payload = json.dumps({
+                "status":            data.get("status"),
+                "answer":            data.get("answer") or "",
+                "tokens_used":       data.get("tokens_used", 0),
+                "cost_usd":          str(data.get("cost_usd", "0.000000")),
+                "execution_time_s":  data.get("execution_time_s"),
+                "intermediate_steps": data.get("intermediate_steps") or [],
+                "error_message":     data.get("error_message") or "",
+                "completed_at":      data.get("completed_at"),
+            })
+            yield f"data: {payload}\n\n"
+
+            if data.get("status") in terminal:
+                yield "event: done\ndata: {}\n\n"
+                return
+
+            time.sleep(poll_interval)
+
+        # Timed-out — tell the client
+        yield "event: timeout\ndata: {}\n\n"
+
+    try:
+        # Validate the task belongs to this user before opening the stream
+        AgentTask.objects.get(id=task_id, user=request.user)
+    except AgentTask.DoesNotExist:
+        return Response({"error": "Agent task not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    response = StreamingHttpResponse(
+        streaming_content=_event_stream(),
+        content_type="text/event-stream",
+    )
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"   # disable Nginx buffering
+    return response
 
 
 # ---------------------------------------------------------------------------

@@ -2,14 +2,20 @@ from .base import *
 
 DEBUG = True
 ALLOWED_HOSTS = ['*', 'localhost', 'testserver', '127.0.0.1']
+
+# Hardcode local test DB — Docker maps synapse_postgres:5432 -> host:5433
+# This overrides the .env file values (which point to the Docker internal hostname)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'synapse_test'),
-        'USER': os.environ.get('DB_USER', 'synapse_user'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'synapse_pass'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'NAME': 'synapse_db',
+        'USER': 'synapse_user',
+        'PASSWORD': 'synapse_pass',
+        'HOST': 'localhost',
+        'PORT': '5433',
+        'TEST': {
+            'NAME': 'synapse_test',
+        },
     }
 }
 # Use fast password hasher in tests

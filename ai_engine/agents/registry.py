@@ -63,6 +63,7 @@ class AgentToolRegistry:
             make_generate_word_doc_tool,
             make_generate_markdown_tool,
         )
+        from ai_engine.agents.project_tools import make_create_project_tool
 
         tool_factories = [
             # Phase 5.1 — research & analysis tools
@@ -76,6 +77,8 @@ class AgentToolRegistry:
             make_generate_ppt_tool,
             make_generate_word_doc_tool,
             make_generate_markdown_tool,
+            # Phase 5.3 — project builder tool
+            make_create_project_tool,
         ]
 
         for factory in tool_factories:

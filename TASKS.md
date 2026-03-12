@@ -316,26 +316,27 @@
 - [x] **Git commit:** `feat: document generation — PDF/PPT/Word tools, Document Studio UI`
 
 ### 5.3 Project Builder (Week 15)
-- [ ] Create tool: create_project(project_type, name, features)
-- [ ] Implement Django REST API project template (models, views, serializers, urls, settings, requirements.txt)
-- [ ] Implement FastAPI microservice template
-- [ ] Implement Next.js app template (pages, components, API client, TailwindCSS config)
-- [ ] Implement Python data science notebook template
-- [ ] Package generated project as .zip file
-- [ ] Store zip in media/ (then S3 in Phase 6)
-- [ ] Add project download to Document Studio
-- [ ] Create Markdown report generator (structured content to .md)
-- [ ] **Git commit:** `feat: project builder — Django/FastAPI/Next.js templates, zip download`
+- [x] Create tool: create_project(project_type, name, features)
+- [x] Implement Django REST API project template (models, views, serializers, urls, settings, requirements.txt)
+- [x] Implement FastAPI microservice template
+- [x] Implement Next.js app template (pages, components, API client, TailwindCSS config)
+- [x] Implement Python data science notebook template
+- [x] Implement React component library template (TypeScript, Storybook, Rollup, tests)
+- [x] Package generated project as .zip file
+- [x] Store zip in media/ (then S3 in Phase 6)
+- [x] Add project download to Document Studio
+- [x] Create Markdown report generator (structured content to .md)
+- [x] **Git commit:** `feat: project builder — Django/FastAPI/Next.js/DataScience/ReactLib templates, zip download`
 
 ### 5.4 Agent UI (Week 16)
-- [ ] Create agent command interface in Automation Center (natural language input)
-- [ ] Create active agents panel (running tasks with progress bars)
-- [ ] Create agent task history list (completed tasks, results, files generated)
-- [ ] Add real-time task progress via SSE or WebSocket
-- [ ] Add task cancellation button
-- [ ] Add cost display per agent task ($X.XX estimated)
-- [ ] Write E2E test for full agent task flow
-- [ ] **Git commit:** `feat: agent UI — command interface, progress tracking, task history`
+- [x] Create agent command interface in Automation Center (natural language input)
+- [x] Create active agents panel (running tasks with progress bars)
+- [x] Create agent task history list (completed tasks, results, files generated)
+- [x] Add real-time task progress via SSE or WebSocket
+- [x] Add task cancellation button
+- [x] Add cost display per agent task ($X.XX estimated)
+- [x] Write E2E test for full agent task flow
+- [x] **Git commit:** `feat: agent UI — command interface, progress tracking, task history`
 
 ---
 
