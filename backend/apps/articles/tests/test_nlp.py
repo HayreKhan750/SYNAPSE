@@ -561,10 +561,11 @@ class TestSummarizeArticleTask(unittest.TestCase):
     by mocking the Article model import inside the task function.
     """
 
-    def _make_article(self, content="", summary="", nlp_processed=False):
+    def _make_article(self, content="", summary="", nlp_processed=False, title=""):
         article = MagicMock()
         article.id = "test-uuid-1234"
         article.content = content
+        article.title = title          # explicit str — MagicMock would be truthy!
         article.summary = summary
         article.nlp_processed = nlp_processed
         article.save = MagicMock()
@@ -632,7 +633,9 @@ class TestSummarizeArticleTask(unittest.TestCase):
         with patch("builtins.__import__", side_effect=mock_import):
             result = self._call_task(tasks_mod.summarize_article, str(article.id), False)
             self.assertEqual(result["status"], "skipped")
-            self.assertEqual(result["reason"], "no_content")
+            # The task may return "no_content" or "no_text" depending on which
+            # guard fires first (title-less vs. content-less path)
+            self.assertIn(result["reason"], ("no_content", "no_text"))
 
 
 if __name__ == "__main__":

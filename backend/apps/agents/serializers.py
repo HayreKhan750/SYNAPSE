@@ -12,7 +12,7 @@ from .models import AgentTask
 class AgentTaskCreateSerializer(serializers.ModelSerializer):
     """Used when a user creates a new agent task via POST /api/v1/agents/tasks/."""
 
-    VALID_TASK_TYPES = ["research", "trends", "github", "arxiv", "general"]
+    VALID_TASK_TYPES = ["research", "trends", "github", "arxiv", "general", "document", "project"]
 
     class Meta:
         model = AgentTask

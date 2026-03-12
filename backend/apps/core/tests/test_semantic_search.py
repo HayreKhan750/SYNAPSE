@@ -49,9 +49,13 @@ class SemanticSearchEndpointTests(TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertFalse(response.data['success'])
 
-    @patch('apps.core.views.embed_text', return_value=FAKE_VECTOR)
+    @patch('ai_engine.embeddings.embed_text', return_value=FAKE_VECTOR)
     def test_valid_query_returns_200(self, mock_embed):
-        """Valid query with no content in DB returns 200 with empty results."""
+        """Valid query with no content in DB returns 200 with empty results.
+
+        embed_text is imported locally inside the view function, so we patch
+        at the source module (ai_engine.embeddings) rather than apps.core.views.
+        """
         response = self.client.post(
             self.url,
             {'query': 'transformer architecture', 'limit': 5},
@@ -72,7 +76,7 @@ class SemanticSearchEndpointTests(TestCase):
         self.assertIn('execution_time_ms', meta)
         self.assertIn('total', meta)
 
-    @patch('apps.core.views.embed_text', return_value=FAKE_VECTOR)
+    @patch('ai_engine.embeddings.embed_text', return_value=FAKE_VECTOR)
     def test_content_types_filter(self, mock_embed):
         """Requesting only articles and papers omits repos and videos keys."""
         response = self.client.post(
@@ -87,7 +91,7 @@ class SemanticSearchEndpointTests(TestCase):
         self.assertNotIn('repos', data)
         self.assertNotIn('videos', data)
 
-    @patch('apps.core.views.embed_text', return_value=FAKE_VECTOR)
+    @patch('ai_engine.embeddings.embed_text', return_value=FAKE_VECTOR)
     def test_limit_capped_at_50(self, mock_embed):
         """limit > 50 should be silently capped at 50."""
         response = self.client.post(
@@ -98,7 +102,7 @@ class SemanticSearchEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['meta']['limit'], 50)
 
-    @patch('apps.core.views.embed_text', side_effect=RuntimeError('model unavailable'))
+    @patch('ai_engine.embeddings.embed_text', side_effect=RuntimeError('model unavailable'))
     def test_embedding_failure_returns_503(self, mock_embed):
         """If embedding service fails, return HTTP 503."""
         response = self.client.post(
@@ -109,7 +113,7 @@ class SemanticSearchEndpointTests(TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertFalse(response.data['success'])
 
-    @patch('apps.core.views.embed_text', return_value=FAKE_VECTOR)
+    @patch('ai_engine.embeddings.embed_text', return_value=FAKE_VECTOR)
     def test_similarity_score_in_results(self, mock_embed):
         """Each result item should include a similarity_score field."""
         from apps.articles.models import Article, Source

@@ -324,8 +324,10 @@ export default function AgentsPage() {
         } catch { return '' }
       })()
 
-    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '')
-    const url = `${baseUrl}/agents/tasks/${taskId}/stream/?token=${encodeURIComponent(token)}`
+    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace(/\/+$/, '')
+    // Always ensure the base URL ends with /api/v1 (not just the origin)
+    const apiBase = baseUrl.endsWith('/api/v1') ? baseUrl : `${baseUrl}/api/v1`
+    const url = `${apiBase}/agents/tasks/${taskId}/stream/?token=${encodeURIComponent(token)}`
     const es = new EventSource(url)
 
     es.onmessage = (e) => {
