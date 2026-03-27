@@ -20,12 +20,18 @@ def __getattr__(name):
         "SynapseRAGChain": ("ai_engine.rag.chain", "SynapseRAGChain"),
         "ConversationMemoryManager": ("ai_engine.rag.memory", "ConversationMemoryManager"),
         "RAGPipeline": ("ai_engine.rag.pipeline", "RAGPipeline"),
+        # Allow direct module access (needed for patch("ai_engine.rag.pipeline", ...))
+        "pipeline": ("ai_engine.rag.pipeline", None),
+        "retriever": ("ai_engine.rag.retriever", None),
+        "chain": ("ai_engine.rag.chain", None),
+        "memory": ("ai_engine.rag.memory", None),
     }
     if name in _map:
         import importlib
         module_path, cls_name = _map[name]
         mod = importlib.import_module(module_path)
-        return getattr(mod, cls_name)
+        # If cls_name is None, return the module itself (for submodule access)
+        return mod if cls_name is None else getattr(mod, cls_name)
     raise AttributeError(f"module 'ai_engine.rag' has no attribute {name!r}")
 
 

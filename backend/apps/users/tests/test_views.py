@@ -61,4 +61,4 @@ class AuthEndpointTest(TestCase):
         self.client.force_authenticate(user=user)
         response = self.client.get(self.me_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['data']['email'], 'me@example.com')
+        self.assertEqual(response.data['email'], 'me@example.com')

@@ -124,10 +124,7 @@ class DriveConnectAPITest(TestCase):
         refresh = RefreshToken.for_user(self.user)
         self.token = str(refresh.access_token)
 
-    @patch("apps.integrations.views.get_oauth2_authorization_url",
-           return_value="https://accounts.google.com/o/oauth2/auth?fake=1")
-    def test_drive_connect_returns_url(self, mock_url):
-        # Import the function at view level
+    def test_drive_connect_returns_url(self):
         with patch("apps.integrations.google_drive.get_oauth2_authorization_url",
                    return_value="https://accounts.google.com/o/oauth2/auth?fake=1"):
             resp = self.client.get(

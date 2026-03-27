@@ -74,9 +74,15 @@ class SecurityHeadersMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         response = self.get_response(request)
 
-        # Remove server identification
-        response.pop("Server", None)
-        response.pop("X-Powered-By", None)
+        # Remove server identification (Django responses use __delitem__)
+        try:
+            del response["Server"]
+        except KeyError:
+            pass
+        try:
+            del response["X-Powered-By"]
+        except KeyError:
+            pass
 
         # Additional headers
         response["Permissions-Policy"] = (
