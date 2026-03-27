@@ -408,18 +408,19 @@
 ## PHASE 8 — Deployment & Production (Weeks 21–22)
 
 ### 8.1 Docker & CI/CD (Week 21)
-- [ ] Create backend/Dockerfile (multi-stage: builder + production, non-root user)
-- [ ] Create ai_engine/Dockerfile (FastAPI service, uvicorn)
-- [ ] Create frontend/Dockerfile (multi-stage: deps + builder + runner, Next.js standalone)
-- [ ] Create docker-compose.yml (backend, fastapi-ai, frontend, postgres, redis, celery_worker, celery_beat)
-- [ ] Create docker-compose.prod.yml (production overrides)
-- [ ] Create .dockerignore files for each service
-- [ ] Create .github/workflows/ci.yml (lint + test backend + test frontend + build)
-- [ ] Create .github/workflows/deploy.yml (build images + push to registry + deploy)
-- [ ] Configure GitHub Actions secrets (AWS credentials, API keys, deploy SSH key)
-- [ ] Set up Docker image registry (Docker Hub or AWS ECR)
-- [ ] Test full Docker Compose stack locally (all services running)
-- [ ] **Git commit:** `feat: Docker + GitHub Actions CI/CD pipeline`
+- [x] Create backend/Dockerfile (multi-stage: builder + production, non-root user)
+- [x] Create ai_engine/Dockerfile (FastAPI service, uvicorn)
+- [x] Create frontend/Dockerfile (multi-stage: deps + builder + runner, Next.js standalone)
+- [x] Create docker-compose.yml (backend, fastapi-ai, frontend, postgres, redis, celery_worker, celery_beat)
+- [x] Create docker-compose.prod.yml (production overrides — resource limits, internal networks, PostgreSQL tuning)
+- [x] Create .dockerignore files for each service
+- [x] Create .github/workflows/ci.yml (lint + test backend + test frontend + Trivy security scan)
+- [x] Create .github/workflows/cd.yml (multi-arch build → GHCR push → EC2 SSH deploy)
+- [x] Configure GitHub Actions secrets (AWS credentials, API keys, deploy SSH key)
+- [x] Set up Docker image registry (GitHub Container Registry — GHCR)
+- [x] Test full Docker Compose stack locally (all services running)
+- [x] Write Nginx production config (reverse proxy, TLS 1.3, gzip, rate limiting, security headers)
+- [x] **Git commit:** `feat: Docker + GitHub Actions CI/CD pipeline`
 
 ### 8.2 Production Deployment (Week 22)
 - [ ] Set up AWS EC2 instance (t3.medium for backend, t3.large for AI service)
