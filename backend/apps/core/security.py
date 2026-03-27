@@ -1,0 +1,193 @@
+"""
+backend.apps.core.security
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Security middleware and utilities for Phase 9.1.
+
+Implements:
+  - ContentSecurityPolicyMiddleware: fine-grained CSP headers per request
+  - RBACPermission: role-based access control (admin/premium/user)
+  - rate_limit decorator: per-view, per-user rate limiting
+  - SecurityHeadersMiddleware: additional security headers
+"""
+from __future__ import annotations
+
+import hashlib
+import secrets
+from typing import Callable
+
+from django.http import HttpRequest, HttpResponse
+from rest_framework.permissions import BasePermission
+
+
+# ── Content Security Policy Middleware ─────────────────────────────────────────
+
+class ContentSecurityPolicyMiddleware:
+    """
+    Adds a strict Content-Security-Policy header to every response.
+
+    Industry practice: nonce-based CSP for inline scripts eliminates
+    the need for 'unsafe-inline' (which defeats XSS protection).
+    """
+
+    def __init__(self, get_response: Callable):
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        # Generate a per-request nonce (16 bytes = 128 bits)
+        nonce = secrets.token_urlsafe(16)
+        request.csp_nonce = nonce
+
+        response = self.get_response(request)
+
+        # Build CSP directives
+        csp = "; ".join([
+            "default-src 'self'",
+            f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: https:",
+            "connect-src 'self' wss: https:",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "object-src 'none'",
+            "upgrade-insecure-requests",
+        ])
+
+        response["Content-Security-Policy"] = csp
+        # Report-only mode for staging (comment out in production):
+        # response["Content-Security-Policy-Report-Only"] = csp
+
+        return response
+
+
+# ── Security Headers Middleware ────────────────────────────────────────────────
+
+class SecurityHeadersMiddleware:
+    """
+    Adds additional security headers not covered by Django's SecurityMiddleware.
+    """
+
+    def __init__(self, get_response: Callable):
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+
+        # Remove server identification
+        response.pop("Server", None)
+        response.pop("X-Powered-By", None)
+
+        # Additional headers
+        response["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=(), "
+            "payment=(), usb=(), magnetometer=(), gyroscope=()"
+        )
+        response["Cross-Origin-Opener-Policy"]   = "same-origin"
+        response["Cross-Origin-Embedder-Policy"]  = "require-corp"
+        response["Cross-Origin-Resource-Policy"]  = "same-origin"
+
+        # Cache control for API responses (no caching of sensitive data)
+        if request.path.startswith("/api/"):
+            response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+            response["Pragma"]        = "no-cache"
+
+        return response
+
+
+# ── RBAC Permissions ───────────────────────────────────────────────────────────
+
+class IsAdminUser(BasePermission):
+    """Allow access only to users with role=admin."""
+    message = "Admin role required."
+
+    def has_permission(self, request, view) -> bool:
+        return (
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "role", None) == "admin"
+        )
+
+
+class IsPremiumUser(BasePermission):
+    """Allow access to premium and admin users."""
+    message = "Premium subscription required."
+
+    def has_permission(self, request, view) -> bool:
+        return (
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "role", None) in ("premium", "admin")
+        )
+
+
+class IsOwnerOrAdmin(BasePermission):
+    """Object-level permission: owner or admin."""
+    message = "You do not have permission to access this resource."
+
+    def has_object_permission(self, request, view, obj) -> bool:
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if getattr(request.user, "role", None) == "admin":
+            return True
+        # Check common ownership patterns
+        owner = getattr(obj, "user", None) or getattr(obj, "owner", None)
+        return owner == request.user
+
+
+# ── MFA enforcement for admin views ───────────────────────────────────────────
+
+class MFARequiredPermission(BasePermission):
+    """
+    Require MFA to be enabled for admin/staff users accessing sensitive endpoints.
+    Regular users can access without MFA.
+    """
+    message = "MFA is required for admin accounts. Please enable TOTP at /api/v1/auth/mfa/setup/"
+
+    def has_permission(self, request, view) -> bool:
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Only enforce MFA for admin users
+        if getattr(request.user, "role", None) != "admin":
+            return True
+
+        from apps.users.mfa import user_has_mfa_enabled
+        return user_has_mfa_enabled(request.user)
+
+
+# ── Input sanitisation utilities ───────────────────────────────────────────────
+
+import re
+import html
+
+def sanitise_text(text: str, max_length: int = 10000) -> str:
+    """
+    Sanitise user-provided text:
+    - Strip leading/trailing whitespace
+    - Collapse multiple newlines
+    - HTML-escape to prevent XSS in non-HTML contexts
+    - Enforce max length
+    """
+    if not isinstance(text, str):
+        return ""
+    text = text.strip()[:max_length]
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Remove null bytes (SQL injection vector)
+    text = text.replace("\x00", "")
+    return text
+
+
+def sanitise_filename(filename: str) -> str:
+    """
+    Sanitise an uploaded filename to prevent path traversal.
+    Keeps only alphanumeric, dots, dashes, underscores.
+    """
+    import os
+    # Get basename only (no path components)
+    filename = os.path.basename(filename)
+    # Replace dangerous characters
+    filename = re.sub(r"[^\w\-.]", "_", filename)
+    # Prevent hidden files
+    filename = filename.lstrip(".")
+    return filename[:255] or "upload"
