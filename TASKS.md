@@ -187,7 +187,7 @@
 - [x] Implement cosine similarity search with pgvector (<=> operator)
 - [x] Apply same embeddings to ResearchPaper and Repository models
 - [x] Create ivfflat index on embedding column for performance
-- [ ] Update search results page to use semantic search by default
+- [x] Update search results page to use semantic search by default
 - [x] Add similarity score display in search results (API)
 - [x] Write integration tests for semantic search
 - [x] **Git commit:** `feat: vector search  pgvector embeddings, semantic search API`
@@ -240,8 +240,8 @@
 - [x] Create AI explain endpoint (POST /api/v1/ai/explain — for papers/repos)
 - [x] Add "Ask AI" button on ArticleCard and PaperCard
 - [x] Add typing indicator while AI generates response
-- [ ] Write E2E test for full chat flow (Playwright)
-- [~] **Git commit:** `feat: AI chat UI — streaming responses, source citations, conversation history`
+- [~] Write E2E test for full chat flow (Playwright) — deferred to Phase 8 (testing strategy)
+- [x] **Git commit:** `feat: AI chat UI — streaming responses, source citations, conversation history`
 
 ---
 
