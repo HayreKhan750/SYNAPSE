@@ -36,7 +36,12 @@ logger = logging.getLogger(__name__)
 
 def _doc_dir(user_id: str = "anonymous") -> Path:
     """Return (and create) the per-user document storage directory."""
-    media_root = Path(os.environ.get("MEDIA_ROOT", "media"))
+    # Prefer DJANGO_MEDIA_ROOT (set in .env), fall back to MEDIA_ROOT, then 'media'
+    media_root = Path(
+        os.environ.get("DJANGO_MEDIA_ROOT") or
+        os.environ.get("MEDIA_ROOT") or
+        "media"
+    )
     doc_dir = media_root / "documents" / str(user_id)
     doc_dir.mkdir(parents=True, exist_ok=True)
     return doc_dir
@@ -44,7 +49,11 @@ def _doc_dir(user_id: str = "anonymous") -> Path:
 
 def _rel_path(abs_path: Path) -> str:
     """Return a media-relative path string for storing in the DB."""
-    media_root = Path(os.environ.get("MEDIA_ROOT", "media"))
+    media_root = Path(
+        os.environ.get("DJANGO_MEDIA_ROOT") or
+        os.environ.get("MEDIA_ROOT") or
+        "media"
+    )
     try:
         return str(abs_path.relative_to(media_root))
     except ValueError:
