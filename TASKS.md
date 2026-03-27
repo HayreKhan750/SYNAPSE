@@ -343,29 +343,29 @@
 ## PHASE 6 — Cloud Integration (Weeks 17–18)
 
 ### 6.1 Google Drive Integration (Week 17)
-- [ ] Install: google-api-python-client, google-auth-httplib2, google-auth-oauthlib
-- [ ] Set up Google Cloud project and OAuth2 credentials
-- [ ] Implement Google Drive OAuth2 flow (user connects their Drive)
-- [ ] Create tool: upload_to_drive(file_path, folder_name)
-- [ ] Create tool: list_drive_files(folder_name)
-- [ ] Create tool: create_drive_folder(folder_name)
-- [ ] Add "Upload to Drive" button in Document Studio
-- [ ] Store Google Drive tokens securely in DB (encrypted)
-- [ ] Add Drive connection status in user profile/settings
-- [ ] **Git commit:** `feat: Google Drive integration — OAuth2, upload/list tools`
+- [x] Install: google-api-python-client, google-auth-httplib2, google-auth-oauthlib
+- [x] Set up Google Cloud project and OAuth2 credentials
+- [x] Implement Google Drive OAuth2 flow (user connects their Drive)
+- [x] Create tool: upload_to_drive(file_path, folder_name)
+- [x] Create tool: list_drive_files(folder_name)
+- [x] Create tool: create_drive_folder(folder_name)
+- [x] Add "Upload to Drive" button in Document Studio
+- [x] Store Google Drive tokens securely in DB (encrypted)
+- [x] Add Drive connection status in user profile/settings
+- [x] **Git commit:** `feat: Google Drive integration — OAuth2, upload/list tools`
 
 ### 6.2 AWS S3 Integration (Week 18)
-- [ ] Install: boto3
-- [ ] Configure AWS credentials (via environment variables or IAM role)
-- [ ] Create S3 service class (upload_file, download_file, get_presigned_url, delete_file)
-- [ ] Migrate document storage from local media/ to S3
-- [ ] Use presigned URLs for secure file downloads (expire after 1 hour)
-- [ ] Configure S3 bucket (versioning enabled, public access blocked)
-- [ ] Update GeneratedDocument model (cloud_url points to S3 presigned URL)
-- [ ] Create tool: upload_to_s3(file_path, bucket, key)
-- [ ] Add S3 storage for scraped media (images, thumbnails)
-- [ ] Configure django-storages for Django static/media files on S3
-- [ ] **Git commit:** `feat: AWS S3 integration — file storage, presigned URLs, media CDN`
+- [x] Install: boto3
+- [x] Configure AWS credentials (via environment variables or IAM role)
+- [x] Create S3 service class (upload_file, download_file, get_presigned_url, delete_file)
+- [x] Migrate document storage from local media/ to S3
+- [x] Use presigned URLs for secure file downloads (expire after 1 hour)
+- [x] Configure S3 bucket (versioning enabled, public access blocked)
+- [x] Update GeneratedDocument model (cloud_url points to S3 presigned URL)
+- [x] Create tool: upload_to_s3(file_path, bucket, key)
+- [x] Add S3 storage for scraped media (images, thumbnails)
+- [x] Configure django-storages for Django static/media files on S3
+- [x] **Git commit:** `feat: AWS S3 integration — file storage, presigned URLs, media CDN`
 
 ---
 

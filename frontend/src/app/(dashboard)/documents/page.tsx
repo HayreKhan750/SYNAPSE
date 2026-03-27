@@ -16,6 +16,10 @@ import {
   Sparkles,
   X,
   Archive,
+  Cloud,
+  HardDrive,
+  CheckCircle2,
+  Link2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "@/utils/api";
@@ -151,6 +155,47 @@ const deleteDocument = async (id: string): Promise<void> => {
   await api.delete(`/api/v1/documents/${id}/`);
 };
 
+// ── Cloud Integration API helpers ─────────────────────────────────────────────
+
+const fetchDriveStatus = async (): Promise<{ is_connected: boolean; google_email: string | null }> => {
+  const { data } = await api.get("/api/v1/integrations/drive/status/");
+  return data;
+};
+
+const fetchDriveConnectUrl = async (): Promise<string> => {
+  const { data } = await api.get("/api/v1/integrations/drive/connect/");
+  return data.authorization_url;
+};
+
+const uploadToDrive = async ({
+  documentId,
+  folderName,
+}: {
+  documentId: string;
+  folderName: string;
+}): Promise<{ drive_url: string }> => {
+  const { data } = await api.post("/api/v1/integrations/drive/upload/", {
+    document_id: documentId,
+    folder_name: folderName,
+  });
+  return data;
+};
+
+const uploadToS3 = async ({
+  documentId,
+}: {
+  documentId: string;
+}): Promise<{ presigned_url: string }> => {
+  const { data } = await api.post("/api/v1/integrations/s3/upload/", {
+    document_id: documentId,
+  });
+  return data;
+};
+
+const disconnectDrive = async (): Promise<void> => {
+  await api.delete("/api/v1/integrations/drive/disconnect/");
+};
+
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 const formatBytes = (bytes: number): string => {
@@ -166,12 +211,47 @@ const formatBytes = (bytes: number): string => {
 function DocumentCard({
   doc,
   onDelete,
+  driveConnected,
 }: {
   doc: DocumentRecord;
   onDelete: (id: string) => void;
+  driveConnected: boolean;
 }) {
   const cfg = DOC_TYPE_CONFIG[doc.doc_type] ?? DOC_TYPE_CONFIG.pdf;
   const Icon = cfg.icon;
+  const [driveUploading, setDriveUploading] = useState(false);
+  const [s3Uploading, setS3Uploading]       = useState(false);
+  const [driveUrl, setDriveUrl]             = useState<string | null>(
+    doc.metadata?.drive_file_id ? String(doc.metadata.drive_file_id) : null
+  );
+
+  const handleDriveUpload = async () => {
+    setDriveUploading(true);
+    try {
+      const result = await uploadToDrive({ documentId: doc.id, folderName: "SYNAPSE Documents" });
+      setDriveUrl(result.drive_url);
+      toast.success("Uploaded to Google Drive!");
+    } catch {
+      toast.error("Drive upload failed. Please try again.");
+    } finally {
+      setDriveUploading(false);
+    }
+  };
+
+  const handleS3Upload = async () => {
+    setS3Uploading(true);
+    try {
+      const result = await uploadToS3({ documentId: doc.id });
+      toast.success("Uploaded to S3! Presigned URL ready.");
+      if (result.presigned_url) {
+        window.open(result.presigned_url, "_blank");
+      }
+    } catch {
+      toast.error("S3 upload failed. Please try again.");
+    } finally {
+      setS3Uploading(false);
+    }
+  };
 
   return (
     <motion.div
@@ -185,11 +265,22 @@ function DocumentCard({
         <div className={`p-2 rounded-lg ${cfg.bg}`}>
           <Icon className={`w-5 h-5 ${cfg.colour}`} />
         </div>
-        <span
-          className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.colour}`}
-        >
-          {cfg.label}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {driveUrl && (
+            <a
+              href={driveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View on Google Drive"
+              className="p-1 rounded-full bg-green-50 dark:bg-green-900/20"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+            </a>
+          )}
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.colour}`}>
+            {cfg.label}
+          </span>
+        </div>
       </div>
 
       <div>
@@ -206,6 +297,7 @@ function DocumentCard({
         <span>{formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}</span>
       </div>
 
+      {/* Primary actions */}
       <div className="flex gap-2">
         <a
           href={doc.download_url}
@@ -223,7 +315,100 @@ function DocumentCard({
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Cloud upload actions */}
+      <div className="flex gap-2 pt-0.5 border-t border-gray-100 dark:border-gray-700">
+        {/* Upload to Google Drive */}
+        <button
+          onClick={handleDriveUpload}
+          disabled={!driveConnected || driveUploading}
+          title={driveConnected ? "Upload to Google Drive" : "Connect Google Drive first"}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition ${
+            driveConnected
+              ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+              : "bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          {driveUploading ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <HardDrive className="w-3.5 h-3.5" />
+          )}
+          Drive
+        </button>
+
+        {/* Upload to S3 */}
+        <button
+          onClick={handleS3Upload}
+          disabled={s3Uploading}
+          title="Upload to AWS S3 (get presigned URL)"
+          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 text-xs font-medium hover:bg-orange-100 dark:hover:bg-orange-900/40 transition disabled:opacity-60"
+        >
+          {s3Uploading ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Cloud className="w-3.5 h-3.5" />
+          )}
+          S3
+        </button>
+      </div>
     </motion.div>
+  );
+}
+
+// ─── Drive Connection Banner ──────────────────────────────────────────────────
+
+function DriveConnectionPanel({
+  isConnected,
+  email,
+  onConnect,
+  onDisconnect,
+  isLoading,
+}: {
+  isConnected: boolean;
+  email: string | null;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className={`rounded-xl border p-4 flex items-center gap-4 flex-wrap ${
+      isConnected
+        ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800"
+        : "bg-gray-50 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700"
+    }`}>
+      <div className={`p-2 rounded-lg ${isConnected ? "bg-green-100 dark:bg-green-900/30" : "bg-gray-100 dark:bg-gray-700"}`}>
+        <HardDrive className={`w-5 h-5 ${isConnected ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+          Google Drive
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {isConnected
+            ? `Connected as ${email ?? "unknown"}`
+            : "Connect your Google Drive to upload documents directly"}
+        </p>
+      </div>
+      {isConnected ? (
+        <button
+          onClick={onDisconnect}
+          disabled={isLoading}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition disabled:opacity-60"
+        >
+          Disconnect
+        </button>
+      ) : (
+        <button
+          onClick={onConnect}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition disabled:opacity-60"
+        >
+          {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
+          Connect Drive
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -501,11 +686,40 @@ export default function DocumentsPage() {
   const [activeTab, setActiveTab] = useState<"documents" | "project">("documents");
   const [showForm, setShowForm] = useState(false);
   const [filterType, setFilterType] = useState<"all" | DocType>("all");
+  const [driveConnecting, setDriveConnecting] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["documents"],
     queryFn: fetchDocuments,
   });
+
+  // Drive connection status
+  const { data: driveStatus, refetch: refetchDriveStatus } = useQuery({
+    queryKey: ["drive-status"],
+    queryFn: fetchDriveStatus,
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const disconnectDriveMutation = useMutation({
+    mutationFn: disconnectDrive,
+    onSuccess: () => {
+      refetchDriveStatus();
+      toast.success("Google Drive disconnected.");
+    },
+    onError: () => toast.error("Failed to disconnect Drive."),
+  });
+
+  const handleDriveConnect = async () => {
+    setDriveConnecting(true);
+    try {
+      const url = await fetchDriveConnectUrl();
+      window.location.href = url;
+    } catch {
+      toast.error("Could not start Drive OAuth2 flow.");
+      setDriveConnecting(false);
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: deleteDocument,
@@ -519,6 +733,7 @@ export default function DocumentsPage() {
   const documents: DocumentRecord[] = data?.results ?? [];
   const filtered =
     filterType === "all" ? documents : documents.filter((d) => d.doc_type === filterType);
+  const driveConnected = driveStatus?.is_connected ?? false;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -617,6 +832,15 @@ export default function DocumentsPage() {
         )}
       </AnimatePresence>
 
+      {/* Google Drive + S3 connection panel */}
+      <DriveConnectionPanel
+        isConnected={driveConnected}
+        email={driveStatus?.google_email ?? null}
+        onConnect={handleDriveConnect}
+        onDisconnect={() => disconnectDriveMutation.mutate()}
+        isLoading={driveConnecting || disconnectDriveMutation.isPending}
+      />
+
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {(Object.entries(DOC_TYPE_CONFIG) as [DocType, typeof DOC_TYPE_CONFIG[DocType]][]).map(
@@ -684,6 +908,7 @@ export default function DocumentsPage() {
                 key={doc.id}
                 doc={doc}
                 onDelete={(id) => deleteMutation.mutate(id)}
+                driveConnected={driveConnected}
               />
             ))}
           </AnimatePresence>

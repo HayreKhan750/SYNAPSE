@@ -17,5 +17,6 @@ urlpatterns = [
     path('api/v1/notifications/', include('apps.notifications.urls')),
     path('api/v1/', include('apps.core.urls')),
     path('api/v1/ai/', include('apps.core.urls_nlp')),
+    path('api/v1/integrations/', include('apps.integrations.urls')),  # Phase 6
     # path('', include('django_prometheus.urls')),  # Re-enable after upgrading django-prometheus
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

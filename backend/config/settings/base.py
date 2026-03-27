@@ -49,6 +49,7 @@ LOCAL_APPS = [
     'apps.documents',
     'apps.trends',
     'apps.notifications',
+    'apps.integrations',  # Phase 6 — Cloud Integration (Google Drive + AWS S3)
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -254,6 +255,30 @@ USE_I18N = True
 USE_TZ = True
 
 # ── Static & Media ────────────────────────────────────────────
+# ── Google Drive OAuth2 (Phase 6.1) ─────────────────────────────────────────
+GOOGLE_CLIENT_ID      = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET  = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+GOOGLE_REDIRECT_URI   = os.environ.get(
+    'GOOGLE_REDIRECT_URI',
+    'http://localhost:8000/api/v1/integrations/drive/callback/',
+)
+
+# ── AWS S3 (Phase 6.2) ───────────────────────────────────────────────────────
+AWS_ACCESS_KEY_ID       = os.environ.get('AWS_ACCESS_KEY_ID', '')
+AWS_SECRET_ACCESS_KEY   = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'synapse-media')
+AWS_S3_REGION_NAME      = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+AWS_S3_CUSTOM_DOMAIN    = os.environ.get('AWS_S3_CUSTOM_DOMAIN', '')
+AWS_PRESIGNED_URL_EXPIRY = int(os.environ.get('AWS_PRESIGNED_URL_EXPIRY', 3600))
+
+# Use S3 for media storage when bucket is configured
+if AWS_STORAGE_BUCKET_NAME and AWS_STORAGE_BUCKET_NAME != 'synapse-media':
+    DEFAULT_FILE_STORAGE  = 'storages.backends.s3boto3.S3Boto3Storage'
+    STATICFILES_STORAGE   = 'storages.backends.s3boto3.S3StaticStorage'
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL       = None
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'

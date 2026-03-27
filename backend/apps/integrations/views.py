@@ -1,0 +1,424 @@
+"""
+backend.apps.integrations.views
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+REST API views for cloud integrations.
+
+Phase 6.1 — Google Drive (Week 17)
+Phase 6.2 — AWS S3 (Week 18)
+
+Endpoints mounted at /api/v1/integrations/
+"""
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+
+from django.conf import settings
+from django.shortcuts import redirect
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.documents.models import GeneratedDocument
+from .models import GoogleDriveToken
+from .serializers import (
+    DriveUploadSerializer,
+    DriveListSerializer,
+    GoogleDriveStatusSerializer,
+    S3UploadSerializer,
+    S3PresignedUrlSerializer,
+)
+
+logger = logging.getLogger(__name__)
+
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 6.1 — Google Drive
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class DriveConnectView(APIView):
+    """
+    GET /api/v1/integrations/drive/connect/
+    Redirect the authenticated user to Google's OAuth2 consent screen.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        from .google_drive import get_oauth2_authorization_url
+        state = str(request.user.id)
+        try:
+            url = get_oauth2_authorization_url(state=state)
+            return Response({"authorization_url": url})
+        except Exception as exc:
+            logger.error("Drive OAuth2 URL error: %s", exc)
+            return Response(
+                {"error": "Could not build authorization URL. Check GOOGLE_CLIENT_ID/SECRET."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class DriveCallbackView(APIView):
+    """
+    GET /api/v1/integrations/drive/callback/
+    Google redirects here after user grants/denies permission.
+    Exchanges auth code for tokens and stores them encrypted.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request) -> Response:
+        code  = request.query_params.get("code")
+        state = request.query_params.get("state")  # user UUID
+        error = request.query_params.get("error")
+
+        if error:
+            return redirect(f"{FRONTEND_URL}/dashboard?drive_error={error}")
+
+        if not code:
+            return Response(
+                {"error": "Missing authorization code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            from apps.users.models import User
+            from .google_drive import exchange_code_for_credentials, get_user_email
+
+            credentials_dict = exchange_code_for_credentials(code)
+
+            # Resolve user from state (user UUID)
+            user = None
+            if state:
+                try:
+                    user = User.objects.get(id=state)
+                except User.DoesNotExist:
+                    pass
+
+            if not user:
+                return Response(
+                    {"error": "Invalid state parameter."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            google_email = get_user_email(credentials_dict)
+
+            token_obj, _ = GoogleDriveToken.objects.get_or_create(user=user)
+            token_obj.set_credentials(credentials_dict)
+            token_obj.google_email = google_email
+            token_obj.save()
+
+            logger.info("Drive connected for user %s (%s)", user.email, google_email)
+            return redirect(f"{FRONTEND_URL}/dashboard/documents?drive_connected=true")
+
+        except Exception as exc:
+            logger.error("Drive callback error: %s", exc)
+            return redirect(f"{FRONTEND_URL}/dashboard?drive_error=callback_failed")
+
+
+class DriveDisconnectView(APIView):
+    """
+    DELETE /api/v1/integrations/drive/disconnect/
+    Revoke and delete the stored Drive token for the authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request: Request) -> Response:
+        try:
+            token = GoogleDriveToken.objects.get(user=request.user)
+            token.delete()
+            return Response({"success": True, "message": "Google Drive disconnected."})
+        except GoogleDriveToken.DoesNotExist:
+            return Response(
+                {"error": "No Drive account connected."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+
+class DriveStatusView(APIView):
+    """
+    GET /api/v1/integrations/drive/status/
+    Returns Drive connection status for the current user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        try:
+            token = GoogleDriveToken.objects.get(user=request.user)
+            return Response({
+                "is_connected": True,
+                "google_email": token.google_email,
+                "connected_at": token.connected_at,
+            })
+        except GoogleDriveToken.DoesNotExist:
+            return Response({"is_connected": False, "google_email": None, "connected_at": None})
+
+
+class DriveUploadView(APIView):
+    """
+    POST /api/v1/integrations/drive/upload/
+    Upload a GeneratedDocument file to the user's Google Drive.
+
+    Body: { document_id: UUID, folder_name: str }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        serializer = DriveUploadSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        document_id = serializer.validated_data["document_id"]
+        folder_name = serializer.validated_data["folder_name"]
+
+        # Get Drive token
+        try:
+            token = GoogleDriveToken.objects.get(user=request.user)
+        except GoogleDriveToken.DoesNotExist:
+            return Response(
+                {"error": "Google Drive not connected. Visit /integrations/drive/connect/ first."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Get document
+        try:
+            doc = GeneratedDocument.objects.get(id=document_id, user=request.user)
+        except GeneratedDocument.DoesNotExist:
+            return Response(
+                {"error": "Document not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not doc.file_path:
+            return Response(
+                {"error": "Document has no associated file."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        abs_path = Path(settings.MEDIA_ROOT) / doc.file_path
+        if not abs_path.exists():
+            return Response(
+                {"error": "File not found on server."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            from .google_drive import upload_to_drive
+            credentials_dict = token.get_credentials()
+            result = upload_to_drive(
+                file_path=str(abs_path),
+                folder_name=folder_name,
+                credentials_dict=credentials_dict,
+            )
+
+            # Store Drive URL in cloud_url field
+            doc.cloud_url = result.get("webViewLink", "")
+            doc.metadata["drive_file_id"] = result.get("id", "")
+            doc.metadata["drive_folder"]  = folder_name
+            doc.save(update_fields=["cloud_url", "metadata"])
+
+            return Response({
+                "success":       True,
+                "drive_file_id": result.get("id"),
+                "drive_url":     result.get("webViewLink"),
+                "file_name":     result.get("name"),
+            })
+        except FileNotFoundError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as exc:
+            logger.error("Drive upload error: %s", exc)
+            return Response(
+                {"error": f"Upload failed: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class DriveListFilesView(APIView):
+    """
+    GET /api/v1/integrations/drive/files/?folder_name=SYNAPSE+Documents
+    List files in a Drive folder.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        folder_name = request.query_params.get("folder_name", "SYNAPSE Documents")
+
+        try:
+            token = GoogleDriveToken.objects.get(user=request.user)
+        except GoogleDriveToken.DoesNotExist:
+            return Response(
+                {"error": "Google Drive not connected."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            from .google_drive import list_drive_files
+            credentials_dict = token.get_credentials()
+            files = list_drive_files(folder_name=folder_name, credentials_dict=credentials_dict)
+            return Response({"folder_name": folder_name, "files": files, "count": len(files)})
+        except Exception as exc:
+            logger.error("Drive list error: %s", exc)
+            return Response(
+                {"error": f"Could not list files: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class DriveCreateFolderView(APIView):
+    """
+    POST /api/v1/integrations/drive/folders/
+    Create a folder in the user's Google Drive.
+
+    Body: { folder_name: str }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        folder_name = request.data.get("folder_name", "").strip()
+        if not folder_name:
+            return Response(
+                {"error": "folder_name is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            token = GoogleDriveToken.objects.get(user=request.user)
+        except GoogleDriveToken.DoesNotExist:
+            return Response(
+                {"error": "Google Drive not connected."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            from .google_drive import create_drive_folder
+            credentials_dict = token.get_credentials()
+            folder_id = create_drive_folder(folder_name=folder_name, credentials_dict=credentials_dict)
+            return Response({"success": True, "folder_name": folder_name, "folder_id": folder_id})
+        except Exception as exc:
+            logger.error("Drive create folder error: %s", exc)
+            return Response(
+                {"error": f"Could not create folder: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 6.2 — AWS S3
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class S3UploadView(APIView):
+    """
+    POST /api/v1/integrations/s3/upload/
+    Upload a GeneratedDocument file to AWS S3.
+
+    Body: { document_id: UUID, bucket?: str, prefix?: str }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        serializer = S3UploadSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        document_id = serializer.validated_data["document_id"]
+        bucket      = serializer.validated_data.get("bucket") or None
+        prefix      = serializer.validated_data.get("prefix", "documents/")
+
+        try:
+            doc = GeneratedDocument.objects.get(id=document_id, user=request.user)
+        except GeneratedDocument.DoesNotExist:
+            return Response({"error": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not doc.file_path:
+            return Response(
+                {"error": "Document has no associated file."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        abs_path = Path(settings.MEDIA_ROOT) / doc.file_path
+        if not abs_path.exists():
+            return Response({"error": "File not found on server."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            from .s3 import upload_to_s3, AWS_S3_BUCKET_NAME
+            target_bucket = bucket or AWS_S3_BUCKET_NAME
+            key = f"{prefix.rstrip('/')}/{abs_path.name}"
+
+            result = upload_to_s3(str(abs_path), bucket=target_bucket, key=key)
+
+            # Update cloud_url with presigned URL
+            doc.cloud_url = result["presigned_url"]
+            doc.metadata["s3_bucket"] = target_bucket
+            doc.metadata["s3_key"]    = key
+            doc.save(update_fields=["cloud_url", "metadata"])
+
+            return Response({
+                "success":      True,
+                "bucket":       result["bucket"],
+                "key":          result["key"],
+                "presigned_url": result["presigned_url"],
+                "url":          result["url"],
+            })
+        except FileNotFoundError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as exc:
+            logger.error("S3 upload error: %s", exc)
+            return Response(
+                {"error": f"S3 upload failed: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class S3PresignedUrlView(APIView):
+    """
+    POST /api/v1/integrations/s3/presigned-url/
+    Generate a fresh presigned URL for a document already on S3.
+
+    Body: { document_id: UUID, expiry_seconds?: int }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        serializer = S3PresignedUrlSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        document_id    = serializer.validated_data["document_id"]
+        expiry_seconds = serializer.validated_data["expiry_seconds"]
+
+        try:
+            doc = GeneratedDocument.objects.get(id=document_id, user=request.user)
+        except GeneratedDocument.DoesNotExist:
+            return Response({"error": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        s3_key    = doc.metadata.get("s3_key")
+        s3_bucket = doc.metadata.get("s3_bucket")
+
+        if not s3_key or not s3_bucket:
+            return Response(
+                {"error": "Document is not stored on S3."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            from .s3 import get_presigned_url
+            url = get_presigned_url(bucket=s3_bucket, key=s3_key, expiry_seconds=expiry_seconds)
+
+            # Refresh stored cloud_url
+            doc.cloud_url = url
+            doc.save(update_fields=["cloud_url"])
+
+            return Response({
+                "success":         True,
+                "presigned_url":   url,
+                "expiry_seconds":  expiry_seconds,
+            })
+        except Exception as exc:
+            logger.error("Presigned URL error: %s", exc)
+            return Response(
+                {"error": f"Could not generate presigned URL: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
