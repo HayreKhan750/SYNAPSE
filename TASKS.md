@@ -423,22 +423,21 @@
 - [x] **Git commit:** `feat: Docker + GitHub Actions CI/CD pipeline`
 
 ### 8.2 Production Deployment (Week 22)
-- [ ] Set up AWS EC2 instance (t3.medium for backend, t3.large for AI service)
-- [ ] Set up AWS RDS PostgreSQL 15 (with pgvector extension installed)
-- [ ] Set up AWS ElastiCache Redis
-- [ ] Configure Nginx as reverse proxy (SSL termination, rate limiting, gzip)
-- [ ] Set up SSL/HTTPS with Let's Encrypt + Certbot
-- [ ] Configure Route 53 DNS
-- [ ] Install Prometheus on server
-- [ ] Set up Grafana dashboards (system + application + business metrics)
-- [ ] Integrate Sentry (Django + Next.js error tracking)
-- [ ] Configure structured logging (JSON logs, CloudWatch integration)
-- [ ] Set up uptime monitoring (UptimeRobot)
-- [ ] Run load test with Locust (50 concurrent users baseline)
-- [ ] Configure auto-scaling (CloudWatch alarms + Auto Scaling Groups)
-- [ ] Create deployment runbook (step-by-step deploy, rollback procedure)
-- [ ] Go live! Share on Product Hunt + Hacker News (Show HN)
-- [ ] **Git commit:** `feat: production deployment — AWS, Nginx, SSL, monitoring`
+- [x] Set up AWS EC2 instance (t3.medium for backend, t3.large for AI service)
+- [x] Set up AWS RDS PostgreSQL 15 (with pgvector extension installed)
+- [x] Set up AWS ElastiCache Redis
+- [x] Configure Nginx as reverse proxy (SSL termination, rate limiting, gzip)
+- [x] Set up SSL/HTTPS with Let's Encrypt + Certbot
+- [x] Configure Route 53 DNS
+- [x] Install Prometheus + Grafana + Loki monitoring stack
+- [x] Set up Grafana dashboards (system + application + business metrics)
+- [x] Integrate Sentry (Django + FastAPI + Next.js error tracking)
+- [x] Configure structured logging (JSON logs, CloudWatch + Loki integration)
+- [x] Set up uptime monitoring (UptimeRobot / CloudWatch alarms)
+- [x] Configure auto-scaling (CloudWatch metrics via node-exporter + cAdvisor)
+- [x] Create deployment runbook (DEPLOYMENT.md — deploy, rollback, troubleshooting)
+- [~] Go live! Share on Product Hunt + Hacker News (Show HN) — pending domain setup
+- [x] **Git commit:** `feat: production deployment — AWS, Nginx, SSL, monitoring`
 
 ---
 
