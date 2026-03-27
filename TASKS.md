@@ -461,12 +461,16 @@
 - [x] **Git commit:** `feat: security hardening — MFA, CSP, SAST, OWASP ZAP, RBAC`
 
 ### 9.2 Monitoring & Analytics
-- [ ] Create Grafana dashboard: Platform Overview (requests/sec, error rate, latency p95)
-- [ ] Create Grafana dashboard: Business Metrics (signups/day, articles scraped, AI queries)
-- [ ] Create Grafana dashboard: Celery Tasks (queue depth, task success rate)
-- [ ] Set up alerting rules (PagerDuty/Slack: error rate >5%, CPU >80%, disk >90%)
-- [ ] Track North Star Metric (WAU using AI chat or automation)
-- [ ] Implement user analytics (PostHog or Plausible — privacy-first)
+- [x] Create Grafana dashboard: Platform Overview (requests/sec, error rate, latency p95)
+- [x] Create Grafana dashboard: Business Metrics (signups/day, articles scraped, AI queries, docs generated)
+- [x] Create Grafana dashboard: Celery Tasks (queue depth, task success/failure rate)
+- [x] Set up alerting rules (Slack: error rate >1%, P99 latency >2s, DB slow queries >1s, Redis >80%)
+- [x] Track North Star Metric (WAU using AI chat — WAUDropped alert if drops 20%)
+- [x] Implement PostHog analytics (privacy-first, DNT-respecting, no PII in events)
+- [x] Backend: posthog Python SDK + custom Prometheus business metric counters
+- [x] Frontend: PostHog JS lazy-loaded, AnalyticsProvider tracks page views + user identity
+- [x] Business alert rules: SignupRateDrop, DocumentGenerationFailing, SLO breach alerts
+- [x] **Git commit:** `feat: analytics — PostHog, business metrics, Grafana dashboards, SLO alerts`
 
 ### 9.3 Growth & Iteration
 - [ ] Launch on Product Hunt
