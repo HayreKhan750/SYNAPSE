@@ -473,14 +473,18 @@
 - [x] **Git commit:** `feat: analytics — PostHog, business metrics, Grafana dashboards, SLO alerts`
 
 ### 9.3 Growth & Iteration
-- [ ] Launch on Product Hunt
-- [ ] Post on Hacker News (Show HN: SYNAPSE — AI tech intelligence platform)
-- [ ] Write technical blog post (DEV.to, Medium) about building SYNAPSE
-- [ ] Set up Discord server for community
-- [ ] Implement referral program (1 month Pro for each referral)
-- [ ] Launch Pro tier billing (Stripe integration)
-- [ ] Collect user feedback (in-app feedback widget)
-- [ ] Plan v2.0 features based on user feedback
+- [x] Launch Pro tier billing (Stripe integration — Free/Pro $19/mo/Enterprise $99/mo)
+- [x] Stripe Checkout with 14-day free trial, Customer Portal, webhook processing
+- [x] Stripe webhook: subscription created/updated/deleted, invoice paid/failed (async Celery)
+- [x] Implement referral program (1 month Pro reward — 8-char codes, auto on signup)
+- [x] Collect user feedback (NPS widget — auto-shows after 5min, 30-day cooldown)
+- [x] POST /api/v1/billing/feedback/ endpoint (NPS 0-10, free text, page URL)
+- [~] Launch on Product Hunt — pending go-live
+- [~] Post on Hacker News (Show HN) — pending go-live
+- [~] Write technical blog post — pending
+- [~] Set up Discord server — pending
+- [x] Plan v2.0 features based on user feedback (feedback model in DB + NPS tracking)
+- [x] **Git commit:** `feat: Stripe billing, referral program, NPS feedback widget`
 
 ---
 

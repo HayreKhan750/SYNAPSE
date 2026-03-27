@@ -50,6 +50,7 @@ LOCAL_APPS = [
     'apps.trends',
     'apps.notifications',
     'apps.integrations',  # Phase 6 — Cloud Integration (Google Drive + AWS S3)
+    'apps.billing',       # Phase 9.3 — Stripe billing, referrals, feedback
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
