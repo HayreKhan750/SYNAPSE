@@ -137,33 +137,33 @@ const PROMPT_EXAMPLES: Record<Exclude<DocType, "project">, string> = {
 // ─── API helpers ─────────────────────────────────────────────────────────────
 
 const fetchDocuments = async (): Promise<{ results: DocumentRecord[]; count: number }> => {
-  const { data } = await api.get("/api/v1/documents/");
+  const { data } = await api.get("/documents/");
   return data;
 };
 
 const generateDocument = async (payload: GeneratePayload): Promise<DocumentRecord> => {
-  const { data } = await api.post("/api/v1/documents/generate/", payload);
+  const { data } = await api.post("/documents/generate/", payload);
   return data;
 };
 
 const generateProject = async (payload: ProjectPayload): Promise<DocumentRecord> => {
-  const { data } = await api.post("/api/v1/documents/generate-project/", payload);
+  const { data } = await api.post("/documents/generate-project/", payload);
   return data;
 };
 
 const deleteDocument = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/documents/${id}/`);
+  await api.delete(`/documents/${id}/`);
 };
 
 // ── Cloud Integration API helpers ─────────────────────────────────────────────
 
 const fetchDriveStatus = async (): Promise<{ is_connected: boolean; google_email: string | null }> => {
-  const { data } = await api.get("/api/v1/integrations/drive/status/");
+  const { data } = await api.get("/integrations/drive/status/");
   return data;
 };
 
 const fetchDriveConnectUrl = async (): Promise<string> => {
-  const { data } = await api.get("/api/v1/integrations/drive/connect/");
+  const { data } = await api.get("/integrations/drive/connect/");
   return data.authorization_url;
 };
 
@@ -174,7 +174,7 @@ const uploadToDrive = async ({
   documentId: string;
   folderName: string;
 }): Promise<{ drive_url: string }> => {
-  const { data } = await api.post("/api/v1/integrations/drive/upload/", {
+  const { data } = await api.post("/integrations/drive/upload/", {
     document_id: documentId,
     folder_name: folderName,
   });
@@ -186,14 +186,14 @@ const uploadToS3 = async ({
 }: {
   documentId: string;
 }): Promise<{ presigned_url: string }> => {
-  const { data } = await api.post("/api/v1/integrations/s3/upload/", {
+  const { data } = await api.post("/integrations/s3/upload/", {
     document_id: documentId,
   });
   return data;
 };
 
 const disconnectDrive = async (): Promise<void> => {
-  await api.delete("/api/v1/integrations/drive/disconnect/");
+  await api.delete("/integrations/drive/disconnect/");
 };
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -736,7 +736,8 @@ export default function DocumentsPage() {
   const driveConnected = driveStatus?.is_connected ?? false;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="flex-1 overflow-y-auto">
+    <div className="max-w-6xl mx-auto px-4 py-8 pb-24 lg:pb-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -915,5 +916,6 @@ export default function DocumentsPage() {
         </motion.div>
       )}
     </div>
+  </div>
   );
 }

@@ -445,8 +445,8 @@ export default function AgentsPage() {
   const historyTasks = tasks.filter(t => t.status === 'completed' || t.status === 'failed')
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="flex-1 overflow-y-auto bg-slate-950 text-white">
+      <div className="max-w-5xl mx-auto px-4 py-8 pb-24 lg:pb-8">
 
         {/* ── Page Header ── */}
         <div className="flex items-center gap-4 mb-8">

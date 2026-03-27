@@ -25,25 +25,35 @@ import { ChatMessage } from '@/components/chat/ChatMessage';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { cn } from '@/utils/helpers';
 
-// ─── Available free-tier Gemini models ───────────────────────────────────────
+// ─── Available models via OpenRouter (free + low-cost tiers) ─────────────────
+// IDs must match OpenRouter's model identifiers: provider/model-name
 const GEMINI_MODELS = [
-  { id: 'gemini-2.5-flash',                        label: 'Gemini 2.5 Flash',              badge: 'Latest' },
-  { id: 'gemini-2.5-flash-lite',                   label: 'Gemini 2.5 Flash Lite',         badge: 'Fast' },
-  { id: 'gemini-2.0-flash',                        label: 'Gemini 2.0 Flash',              badge: null },
-  { id: 'gemini-2.0-flash-001',                    label: 'Gemini 2.0 Flash 001',          badge: null },
-  { id: 'gemini-2.0-flash-lite',                   label: 'Gemini 2.0 Flash Lite',         badge: 'Light' },
-  { id: 'gemini-2.0-flash-lite-001',               label: 'Gemini 2.0 Flash Lite 001',     badge: null },
-  { id: 'gemini-flash-latest',                     label: 'Gemini Flash Latest',           badge: null },
-  { id: 'gemini-flash-lite-latest',                label: 'Gemini Flash Lite Latest',      badge: null },
-  { id: 'gemini-3-flash-preview',                  label: 'Gemini 3 Flash Preview',        badge: 'Preview' },
-  { id: 'gemini-3.1-flash-lite-preview',           label: 'Gemini 3.1 Flash Lite Preview', badge: 'Preview' },
-  { id: 'gemini-2.5-flash-preview-tts',            label: 'Gemini 2.5 Flash TTS',          badge: 'TTS' },
-  { id: 'gemini-2.5-flash-image',                  label: 'Gemini 2.5 Flash Image',        badge: 'Vision' },
-  { id: 'gemini-3.1-flash-image-preview',          label: 'Gemini 3.1 Flash Image Preview',badge: 'Vision' },
-  { id: 'gemini-2.0-flash-exp-image-generation',  label: 'Gemini 2.0 Flash Image Gen',    badge: 'Exp' },
-  { id: 'gemini-2.5-flash-lite-preview-09-2025',  label: 'Gemini 2.5 Flash Lite (Sep 25)',badge: 'Preview' },
+  // ── Google Gemini (free/low-cost via OpenRouter) ──────────────────────────
+  { id: 'google/gemini-2.0-flash-001',            label: 'Gemini 2.0 Flash',              badge: '⚡ Default' },
+  { id: 'google/gemini-2.5-flash-preview',        label: 'Gemini 2.5 Flash Preview',      badge: '🆕 Latest' },
+  { id: 'google/gemini-2.0-flash-lite-001',       label: 'Gemini 2.0 Flash Lite',         badge: '🚀 Fast' },
+  { id: 'google/gemini-flash-1.5',                label: 'Gemini 1.5 Flash',              badge: null },
+  { id: 'google/gemini-flash-1.5-8b',             label: 'Gemini 1.5 Flash 8B',           badge: '🆓 Free' },
+  // ── Meta Llama (free via OpenRouter) ─────────────────────────────────────
+  { id: 'meta-llama/llama-3.3-70b-instruct',     label: 'Llama 3.3 70B',                badge: '🆓 Free' },
+  { id: 'meta-llama/llama-3.1-8b-instruct',      label: 'Llama 3.1 8B',                 badge: '🆓 Free' },
+  { id: 'meta-llama/llama-3.2-11b-vision-instruct', label: 'Llama 3.2 11B Vision',       badge: '👁 Free' },
+  // ── Mistral (free via OpenRouter) ────────────────────────────────────────
+  { id: 'mistralai/mistral-7b-instruct',         label: 'Mistral 7B',                    badge: '🆓 Free' },
+  { id: 'mistralai/mistral-nemo',                label: 'Mistral Nemo',                  badge: '🆓 Free' },
+  // ── DeepSeek (free via OpenRouter) ───────────────────────────────────────
+  { id: 'deepseek/deepseek-chat',                label: 'DeepSeek Chat',                 badge: '🆓 Free' },
+  { id: 'deepseek/deepseek-r1',                  label: 'DeepSeek R1 (Reasoning)',       badge: '🧠 Free' },
+  // ── Qwen (free via OpenRouter) ────────────────────────────────────────────
+  { id: 'qwen/qwen-2.5-72b-instruct',            label: 'Qwen 2.5 72B',                 badge: '🆓 Free' },
+  // ── OpenAI (paid) ─────────────────────────────────────────────────────────
+  { id: 'openai/gpt-4o-mini',                    label: 'GPT-4o Mini',                   badge: '💳 Paid' },
+  { id: 'openai/gpt-4o',                         label: 'GPT-4o',                        badge: '💳 Paid' },
+  // ── Anthropic Claude (paid) ───────────────────────────────────────────────
+  { id: 'anthropic/claude-3.5-haiku',            label: 'Claude 3.5 Haiku',              badge: '💳 Paid' },
+  { id: 'anthropic/claude-3.5-sonnet',           label: 'Claude 3.5 Sonnet',             badge: '💳 Paid' },
 ];
-const DEFAULT_MODEL = GEMINI_MODELS[0].id;
+const DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
 
 // ─── Suggested prompts shown on empty chat ────────────────────────────────────
 const SUGGESTED_PROMPTS = [
