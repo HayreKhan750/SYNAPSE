@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Navbar } from '@/components/layout/Navbar'
+import { BottomNav } from '@/components/layout/BottomNav'
 import { useAuthStore } from '@/store/authStore'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -70,11 +71,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Page Content — overflow-hidden so each page controls its own scroll.
             The chat page uses an internal flex layout with a scrollable message
             area and a pinned input bar. Other pages wrap their content in a
-            scrollable div via the page-scroll utility class. */}
-        <main className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
+            scrollable div via the page-scroll utility class.
+            On mobile, pb-16 reserves space for the BottomNav bar. */}
+        <main className="flex-1 overflow-hidden flex flex-col min-h-0 relative pb-16 lg:pb-0">
           {children}
         </main>
       </div>
+
+      {/* Mobile bottom navigation — only visible on < lg screens */}
+      <BottomNav />
     </div>
   )
 }

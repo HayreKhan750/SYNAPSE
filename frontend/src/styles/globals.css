@@ -243,3 +243,76 @@
     rgba(255, 255, 255, 0)
   );
 }
+
+/* ── Phase 7.2 — Mobile & PWA utilities ─────────────────────────────────────── */
+
+/* Safe area insets for notched phones / home-bar devices */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.safe-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Touch action optimisations */
+.touch-pan-x  { touch-action: pan-x; }
+.touch-pan-y  { touch-action: pan-y; }
+.touch-none   { touch-action: none; }
+
+/* Momentum scroll on iOS */
+.scroll-ios {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: scroll;
+}
+
+/* Hide scrollbar but keep scrollable (mobile cards, topic pills) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tap highlight */
+.tap-none {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scale animation for mobile tap */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scale-in 0.15s ease forwards;
+}
+
+/* Bottom nav safe height helper */
+.bottom-nav-height { height: calc(4rem + env(safe-area-inset-bottom, 0px)); }
+
+/* Responsive text helpers */
+@media (max-width: 640px) {
+  .text-responsive-xl { font-size: 1.25rem; }
+  .text-responsive-2xl { font-size: 1.5rem; }
+  .text-responsive-3xl { font-size: 1.75rem; }
+}
+
+/* Prevent layout shift on mobile due to scrollbar */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 1023px) {
+  html {
+    overflow-y: auto;
+    scrollbar-gutter: auto;
+  }
+}

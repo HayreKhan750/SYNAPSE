@@ -390,18 +390,18 @@
 - [x] **Git commit:** `feat: premium UI — design system, Framer Motion animations, data viz`
 
 ### 7.2 Mobile & Performance (Week 20)
-- [ ] Make all pages fully responsive (mobile 320px, tablet 768px, desktop 1024px+)
-- [ ] Create mobile bottom navigation bar (replaces sidebar on mobile)
-- [ ] Implement PWA (next-pwa: service worker, manifest.json, offline page)
-- [ ] Optimize images (Next.js Image component, WebP format, lazy loading)
-- [ ] Implement code splitting (dynamic imports for heavy components)
-- [ ] Add React Suspense boundaries with fallback skeletons
-- [ ] Run Lighthouse CI (target: Performance 90+, Accessibility 95+, Best Practices 95+)
-- [ ] Fix Core Web Vitals (LCP < 2.5s, FID < 100ms, CLS < 0.1)
-- [ ] Add error boundaries (graceful error UI for failed API calls)
-- [ ] Add empty state components for all list pages
-- [ ] Implement optimistic UI updates for bookmarks
-- [ ] **Git commit:** `feat: mobile responsive, PWA, performance optimization`
+- [x] Make all pages fully responsive (mobile 320px, tablet 768px, desktop 1024px+)
+- [x] Create mobile bottom navigation bar (replaces sidebar on mobile)
+- [x] Implement PWA (next-pwa: service worker, manifest.json, offline page)
+- [x] Optimize images (Next.js Image component, WebP format, lazy loading)
+- [x] Implement code splitting (dynamic imports for heavy components)
+- [x] Add React Suspense boundaries with fallback skeletons
+- [x] Run Lighthouse CI (target: Performance 90+, Accessibility 95+, Best Practices 95+)
+- [x] Fix Core Web Vitals (LCP < 2.5s, FID < 100ms, CLS < 0.1)
+- [x] Add error boundaries (graceful error UI for failed API calls)
+- [x] Add empty state components for all list pages
+- [x] Implement optimistic UI updates for bookmarks
+- [x] **Git commit:** `feat: mobile responsive, PWA, performance optimization`
 
 ---
 

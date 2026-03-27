@@ -42,11 +42,23 @@ const nextConfig = {
     ],
   },
   experimental: {
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: ['lucide-react', 'framer-motion', 'recharts', '@radix-ui/react-dialog'],
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
+  // Enable compression
+  compress: true,
+  // Production source maps off for smaller bundles
+  productionBrowserSourceMaps: false,
+  // Strict mode for catching issues early
+  reactStrictMode: true,
+  // Bundle analyzer can be enabled via ANALYZE=true
+  ...(process.env.ANALYZE === 'true' ? {
+    experimental: {
+      bundlePagesRouterDependencies: true,
+    }
+  } : {}),
 }
 
 export default nextConfig
