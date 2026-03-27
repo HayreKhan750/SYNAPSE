@@ -31,105 +31,50 @@ logger = logging.getLogger(__name__)
 SUMMARY_FAILED_SENTINEL = "__failed__"
 
 
-def _get_gemini_api_keys() -> list:
-    """
-    Return all configured Gemini API keys for round-robin rotation.
-
-    Reads:
-      GEMINI_API_KEY        — primary key (always checked)
-      GEMINI_API_KEY_1 … GEMINI_API_KEY_10 — additional keys
-
-    This lets you add up to 10 free-tier accounts and multiply the daily
-    quota proportionally (e.g. 10 keys × 20 req/day = 200 req/day).
-    """
-    keys = []
-    # Primary key
-    primary = os.environ.get("GEMINI_API_KEY", "")
-    if primary and not primary.startswith("your-"):
-        keys.append(primary)
-    # Additional keys GEMINI_API_KEY_1 … GEMINI_API_KEY_10
-    for i in range(1, 11):
-        k = os.environ.get(f"GEMINI_API_KEY_{i}", "")
-        if k and not k.startswith("your-") and k not in keys:
-            keys.append(k)
-    return keys
-
-
-# Module-level key rotation index (per-worker process, resets on restart)
-_key_index = 0
-
-
-def _next_api_key(keys: list) -> str:
-    """Return the next API key in round-robin order."""
-    global _key_index
-    key = keys[_key_index % len(keys)]
-    _key_index = (_key_index + 1) % len(keys)
-    return key
+# ── OpenRouter helper (replaces the old Gemini key-rotation helpers) ──────────
 
 
 def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
     """
-    Summarize text using Google Gemini Flash.
-    Returns None if GEMINI_API_KEY is not set or the call fails.
-
-    Every failure path logs at ERROR level with full exc_info so the exact
-    rejection reason (invalid key, quota, model name, network) is visible in
-    Celery worker logs.
+    Summarize text using OpenRouter (OpenAI-compatible endpoint).
+    Uses OPENROUTER_API_KEY + OPENROUTER_MODEL from environment.
+    Returns None on failure so callers fall back to local BART.
     """
-    keys = _get_gemini_api_keys()
-    if not keys:
+    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not api_key or api_key.startswith("your-"):
         logger.error(
-            "GEMINI API ERROR: No valid GEMINI_API_KEY found. "
-            "Set GEMINI_API_KEY (and optionally GEMINI_API_KEY_1..10) in .env."
+            "OPENROUTER ERROR: No valid OPENROUTER_API_KEY found. "
+            "Set OPENROUTER_API_KEY in .env."
         )
         return None
 
-    model_name = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+    model_name = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+    base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
     logger.info(
-        "_summarize_with_gemini: START model=%s text_length=%d keys_available=%d",
-        model_name, len(text), len(keys),
+        "_summarize_with_gemini (openrouter): START model=%s text_length=%d",
+        model_name, len(text),
     )
 
-    # Try each key in rotation; if one is quota-exhausted, move to the next
-    api_key = _next_api_key(keys)
-
-    # ── Step 1: import LangChain Gemini ────────────────────────────────────────
     try:
-        project_root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        )
-        if project_root not in sys.path:
-            sys.path.insert(0, project_root)
-        from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
+        from langchain_openai import ChatOpenAI           # noqa: PLC0415
         from langchain_core.messages import HumanMessage  # noqa: PLC0415
     except ImportError as exc:
-        logger.error(
-            "GEMINI API ERROR: Cannot import langchain_google_genai. "
-            "Run: pip install langchain-google-genai\nError: %s",
-            exc,
-            exc_info=True,
-        )
+        logger.error("Cannot import langchain_openai: %s", exc, exc_info=True)
         return None
 
-    # ── Step 2: build the LLM client ───────────────────────────────────────────
     try:
-        llm = ChatGoogleGenerativeAI(
+        llm = ChatOpenAI(
             model=model_name,
             temperature=0.2,
-            max_output_tokens=300,
-            google_api_key=api_key,
+            max_tokens=300,
+            openai_api_key=api_key,
+            openai_api_base=base_url,
         )
     except Exception as exc:
-        logger.error(
-            "GEMINI API ERROR: Failed to construct ChatGoogleGenerativeAI "
-            "(model=%s). Error: %s",
-            model_name, exc,
-            exc_info=True,
-        )
+        logger.error("Failed to build ChatOpenAI (model=%s): %s", model_name, exc, exc_info=True)
         return None
 
-    # ── Step 3: build prompt ───────────────────────────────────────────────────
-    # Adapt prompt based on whether we have full content or just metadata
     has_full_content = len(text) > 300 and "Article Content:" in text
     if has_full_content:
         prompt = (
@@ -145,77 +90,30 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
             f"{text[:max_chars]}\n\nDescription:"
         )
 
-    # ── Step 4: invoke with retry on rate-limit ────────────────────────────────
-    def _invoke() -> str:
-        result = llm.invoke([HumanMessage(content=prompt)])
-        return result.content.strip() if hasattr(result, "content") else ""
-
-    for attempt in range(2):  # max 2 attempts (original + 1 retry on 429)
+    for attempt in range(2):
         try:
-            summary = _invoke()
+            result = llm.invoke([HumanMessage(content=prompt)])
+            summary = result.content.strip() if hasattr(result, "content") else ""
             if summary:
                 logger.info(
-                    "_summarize_with_gemini: SUCCESS attempt=%d summary_length=%d",
+                    "_summarize_with_gemini (openrouter): SUCCESS attempt=%d len=%d",
                     attempt + 1, len(summary),
                 )
                 return summary
-            else:
-                logger.error(
-                    "GEMINI API ERROR: model returned an empty string "
-                    "(attempt=%d, model=%s). Possible safety filter or empty response.",
-                    attempt + 1, model_name,
-                )
-                return None
-
+            logger.error("OPENROUTER: empty response attempt=%d model=%s", attempt + 1, model_name)
+            return None
         except Exception as exc:
             exc_str = str(exc).lower()
-            is_rate_limit = (
-                "429" in exc_str
-                or "resource exhausted" in exc_str
-                or "rate limit" in exc_str
-                or "quota" in exc_str
+            is_rate_limit = any(k in exc_str for k in ("429", "rate limit", "quota", "too many"))
+            logger.error(
+                "OPENROUTER: API error attempt=%d model=%s rate_limit=%s: %s",
+                attempt + 1, model_name, is_rate_limit, exc, exc_info=True,
             )
-            if is_rate_limit:
-                logger.error(
-                    "GEMINI API ERROR: RATE LIMIT / QUOTA EXCEEDED on attempt=%d "
-                    "(key index=%d). Trying next key if available. Full error: %s",
-                    attempt + 1, _key_index - 1, exc,
-                )
-                # Try the next available key before giving up
-                remaining_keys = [k for k in keys if k != api_key]
-                if remaining_keys and attempt == 0:
-                    api_key = remaining_keys[0]
-                    logger.info(
-                        "_summarize_with_gemini: switching to alternate key, retrying..."
-                    )
-                    try:
-                        llm = ChatGoogleGenerativeAI(
-                            model=model_name,
-                            temperature=0.2,
-                            max_output_tokens=300,
-                            google_api_key=api_key,
-                        )
-                        summary = _invoke()
-                        if summary:
-                            logger.info(
-                                "_summarize_with_gemini: SUCCESS with alternate key, "
-                                "summary_length=%d", len(summary),
-                            )
-                            return summary
-                    except Exception as retry_exc:
-                        logger.error(
-                            "GEMINI API ERROR: alternate key also failed: %s", retry_exc
-                        )
-                return None
-            else:
-                logger.error(
-                    "GEMINI API ERROR: API call FAILED on attempt=%d model=%s. "
-                    "Full error: %s",
-                    attempt + 1, model_name, exc,
-                    exc_info=True,
-                )
-                return None
-
+            if is_rate_limit and attempt == 0:
+                import time  # noqa: PLC0415
+                time.sleep(5)
+                continue
+            return None
     return None
 
 

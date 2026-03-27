@@ -22,6 +22,7 @@ const ARXIV_CATEGORIES = [
 ];
 const SORT_OPTIONS = ['Date', 'Citations', 'Difficulty'];
 
+// Upgraded research page header
 export default function ResearchPage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('');

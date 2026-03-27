@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import time
+from pathlib import Path
 
 from django.http import StreamingHttpResponse
 from rest_framework import status
@@ -28,6 +30,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+# Ensure the project root (containing ai_engine/) is on the path
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 from apps.core.pagination import StandardPagination
 

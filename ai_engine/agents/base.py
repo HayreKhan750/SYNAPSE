@@ -29,7 +29,7 @@ from typing import Any, Dict, Iterator, List, Optional
 from langgraph.prebuilt import create_react_agent
 from langchain_core.tools import BaseTool
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -94,14 +94,39 @@ class SynapseAgent:
     # Construction helpers
     # ------------------------------------------------------------------
 
-    def _build_llm(self) -> ChatGoogleGenerativeAI:
-        """Instantiate the Gemini LLM used by the agent."""
-        return ChatGoogleGenerativeAI(
-            model=os.environ.get("GEMINI_MODEL", self.model_name),
-            temperature=self.temperature,
-            max_output_tokens=self.max_tokens,
-            google_api_key=os.environ.get("GEMINI_API_KEY", ""),
-            convert_system_message_to_human=True,
+    def _build_llm(self) -> ChatOpenAI:
+        """Instantiate the LLM used by the agent via OpenRouter (OpenAI-compatible)."""
+        openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
+        openrouter_base = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        openrouter_model = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+        if openrouter_key:
+            return ChatOpenAI(
+                model=openrouter_model,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                openai_api_key=openrouter_key,
+                openai_api_base=openrouter_base,
+                default_headers={
+                    "HTTP-Referer": "https://synapse.ai",
+                    "X-Title": "SYNAPSE Agent",
+                },
+            )
+        # Fallback to Google Gemini if configured
+        gemini_key = os.environ.get("GEMINI_API_KEY", "")
+        if gemini_key:
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                return ChatGoogleGenerativeAI(
+                    model=os.environ.get("GEMINI_MODEL", self.model_name),
+                    temperature=self.temperature,
+                    max_output_tokens=self.max_tokens,
+                    google_api_key=gemini_key,
+                    convert_system_message_to_human=True,
+                )
+            except ImportError:
+                pass
+        raise ValueError(
+            "No LLM configured. Set OPENROUTER_API_KEY (recommended) or GEMINI_API_KEY."
         )
 
     @property

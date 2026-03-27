@@ -1,6 +1,7 @@
 """
-SYNAPSE RAG Chain — powered by LangChain + Google Gemini.
+SYNAPSE RAG Chain — powered by LangChain + OpenRouter (OpenAI-compatible API).
 Includes system prompt grounded in the knowledge base with source citation support.
+Falls back to Google Gemini if GEMINI_API_KEY is set and OPENROUTER_API_KEY is not.
 """
 
 import logging
@@ -9,7 +10,7 @@ from typing import Any, Dict, Iterator, List, Optional
 
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 from .memory import ConversationMemoryManager
 from .retriever import SynapseRetriever
@@ -134,13 +135,44 @@ class SynapseRAGChain:
         self.max_tokens = max_tokens
         self.streaming = streaming
 
-        self._llm = ChatGoogleGenerativeAI(
-            model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
-            temperature=temperature,
-            max_output_tokens=max_tokens,
-            google_api_key=os.environ.get("GEMINI_API_KEY", ""),
-            streaming=streaming,
-            convert_system_message_to_human=True,
+        self._llm = self._build_llm(temperature=temperature, max_tokens=max_tokens, streaming=streaming)
+
+    @staticmethod
+    def _build_llm(temperature: float = 0.2, max_tokens: int = 1024, streaming: bool = False):
+        """Build the LLM — uses OpenRouter if OPENROUTER_API_KEY is set, else Gemini."""
+        openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
+        openrouter_base = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        openrouter_model = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+        if openrouter_key:
+            return ChatOpenAI(
+                model=openrouter_model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                openai_api_key=openrouter_key,
+                openai_api_base=openrouter_base,
+                streaming=streaming,
+                default_headers={
+                    "HTTP-Referer": "https://synapse.ai",
+                    "X-Title": "SYNAPSE RAG",
+                },
+            )
+        # Fallback to Google Gemini
+        gemini_key = os.environ.get("GEMINI_API_KEY", "")
+        if gemini_key:
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                return ChatGoogleGenerativeAI(
+                    model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                    google_api_key=gemini_key,
+                    streaming=streaming,
+                    convert_system_message_to_human=True,
+                )
+            except ImportError:
+                pass
+        raise ValueError(
+            "No LLM configured. Set OPENROUTER_API_KEY (recommended) or GEMINI_API_KEY."
         )
 
     # ------------------------------------------------------------------
@@ -242,14 +274,7 @@ class SynapseRAGChain:
         messages.extend(chat_history)
         messages.append(HumanMessage(content=condensed_question))
 
-        streaming_llm = ChatGoogleGenerativeAI(
-            model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
-            temperature=self.temperature,
-            max_output_tokens=self.max_tokens,
-            google_api_key=os.environ.get("GEMINI_API_KEY", ""),
-            streaming=True,
-            convert_system_message_to_human=True,
-        )
+        streaming_llm = self._build_llm(temperature=self.temperature, max_tokens=self.max_tokens, streaming=True)
 
         full_answer = []
         for chunk in streaming_llm.stream(messages):
@@ -279,13 +304,7 @@ class SynapseRAGChain:
                 chat_history=history_str,
                 question=question,
             )
-            condensed_llm = ChatGoogleGenerativeAI(
-                model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
-                temperature=0,
-                max_output_tokens=256,
-                google_api_key=os.environ.get("GEMINI_API_KEY", ""),
-                convert_system_message_to_human=True,
-            )
+            condensed_llm = self._build_llm(temperature=0, max_tokens=256)
             result = condensed_llm.invoke(prompt)
             return _extract_text(result.content) if hasattr(result, "content") else question
         except Exception as exc:

@@ -1,2 +1,7 @@
 from django.urls import path
-urlpatterns = []  # Implemented in later phases
+from . import views
+
+urlpatterns = [
+    path("", views.trend_list, name="trend-list"),
+    path("<uuid:pk>/", views.trend_detail, name="trend-detail"),
+]

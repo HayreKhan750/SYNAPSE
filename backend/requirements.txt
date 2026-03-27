@@ -26,7 +26,9 @@ flower
 # ── AI / ML ──────────────────────────────────────────────────
 langchain
 langchain-community
+langchain-openai
 langchain-google-genai
+langgraph
 langsmith
 spacy
 transformers
@@ -79,3 +81,5 @@ python-dotenv
 Markdown
 pydantic
 gunicorn
+isodate
+python-dateutil

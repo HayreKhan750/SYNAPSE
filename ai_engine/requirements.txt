@@ -1,11 +1,13 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 fastapi
-uvicorn
+uvicorn[standard]
 langchain
 langchain-community
+langchain-openai
 langchain-google-genai
 langgraph
+langchain-core
 sentence-transformers
 accelerate
 pgvector
@@ -20,3 +22,7 @@ sentry-sdk
 reportlab
 python-pptx
 python-docx
+isodate
+python-dateutil
+torch
+Pillow

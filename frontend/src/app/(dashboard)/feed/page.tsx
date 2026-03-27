@@ -72,29 +72,54 @@ export default function FeedPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold text-slate-900 dark:text-white">Tech Intelligence Feed</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">Stay updated with the latest in tech</p>
+    <div className="flex-1 overflow-y-auto">
+    <div className="pb-8">
+      {/* ── Page Header ───────────────────────────────────────────── */}
+      <div className="px-6 pt-6 pb-4 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Tech Intelligence Feed</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{totalCount} articles curated from around the web</p>
+          </div>
+          <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live updates
+          </span>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mt-4">
+          {(['latest', 'for-you', 'trending'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize',
+                activeTab === tab
+                  ? 'bg-indigo-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              )}
+            >
+              {tab === 'for-you' ? 'For You ✨' : tab === 'trending' ? '🔥 Trending' : 'Latest'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="space-y-4">
-        {/* Topic filter pills */}
-        <div className="flex flex-wrap gap-2">
+      <div className="px-6 pt-5 space-y-5">
+
+      {/* ── Filters ───────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        {/* Topic pills - scrollable */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 flex-1">
           {TOPICS.map((topic) => (
             <button
               key={topic}
-              onClick={() => {
-                setSelectedTopic(topic);
-                setPage(1);
-              }}
+              onClick={() => { setSelectedTopic(topic); setPage(1); }}
               className={cn(
-                'px-4 py-2 rounded-full font-medium transition-all',
+                'px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0',
                 selectedTopic === topic
-                  ? 'bg-indigo-500 text-white'
+                  ? 'bg-indigo-500 text-white shadow-sm'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               )}
             >
@@ -103,127 +128,78 @@ export default function FeedPage() {
           ))}
         </div>
 
-        {/* Sort dropdown */}
-        <div className="flex items-center justify-between">
-          <div className="relative">
-            <button
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className={cn(
-                'px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all',
-                'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              )}
-            >
-              Sort: {sortBy === 'latest' ? 'Latest' : 'Trending'}
-              <ChevronDown size={16} className={cn('transition-transform', showSortDropdown && 'rotate-180')} />
-            </button>
-
-            {showSortDropdown && (
-              <div className="absolute top-full mt-2 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10 min-w-[150px]">
-                {SORT_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    onClick={() => {
-                      setSortBy(option.toLowerCase() as 'latest' | 'trending');
-                      setShowSortDropdown(false);
-                      setPage(1);
-                    }}
-                    className={cn(
-                      'w-full text-left px-4 py-2 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg',
-                      sortBy === option.toLowerCase()
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    )}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Total count */}
-          <div className="text-sm text-slate-600 dark:text-slate-400">
-            Showing {articles.length} of {totalCount} articles
-          </div>
+        {/* Sort */}
+        <div className="relative flex-shrink-0">
+          <button
+            onClick={() => setShowSortDropdown(!showSortDropdown)}
+            className="px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+          >
+            {sortBy === 'latest' ? '📅 Latest' : '🔥 Trending'}
+            <ChevronDown size={14} className={cn('transition-transform', showSortDropdown && 'rotate-180')} />
+          </button>
+          {showSortDropdown && (
+            <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[130px] overflow-hidden animate-scale-in">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => { setSortBy(option.toLowerCase() as any); setShowSortDropdown(false); setPage(1); }}
+                  className={cn(
+                    'w-full text-left px-4 py-2.5 text-sm transition-colors',
+                    sortBy === option.toLowerCase()
+                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  )}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-     {/* Tabs */}
-     <div className="flex gap-2 mb-2">
-       <button
-         onClick={() => setActiveTab('latest')}
-         className={cn('px-4 py-2 rounded-lg font-medium', activeTab === 'latest' ? 'bg-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300')}
-       >
-         Latest
-       </button>
-       <button
-         onClick={() => setActiveTab('for-you')}
-         className={cn('px-4 py-2 rounded-lg font-medium', activeTab === 'for-you' ? 'bg-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300')}
-       >
-         For You
-       </button>
-       <button
-         onClick={() => setActiveTab('trending')}
-         className={cn('px-4 py-2 rounded-lg font-medium', activeTab === 'trending' ? 'bg-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300')}
-       >
-         Trending
-       </button>
-     </div>
-
+      {/* ── Content ───────────────────────────────────────────────── */}
       {activeTab === 'for-you' ? (
         <ForYouTab />
       ) : activeTab === 'trending' ? (
         <TrendingTab />
       ) : (
         <>
-          {/* Articles grid */}
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <ArticleSkeleton key={i} />
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => <ArticleSkeleton key={i} />)}
             </div>
           ) : articles.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {articles.map((article: any) => (
                   <ArticleCard key={article.id} article={article} />
                 ))}
               </div>
-
-              {/* Load More button */}
-              {pageSize >= 12 && articles.length < totalCount && (
-                <div className="flex justify-center mt-8">
+              {articles.length < totalCount && (
+                <div className="flex justify-center pt-4">
                   <button
                     onClick={handleLoadMore}
-                    className={cn(
-                      'px-6 py-3 rounded-lg font-medium transition-all',
-                      'bg-indigo-500 hover:bg-indigo-600 text-white',
-                      'hover:shadow-lg'
-                    )}
+                    className="px-6 py-2.5 rounded-xl font-semibold text-sm bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white transition-all shadow-sm hover:shadow-md"
                   >
-                    Load More Articles
+                    Load more articles
                   </button>
                 </div>
               )}
             </>
           ) : (
-            <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-              <Search size={48} className="mx-auto text-slate-400 dark:text-slate-500 mb-4" />
-              <p className="text-slate-600 dark:text-slate-400">No articles found for your filters</p>
-              <button
-                onClick={() => {
-                  setSelectedTopic('All');
-                  setPage(1);
-                }}
-                className="text-indigo-500 hover:text-indigo-600 font-medium mt-2"
-              >
+            <div className="text-center py-16 bg-white dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
+              <Search size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+              <p className="text-slate-600 dark:text-slate-400 font-medium">No articles found</p>
+              <button onClick={() => { setSelectedTopic('All'); setPage(1); }} className="mt-3 text-sm text-indigo-500 hover:text-indigo-600 font-medium">
                 Clear filters
               </button>
             </div>
           )}
         </>
       )}
+
+      </div>
     </div>
     </div>
   );

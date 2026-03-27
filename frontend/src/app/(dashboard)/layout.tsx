@@ -36,7 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!isAuthenticated) return null
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
 
       {/* Mobile backdrop — click to close */}
       {mobileOpen && (
@@ -57,8 +57,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content Area */}
       {/* On desktop: offset by sidebar width. On mobile: no margin (sidebar overlays) */}
       <div
-        className={`flex-1 flex flex-col overflow-hidden transition-all duration-200 ${
-          isCollapsed ? 'md:ml-20' : 'md:ml-64'
+        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
+          isCollapsed ? 'md:ml-[72px]' : 'md:ml-64'
         }`}
       >
         {/* Navbar */}

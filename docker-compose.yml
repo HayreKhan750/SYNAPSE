@@ -72,6 +72,9 @@ services:
       DATABASE_URL: postgresql://synapse_user:synapse_pass@postgres:5432/synapse_db
       DB_HOST: postgres
       DB_PORT: "5432"
+      DB_NAME: synapse_db
+      DB_USER: synapse_user
+      DB_PASSWORD: synapse_pass
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
@@ -103,19 +106,27 @@ services:
   # ── FastAPI AI Service ──────────────────────────────────
   fastapi_ai:
     build:
-      context: ./ai_engine
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ai_engine/Dockerfile
     container_name: synapse_fastapi_ai
     restart: unless-stopped
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql://synapse_user:synapse_pass@postgres:5432/synapse_db
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: synapse_db
+      DB_USER: synapse_user
+      DB_PASSWORD: synapse_pass
       REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      # Mount context is project root; ai_engine package lives at /app/ai_engine
+      PYTHONPATH: /app
     ports:
       - "8001:8001"
     volumes:
-      - ./ai_engine:/app
+      - .:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -123,7 +134,7 @@ services:
         condition: service_healthy
     networks:
       - synapse_network
-    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    command: uvicorn ai_engine.main:app --host 0.0.0.0 --port 8001 --reload --app-dir /app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
@@ -166,6 +177,11 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://synapse_user:synapse_pass@postgres:5432/synapse_db
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: synapse_db
+      DB_USER: synapse_user
+      DB_PASSWORD: synapse_pass
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
@@ -203,6 +219,11 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://synapse_user:synapse_pass@postgres:5432/synapse_db
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: synapse_db
+      DB_USER: synapse_user
+      DB_PASSWORD: synapse_pass
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
@@ -217,7 +238,7 @@ services:
         condition: service_healthy
     networks:
       - synapse_network
-    command: celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler --pidfile=/tmp/celerybeat.pid
 
   # ── Flower (Celery Monitoring) ──────────────────────────
   flower:

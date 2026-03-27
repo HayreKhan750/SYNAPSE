@@ -44,9 +44,9 @@ def health_check(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def global_search(request):
-    """Global full-text search across articles, repositories, and research papers."""
+    """Global full-text search across articles, repositories, research papers, and videos."""
     query = request.GET.get('q', '').strip()
-    content_types = request.GET.get('types', 'articles,repos,papers').split(',')
+    content_types = request.GET.get('types', 'articles,repos,papers,videos').split(',')
     limit = min(int(request.GET.get('limit', 10)), 50)
 
     if not query or len(query) < 2:
@@ -79,6 +79,17 @@ def global_search(request):
             Q(summary__icontains=query)
         ).order_by('-citation_count', '-published_date')[:limit]
         results['papers'] = ResearchPaperSerializer(papers, many=True).data
+
+    if 'videos' in content_types:
+        from apps.videos.models import Video          # noqa: PLC0415
+        from apps.videos.serializers import VideoSerializer  # noqa: PLC0415
+        videos = Video.objects.filter(
+            Q(title__icontains=query) |
+            Q(description__icontains=query) |
+            Q(channel_name__icontains=query) |
+            Q(summary__icontains=query)
+        ).order_by('-view_count')[:limit]
+        results['videos'] = VideoSerializer(videos, many=True).data
 
     total = sum(len(v) for v in results.values())
     # Log search activity (Phase 2.4)

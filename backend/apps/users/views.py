@@ -5,8 +5,24 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .serializers import UserRegistrationSerializer, UserProfileSerializer, UserPreferencesSerializer
 from .models import User
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Extend SimpleJWT login response to include user profile data."""
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        # Append user profile so the frontend can hydrate the auth store
+        data['user'] = UserProfileSerializer(self.user).data
+        return data
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """POST /api/v1/auth/login/ — returns {access, refresh, user}."""
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -53,7 +69,9 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         serializer = self.get_serializer(self.get_object())
-        return Response({'success': True, 'data': serializer.data})
+        # Return user data directly (not nested) so frontend authStore can
+        # read it straight from response.data
+        return Response(serializer.data)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)

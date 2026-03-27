@@ -158,6 +158,15 @@ class ExplainView(APIView):
         return Response({**result, 'conversation_id': conversation_id}, status=status.HTTP_200_OK)
 
 
+def _get_openrouter_key() -> str:
+    """Return the OpenRouter API key if configured."""
+    import os
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if key and not key.startswith("your-"):
+        return key
+    return ""
+
+
 def _get_gemini_keys() -> list:
     """
     Collect all configured Gemini API keys for round-robin rotation.
@@ -189,42 +198,112 @@ def _next_chat_key(keys: list) -> str:
 def _get_pipeline(model: str = None):
     """
     Lazy-import RAG pipeline to avoid loading at Django startup.
-    Uses Google Gemini when GEMINI_API_KEY is set.
-    Tries the full RAG pipeline first; falls back to direct Gemini if pgvector
-    retriever is unavailable. Raises 503 only if no API key is configured at all.
+    Priority: OpenRouter → Gemini → unavailable.
+    Tries full RAG pipeline first; falls back to direct LLM if pgvector retriever unavailable.
 
     Args:
-        model: Optional Gemini model ID requested by the client. Falls back to
-               the GEMINI_MODEL env var, then 'gemini-flash-latest'.
+        model: Optional model override requested by the client.
     """
     import os
-    keys = _get_gemini_keys()
-    default_model = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
-    # Client-requested model takes priority over the env default
+
+    openrouter_key = _get_openrouter_key()
+    gemini_keys = _get_gemini_keys()
+
+    default_model = os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "google/gemini-2.0-flash-001"))
     resolved_model = model or default_model
 
-    if not keys:
-        logger.error("No valid GEMINI_API_KEY configured — chat is unavailable.")
+    if not openrouter_key and not gemini_keys:
+        logger.error("No LLM API key configured (OPENROUTER_API_KEY or GEMINI_API_KEY) — chat unavailable.")
         return None
 
-    # Pick next key in rotation
-    api_key = _next_chat_key(keys)
-    logger.info("_get_pipeline: using model=%s, keys_available=%d", resolved_model, len(keys))
+    logger.info("_get_pipeline: using model=%s openrouter=%s gemini_keys=%d",
+                resolved_model, bool(openrouter_key), len(gemini_keys))
 
-    # Try the full RAG pipeline (requires pgvector + embeddings)
-    # If the client requested a specific model, use direct pipeline so the
-    # model override is respected (RAG pipeline uses its own configured model).
+    # Try the full RAG pipeline first (pgvector + embeddings + retrieval)
     if not model:
         try:
             from ai_engine.rag import get_rag_pipeline
             return get_rag_pipeline()
         except Exception as exc:
-            logger.warning(
-                "Full RAG pipeline unavailable (%s). Falling back to direct Gemini.", exc
-            )
+            logger.warning("Full RAG pipeline unavailable (%s). Falling back to direct LLM.", exc)
 
-    # Fallback / model-override: direct Gemini without retrieval
-    return _GeminiDirectPipeline(api_key=api_key, model=resolved_model, all_keys=keys)
+    # Fallback: direct LLM pipeline (no retrieval, still useful for chat)
+    if openrouter_key:
+        return _OpenRouterDirectPipeline(api_key=openrouter_key, model=resolved_model)
+    else:
+        api_key = _next_chat_key(gemini_keys)
+        return _GeminiDirectPipeline(api_key=api_key, model=resolved_model, all_keys=gemini_keys)
+
+
+class _OpenRouterDirectPipeline:
+    """
+    Direct pipeline that calls any model via OpenRouter's OpenAI-compatible API.
+    Supports all models available on OpenRouter (Gemini, GPT-4, Claude, etc.)
+    """
+
+    def __init__(self, api_key: str, model: str) -> None:
+        import os
+        self._api_key = api_key
+        self._model = model
+        self._base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        self._histories: Dict[str, list] = {}
+
+    def _build_llm(self, streaming: bool = False):
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=self._model,
+            temperature=0.7,
+            openai_api_key=self._api_key,
+            openai_api_base=self._base_url,
+            streaming=streaming,
+            default_headers={
+                "HTTP-Referer": "https://synapse.ai",
+                "X-Title": "SYNAPSE Chat",
+            },
+        )
+
+    def chat(self, question: str, conversation_id: str, content_types=None, files=None) -> dict:
+        from langchain_core.messages import HumanMessage, SystemMessage
+        history = self._histories.get(conversation_id, [])
+        messages = [
+            SystemMessage(content=(
+                "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
+                "Answer questions clearly and concisely."
+            ))
+        ] + history + [HumanMessage(content=question)]
+        response = self._build_llm().invoke(messages)
+        answer = _extract_text_content(response.content if hasattr(response, 'content') else response).strip()
+        self._histories.setdefault(conversation_id, [])
+        self._histories[conversation_id].append(HumanMessage(content=question))
+        self._histories[conversation_id].append(response)
+        return {"answer": answer, "sources": [], "conversation_id": conversation_id}
+
+    def stream_chat(self, question: str, conversation_id: str, content_types=None, files=None):
+        import json
+        from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+        history = self._histories.get(conversation_id, [])
+        messages = [
+            SystemMessage(content=(
+                "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
+                "Answer questions clearly and concisely."
+            ))
+        ] + history + [HumanMessage(content=question)]
+        full_answer = ""
+        for chunk in self._build_llm(streaming=True).stream(messages):
+            token = _extract_text_content(chunk.content if hasattr(chunk, 'content') else chunk)
+            if token:
+                full_answer += token
+                yield token
+        self._histories.setdefault(conversation_id, [])
+        self._histories[conversation_id].append(HumanMessage(content=question))
+        self._histories[conversation_id].append(AIMessage(content=full_answer))
+        yield f"__SOURCES__:{json.dumps([])}"
+
+    def get_history(self, conversation_id: str):
+        return []
+
+    def delete_conversation(self, conversation_id: str):
+        self._histories.pop(conversation_id, None)
 
 
 class _GeminiDirectPipeline:
@@ -418,14 +497,17 @@ class ChatView(APIView):
             )
 
         try:
-            result = pipeline.chat(
-                question=question,
-                conversation_id=conversation_id,
-                content_types=content_types,
-                files=files if hasattr(pipeline, '_build_human_message') else None,
-            )
+            chat_kwargs: dict = {
+                "question": question,
+                "conversation_id": conversation_id,
+                "content_types": content_types,
+            }
+            # Only pass files to pipelines that support multimodal input
+            if files and hasattr(pipeline, '_build_human_message'):
+                chat_kwargs["files"] = files
+            result = pipeline.chat(**chat_kwargs)
         except Exception as exc:
-            logger.error("RAG chat error: %s", exc)
+            logger.error("RAG chat error: %s", exc, exc_info=True)
             return Response(
                 {'error': 'Failed to process question. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

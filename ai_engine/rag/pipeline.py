@@ -35,7 +35,7 @@ class RAGPipeline:
         max_tokens: int = 1024,
     ) -> None:
         self.retrieval_k = retrieval_k
-        self.model_name = model_name or os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+        self.model_name = model_name or os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "google/gemini-2.0-flash-001"))
         self.temperature = temperature
         self.max_tokens = max_tokens
 
@@ -142,9 +142,16 @@ class RAGPipeline:
         except Exception as exc:
             status["components"]["redis"] = f"error: {exc}"
 
-        # Check Gemini key presence
-        has_key = bool(os.environ.get("GEMINI_API_KEY"))
-        status["components"]["gemini_key"] = "configured" if has_key else "missing"
+        # Check LLM key presence
+        has_openrouter = bool(os.environ.get("OPENROUTER_API_KEY"))
+        has_gemini = bool(os.environ.get("GEMINI_API_KEY"))
+        if has_openrouter:
+            status["components"]["llm_key"] = "openrouter_configured"
+        elif has_gemini:
+            status["components"]["llm_key"] = "gemini_configured"
+        else:
+            status["components"]["llm_key"] = "missing"
+            status["status"] = "degraded"
 
         # Check DB connection string
         try:
