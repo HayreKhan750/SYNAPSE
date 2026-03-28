@@ -1716,6 +1716,10 @@ class DocumentGenerateStreamView(APIView):
         sections   = data.get('sections', [])
         model_override = data.get('model', '')
 
+        # Resolve LLM keys HERE — before the generator starts — so the user
+        # object is still fully bound to the request/DB session.
+        _openrouter_key, _gemini_key = DocumentGenerateView._get_llm_keys(user)
+
         def event_stream():
             def emit(step, message, progress, done=False, error=None, extra=None):
                 payload = {
@@ -1730,12 +1734,16 @@ class DocumentGenerateStreamView(APIView):
                     payload.update(extra)
                 yield f'data: {_json.dumps(payload)}\n\n'
 
+            # Use keys resolved before generator started
+            openrouter_key = _openrouter_key
+            gemini_key     = _gemini_key
+
             try:
                 # Step 1: Validate & start
                 yield from emit('start', f'Starting {doc_type.upper()} generation for "{title}"...', 5)
 
-                # Step 2: Check LLM keys
-                openrouter_key, gemini_key = DocumentGenerateView._get_llm_keys(user)
+                # Step 2: Report LLM key status
+                openrouter_key, gemini_key = openrouter_key, gemini_key  # already resolved
                 has_llm = bool(openrouter_key or gemini_key)
                 provider = 'OpenRouter' if openrouter_key else ('Gemini' if gemini_key else 'None')
                 
