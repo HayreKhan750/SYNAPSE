@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/auth/', include('apps.users.urls')),
+    path('api/v1/users/', include('apps.users.urls')),  # alias — frontend uses /users/ prefix
     path('api/v1/articles/', include('apps.articles.urls')),
     path('api/v1/repos/', include('apps.repositories.urls')),
     path('api/v1/papers/', include('apps.papers.urls')),
