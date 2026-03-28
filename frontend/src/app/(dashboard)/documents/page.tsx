@@ -273,20 +273,16 @@ function DocumentCard({ doc, onDelete, driveConnected }: { doc: DocumentRecord; 
     if (showPreview) { setShowPreview(false); return; }
     setPreviewLoading(true);
     try {
-      // Fetch the rendered HTML directly with the Authorization header
-      // so we never need to point an iframe at the backend URL (avoids all
-      // CSP frame-ancestors / X-Frame-Options / localhost refused issues).
+      // Fetch the rendered HTML using ?token= query param (avoids CORS preflight
+      // stripping the Authorization header in cross-origin dev setups).
       const token = useAuthStore.getState().accessToken;
       const rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const apiBase = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
-      // Normalise: api.ts already adds /api/v1, so strip it if present
-      const origin = apiBase.replace(/\/api\/v1\/?$/, "");
+      const origin = rawBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
 
       const res = await fetch(
-        `${origin}/api/v1/documents/${doc.id}/render/`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${origin}/api/v1/documents/${doc.id}/render/?token=${encodeURIComponent(token ?? "")}`
       );
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) throw new Error(`${res.status} — ${await res.text().catch(() => "")}`);
       const html = await res.text();
 
       // Create a blob URL so the iframe renders the HTML locally —
@@ -970,9 +966,9 @@ function HtmlTemplateBuilder({ onSuccess }: { onSuccess: () => void }) {
                       const token = useAuthStore.getState().accessToken;
                       const rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
                       const origin = rawBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
-                      const res = await fetch(`${origin}/api/v1/documents/${generatedDoc.id}/render/`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                      });
+                      const res = await fetch(
+                        `${origin}/api/v1/documents/${generatedDoc.id}/render/?token=${encodeURIComponent(token ?? "")}`
+                      );
                       if (!res.ok) throw new Error(`${res.status}`);
                       const html = await res.text();
                       const blob = new Blob([html], { type: "text/html" });
