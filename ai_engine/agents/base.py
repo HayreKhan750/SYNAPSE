@@ -26,10 +26,26 @@ import os
 import time
 from typing import Any, Dict, Iterator, List, Optional
 
-from langgraph.prebuilt import create_react_agent
 from langchain_core.tools import BaseTool
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from langchain_openai import ChatOpenAI
+
+# langchain_openai and langgraph are imported lazily inside methods so that
+# doc_tools.py (which only uses reportlab/pptx) can be imported without
+# requiring langchain_openai to be installed in environments that only use
+# the document generation tools.
+try:
+    from langchain_openai import ChatOpenAI as _ChatOpenAI  # type: ignore
+    _OPENAI_AVAILABLE = True
+except ImportError:
+    _ChatOpenAI = None  # type: ignore
+    _OPENAI_AVAILABLE = False
+
+try:
+    from langgraph.prebuilt import create_react_agent as _create_react_agent  # type: ignore
+    _LANGGRAPH_AVAILABLE = True
+except ImportError:
+    _create_react_agent = None  # type: ignore
+    _LANGGRAPH_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +110,13 @@ class SynapseAgent:
     # Construction helpers
     # ------------------------------------------------------------------
 
-    def _build_llm(self) -> ChatOpenAI:
+    def _build_llm(self):
         """Instantiate the LLM used by the agent via OpenRouter (OpenAI-compatible)."""
         openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
         openrouter_base = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
         openrouter_model = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
-        if openrouter_key:
-            return ChatOpenAI(
+        if openrouter_key and _OPENAI_AVAILABLE and _ChatOpenAI is not None:
+            return _ChatOpenAI(
                 model=openrouter_model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
@@ -133,7 +149,11 @@ class SynapseAgent:
     def graph(self):
         """Lazy-initialised LangGraph ReAct graph (built once, reused)."""
         if self._graph is None:
-            self._graph = create_react_agent(
+            if not _LANGGRAPH_AVAILABLE or _create_react_agent is None:
+                raise ImportError(
+                    "langgraph is not installed. Install it with: pip install langgraph"
+                )
+            self._graph = _create_react_agent(
                 model=self._llm,
                 tools=self.tools,
                 prompt=REACT_SYSTEM_PROMPT,

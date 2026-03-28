@@ -80,6 +80,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       PYTHONPATH: /app:/ai_engine_pkg
       DJANGO_SETTINGS_MODULE: config.settings.development
+      DJANGO_MEDIA_ROOT: /app/media
     ports:
       - "8000:8000"
     volumes:
@@ -189,6 +190,7 @@ services:
     environment:
       DATABASE_URL: postgresql://synapse_user:synapse_pass@postgres:5432/synapse_db
       DB_HOST: postgres
+      DJANGO_SETTINGS_MODULE: config.settings.development
       DB_PORT: "5432"
       DB_NAME: synapse_db
       DB_USER: synapse_user
