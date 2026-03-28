@@ -215,6 +215,8 @@ class DocumentGenerateView(APIView):
         # 1. Try user preferences first (keys saved via Settings page)
         if user is not None:
             try:
+                # Always refresh from DB so we pick up keys saved in this session
+                user.refresh_from_db(fields=["preferences"])
                 prefs = getattr(user, "preferences", {}) or {}
                 if isinstance(prefs, dict):
                     openrouter_key = prefs.get("openrouter_api_key", "").strip()

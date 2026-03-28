@@ -79,9 +79,14 @@ function AiKeysForm() {
   const [saving, setSaving]             = useState(false);
   const [loaded, setLoaded]             = useState(false);
 
+  const [geminiConfigured, setGeminiConfigured]         = useState(false);
+  const [openrouterConfigured, setOpenrouterConfigured] = useState(false);
+
   useEffect(() => {
     // Load masked key status from backend
     api.get('/users/ai-keys/').then(({ data }) => {
+      setGeminiConfigured(!!data.gemini_configured);
+      setOpenrouterConfigured(!!data.openrouter_configured);
       if (data.gemini_configured)     setGeminiKey('••••••••••••••••');
       if (data.openrouter_configured) setOpenrouterKey('••••••••••••••••');
       setLoaded(true);
@@ -97,8 +102,8 @@ function AiKeysForm() {
       if (!Object.keys(payload).length) { toast.error('No new keys to save.'); setSaving(false); return; }
       await api.post('/users/ai-keys/', payload);
       toast.success('AI keys saved! Document generation is now powered by your keys.');
-      if (payload.gemini_api_key)     setGeminiKey('••••••••••••••••');
-      if (payload.openrouter_api_key) setOpenrouterKey('••••••••••••••••');
+      if (payload.gemini_api_key)     { setGeminiKey('••••••••••••••••');     setGeminiConfigured(true); }
+      if (payload.openrouter_api_key) { setOpenrouterKey('••••••••••••••••'); setOpenrouterConfigured(true); }
     } catch {
       toast.error('Failed to save keys.');
     } finally {
@@ -112,9 +117,13 @@ function AiKeysForm() {
     <div className="space-y-4">
       {/* Gemini */}
       <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">
+        <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-2">
           Google Gemini API Key
-          <span className="ml-2 text-indigo-400 text-xs font-normal">gemini-1.5-flash / gemini-2.0</span>
+          <span className="text-indigo-400 text-xs font-normal">gemini-1.5-flash / gemini-2.0</span>
+          {loaded && (geminiConfigured
+            ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
+            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-400">Not set</span>
+          )}
         </label>
         <div className="relative">
           <input
@@ -136,9 +145,13 @@ function AiKeysForm() {
 
       {/* OpenRouter */}
       <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">
+        <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-2">
           OpenRouter API Key
-          <span className="ml-2 text-violet-400 text-xs font-normal">Fallback / GPT-4o / Claude</span>
+          <span className="text-violet-400 text-xs font-normal">Fallback / GPT-4o / Claude</span>
+          {loaded && (openrouterConfigured
+            ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
+            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-400">Not set</span>
+          )}
         </label>
         <div className="relative">
           <input
