@@ -41,8 +41,11 @@ interface ProfileData {
   last_name: string
   email: string
   bio: string
-  date_joined: string
-  subscription_plan: string
+  role: string
+  avatar_url: string
+  created_at: string          // ISO datetime from UserProfileSerializer
+  last_login: string | null
+  preferences: Record<string, unknown>
   stats: ProfileStats
 }
 
@@ -69,8 +72,25 @@ export default function ProfilePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await api.get('/users/profile/')
-        const p: ProfileData = data?.data ?? data
+        // GET /api/v1/auth/me/ — returns user data directly (no wrapper)
+        const { data } = await api.get('/auth/me/')
+        // Fetch activity counts (non-critical — ignore if endpoint missing)
+        const stats: ProfileStats = { articles_bookmarked: 0, papers_bookmarked: 0, repos_bookmarked: 0, chat_sessions: 0, documents_generated: 0, agent_tasks: 0 }
+        try {
+          const [convRes, agentRes] = await Promise.allSettled([
+            api.get('/conversations/?limit=1'),
+            api.get('/agents/tasks/?limit=1'),
+          ])
+          if (convRes.status === 'fulfilled') {
+            const d = convRes.value.data
+            stats.chat_sessions = d?.meta?.total ?? d?.count ?? 0
+          }
+          if (agentRes.status === 'fulfilled') {
+            const d = agentRes.value.data
+            stats.agent_tasks = d?.meta?.total ?? d?.count ?? 0
+          }
+        } catch { /* non-critical */ }
+        const p: ProfileData = { ...data, stats }
         setProfile(p)
         setForm({ first_name: p.first_name || '', last_name: p.last_name || '', bio: p.bio || '' })
       } catch {
@@ -85,9 +105,10 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const { data } = await api.patch('/users/profile/', form)
+      // PATCH /api/v1/auth/me/ — returns {success, data: {...}}
+      const { data } = await api.patch('/auth/me/', form)
       const updated: ProfileData = data?.data ?? data
-      setProfile(updated)
+      setProfile(prev => ({ ...(prev ?? {} as ProfileData), ...updated }))
       if (setUser) setUser({ ...user, ...form })
       toast.success('Profile updated!')
       setEditing(false)
@@ -102,10 +123,10 @@ export default function ProfilePage() {
     ? (profile.first_name?.[0] ?? '') + (profile.last_name?.[0] ?? '') || profile.username?.[0]?.toUpperCase() || '?'
     : '?'
 
-  const planBadge: Record<string, string> = {
-    free: 'bg-slate-700 text-slate-300',
-    pro: 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40',
-    enterprise: 'bg-amber-600/30 text-amber-300 border border-amber-500/40',
+  const roleBadge: Record<string, string> = {
+    user: 'bg-slate-700 text-slate-300',
+    admin: 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40',
+    moderator: 'bg-amber-600/30 text-amber-300 border border-amber-500/40',
   }
 
   return (
@@ -198,8 +219,8 @@ export default function ProfilePage() {
                         <h2 className="text-xl font-bold text-white">
                           {profile.first_name} {profile.last_name}
                         </h2>
-                        <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium capitalize ${planBadge[profile.subscription_plan] ?? planBadge.free}`}>
-                          {profile.subscription_plan}
+                        <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium capitalize ${roleBadge[profile.role] ?? roleBadge.user}`}>
+                          {profile.role}
                         </span>
                       </div>
                       <p className="text-slate-400 text-sm mb-1">@{profile.username}</p>
@@ -211,7 +232,7 @@ export default function ProfilePage() {
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Calendar size={13} className="text-slate-600" />
-                          Joined {new Date(profile.date_joined).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                          Joined {new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
                         </span>
                       </div>
                       <button
@@ -250,8 +271,9 @@ export default function ProfilePage() {
                 {[
                   { label: 'Username', value: profile.username },
                   { label: 'Email', value: profile.email },
-                  { label: 'Plan', value: profile.subscription_plan?.charAt(0).toUpperCase() + profile.subscription_plan?.slice(1) },
-                  { label: 'Member since', value: new Date(profile.date_joined).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
+                  { label: 'Role', value: profile.role?.charAt(0).toUpperCase() + profile.role?.slice(1) },
+                  { label: 'Member since', value: new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
+                  { label: 'Last login', value: profile.last_login ? new Date(profile.last_login).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A' },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
                     <span className="text-sm text-slate-400">{label}</span>

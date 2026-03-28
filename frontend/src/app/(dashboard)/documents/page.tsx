@@ -138,7 +138,15 @@ const PROMPT_EXAMPLES: Record<Exclude<DocType, "project">, string> = {
 
 const fetchDocuments = async (): Promise<{ results: DocumentRecord[]; count: number }> => {
   const { data } = await api.get("/documents/");
-  return data;
+  // StandardPagination returns { success, data: [...], meta: {...} }
+  // Normalise to { results, count } for backward compat with the page below
+  if (Array.isArray(data?.data)) {
+    return { results: data.data, count: data.meta?.total ?? data.data.length };
+  }
+  // Fallback: plain DRF { results, count }
+  if (Array.isArray(data?.results)) return { results: data.results, count: data.count ?? data.results.length };
+  if (Array.isArray(data)) return { results: data, count: data.length };
+  return { results: [], count: 0 };
 };
 
 const generateDocument = async (payload: GeneratePayload): Promise<DocumentRecord> => {

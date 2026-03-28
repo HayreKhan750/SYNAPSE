@@ -47,7 +47,11 @@ function extractList<T>(raw: unknown): T[] {
 }
 
 const fetchTrends = async (): Promise<TechnologyTrend[]> => {
-  const { data } = await api.get('/trends/technology-trends/?ordering=-trend_score&limit=50')
+  // GET /api/v1/trends/?ordering=-trend_score&limit=50
+  // Returns { success, count, results: [...] }
+  const { data } = await api.get('/trends/?ordering=-trend_score&limit=50')
+  // Try data.results first, then data.data, then plain array
+  if (Array.isArray(data?.results)) return data.results
   return extractList<TechnologyTrend>(data)
 }
 
