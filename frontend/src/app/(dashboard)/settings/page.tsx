@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
+import axios from 'axios'
 import { useTheme } from 'next-themes'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/utils/api'
@@ -83,14 +84,17 @@ function AiKeysForm() {
   const [openrouterConfigured, setOpenrouterConfigured] = useState(false);
 
   useEffect(() => {
-    // Load masked key status from backend
-    api.get('/users/ai-keys/').then(({ data }) => {
+    // Load masked key status from backend — always refetch fresh on mount
+    const controller = new AbortController();
+    api.get('/users/ai-keys/', { signal: controller.signal }).then(({ data }) => {
       setGeminiConfigured(!!data.gemini_configured);
       setOpenrouterConfigured(!!data.openrouter_configured);
-      if (data.gemini_configured)     setGeminiKey('••••••••••••••••');
-      if (data.openrouter_configured) setOpenrouterKey('••••••••••••••••');
+      // Only set bullets if key is configured AND user hasn't started typing
+      setGeminiKey(data.gemini_configured ? '••••••••••••••••' : '');
+      setOpenrouterKey(data.openrouter_configured ? '••••••••••••••••' : '');
       setLoaded(true);
-    }).catch(() => setLoaded(true));
+    }).catch((e) => { if (!axios.isCancel(e)) setLoaded(true); });
+    return () => controller.abort();
   }, []);
 
   const handleSave = async () => {
@@ -112,6 +116,16 @@ function AiKeysForm() {
   };
 
   const fieldClass = 'w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+
+  if (!loaded) return (
+    <div className="space-y-4 animate-pulse">
+      <div className="h-4 w-48 bg-slate-700 rounded" />
+      <div className="h-10 bg-slate-800 rounded-lg" />
+      <div className="h-4 w-48 bg-slate-700 rounded" />
+      <div className="h-10 bg-slate-800 rounded-lg" />
+      <div className="h-9 w-32 bg-indigo-900/50 rounded-lg" />
+    </div>
+  );
 
   return (
     <div className="space-y-4">
