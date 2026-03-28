@@ -532,10 +532,23 @@ function HtmlTemplateBuilder({ onSuccess }: { onSuccess: () => void }) {
     const cat = selectedCat;
     const styleLabel = HTML_STYLE_PRESETS.find(s => s.id === stylePreset)?.label ?? stylePreset;
     const featureList = features.map(f => FEATURE_OPTIONS.find(o => o.id === f)?.label ?? f).join(", ");
-    const base = category === "custom"
-      ? customPrompt
+    // Base: use the custom prompt if provided, otherwise a smart default per category
+    const base = customPrompt.trim()
+      ? customPrompt.trim()
       : `Create a stunning, production-ready ${cat?.label ?? category} HTML template`;
-    return `${base}. Style: ${styleLabel}. Primary color: ${colorScheme}. ${featureList ? `Include these features: ${featureList}.` : ""} Use modern HTML5, CSS3 (inline <style>), and vanilla JS. Make it visually impressive, pixel-perfect, and fully self-contained in a single HTML file. No external dependencies except Google Fonts and CDN libraries. Include beautiful gradients, micro-interactions, and premium typography.`;
+    // For non-custom categories with a custom prompt, prefix with the category context
+    const contextPrefix = customPrompt.trim() && category !== "custom"
+      ? `Create a ${cat?.label ?? category} template. Additional requirements: `
+      : "";
+    return (
+      `${contextPrefix}${base}. ` +
+      `Style: ${styleLabel}. Primary color: ${colorScheme}. ` +
+      (featureList ? `Include these features: ${featureList}. ` : "") +
+      `Use modern HTML5, CSS3 (inline <style>), and vanilla JS. ` +
+      `Make it visually impressive, pixel-perfect, and fully self-contained in a single HTML file. ` +
+      `No external dependencies except Google Fonts and CDN libraries. ` +
+      `Include beautiful gradients, micro-interactions, and premium typography.`
+    );
   };
 
   const didCompleteRef = useRef(false);
@@ -543,7 +556,7 @@ function HtmlTemplateBuilder({ onSuccess }: { onSuccess: () => void }) {
   const handleGenerate = async () => {
     if (!title.trim()) { toast.error("Please enter a template title."); return; }
     if (!category) { toast.error("Please choose a template category."); return; }
-    if (category === "custom" && !customPrompt.trim()) { toast.error("Please describe your template."); return; }
+    if (category === "custom" && !customPrompt.trim()) { toast.error("Please describe your custom template in Step 1."); return; }
 
     // Reset completion guard so re-generates work correctly
     didCompleteRef.current = false;
@@ -674,14 +687,13 @@ function HtmlTemplateBuilder({ onSuccess }: { onSuccess: () => void }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {HTML_TEMPLATE_CATEGORIES.map(cat => (
                 <motion.button key={cat.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  onClick={() => { setCategory(cat.id); setStep(2); }}
+                  onClick={() => setCategory(cat.id === category ? "" : cat.id)}
                   className={`relative flex flex-col gap-2 p-4 rounded-2xl border-2 text-left transition-all overflow-hidden ${
                     category === cat.id
                       ? "border-violet-500 shadow-lg shadow-violet-500/20"
                       : "border-gray-200 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700"
                   }`}>
-                  {/* gradient bg */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-0 ${category === cat.id ? "opacity-5" : "group-hover:opacity-3"} transition-opacity`} />
+                  <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-0 ${category === cat.id ? "opacity-5" : ""} transition-opacity`} />
                   <span className="text-2xl">{cat.icon}</span>
                   <div>
                     <p className="font-bold text-sm text-gray-900 dark:text-white">{cat.label}</p>
@@ -692,10 +704,71 @@ function HtmlTemplateBuilder({ onSuccess }: { onSuccess: () => void }) {
                       <CheckCircle2 className="w-3 h-3 text-white" />
                     </div>
                   )}
-                  <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute bottom-3 right-3" />
                 </motion.button>
               ))}
             </div>
+
+            {/* Custom prompt — shown for ALL categories once one is selected */}
+            <AnimatePresence>
+              {category && (
+                <motion.div
+                  key="prompt-box"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="rounded-2xl border-2 border-violet-300 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-900/10 p-4 space-y-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{HTML_TEMPLATE_CATEGORIES.find(c => c.id === category)?.icon}</span>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">
+                        {HTML_TEMPLATE_CATEGORIES.find(c => c.id === category)?.label} selected
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Optionally describe your specific requirements, style, or content below.
+                      </p>
+                    </div>
+                  </div>
+                  <textarea
+                    value={customPrompt}
+                    onChange={e => setCustomPrompt(e.target.value)}
+                    rows={3}
+                    placeholder={
+                      category === "portfolio"   ? "e.g. Dark luxury portfolio for a UX designer named Alex. Include projects: Brand Identity, Mobile App, Web Design. Skills: Figma, React, CSS. Add a glowing cursor effect…" :
+                      category === "landing"     ? "e.g. SaaS landing page for an AI writing tool called 'Prose'. Hero with animated gradient, 3 feature cards, pricing section, testimonials, dark mode…" :
+                      category === "ecommerce"   ? "e.g. Minimalist fashion store called 'Moda'. Product grid with quick-view modals, cart sidebar, category filters, newsletter signup…" :
+                      category === "restaurant"  ? "e.g. Upscale Italian restaurant called 'Trattoria Roma'. Menu sections, reservation form, chef intro, warm gold/cream color palette…" :
+                      category === "saas"        ? "e.g. Project management SaaS dashboard with sidebar nav, KPI cards, line chart for growth, task list, team members panel…" :
+                      category === "music"       ? "e.g. Artist page for electronic music producer 'Neon Pulse'. Dark neon theme, latest releases, tour dates, Spotify embeds, merch section…" :
+                      category === "realestate"  ? "e.g. Luxury real estate agency. Property cards with price/beds/baths, hero with search bar, agent profiles, neighborhood guide…" :
+                      category === "app"         ? "e.g. Mobile app landing for a fitness tracker called 'FitFlow'. iPhone mockup in hero, feature list, testimonials, App Store / Play Store CTAs…" :
+                      category === "crypto"      ? "e.g. DeFi token called 'ApeX'. Animated gradient bg, tokenomics pie chart, roadmap timeline, team section, wallet connect button…" :
+                      category === "medical"     ? "e.g. Dental clinic 'SmilePro'. Services grid, doctor profiles, online booking form, patient testimonials, blue/white clean design…" :
+                      category === "wedding"     ? "e.g. Wedding page for Emma & James. Countdown timer, our story timeline, photo gallery grid, RSVP form, venue map, blush/gold palette…" :
+                      category === "startup"     ? "e.g. Startup pitch page for a climate-tech company 'GreenGrid'. Problem/solution sections, team, investors logos, waitlist signup…" :
+                      category === "resume"      ? "e.g. CV for a senior software engineer. Clean one-pager with skills progress bars, work timeline, education, GitHub stats, contact…" :
+                      category === "blog"        ? "e.g. Personal tech blog called 'ByteSize'. Featured post hero, article cards grid, category tags, newsletter signup, dark reading mode…" :
+                      category === "agency"      ? "e.g. Creative agency 'Studio Flux'. Bold fullscreen hero, work portfolio masonry grid, services, team, awards, dramatic typography…" :
+                      category === "docs"        ? "e.g. Developer docs for a REST API. Sidebar nav with sections, code blocks with syntax highlighting, search bar, version selector…" :
+                      category === "custom"      ? "Describe anything — layout, sections, colors, animations, content, special features…" :
+                      "Add any specific requirements, sections, color palette, content or special features you want included…"
+                    }
+                    className="w-full px-4 py-3 rounded-xl border border-violet-200 dark:border-violet-800 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none placeholder-gray-400 dark:placeholder-gray-500"
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Leave blank to let AI decide — or add details for a more personalised result.
+                    </p>
+                    <button
+                      onClick={() => setStep(2)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-sm font-semibold transition shadow-md shadow-violet-500/20"
+                    >
+                      Next: Style & Features →
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
 
@@ -709,13 +782,16 @@ function HtmlTemplateBuilder({ onSuccess }: { onSuccess: () => void }) {
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder-gray-400" />
             </div>
 
-            {/* Custom prompt (only for custom category) */}
-            {category === "custom" && (
+            {/* Custom prompt summary (read-only, from Step 1) */}
+            {customPrompt.trim() && (
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Describe Your Template *</label>
-                <textarea value={customPrompt} onChange={e => setCustomPrompt(e.target.value)} rows={3}
-                  placeholder="e.g. A dark cyberpunk-themed agency website with neon accents, particle background, animated hero section…"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none placeholder-gray-400" />
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-violet-500" /> Your Requirements
+                </label>
+                <div className="relative px-4 py-3 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/10 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                  <p className="line-clamp-3">{customPrompt}</p>
+                  <button onClick={() => setStep(1)} className="mt-2 text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium">← Edit in Step 1</button>
+                </div>
               </div>
             )}
 
