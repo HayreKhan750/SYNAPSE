@@ -344,15 +344,15 @@ function DocumentCard({ doc, onDelete, driveConnected }: { doc: DocumentRecord; 
       {/* Glow on hover */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/0 to-violet-500/0 group-hover:from-indigo-500/3 group-hover:to-violet-500/3 transition-all duration-300 pointer-events-none" />
 
-      <div className="flex items-start justify-between gap-2">
-        <div className={`p-2.5 rounded-xl ${cfg.bg} shadow-sm`}>
+      <div className="flex items-start justify-between gap-2 min-w-0">
+        <div className={`p-2.5 rounded-xl ${cfg.bg} shadow-sm shrink-0`}>
           {isHtmlTemplate ? <LayoutTemplate className="w-5 h-5 text-violet-500" /> : <Icon className={`w-5 h-5 ${cfg.colour}`} />}
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap justify-end">
-          {driveUrl && <a href={driveUrl} target="_blank" rel="noopener noreferrer" className="p-1 rounded-full bg-green-50 dark:bg-green-900/20" title="View on Drive"><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /></a>}
-          {googleDocUrl && <a href={googleDocUrl} target="_blank" rel="noopener noreferrer" className="p-1 rounded-full bg-green-50 dark:bg-green-900/20" title="View Google Doc"><FileText className="w-3.5 h-3.5 text-green-600" /></a>}
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.colour}`}>
-            {isHtmlTemplate ? "HTML Template" : cfg.label}
+        <div className="flex items-center gap-1 flex-wrap justify-end min-w-0">
+          {driveUrl && <a href={driveUrl} target="_blank" rel="noopener noreferrer" className="p-1 rounded-full bg-green-50 dark:bg-green-900/20 shrink-0" title="View on Drive"><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /></a>}
+          {googleDocUrl && <a href={googleDocUrl} target="_blank" rel="noopener noreferrer" className="p-1 rounded-full bg-green-50 dark:bg-green-900/20 shrink-0" title="View Google Doc"><FileText className="w-3.5 h-3.5 text-green-600" /></a>}
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${cfg.bg} ${cfg.colour}`}>
+            {isHtmlTemplate ? "HTML" : cfg.label}
           </span>
         </div>
       </div>
@@ -367,21 +367,35 @@ function DocumentCard({ doc, onDelete, driveConnected }: { doc: DocumentRecord; 
         <span>{formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}</span>
       </div>
 
-      {/* Primary actions */}
-      <div className="flex gap-2">
-        <button onClick={handleDownload} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition">
-          <Download className="w-3.5 h-3.5" /> {doc.doc_type === "project" ? "Download .zip" : "Download"}
-        </button>
-        <button onClick={handlePreview} disabled={previewLoading} title={showPreview ? "Hide preview" : "Preview"}
-          className={`p-1.5 rounded-lg transition ${showPreview ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30" : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"}`}>
-          {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-        </button>
-        <button onClick={() => setShowSectionEditor(true)} className="p-1.5 rounded-lg text-gray-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition" title="Edit sections"><Archive className="w-4 h-4" /></button>
-        <button onClick={() => setShowRegenModal(true)} className="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition" title="Regenerate"><Sparkles className="w-4 h-4" /></button>
-        <button onClick={handleShowVersions} disabled={versionsLoading} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition ${showVersions ? "bg-violet-100 dark:bg-violet-900/30 text-violet-700" : "bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-violet-50 hover:text-violet-600"}`} title="Version history">
-          {versionsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null} v{doc.version ?? 1}
-        </button>
-        <button onClick={() => onDelete(doc.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
+      {/* Primary actions — two rows on small cards, single row when wide */}
+      <div className="flex flex-col gap-2">
+        {/* Row 1: Download + Preview (stretch full width) */}
+        <div className="flex gap-2">
+          <button onClick={handleDownload} className="flex-1 min-w-0 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition truncate">
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{doc.doc_type === "project" ? "Download .zip" : "Download"}</span>
+          </button>
+          <button onClick={handlePreview} disabled={previewLoading} title={showPreview ? "Hide preview" : "Preview"}
+            className={`shrink-0 p-1.5 rounded-lg transition ${showPreview ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30" : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"}`}>
+            {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        {/* Row 2: utility actions — evenly spaced, never overflow */}
+        <div className="flex items-center justify-between gap-1">
+          <button onClick={() => setShowSectionEditor(true)} className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-xs text-gray-500 dark:text-gray-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition" title="Edit sections">
+            <Archive className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Edit</span>
+          </button>
+          <button onClick={() => setShowRegenModal(true)} className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-xs text-gray-500 dark:text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition" title="Regenerate">
+            <Sparkles className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Regen</span>
+          </button>
+          <button onClick={handleShowVersions} disabled={versionsLoading} className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-xs font-bold transition ${showVersions ? "bg-violet-100 dark:bg-violet-900/30 text-violet-700" : "text-gray-500 dark:text-gray-400 hover:bg-violet-50 hover:text-violet-600"}`} title="Version history">
+            {versionsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+            <span>v{doc.version ?? 1}</span>
+          </button>
+          <button onClick={() => onDelete(doc.id)} className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-xs text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Delete">
+            <Trash2 className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Delete</span>
+          </button>
+        </div>
       </div>
 
       {/* Cloud actions */}
@@ -1341,40 +1355,40 @@ export default function DocumentsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 lg:pb-8 space-y-6">
 
         {/* ── Hero header ── */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-8 text-white shadow-2xl shadow-violet-500/20">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-5 sm:p-8 text-white shadow-2xl shadow-violet-500/20">
           {/* Decorative dots grid */}
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1.5px, transparent 1.5px)", backgroundSize: "24px 24px" }} />
           {/* Glowing orbs */}
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -translate-y-20 translate-x-20 blur-3xl" />
           <div className="absolute bottom-0 left-0 w-60 h-60 bg-purple-400/10 rounded-full translate-y-16 -translate-x-16 blur-2xl" />
 
-          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <span className="text-xs font-bold tracking-widest text-violet-200 uppercase">Document Studio</span>
               </div>
-              <h1 className="text-3xl font-black tracking-tight mb-2">Create with AI</h1>
-              <p className="text-violet-200 text-sm leading-relaxed max-w-lg">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-1 sm:mb-2 leading-tight">Create with AI</h1>
+              <p className="text-violet-200 text-xs sm:text-sm leading-relaxed max-w-lg hidden sm:block">
                 Generate professional PDFs, presentations, docs, and stunning HTML templates — all powered by state-of-the-art AI models.
               </p>
-              <div className="flex items-center gap-4 mt-4 text-sm">
-                <div className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-400" /><span className="text-violet-100">{totalDocs} documents created</span></div>
-                <div className="flex items-center gap-1.5"><Zap className="w-4 h-4 text-amber-400" /><span className="text-violet-100">Streaming generation</span></div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 sm:mt-4 text-xs sm:text-sm">
+                <div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" /><span className="text-violet-100 whitespace-nowrap">{totalDocs} docs created</span></div>
+                <div className="flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" /><span className="text-violet-100 whitespace-nowrap">Streaming</span></div>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
+            <div className="flex flex-row sm:flex-col gap-2 sm:gap-3 shrink-0">
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={() => { setActiveTab("documents"); setShowForm(s => !s); }}
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-indigo-700 font-bold text-sm shadow-xl hover:bg-indigo-50 transition">
-                <Plus className="w-4 h-4" /> New Document
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-xl bg-white text-indigo-700 font-bold text-xs sm:text-sm shadow-xl hover:bg-indigo-50 transition whitespace-nowrap">
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> New Document
               </motion.button>
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={() => { setActiveTab("projects"); setShowForm(false); }}
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur border border-white/20 text-white font-bold text-sm transition">
-                <FolderGit2 className="w-4 h-4" /> Project Builder
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur border border-white/20 text-white font-bold text-xs sm:text-sm transition whitespace-nowrap">
+                <FolderGit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Project Builder
               </motion.button>
             </div>
           </div>
