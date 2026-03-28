@@ -2379,51 +2379,26 @@ def _generate_html_page_from_prompt(
 
         # ── 1. LLM-generated HTML ────────────────────────────────────────────
         system_prompt = (
-            "You are a world-class front-end developer and UI/UX designer with 15+ years of experience "
-            "building award-winning websites. Your specialty is creating visually stunning, "
-            "pixel-perfect, production-ready HTML/CSS/JS pages in a single self-contained file.\n\n"
-
-            "ABSOLUTE RULES:\n"
-            "1. Output ONLY raw HTML — no markdown fences (```), no explanation, no preamble, no comments outside the file.\n"
-            "2. Start with exactly <!DOCTYPE html> and end with exactly </html>.\n"
-            "3. ALL CSS inside one <style> tag in <head>. ALL JS inside <script> tags before </body>.\n"
-            "4. Zero external dependencies except: Google Fonts CDN, and optionally one of: "
-            "   Alpine.js (cdn.jsdelivr.net), Chart.js (cdn.jsdelivr.net), Animate.css (cdnjs).\n\n"
-
-            "DESIGN REQUIREMENTS:\n"
-            "- Match the user's requested page type, style, and colour scheme EXACTLY.\n"
-            "- Use CSS custom properties (variables) for the colour palette.\n"
-            "- Implement a mobile-first responsive layout using CSS Grid and Flexbox.\n"
-            "- Include smooth CSS transitions and keyframe animations (fade-in, slide-up, etc.).\n"
-            "- Add JavaScript micro-interactions: hover effects, scroll-triggered reveals, "
-            "  smooth scrolling, active nav highlighting, hamburger menu on mobile.\n"
-            "- Use Google Fonts — choose a premium pairing that fits the page personality.\n"
-            "- Every section should have real, meaningful placeholder content (names, copy, "
-            "  descriptions, prices, testimonials — NOT lorem ipsum).\n"
-            "- Include all sections the user specifies. If the user doesn't specify, infer "
-            "  the best sections for the page type (e.g. portfolio → hero, about, skills, "
-            "  projects, contact).\n\n"
-
-            "TECHNICAL QUALITY:\n"
-            "- Semantic HTML5 elements: <header>, <nav>, <main>, <section>, <article>, <footer>.\n"
-            "- Add scroll-reveal animations using IntersectionObserver JS API.\n"
-            "- Navigation should be sticky/fixed with a backdrop-filter blur on scroll.\n"
-            "- CTA buttons must have hover lift effect (transform + box-shadow).\n"
-            "- Cards must have hover effects (scale, shadow, border glow).\n"
-            "- Add a scroll-to-top button that appears after scrolling 300px.\n"
-            "- Ensure all images use placeholder services (picsum.photos, ui-avatars.com, "
-            "  placehold.co) with appropriate dimensions and alt text.\n"
-            "- Add a preloader or smooth page entrance animation.\n\n"
-
-            "CRITICAL: Return ONLY the raw HTML code starting with <!DOCTYPE html>. Nothing else."
+            "You are an expert front-end developer. Write a COMPLETE, fully self-contained HTML file.\n\n"
+            "RULES (non-negotiable):\n"
+            "1. Output ONLY raw HTML — no markdown fences, no explanation, no preamble.\n"
+            "2. Start with <!DOCTYPE html> and end with </html>.\n"
+            "3. All CSS in a <style> tag in <head>. All JS in <script> before </body>.\n"
+            "4. Only allowed external: Google Fonts CDN, cdn.jsdelivr.net (Alpine.js / Chart.js).\n\n"
+            "DESIGN:\n"
+            "- Match the user's page type, style and colour scheme exactly.\n"
+            "- CSS custom properties for colours. Mobile-first grid/flex layout.\n"
+            "- Smooth transitions, keyframe animations, hover effects, sticky nav with blur.\n"
+            "- Real, meaningful placeholder content — no lorem ipsum.\n"
+            "- Semantic HTML5 (<header><nav><main><section><footer>).\n"
+            "- picsum.photos / placehold.co for images.\n\n"
+            "CRITICAL: Return ONLY the raw HTML starting with <!DOCTYPE html>."
         )
 
         user_msg = (
-            f"Page title: {title}\n"
-            f"Page type: {subtitle or 'Web Page'}\n\n"
-            f"User requirements:\n{prompt}\n\n"
-            "Generate the complete, production-ready HTML file now. "
-            "Make it visually impressive and fully functional. Start with <!DOCTYPE html>."
+            f"Title: {title} | Type: {subtitle or 'Web Page'}\n\n"
+            f"Requirements:\n{prompt[:1500]}\n\n"
+            "Generate the complete HTML file. Start with <!DOCTYPE html>."
         )
 
         raw_html = None
@@ -2431,17 +2406,47 @@ def _generate_html_page_from_prompt(
             if openrouter_key:
                 from langchain_openai import ChatOpenAI
                 from langchain_core.messages import HumanMessage, SystemMessage
+
+                # Choose model — prefer user override, else affordable default
                 model = model_override or os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+
+                # Use a conservative token limit to keep costs low.
+                # Good HTML pages fit well within 2000 output tokens.
+                # Users can raise this via HTML_GEN_MAX_TOKENS env var.
+                max_tok = int(os.environ.get("HTML_GEN_MAX_TOKENS", "2000"))
+
                 llm = ChatOpenAI(
                     model=model,
                     openai_api_key=openrouter_key,
                     openai_api_base=os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
                     temperature=0.7,
-                    max_tokens=16000,
+                    max_tokens=max_tok,
                 )
-                resp = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_msg)])
-                raw_html = resp.content if isinstance(resp.content, str) else str(resp.content)
-                logger.info("HTML page: OpenRouter generated %d chars", len(raw_html))
+                try:
+                    resp = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_msg)])
+                    raw_html = resp.content if isinstance(resp.content, str) else str(resp.content)
+                    logger.info("HTML page: OpenRouter generated %d chars", len(raw_html))
+                except Exception as primary_exc:
+                    logger.warning("HTML LLM primary call failed (%s): %s", model, primary_exc)
+                    # If the chosen model is expensive and fails with 402, auto-retry with gpt-4o-mini
+                    if "402" in str(primary_exc) and model != "openai/gpt-4o-mini":
+                        logger.info("HTML page: retrying with gpt-4o-mini (insufficient credits for %s)", model)
+                        llm_fallback = ChatOpenAI(
+                            model="openai/gpt-4o-mini",
+                            openai_api_key=openrouter_key,
+                            openai_api_base=os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+                            temperature=0.7,
+                            max_tokens=4096,
+                        )
+                        try:
+                            resp = llm_fallback.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_msg)])
+                            raw_html = resp.content if isinstance(resp.content, str) else str(resp.content)
+                            logger.info("HTML page: gpt-4o-mini fallback generated %d chars", len(raw_html))
+                        except Exception as fallback_exc:
+                            logger.warning("HTML LLM fallback also failed: %s", fallback_exc)
+                            raw_html = None
+                    else:
+                        raise  # re-raise so outer handler catches it properly
 
             elif gemini_key:
                 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -2450,7 +2455,7 @@ def _generate_html_page_from_prompt(
                     model=os.environ.get("GEMINI_MODEL", "gemini-1.5-flash-latest"),
                     google_api_key=gemini_key,
                     temperature=0.7,
-                    max_output_tokens=8192,
+                    max_output_tokens=4096,
                     convert_system_message_to_human=True,
                 )
                 resp = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_msg)])
