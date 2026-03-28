@@ -291,12 +291,17 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
       '/feed': 'Tech Feed',
       '/github': 'GitHub Radar',
       '/research': 'Research',
+      '/videos': 'Videos',
+      '/trends': 'Technology Trends',
       '/chat': 'AI Chat',
       '/automation': 'Automation',
-      '/documents': 'Documents',
+      '/agents': 'AI Agents',
+      '/documents': 'Document Studio',
       '/library': 'Library',
       '/notifications': 'Notifications',
       '/search': 'Search',
+      '/profile': 'My Profile',
+      '/settings': 'Settings',
     }
     return (pathname && routeTitles[pathname]) || 'SYNAPSE'
   }

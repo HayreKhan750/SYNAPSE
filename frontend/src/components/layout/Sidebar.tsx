@@ -17,6 +17,10 @@ import {
   ChevronRight,
   Bot,
   Youtube,
+  TrendingUp,
+  User,
+  Settings,
+  Bell,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -32,16 +36,20 @@ export function Sidebar({ isCollapsed, onToggle, mobileOpen, onMobileClose }: Si
   const { user, logout } = useAuthStore()
 
   const navLinks = [
-    { href: '/', label: 'Home', icon: LayoutDashboard, color: 'text-indigo-400' },
-    { href: '/feed', label: 'Tech Feed', icon: Newspaper, color: 'text-cyan-400' },
-    { href: '/github', label: 'GitHub Radar', icon: GitBranch, color: 'text-emerald-400' },
-    { href: '/research', label: 'Research', icon: BookOpen, color: 'text-violet-400' },
-    { href: '/videos', label: 'Videos', icon: Youtube, color: 'text-red-400' },
-    { href: '/chat', label: 'AI Chat', icon: MessageSquare, color: 'text-sky-400' },
-    { href: '/automation', label: 'Automation', icon: Zap, color: 'text-yellow-400' },
-    { href: '/agents', label: 'AI Agents', icon: Bot, color: 'text-pink-400' },
-    { href: '/documents', label: 'Documents', icon: FileText, color: 'text-orange-400' },
-    { href: '/library', label: 'Library', icon: Library, color: 'text-teal-400' },
+    { href: '/',              label: 'Home',          icon: LayoutDashboard, color: 'text-indigo-400' },
+    { href: '/feed',          label: 'Tech Feed',     icon: Newspaper,       color: 'text-cyan-400'   },
+    { href: '/github',        label: 'GitHub Radar',  icon: GitBranch,       color: 'text-emerald-400'},
+    { href: '/research',      label: 'Research',      icon: BookOpen,        color: 'text-violet-400' },
+    { href: '/videos',        label: 'Videos',        icon: Youtube,         color: 'text-red-400'    },
+    { href: '/trends',        label: 'Trends',        icon: TrendingUp,      color: 'text-amber-400'  },
+    { href: '/chat',          label: 'AI Chat',       icon: MessageSquare,   color: 'text-sky-400'    },
+    { href: '/automation',    label: 'Automation',    icon: Zap,             color: 'text-yellow-400' },
+    { href: '/agents',        label: 'AI Agents',     icon: Bot,             color: 'text-pink-400'   },
+    { href: '/documents',     label: 'Documents',     icon: FileText,        color: 'text-orange-400' },
+    { href: '/library',       label: 'Library',       icon: Library,         color: 'text-teal-400'   },
+    { href: '/notifications', label: 'Notifications', icon: Bell,            color: 'text-rose-400'   },
+    { href: '/profile',       label: 'Profile',       icon: User,            color: 'text-slate-400'  },
+    { href: '/settings',      label: 'Settings',      icon: Settings,        color: 'text-slate-400'  },
   ]
 
   const isActive = (href: string) => pathname === href

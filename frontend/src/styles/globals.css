@@ -244,6 +244,38 @@
   );
 }
 
+/* ── Global select / dropdown fix ───────────────────────────────────────────── */
+/* Fixes squished / compressed native <select> elements across all browsers    */
+
+@layer base {
+  select {
+    /* Remove native OS appearance so our custom styles apply everywhere */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* Custom chevron arrow (slate-400) */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    /* Ensure the text doesn't overlap the arrow */
+    padding-right: 2.5rem !important;
+    /* Prevent the browser from collapsing the element */
+    min-width: 0;
+    width: 100%;
+    /* Consistent text rendering */
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  /* Ensure option text is readable in dark mode (Firefox) */
+  select option {
+    background-color: #1e293b; /* slate-800 */
+    color: #f1f5f9;            /* slate-100 */
+  }
+}
+
 /* ── Phase 7.2 — Mobile & PWA utilities ─────────────────────────────────────── */
 
 /* Safe area insets for notched phones / home-bar devices */
