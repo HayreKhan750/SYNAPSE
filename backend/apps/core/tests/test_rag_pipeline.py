@@ -417,6 +417,6 @@ class RAGPipelineHealthTests(TestCase):
             health = pipeline.health_check()
             self.assertIn("status", health)
             self.assertIn("components", health)
-            # Project uses Gemini, not OpenAI — check gemini_key
-            self.assertIn("gemini_key", health["components"])
+            # LLM key reported as llm_key (value varies: gemini_configured / openrouter_configured / missing)
+            self.assertIn("llm_key", health["components"])
             self.assertIn("database", health["components"])

@@ -219,7 +219,8 @@ def _register_workflow_beat(workflow: AutomationWorkflow) -> None:
             defaults={
                 'crontab': schedule,
                 'task': 'apps.automation.tasks.execute_workflow',
-                'kwargs': json.dumps({'workflow_id': str(workflow.id)}),
+                'args': json.dumps([str(workflow.id)]),  # positional arg, not kwargs
+                'kwargs': json.dumps({}),
                 'enabled': workflow.is_active,
             }
         )

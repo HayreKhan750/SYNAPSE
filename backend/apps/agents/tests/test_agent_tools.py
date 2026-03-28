@@ -451,6 +451,7 @@ class TestSynapseAgentBase(TestCase):
 
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["tool"], "search_knowledge_base")
+        # base.py uses "observation" key (not "output")
         self.assertIn("Found 3 results", result[0]["observation"])
 
     def test_max_iterations_default(self):

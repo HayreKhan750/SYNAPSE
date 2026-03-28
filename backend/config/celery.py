@@ -67,6 +67,11 @@ CELERY_TASK_ROUTES = {
     # NLP processing tasks — Phase 2.1
     'apps.articles.tasks.process_article_nlp': {'queue': 'nlp'},
     'apps.articles.tasks.process_pending_articles_nlp': {'queue': 'nlp'},
+    # Trend analysis — Phase 2.4 / Phase 9
+    'apps.trends.tasks.analyze_trends_task': {'queue': 'default'},
+    # Agent tasks — Phase 5.1
+    'apps.agents.tasks.execute_agent_task': {'queue': 'agents'},
+    'apps.agents.tasks.cancel_agent_task': {'queue': 'agents'},
     # Summarization tasks — Phase 2.2
     'apps.articles.tasks.summarize_article': {'queue': 'nlp'},
     'apps.articles.tasks.summarize_pending_articles': {'queue': 'nlp'},
@@ -132,6 +137,14 @@ CELERY_BEAT_SCHEDULE = {
     },
     # Phase 4.2 — Notifications: poll for unread count every 5 minutes via Celery
     # (Frontend uses polling via React Query — no WebSocket needed for MVP)
+
+    # Phase 2.4 / 9 — Technology Trend Analysis
+    # Runs daily at midnight UTC to populate TechnologyTrend records
+    'analyze-trends-daily': {
+        'task': 'apps.trends.tasks.analyze_trends_task',
+        'schedule': crontab(hour=0, minute=5),  # 00:05 UTC daily
+        'options': {'queue': 'default'},
+    },
 }
 
 # Apply configuration to app

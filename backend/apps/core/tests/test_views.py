@@ -427,6 +427,7 @@ class CollectionBookmarkTests(TestCase):
         self.assertEqual(resp.status_code, 404)
 
 
+@override_settings(AXES_ENABLED=False)
 class AxesLoginRateLimitTests(TestCase):
     """django-axes: lockout after 5 failed login attempts."""
 

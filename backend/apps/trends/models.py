@@ -13,8 +13,13 @@ class TechnologyTrend(models.Model):
     class Meta:
         db_table = 'technology_trends'
         ordering = ['-trend_score']
-        unique_together = [['technology_name', 'date']]
-        indexes = [models.Index(fields=['date']), models.Index(fields=['category'])]
+        indexes = [
+            models.Index(fields=['date']),
+            models.Index(fields=['category']),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=['technology_name', 'date'], name='unique_trend_per_day'),
+        ]
 
     def __str__(self):
         return f"{self.technology_name} ({self.date})"

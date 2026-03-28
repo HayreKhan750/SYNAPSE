@@ -27,7 +27,11 @@ from django.test import TestCase
 class DocToolTestCase(TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
-        self.env_patch = patch.dict(os.environ, {"MEDIA_ROOT": self.tmp})
+        # Patch both MEDIA_ROOT and DJANGO_MEDIA_ROOT so _doc_dir() uses the temp dir
+        self.env_patch = patch.dict(os.environ, {
+            "MEDIA_ROOT": self.tmp,
+            "DJANGO_MEDIA_ROOT": self.tmp,
+        })
         self.env_patch.start()
 
     def tearDown(self):

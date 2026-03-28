@@ -52,7 +52,7 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
 
     # ── Mark as processing ────────────────────────────────────────────
     task_obj.status = AgentTask.TaskStatus.PROCESSING
-    task_obj.celery_task_id = self.request.id
+    task_obj.celery_task_id = self.request.id or task_obj.celery_task_id or ""
     task_obj.save(update_fields=["status", "celery_task_id"])
     logger.info("AgentTask %s — starting (type=%s)", agent_task_id, task_obj.task_type)
 
@@ -62,6 +62,8 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
         "trends":    ["analyze_trends", "search_github", "fetch_arxiv_papers"],
         "github":    ["search_github"],
         "arxiv":     ["fetch_arxiv_papers"],
+        "document":  ["generate_pdf", "generate_ppt", "generate_word_doc", "generate_markdown"],
+        "project":   ["create_project"],
         "general":   None,  # all tools
     }
     tool_names = tool_map.get(task_obj.task_type, None)
@@ -144,7 +146,7 @@ def _notify_user(task_obj, success: bool) -> None:
             f"Tokens used: {task_obj.tokens_used} | "
             f"Cost: ${float(task_obj.cost_usd):.4f}"
         ),
-        notif_type="agent",
+        notif_type="info",
         metadata={
             "agent_task_id": str(task_obj.id),
             "task_type": task_obj.task_type,

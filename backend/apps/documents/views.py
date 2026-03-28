@@ -389,8 +389,10 @@ class DocumentDownloadView(APIView):
         ext = _EXT_MAP.get(doc.doc_type, "")
         filename = f"{doc.title[:50].replace('/', '_')}{ext}"
 
+        # Open file via context manager; FileResponse closes it when done streaming
+        fh = open(abs_path, "rb")  # noqa: WPS515 – FileResponse takes ownership
         response = FileResponse(
-            open(abs_path, "rb"),
+            fh,
             content_type=content_type,
             as_attachment=True,
             filename=filename,

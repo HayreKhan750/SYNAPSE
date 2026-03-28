@@ -78,13 +78,33 @@ def _action_summarize_content(params: dict) -> dict:
 
 
 def _action_generate_pdf(params: dict) -> dict:
-    """Placeholder for Phase 5 PDF generation."""
-    logger.info("generate_pdf action — will be implemented in Phase 5.")
-    return {
-        'action': 'generate_pdf',
-        'status': 'skipped',
-        'reason': 'PDF generation is implemented in Phase 5.',
-    }
+    """Generate a PDF document using the Phase 5 document generation tool."""
+    try:
+        from ai_engine.agents.doc_tools import _generate_pdf
+        title = params.get('title', 'Generated Report')
+        sections = params.get('sections', [{'heading': 'Summary', 'content': 'Auto-generated report.'}])
+        subtitle = params.get('subtitle', '')
+        author = params.get('author', 'SYNAPSE Automation')
+        user_id = params.get('user_id', 'automation')
+        result_str = _generate_pdf(
+            title=title,
+            sections=sections,
+            subtitle=subtitle,
+            author=author,
+            user_id=user_id,
+        )
+        return {
+            'action': 'generate_pdf',
+            'status': 'completed',
+            'result': result_str,
+        }
+    except Exception as exc:
+        logger.warning("generate_pdf action failed: %s", exc)
+        return {
+            'action': 'generate_pdf',
+            'status': 'failed',
+            'error': str(exc),
+        }
 
 
 def _action_send_email(workflow, params: dict) -> dict:
@@ -117,13 +137,23 @@ def _action_send_email(workflow, params: dict) -> dict:
 
 
 def _action_upload_to_drive(params: dict) -> dict:
-    """Placeholder for Phase 6 Google Drive integration."""
-    logger.info("upload_to_drive action — will be implemented in Phase 6.")
-    return {
-        'action': 'upload_to_drive',
-        'status': 'skipped',
-        'reason': 'Google Drive integration is implemented in Phase 6.',
-    }
+    """Upload a file to Google Drive using the Phase 6 integration."""
+    try:
+        import django
+        django.setup() if not django.apps.apps.ready else None
+        from apps.integrations.google_drive import upload_file_to_drive
+        file_path = params.get('file_path', '')
+        folder_name = params.get('folder_name', 'SYNAPSE')
+        if not file_path:
+            return {'action': 'upload_to_drive', 'status': 'skipped', 'reason': 'No file_path provided.'}
+        result = upload_file_to_drive(file_path=file_path, folder_name=folder_name)
+        return {'action': 'upload_to_drive', 'status': 'completed', 'result': result}
+    except ImportError:
+        logger.info("upload_to_drive: Google Drive integration not available.")
+        return {'action': 'upload_to_drive', 'status': 'skipped', 'reason': 'Google Drive integration not configured.'}
+    except Exception as exc:
+        logger.warning("upload_to_drive action failed: %s", exc)
+        return {'action': 'upload_to_drive', 'status': 'failed', 'error': str(exc)}
 
 
 # ── Action dispatcher ─────────────────────────────────────────────────────────
@@ -220,7 +250,14 @@ def execute_workflow(self, workflow_id: str) -> dict:
         run.status = WorkflowRun.RunStatus.FAILED if had_error else WorkflowRun.RunStatus.SUCCESS
         run.completed_at = timezone.now()
         run.result = {'actions': action_results}
-        run.save(update_fields=['status', 'completed_at', 'result'])
+        if had_error:
+            # Collect error messages from failed actions for easy inspection
+            errors = [
+                r.get('error', '') for r in action_results
+                if r.get('status') == 'error' and r.get('error')
+            ]
+            run.error_message = '; '.join(errors)
+        run.save(update_fields=['status', 'completed_at', 'result', 'error_message'])
 
         # Update workflow metadata
         now = timezone.now()

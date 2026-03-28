@@ -23,8 +23,14 @@ def trend_list(request):
       - days: number of days back to look (default 30)
       - limit: max results (default 20)
     """
-    days = int(request.query_params.get("days", 30))
-    limit = int(request.query_params.get("limit", 20))
+    try:
+        days = max(1, min(int(request.query_params.get("days", 30)), 365))
+    except (ValueError, TypeError):
+        days = 30
+    try:
+        limit = max(1, min(int(request.query_params.get("limit", 20)), 100))
+    except (ValueError, TypeError):
+        limit = 20
     category = request.query_params.get("category", "")
 
     since = timezone.now().date() - timedelta(days=days)

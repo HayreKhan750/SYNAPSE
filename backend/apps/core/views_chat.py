@@ -134,7 +134,7 @@ class ExplainView(APIView):
             result = pipeline.chat(
                 question=question,
                 conversation_id=conversation_id,
-                content_types=[content_type + 's'] if not content_type.endswith('s') else [content_type],
+                content_types=[_pluralize_content_type(content_type)],
             )
         except Exception as exc:
             logger.error("RAG explain error: %s", exc)
@@ -184,15 +184,36 @@ def _get_gemini_keys() -> list:
     return keys
 
 
-# Module-level rotation index for chat key rotation
+# Thread-safe rotation index for chat key rotation
+import threading as _threading
+_chat_key_lock = _threading.Lock()
 _chat_key_index = 0
 
 
 def _next_chat_key(keys: list) -> str:
     global _chat_key_index
-    key = keys[_chat_key_index % len(keys)]
-    _chat_key_index = (_chat_key_index + 1) % len(keys)
+    with _chat_key_lock:
+        key = keys[_chat_key_index % len(keys)]
+        _chat_key_index = (_chat_key_index + 1) % len(keys)
     return key
+
+
+# Canonical pluralization for content_type filter values
+_CONTENT_TYPE_PLURAL = {
+    'article': 'articles',
+    'articles': 'articles',
+    'paper': 'papers',
+    'papers': 'papers',
+    'repository': 'repositories',
+    'repositories': 'repositories',
+    'video': 'videos',
+    'videos': 'videos',
+}
+
+
+def _pluralize_content_type(ct: str) -> str:
+    """Normalize a singular or plural content_type to the plural form used by the retriever."""
+    return _CONTENT_TYPE_PLURAL.get(ct.lower().strip(), ct + 's')
 
 
 def _get_pipeline(model: str = None):

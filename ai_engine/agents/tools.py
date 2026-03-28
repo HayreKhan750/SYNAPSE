@@ -143,8 +143,8 @@ def _fetch_articles(
 
         cutoff = timezone.now() - timedelta(days=days_back)
         qs = Article.objects.filter(
-            created_at__gte=cutoff,
-        ).order_by("-trending_score", "-created_at")
+            scraped_at__gte=cutoff,
+        ).order_by("-trending_score", "-scraped_at")
 
         if topic:
             from django.db.models import Q
@@ -168,7 +168,7 @@ def _fetch_articles(
             results.append(
                 f"{i}. {a.title}\n"
                 f"   Source: {a.source} | Topic: {a.topic} | Sentiment: {a.sentiment_score}\n"
-                f"   Published: {a.created_at.strftime('%Y-%m-%d')}\n"
+                f"   Published: {(a.published_at or a.scraped_at).strftime('%Y-%m-%d')}\n"
                 f"   URL: {a.url}\n"
                 f"   Summary: {(a.summary or a.content[:200]).strip()[:300]}"
             )
@@ -242,15 +242,15 @@ def _analyze_trends(
             tech_q = Q(title__icontains=tech) | Q(keywords__icontains=tech) | Q(topic__icontains=tech)
 
             # Articles
-            article_count = Article.objects.filter(tech_q, created_at__gte=cutoff).count()
+            article_count = Article.objects.filter(tech_q, scraped_at__gte=cutoff).count()
             avg_sentiment = (
-                Article.objects.filter(tech_q, created_at__gte=cutoff)
+                Article.objects.filter(tech_q, scraped_at__gte=cutoff)
                 .aggregate(avg=Avg("sentiment_score"))["avg"]
             ) or 0.0
 
             # Repositories
             repo_q = Q(name__icontains=tech) | Q(description__icontains=tech) | Q(topics__icontains=tech)
-            repo_count = Repository.objects.filter(repo_q, created_at__gte=cutoff).count()
+            repo_count = Repository.objects.filter(repo_q, scraped_at__gte=cutoff).count()
             top_repos = (
                 Repository.objects.filter(repo_q)
                 .order_by("-stars")[:3]

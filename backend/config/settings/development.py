@@ -14,6 +14,13 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Disable axes in development for convenience
 AXES_ENABLED = False
 
+# Disable throttling in development/test to prevent 429s during test runs
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_CLASSES': [],
+    'DEFAULT_THROTTLE_RATES': {},
+}
+
 # Show SQL queries in development
 LOGGING['loggers']['django.db.backends'] = {
     'handlers': ['console'],
