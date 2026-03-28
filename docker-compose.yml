@@ -65,7 +65,7 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: synapse_backend
-    restart: unless-stopped
+    restart: on-failure:5
     env_file:
       - .env
     environment:
@@ -79,6 +79,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       PYTHONPATH: /app:/ai_engine_pkg
+      DJANGO_SETTINGS_MODULE: config.settings.development
     ports:
       - "8000:8000"
     volumes:
@@ -93,15 +94,25 @@ services:
         condition: service_healthy
     networks:
       - synapse_network
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
+    command:
+      - sh
+      - -c
+      - |
+        echo "Waiting for PostgreSQL..."
+        until python -c "import psycopg2; psycopg2.connect(host='postgres',port=5432,dbname='synapse_db',user='synapse_user',password='synapse_pass')" 2>/dev/null; do
+          echo "PostgreSQL not ready, sleeping 3s..."; sleep 3
+        done
+        echo "PostgreSQL ready! Running migrations..."
+        python manage.py migrate --noinput
+        python manage.py collectstatic --noinput --clear 2>/dev/null || python manage.py collectstatic --noinput 2>/dev/null || echo "Static files skipped (permission issue — OK in dev)"
+        echo "Starting Django..."
+        exec python manage.py runserver 0.0.0.0:8000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 60s
 
   # ── FastAPI AI Service ──────────────────────────────────
   fastapi_ai:
@@ -202,10 +213,7 @@ services:
     # concurrency=2 for scraping/agents; NLP/summarization is rate-limited by
     # Gemini free tier (20 RPM), so tasks are staggered via countdown in tasks.py.
     # Running 2 workers with 15s stagger = ~8 RPM, safely under the 20 RPM limit.
-    command: >
-      bash -c "celery -A config.celery worker --loglevel=info --concurrency=2 -Q default,scraping,agents &
-               celery -A config.celery worker --loglevel=info --concurrency=1 -Q nlp &
-               wait"
+    command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -U synapse_user; do echo waiting for postgres; sleep 2; done && celery -A config.celery worker --loglevel=info --concurrency=2 -Q default,scraping,agents,nlp"]
 
   # ── Celery Beat Scheduler ───────────────────────────────
   celery_beat:
@@ -238,7 +246,7 @@ services:
         condition: service_healthy
     networks:
       - synapse_network
-    command: celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler --pidfile=/tmp/celerybeat.pid
+    command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -U synapse_user; do echo waiting for postgres; sleep 2; done && celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler --pidfile=/tmp/celerybeat.pid"]
 
   # ── Flower (Celery Monitoring) ──────────────────────────
   flower:
