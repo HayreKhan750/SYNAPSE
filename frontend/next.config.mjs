@@ -1,21 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Proxy /api/v1/* → Django backend (fixes SSE stream + avoids CORS in dev)
-  async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '') || 'http://localhost:8000';
-    return [
-      {
-        source: '/api/v1/:path*',
-        destination: `${backendUrl}/api/v1/:path*`,
-      },
-    ];
-  },
   typescript: {
     ignoreBuildErrors: false,
   },
   // Skip Next.js trailing-slash redirect so /api/v1/* proxy rewrites run first.
   // Django REST Framework requires trailing slashes on its URLs.
   skipTrailingSlashRedirect: true,
+  // Proxy /api/v1/* → Django backend (fixes SSE stream + avoids CORS in dev)
   async rewrites() {
     // Always proxy to localhost:8000 (the Django backend)
     const backendUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')

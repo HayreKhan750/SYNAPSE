@@ -59,6 +59,12 @@ export default function Dashboard() {
     queryFn: () => api.get('/papers/trending/').then(r => r.data),
   });
 
+  const { data: videos } = useQuery({
+    queryKey: ['videos', 'count'],
+    queryFn: () => api.get('/videos/?page_size=1').then(r => r.data),
+    staleTime: 5 * 60_000,
+  });
+
   const trendingArticles = Array.isArray(articles?.data) ? articles.data.slice(0, 6)
     : Array.isArray(articles?.results) ? articles.results.slice(0, 6)
     : Array.isArray(articles) ? (articles as any[]).slice(0, 6) : [];
@@ -99,7 +105,7 @@ export default function Dashboard() {
             <StatCard icon={BarChart3} label="Articles" value={articles?.meta?.total || 0} gradient="bg-gradient-to-br from-indigo-500 to-indigo-700" href="/feed" />
             <StatCard icon={BookOpen} label="Papers" value={papers?.meta?.total || 0} gradient="bg-gradient-to-br from-violet-500 to-violet-700" href="/research" />
             <StatCard icon={GitBranch} label="Repositories" value={repos?.meta?.total || 0} gradient="bg-gradient-to-br from-emerald-500 to-emerald-700" href="/github" />
-            <StatCard icon={Youtube} label="Videos" value={300} gradient="bg-gradient-to-br from-red-500 to-red-700" href="/videos" />
+            <StatCard icon={Youtube} label="Videos" value={videos?.meta?.total || 0} gradient="bg-gradient-to-br from-red-500 to-red-700" href="/videos" />
           </div>
 
           {/* ── Latest Articles + GitHub ───────────────────────────── */}
