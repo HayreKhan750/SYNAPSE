@@ -1898,12 +1898,8 @@ class DocumentRenderView(APIView):
                 validated = AccessToken(token_param)
                 user = User.objects.get(id=validated["user_id"])
             except (TokenError, User.DoesNotExist, Exception) as e:
-                logger.warning("DocumentRenderView: invalid token: %s", e)
-                return HttpResponseForbidden(
-                    "<html><body style='font:14px sans-serif;padding:40px;color:#dc2626'>"
-                    "<b>401 — Invalid or expired token.</b> Please close and reopen the preview.</body></html>",
-                    content_type="text/html"
-                )
+                logger.warning("DocumentRenderView: token param invalid (%s) — trying Authorization header", e)
+                # Don't 403 immediately — fall through to try the Bearer header
 
         # 2. Try Authorization header (standard DRF JWT)
         if user is None:
@@ -1915,10 +1911,16 @@ class DocumentRenderView(APIView):
                 except (TokenError, User.DoesNotExist, Exception):
                     pass
 
+        # 3. Try refreshing via the refresh token in the cookie or header (future)
         if user is None:
+            # Both methods failed — give a clear error
+            logger.warning("DocumentRenderView: all auth methods failed for doc %s", doc_id)
             return HttpResponseForbidden(
-                "<html><body style='font:14px sans-serif;padding:40px;color:#dc2626'>"
-                "<b>401 — Authentication required.</b></body></html>",
+                "<html><body style='font:14px sans-serif;padding:40px;color:#dc2626;font-family:sans-serif'>"
+                "<h3>⚠️ Session Expired</h3>"
+                "<p>Your session has expired. Please <a href='/login' style='color:#4F46E5'>sign in again</a> "
+                "and reopen the preview.</p>"
+                "</body></html>",
                 content_type="text/html"
             )
 

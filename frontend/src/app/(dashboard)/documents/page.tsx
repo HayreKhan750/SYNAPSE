@@ -280,7 +280,8 @@ function DocumentCard({ doc, onDelete, driveConnected }: { doc: DocumentRecord; 
       const origin = rawBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
 
       const res = await fetch(
-        `${origin}/api/v1/documents/${doc.id}/render/?token=${encodeURIComponent(token ?? "")}`
+        `${origin}/api/v1/documents/${doc.id}/render/?token=${encodeURIComponent(token ?? "")}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
       if (!res.ok) throw new Error(`${res.status} — ${await res.text().catch(() => "")}`);
       const html = await res.text();
@@ -967,7 +968,8 @@ function HtmlTemplateBuilder({ onSuccess }: { onSuccess: () => void }) {
                       const rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
                       const origin = rawBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
                       const res = await fetch(
-                        `${origin}/api/v1/documents/${generatedDoc.id}/render/?token=${encodeURIComponent(token ?? "")}`
+                        `${origin}/api/v1/documents/${generatedDoc.id}/render/?token=${encodeURIComponent(token ?? "")}`,
+                        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
                       );
                       if (!res.ok) throw new Error(`${res.status}`);
                       const html = await res.text();
