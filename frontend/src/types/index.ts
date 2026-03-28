@@ -5,10 +5,14 @@ export interface User {
   email: string
   first_name: string
   last_name: string
-  role: 'free' | 'pro' | 'enterprise' | 'admin'
-  preferences: Record<string, unknown>
-  date_joined: string
+  role: 'user' | 'admin' | 'moderator'
+  bio?: string
   avatar_url?: string
+  preferences: Record<string, unknown>
+  created_at: string       // from UserProfileSerializer
+  last_login?: string | null
+  // legacy aliases kept for backward compat
+  date_joined?: string
 }
 
 export interface AuthTokens {

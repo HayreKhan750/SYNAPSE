@@ -40,11 +40,23 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
           })
 
-          // Store tokens in localStorage
+          // Store tokens in localStorage for the axios interceptor
           localStorage.setItem('synapse_access_token', access)
           localStorage.setItem('synapse_refresh_token', refresh)
-        } catch (error) {
+        } catch (error: unknown) {
           set({ isLoading: false })
+          // Extract a human-readable message from the API error response
+          if (axios.isAxiosError(error)) {
+            const data = error.response?.data
+            const msg =
+              data?.error?.message ||
+              data?.detail ||
+              data?.non_field_errors?.[0] ||
+              (error.response?.status === 401
+                ? 'Invalid email or password.'
+                : 'Login failed. Please try again.')
+            throw new Error(msg)
+          }
           throw error
         }
       },
@@ -60,8 +72,21 @@ export const useAuthStore = create<AuthStore>()(
             password: data.password,
           }
           await get().login(loginCredentials)
-        } catch (error) {
+        } catch (error: unknown) {
           set({ isLoading: false })
+          if (axios.isAxiosError(error)) {
+            const data = error.response?.data
+            // Collect all field errors into a readable message
+            const details = data?.error?.details || data?.details || data
+            if (details && typeof details === 'object') {
+              const msgs = Object.entries(details)
+                .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : errs}`)
+                .join(' | ')
+              if (msgs) throw new Error(msgs)
+            }
+            const msg = data?.error?.message || data?.detail || 'Registration failed. Please try again.'
+            throw new Error(msg)
+          }
           throw error
         }
       },
