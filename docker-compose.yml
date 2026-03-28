@@ -106,6 +106,8 @@ services:
         echo "PostgreSQL ready! Running migrations..."
         python manage.py migrate --noinput
         python manage.py collectstatic --noinput --clear 2>/dev/null || python manage.py collectstatic --noinput 2>/dev/null || echo "Static files skipped (permission issue — OK in dev)"
+        mkdir -p /app/media/documents /app/media/projects
+        chmod -R 777 /app/media 2>/dev/null || true
         echo "Starting Django..."
         exec python manage.py runserver 0.0.0.0:8000
     healthcheck:
