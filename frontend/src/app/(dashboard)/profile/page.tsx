@@ -62,7 +62,7 @@ function StatCard({ icon, label, value, colour }: { icon: React.ReactNode; label
 }
 
 export default function ProfilePage() {
-  const { user, setUser } = useAuthStore()
+  const { user, fetchUser } = useAuthStore()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -109,7 +109,7 @@ export default function ProfilePage() {
       const { data } = await api.patch('/auth/me/', form)
       const updated: ProfileData = data?.data ?? data
       setProfile(prev => ({ ...(prev ?? {} as ProfileData), ...updated }))
-      if (setUser) setUser({ ...user, ...form })
+      await fetchUser()
       toast.success('Profile updated!')
       setEditing(false)
     } catch {

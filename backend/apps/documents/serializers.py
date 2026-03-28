@@ -12,7 +12,7 @@ from .models import GeneratedDocument
 class ProjectGenerateSerializer(serializers.Serializer):
     """Input serializer for project scaffold generation requests (Phase 5.3)."""
 
-    VALID_PROJECT_TYPES = ["django", "fastapi", "nextjs", "datascience", "react_lib"]
+    VALID_PROJECT_TYPES = ["django", "fastapi", "nextjs", "datascience", "react_lib", "html_template"]
     VALID_FEATURES = ["auth", "testing", "ci_cd"]
 
     project_type = serializers.ChoiceField(
@@ -29,6 +29,16 @@ class ProjectGenerateSerializer(serializers.Serializer):
         allow_empty=True,
         default=list,
         help_text="Optional feature flags: 'auth', 'testing', 'ci_cd'",
+    )
+    description = serializers.CharField(
+        max_length=2000,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text=(
+            "Optional free-text description of what the project should do. "
+            "Included in the generated README and used to customise the scaffold."
+        ),
     )
 
     def validate_name(self, value: str) -> str:
@@ -47,11 +57,11 @@ class ProjectGenerateSerializer(serializers.Serializer):
 class DocumentGenerateSerializer(serializers.Serializer):
     """Input serializer for document generation requests."""
 
-    VALID_DOC_TYPES = ["pdf", "ppt", "word", "markdown"]
+    VALID_DOC_TYPES = ["pdf", "ppt", "word", "markdown", "html"]
 
     doc_type = serializers.ChoiceField(
         choices=VALID_DOC_TYPES,
-        help_text="Document format: pdf, ppt, word, or markdown",
+        help_text="Document format: pdf, ppt, word, markdown, or html",
     )
     title = serializers.CharField(
         max_length=500,
@@ -83,8 +93,20 @@ class DocumentGenerateSerializer(serializers.Serializer):
     author = serializers.CharField(
         max_length=200,
         required=False,
+        allow_blank=True,
         default="SYNAPSE AI",
         help_text="Author name shown in document metadata and footer",
+    )
+    model = serializers.CharField(
+        max_length=200,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text=(
+            "Optional OpenRouter model override for HTML generation, "
+            "e.g. 'openai/gpt-4o', 'anthropic/claude-3.5-sonnet'. "
+            "Defaults to OPENROUTER_MODEL env var or gpt-4o-mini."
+        ),
     )
 
     def validate_title(self, value: str) -> str:
@@ -118,6 +140,8 @@ class GeneratedDocumentSerializer(serializers.ModelSerializer):
             "download_url",
             "metadata",
             "created_at",
+            "version",
+            "parent",
         ]
         read_only_fields = fields
 

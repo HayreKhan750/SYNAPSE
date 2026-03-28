@@ -125,7 +125,12 @@ class DriveConnectAPITest(TestCase):
         self.token = str(refresh.access_token)
 
     def test_drive_connect_returns_url(self):
-        with patch("apps.integrations.google_drive.get_oauth2_authorization_url",
+        # Patch module-level credentials in google_drive (the view imports them
+        # from there via `from .google_drive import GOOGLE_CLIENT_ID, ...`) and
+        # stub the URL builder so the test never contacts Google's servers.
+        with patch("apps.integrations.google_drive.GOOGLE_CLIENT_ID", "fake-client-id"), \
+             patch("apps.integrations.google_drive.GOOGLE_CLIENT_SECRET", "fake-secret"), \
+             patch("apps.integrations.google_drive.get_oauth2_authorization_url",
                    return_value="https://accounts.google.com/o/oauth2/auth?fake=1"):
             resp = self.client.get(
                 "/api/v1/integrations/drive/connect/",

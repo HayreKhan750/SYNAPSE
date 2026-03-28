@@ -217,7 +217,7 @@ services:
     # concurrency=2 for scraping/agents; NLP/summarization is rate-limited by
     # Gemini free tier (20 RPM), so tasks are staggered via countdown in tasks.py.
     # Running 2 workers with 15s stagger = ~8 RPM, safely under the 20 RPM limit.
-    command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -U synapse_user; do echo waiting for postgres; sleep 2; done && celery -A config.celery worker --loglevel=info --concurrency=2 -Q default,scraping,agents,nlp"]
+    command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -U synapse_user; do echo waiting for postgres; sleep 2; done && celery -A config.celery worker --loglevel=info --concurrency=2 -Q default,scraping,agents,nlp,embeddings"]
 
   # ── Celery Beat Scheduler ───────────────────────────────
   celery_beat:

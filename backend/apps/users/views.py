@@ -88,3 +88,39 @@ def update_preferences(request):
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response({'success': True, 'data': serializer.data})
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def ai_keys_view(request):
+    """
+    GET  /api/v1/users/ai-keys/ — check which keys are configured for this user
+    POST /api/v1/users/ai-keys/ — save encrypted keys to user preferences
+    Keys are stored in user.preferences JSON field and used by the AI engine.
+    """
+    if request.method == 'GET':
+        prefs = getattr(request.user, 'preferences', {}) or {}
+        return Response({
+            'gemini_configured':     bool(prefs.get('gemini_api_key')),
+            'openrouter_configured': bool(prefs.get('openrouter_api_key')),
+        })
+
+    # POST — save keys
+    prefs = getattr(request.user, 'preferences', {}) or {}
+    if not isinstance(prefs, dict):
+        prefs = {}
+
+    gemini_key     = request.data.get('gemini_api_key', '').strip()
+    openrouter_key = request.data.get('openrouter_api_key', '').strip()
+
+    if gemini_key:
+        prefs['gemini_api_key'] = gemini_key
+        import os; os.environ['GEMINI_API_KEY'] = gemini_key
+    if openrouter_key:
+        prefs['openrouter_api_key'] = openrouter_key
+        import os; os.environ['OPENROUTER_API_KEY'] = openrouter_key
+
+    request.user.preferences = prefs
+    request.user.save(update_fields=['preferences'])
+
+    return Response({'success': True, 'gemini_configured': bool(prefs.get('gemini_api_key')), 'openrouter_configured': bool(prefs.get('openrouter_api_key'))})

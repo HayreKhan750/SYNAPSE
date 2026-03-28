@@ -26,4 +26,23 @@ urlpatterns = [
 
     # File download (works for all types including .zip projects)
     path("<uuid:doc_id>/download/", views.DocumentDownloadView.as_view(), name="document-download"),
+
+    # Document preview (PNG thumbnail)
+    path("<str:doc_id>/preview/", views.DocumentPreviewView.as_view(), name="document-preview"),
+    path("<str:doc_id>/render/", views.DocumentRenderView.as_view(), name="document-render"),
+
+    # Regenerate a single section
+    path("<str:doc_id>/regenerate-section/", views.DocumentSectionRegenerateView.as_view(), name="document-section-regenerate"),
+
+    # Update multiple sections and rebuild document
+    path('<str:doc_id>/update-sections/', views.DocumentSectionsUpdateView.as_view(), name='document-update-sections'),
+
+    # Regenerate all sections and rebuild document
+    path('<str:doc_id>/regenerate-all/', views.DocumentRegenerateAllView.as_view(), name='document-regenerate-all'),
+
+    # Get version history
+    path('<str:doc_id>/versions/', views.DocumentVersionsView.as_view(), name='document-versions'),
+
+    # Server-Sent Events (SSE) streaming endpoint for document generation
+    path('generate-stream/', views.DocumentGenerateStreamView.as_view(), name='document-generate-stream'),
 ]

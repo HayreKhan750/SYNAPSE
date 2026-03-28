@@ -45,11 +45,27 @@ class DriveConnectView(APIView):
     """
     GET /api/v1/integrations/drive/connect/
     Redirect the authenticated user to Google's OAuth2 consent screen.
+
+    Returns 503 with {not_configured: true} when GOOGLE_CLIENT_ID / SECRET
+    are not set so the frontend can show a "not configured" message instead
+    of redirecting to a broken OAuth URL.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        from .google_drive import get_oauth2_authorization_url
+        from .google_drive import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, get_oauth2_authorization_url
+
+        # Detect missing credentials before attempting OAuth flow
+        if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+            return Response(
+                {
+                    "error": "Google Drive integration is not configured on this server. "
+                             "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.",
+                    "not_configured": True,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         state = str(request.user.id)
         try:
             url = get_oauth2_authorization_url(state=state)
@@ -305,6 +321,64 @@ class DriveCreateFolderView(APIView):
             )
 
 
+class DriveExportAsGoogleDocView(APIView):
+    """
+    POST /api/v1/integrations/drive/export-as-doc/
+    Upload a Word/DOCX document to Google Drive and convert it to a native Google Doc.
+    Body: { document_id: UUID, folder_name?: str }
+    Returns: { google_doc_id, google_doc_url, file_name }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        document_id = request.data.get("document_id")
+        folder_name = request.data.get("folder_name", "SYNAPSE Documents")
+
+        if not document_id:
+            return Response({"error": "document_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            token = GoogleDriveToken.objects.get(user=request.user)
+        except GoogleDriveToken.DoesNotExist:
+            return Response(
+                {"error": "Google Drive not connected."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            doc = GeneratedDocument.objects.get(id=document_id, user=request.user)
+        except GeneratedDocument.DoesNotExist:
+            return Response({"error": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        abs_path = Path(settings.MEDIA_ROOT) / doc.file_path if doc.file_path else None
+        if not abs_path or not abs_path.exists():
+            return Response({"error": "File not found on server."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            from .google_drive import export_as_google_doc
+            credentials_dict = token.get_credentials()
+            result = export_as_google_doc(
+                file_path=str(abs_path),
+                folder_name=folder_name,
+                credentials_dict=credentials_dict,
+                doc_title=doc.title,
+            )
+            # Store result
+            doc.metadata["google_doc_id"]  = result.get("id", "")
+            doc.metadata["google_doc_url"] = result.get("webViewLink", "")
+            doc.cloud_url = result.get("webViewLink", "")
+            doc.save(update_fields=["cloud_url", "metadata"])
+            return Response({
+                "success":        True,
+                "google_doc_id":  result.get("id"),
+                "google_doc_url": result.get("webViewLink"),
+                "file_name":      result.get("name"),
+            })
+        except Exception as exc:
+            logger.error("Google Docs export error: %s", exc)
+            return Response({"error": f"Export failed: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 6.2 — AWS S3
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -343,7 +417,17 @@ class S3UploadView(APIView):
             return Response({"error": "File not found on server."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            from .s3 import upload_to_s3, AWS_S3_BUCKET_NAME
+            from .s3 import upload_to_s3, AWS_S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+            if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+                return Response(
+                    {"error": "AWS S3 is not configured on this server. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            if not AWS_S3_BUCKET_NAME:
+                return Response(
+                    {"error": "AWS S3 bucket is not configured. Set AWS_STORAGE_BUCKET_NAME environment variable."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
             target_bucket = bucket or AWS_S3_BUCKET_NAME
             key = f"{prefix.rstrip('/')}/{abs_path.name}"
 

@@ -27,8 +27,10 @@ urlpatterns = [
     path("drive/files/",         views.DriveListFilesView.as_view(),    name="drive-list-files"),
     # Create a Drive folder
     path("drive/folders/",       views.DriveCreateFolderView.as_view(), name="drive-create-folder"),
+    # Export a document as a Google Doc
+    path("drive/export-as-doc/", views.DriveExportAsGoogleDocView.as_view(), name="drive-export-as-doc"),
 
-    # ── AWS S3 ──────────────────────────────────────────────────────────────
+    # ── AWS S3 ──────────────────────────────────────────────────────────────────
     # Upload a document to S3
     path("s3/upload/",           views.S3UploadView.as_view(),          name="s3-upload"),
     # Generate / refresh a presigned download URL

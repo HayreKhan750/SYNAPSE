@@ -32,6 +32,9 @@ class ContentSecurityPolicyMiddleware:
     def __init__(self, get_response: Callable):
         self.get_response = get_response
 
+    # Paths that must be embeddable in iframes (live document preview)
+    IFRAME_ALLOWED_PATHS = ("/render/",)
+
     def __call__(self, request: HttpRequest) -> HttpResponse:
         # Generate a per-request nonce (16 bytes = 128 bits)
         nonce = secrets.token_urlsafe(16)
@@ -39,25 +42,39 @@ class ContentSecurityPolicyMiddleware:
 
         response = self.get_response(request)
 
-        # Build CSP directives
-        csp = "; ".join([
-            "default-src 'self'",
-            f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "font-src 'self' https://fonts.gstatic.com",
-            "img-src 'self' data: https:",
-            "connect-src 'self' wss: https:",
-            "frame-ancestors 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-            "object-src 'none'",
-            "upgrade-insecure-requests",
-        ])
+        # For document render endpoints — allow embedding in same-origin iframes
+        is_render = any(p in request.path for p in self.IFRAME_ALLOWED_PATHS)
+
+        if is_render:
+            # Permissive CSP for iframe-embedded document viewer
+            csp = "; ".join([
+                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "font-src 'self' data: https://fonts.gstatic.com",
+                "img-src 'self' data: https: blob:",
+                "connect-src 'self' wss: https:",
+                "frame-ancestors 'self'",   # allow same-origin iframe embedding
+                "base-uri 'self'",
+            ])
+            # Allow iframe embedding from same origin
+            response["X-Frame-Options"] = "SAMEORIGIN"
+        else:
+            csp = "; ".join([
+                "default-src 'self'",
+                f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "font-src 'self' https://fonts.gstatic.com",
+                "img-src 'self' data: https:",
+                "connect-src 'self' wss: https:",
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                "object-src 'none'",
+                "upgrade-insecure-requests",
+            ])
 
         response["Content-Security-Policy"] = csp
-        # Report-only mode for staging (comment out in production):
-        # response["Content-Security-Policy-Report-Only"] = csp
-
         return response
 
 
@@ -89,12 +106,21 @@ class SecurityHeadersMiddleware:
             "camera=(), microphone=(), geolocation=(), "
             "payment=(), usb=(), magnetometer=(), gyroscope=()"
         )
-        response["Cross-Origin-Opener-Policy"]   = "same-origin"
-        response["Cross-Origin-Embedder-Policy"]  = "require-corp"
-        response["Cross-Origin-Resource-Policy"]  = "same-origin"
+
+        # Document render endpoint must be embeddable in same-origin iframes
+        is_render = "/render/" in request.path
+        if is_render:
+            # Relaxed cross-origin policies for iframe-embedded document viewer
+            response["Cross-Origin-Opener-Policy"]  = "same-origin-allow-popups"
+            response["Cross-Origin-Embedder-Policy"] = "unsafe-none"
+            response["Cross-Origin-Resource-Policy"] = "same-site"
+        else:
+            response["Cross-Origin-Opener-Policy"]   = "same-origin"
+            response["Cross-Origin-Embedder-Policy"]  = "require-corp"
+            response["Cross-Origin-Resource-Policy"]  = "same-origin"
 
         # Cache control for API responses (no caching of sensitive data)
-        if request.path.startswith("/api/"):
+        if request.path.startswith("/api/") and not is_render:
             response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
             response["Pragma"]        = "no-cache"
 

@@ -220,14 +220,35 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+# Track when a task transitions to STARTED (enables "processing" status in DB)
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60       # 30 min hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 min soft limit
+CELERY_RESULT_EXPIRES = 3600           # results expire after 1 hour
+CELERY_DEFAULT_QUEUE = 'default'
 CELERY_TASK_ROUTES = {
+    # Scraping — core tasks
+    'apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_github': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_arxiv': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_youtube': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_all': {'queue': 'scraping'},
+    # Keep legacy prefixed names in case older beat entries exist
+    'backend.apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
+    'backend.apps.core.tasks.scrape_github': {'queue': 'scraping'},
+    'backend.apps.core.tasks.scrape_arxiv': {'queue': 'scraping'},
+    'backend.apps.core.tasks.scrape_youtube': {'queue': 'scraping'},
+    'backend.apps.core.tasks.scrape_all': {'queue': 'scraping'},
+    # Article / paper / repo / video scraped content
     'apps.articles.tasks.*': {'queue': 'scraping'},
     'apps.papers.tasks.*': {'queue': 'scraping'},
     'apps.repositories.tasks.*': {'queue': 'scraping'},
     'apps.videos.tasks.*': {'queue': 'scraping'},
+    # Agent tasks — Phase 5.1
     'apps.agents.tasks.*': {'queue': 'agents'},
-    # NLP processing — Phase 2.1
+    # NLP processing — Phase 2.1 (more specific rules override the wildcard above)
     'apps.articles.tasks.process_article_nlp': {'queue': 'nlp'},
     'apps.articles.tasks.process_pending_articles_nlp': {'queue': 'nlp'},
     # Summarization — Phase 2.2
@@ -241,6 +262,8 @@ CELERY_TASK_ROUTES = {
     # Automation — Phase 4.1
     'apps.automation.tasks.execute_workflow': {'queue': 'default'},
     'apps.automation.tasks.cleanup_stale_runs': {'queue': 'default'},
+    # Trend analysis — Phase 2.4 / 9
+    'apps.trends.tasks.analyze_trends_task': {'queue': 'default'},
     # Notifications — Phase 4.2
     'apps.notifications.tasks.*': {'queue': 'default'},
 }
@@ -289,6 +312,10 @@ MEDIA_URL = '/media/'
 # Allow overriding via env var when backend/media/ is not writable (e.g. dev)
 _media_root_env = os.environ.get('DJANGO_MEDIA_ROOT', '')
 MEDIA_ROOT = Path(_media_root_env) if _media_root_env else BASE_DIR / 'media'
+# Sync MEDIA_ROOT back into the environment so that ai_engine/agents/doc_tools.py
+# (which reads DJANGO_MEDIA_ROOT at import time) always uses the same directory
+# as Django — preventing file-not-found errors on download.
+os.environ.setdefault('DJANGO_MEDIA_ROOT', str(MEDIA_ROOT))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

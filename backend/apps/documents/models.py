@@ -8,6 +8,7 @@ class GeneratedDocument(models.Model):
         PPT      = 'ppt',      'PowerPoint'
         WORD     = 'word',     'Word'
         MARKDOWN = 'markdown', 'Markdown'
+        HTML     = 'html',     'HTML'
         PROJECT  = 'project',  'Project Scaffold'
 
     id              = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -20,6 +21,12 @@ class GeneratedDocument(models.Model):
     agent_prompt    = models.TextField(blank=True)
     created_at      = models.DateTimeField(auto_now_add=True)
     metadata        = models.JSONField(default=dict, blank=True)
+    version         = models.PositiveIntegerField(default=1)
+    parent          = models.ForeignKey(
+        'self', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='versions',
+    )
 
     class Meta:
         db_table = 'generated_documents'

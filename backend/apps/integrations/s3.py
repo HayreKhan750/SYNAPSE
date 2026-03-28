@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 AWS_ACCESS_KEY_ID     = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
 AWS_REGION            = os.environ.get("AWS_S3_REGION_NAME", "us-east-1")
-AWS_S3_BUCKET_NAME    = os.environ.get("AWS_STORAGE_BUCKET_NAME", "synapse-media")
+AWS_S3_BUCKET_NAME    = os.environ.get("AWS_STORAGE_BUCKET_NAME") or os.environ.get("AWS_S3_BUCKET_NAME", "")
 
 # Presigned URL expiry — default 1 hour (Phase 6.2 spec)
 DEFAULT_PRESIGNED_EXPIRY = int(os.environ.get("AWS_PRESIGNED_URL_EXPIRY", 3600))

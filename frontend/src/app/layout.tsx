@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Providers } from '@/components/Providers'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
@@ -7,22 +7,24 @@ import 'katex/dist/katex.min.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
+// Viewport config must be a separate export in Next.js 14+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#6366f1',
+}
+
 export const metadata: Metadata = {
   title: { default: 'SYNAPSE', template: '%s | SYNAPSE' },
   description: 'AI-Powered Technology Intelligence Platform — discover, research, and automate with AI.',
   keywords: ['AI', 'technology', 'intelligence', 'machine learning', 'research', 'automation'],
   manifest: '/manifest.json',
-  themeColor: '#6366f1',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'SYNAPSE',
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
   },
   icons: {
     icon: [

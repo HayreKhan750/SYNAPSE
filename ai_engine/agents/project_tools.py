@@ -429,6 +429,13 @@ class CreateProjectInput(BaseModel):
             "Example: ['auth', 'testing', 'ci_cd']"
         ),
     )
+    description: str = Field(
+        default="",
+        description=(
+            "Optional free-text description of what the project should do. "
+            "Included verbatim in the generated README.md under the 'About' section."
+        ),
+    )
     user_id: str = Field(default="anonymous", description="User ID for file storage path.")
 
 
@@ -436,6 +443,7 @@ def _create_project(
     project_type: str,
     name: str,
     features: Optional[List[str]] = None,
+    description: str = "",
     user_id: str = "anonymous",
 ) -> str:
     """Generate a project scaffold and return it as a downloadable .zip file."""
@@ -456,6 +464,21 @@ def _create_project(
         template_fn = TEMPLATE_MAP[project_type]
         files = template_fn(name, features)
 
+        # Inject user description into README if provided
+        if description and description.strip():
+            readme_key = next((k for k in files if k.lower().endswith("readme.md")), None)
+            if readme_key:
+                about_block = f"\n## About\n\n{description.strip()}\n"
+                # Insert after the first heading line (# Project Name)
+                lines = files[readme_key].splitlines(keepends=True)
+                insert_at = 1  # default: right after title
+                for i, line in enumerate(lines):
+                    if line.startswith("## "):
+                        insert_at = i  # insert before the first existing section
+                        break
+                lines.insert(insert_at, about_block)
+                files[readme_key] = "".join(lines)
+
         # Pack into a zip archive
         safe_name = name.replace(" ", "_")[:50]
         zip_name = f"{safe_name}_{uuid.uuid4().hex[:8]}.zip"
@@ -470,6 +493,7 @@ def _create_project(
             f"Type: {project_type}\n"
             f"Name: {name}\n"
             f"Features: {', '.join(features) if features else 'none'}\n"
+            f"Description: {description[:100] + '…' if len(description) > 100 else description or 'none'}\n"
             f"Files: {len(files)}\n"
             f"File: {rel}\n"
             f"Size: {file_size:,} bytes\n"

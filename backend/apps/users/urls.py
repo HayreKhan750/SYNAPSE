@@ -10,8 +10,9 @@ urlpatterns = [
     path('token/refresh/',   TokenRefreshView.as_view(),                name='auth-token-refresh'),
     path('me/',              views.MeView.as_view(),                    name='auth-me'),
     path('me/preferences/',  views.update_preferences,                  name='auth-preferences'),
+    path('ai-keys/',         views.ai_keys_view,                        name='user-ai-keys'),
 
-    # ── MFA (Phase 9.1) ────────────────────────────────────────────────────
+    # ── MFA (Phase 9.1) ────────────────────────────────────────────────────────
     path('mfa/setup/',           mfa_views.mfa_setup,           name='mfa-setup'),
     path('mfa/setup/confirm/',   mfa_views.mfa_setup_confirm,   name='mfa-setup-confirm'),
     path('mfa/verify/',          mfa_views.mfa_verify,           name='mfa-verify'),

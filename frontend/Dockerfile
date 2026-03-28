@@ -1,32 +1,48 @@
-# ── Stage 1: Dependencies ────────────────────────────────
+# ── Stage 1: Dependencies ────────────────────────────────────────────────────
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci
 
-# ── Stage 2: Builder ─────────────────────────────────────
+# Install dependencies with clean npm (no legacy flags needed — package.json is clean)
+COPY package.json package-lock.json ./
+RUN npm install --frozen-lockfile
+
+# ── Stage 2: Builder ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
 
-# ── Stage 3: Development ─────────────────────────────────
+# Build — type errors are non-fatal in Next.js builds (ignoreBuildErrors in config)
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npx next build
+
+# ── Stage 3: Development (used by docker-compose) ────────────────────────────
 FROM node:20-alpine AS development
 WORKDIR /app
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-EXPOSE 3000
-CMD ["npm", "run", "dev"]
 
-# ── Stage 4: Production ──────────────────────────────────
+ENV NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3000
+
+CMD ["npx", "next", "dev", "-p", "3000"]
+
+# ── Stage 4: Production ───────────────────────────────────────────────────────
 FROM node:20-alpine AS production
 WORKDIR /app
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser  --system --uid  1001 nextjs
+
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static     ./.next/static
+
 USER nextjs
 EXPOSE 3000
-ENV PORT 3000
+ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
+
 CMD ["node", "server.js"]

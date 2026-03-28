@@ -5,7 +5,7 @@
  * Covers: notifications, theme, API keys, account danger zone, MFA
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/utils/api'
@@ -27,6 +27,7 @@ import {
   Eye,
   EyeOff,
   LogOut,
+  Cpu,
 } from 'lucide-react'
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -66,6 +67,107 @@ function Toggle({ label, description, checked, onChange }: { label: string; desc
       </button>
     </div>
   )
+}
+
+// ── AI Keys form ──────────────────────────────────────────────────────────────
+
+function AiKeysForm() {
+  const [geminiKey, setGeminiKey]       = useState('');
+  const [openrouterKey, setOpenrouterKey] = useState('');
+  const [showGemini, setShowGemini]     = useState(false);
+  const [showOpenrouter, setShowOpenrouter] = useState(false);
+  const [saving, setSaving]             = useState(false);
+  const [loaded, setLoaded]             = useState(false);
+
+  useEffect(() => {
+    // Load masked key status from backend
+    api.get('/users/ai-keys/').then(({ data }) => {
+      if (data.gemini_configured)     setGeminiKey('••••••••••••••••');
+      if (data.openrouter_configured) setOpenrouterKey('••••••••••••••••');
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload: Record<string, string> = {};
+      if (geminiKey && !geminiKey.startsWith('•'))     payload.gemini_api_key = geminiKey;
+      if (openrouterKey && !openrouterKey.startsWith('•')) payload.openrouter_api_key = openrouterKey;
+      if (!Object.keys(payload).length) { toast.error('No new keys to save.'); setSaving(false); return; }
+      await api.post('/users/ai-keys/', payload);
+      toast.success('AI keys saved! Document generation is now powered by your keys.');
+      if (payload.gemini_api_key)     setGeminiKey('••••••••••••••••');
+      if (payload.openrouter_api_key) setOpenrouterKey('••••••••••••••••');
+    } catch {
+      toast.error('Failed to save keys.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldClass = 'w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+
+  return (
+    <div className="space-y-4">
+      {/* Gemini */}
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">
+          Google Gemini API Key
+          <span className="ml-2 text-indigo-400 text-xs font-normal">gemini-1.5-flash / gemini-2.0</span>
+        </label>
+        <div className="relative">
+          <input
+            type={showGemini ? 'text' : 'password'}
+            value={geminiKey}
+            onChange={(e) => setGeminiKey(e.target.value)}
+            placeholder="AIza..."
+            className={fieldClass}
+          />
+          <button type="button" onClick={() => setShowGemini(s => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            {showGemini ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        <p className="text-xs text-slate-600 mt-1">
+          Get from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">Google AI Studio</a>
+        </p>
+      </div>
+
+      {/* OpenRouter */}
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">
+          OpenRouter API Key
+          <span className="ml-2 text-violet-400 text-xs font-normal">Fallback / GPT-4o / Claude</span>
+        </label>
+        <div className="relative">
+          <input
+            type={showOpenrouter ? 'text' : 'password'}
+            value={openrouterKey}
+            onChange={(e) => setOpenrouterKey(e.target.value)}
+            placeholder="sk-or-..."
+            className={fieldClass}
+          />
+          <button type="button" onClick={() => setShowOpenrouter(s => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            {showOpenrouter ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        <p className="text-xs text-slate-600 mt-1">
+          Get from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">OpenRouter</a> — 200+ models available
+        </p>
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors font-medium"
+      >
+        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+        Save API Keys
+      </button>
+    </div>
+  );
 }
 
 // ── Change Password form ──────────────────────────────────────────────────────
@@ -279,6 +381,15 @@ export default function SettingsPage() {
               Set up MFA <ChevronRight size={14} />
             </a>
           </div>
+        </Section>
+
+        {/* AI Engine Keys */}
+        <Section title="AI Engine" icon={<Cpu size={16} />}>
+          <p className="text-sm text-slate-400 mb-4">
+            Configure AI provider keys to enable document generation, section regeneration, and chat. 
+            Keys are stored server-side — never exposed in the browser.
+          </p>
+          <AiKeysForm />
         </Section>
 
         {/* API Key */}

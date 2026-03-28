@@ -68,12 +68,12 @@ export async function initAnalytics(): Promise<void> {
       disable_session_recording: true,    // opt-in only
       persistence:               'localStorage',
       opt_out_capturing_by_default: false,
-      sanitize_properties: (properties) => {
+      sanitize_properties: (properties: Record<string, unknown>) => {
         // Remove any accidental PII
         const safe = { ...properties }
-        delete safe.email
-        delete safe.name
-        delete safe.phone
+        delete safe['email']
+        delete safe['name']
+        delete safe['phone']
         return safe
       },
     })

@@ -269,3 +269,51 @@ def list_drive_files(folder_name: str, credentials_dict: dict) -> list[dict]:
         .execute()
     )
     return file_results.get("files", [])
+
+
+# ── Tool: export_as_google_doc ─────────────────────────────────────────────────
+
+def export_as_google_doc(
+    file_path: str,
+    folder_name: str,
+    credentials_dict: dict,
+    doc_title: Optional[str] = None,
+) -> dict:
+    """
+    Upload a DOCX/PDF file to Google Drive and convert it to a native Google Doc.
+    Returns dict with {id, name, webViewLink}.
+    """
+    from googleapiclient.http import MediaFileUpload
+    import mimetypes
+
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    service   = _get_drive_service(credentials_dict)
+    folder_id = create_drive_folder(folder_name, credentials_dict)
+
+    mime_type, _ = mimetypes.guess_type(str(path))
+    mime_type = mime_type or "application/octet-stream"
+
+    name = doc_title or path.stem
+
+    metadata = {
+        "name":     name,
+        "parents":  [folder_id],
+        "mimeType": "application/vnd.google-apps.document",  # Convert to Google Doc
+    }
+
+    media = MediaFileUpload(str(path), mimetype=mime_type, resumable=True)
+    uploaded = (
+        service.files()
+        .create(
+            body=metadata,
+            media_body=media,
+            fields="id,name,webViewLink,webContentLink",
+        )
+        .execute()
+    )
+
+    logger.info("Exported '%s' as Google Doc: %s", name, uploaded.get("id"))
+    return uploaded
