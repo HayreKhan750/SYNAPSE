@@ -751,7 +751,7 @@ export default function ChatPage() {
                 'relative p-2 rounded-xl transition-all duration-200',
                 sidebarOpen
                   ? 'text-indigo-400 bg-indigo-600/15 border border-indigo-500/25'
-                  : 'text-slate-500 hover:text-white hover:bg-slate-800/80 border border-transparent hover:border-slate-700'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-300 dark:hover:border-slate-700'
               )}
             >
               <ChevronRight
@@ -906,8 +906,8 @@ export default function ChatPage() {
                     key={prompt}
                     onClick={() => sendMessage(prompt)}
                     className={cn(
-                      'text-left px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/60',
-                      'text-sm text-slate-600 dark:text-slate-300 hover:text-white hover:border-indigo-500/60 hover:bg-slate-800',
+                      'text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60',
+                      'text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-indigo-500/60 hover:bg-slate-100 dark:hover:bg-slate-800',
                       'transition-all duration-150'
                     )}
                   >

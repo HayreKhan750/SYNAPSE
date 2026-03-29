@@ -49,6 +49,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/utils/api'
+import { cn } from '@/utils/helpers'
 import type { AgentTask, AgentTaskType, AgentTool, AgentIntermediateStep } from '@/types'
 import { useApiKeyStatus } from '@/hooks/useApiKeyStatus'
 import Link from 'next/link'
@@ -811,8 +812,8 @@ export default function AgentsPage() {
                       className={cn(
                         'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border',
                         active
-                          ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-300 shadow-sm shadow-indigo-500/20'
-                          : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:border-indigo-500/30 hover:text-slate-200 hover:bg-slate-800'
+                          ? 'bg-indigo-100 dark:bg-indigo-600/25 border-indigo-300 dark:border-indigo-500/50 text-indigo-700 dark:text-indigo-300 shadow-sm shadow-indigo-200 dark:shadow-indigo-500/20'
+                          : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:border-indigo-400 dark:hover:border-indigo-500/30 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                       )}
                     >
                       <Icon size={12} className={active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'} />
