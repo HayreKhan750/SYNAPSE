@@ -90,9 +90,19 @@ def _action_collect_news(params: dict) -> dict:
         task_ids['arxiv'] = t.id
 
     if 'youtube' in sources:
+        # Parse youtube_queries from params (newline-separated string or list)
+        raw_yt_queries = params.get('youtube_queries', '') or ''
+        if isinstance(raw_yt_queries, str):
+            yt_queries = [q.strip() for q in raw_yt_queries.splitlines() if q.strip()]
+        elif isinstance(raw_yt_queries, list):
+            yt_queries = [q.strip() for q in raw_yt_queries if q.strip()]
+        else:
+            yt_queries = []
+
         t = scrape_youtube.delay(
             days_back=params.get('days_back', 30),
-            max_results=params.get('max_results', 10),
+            max_results=params.get('items_per_source', params.get('max_results', 10)),
+            queries=yt_queries if yt_queries else None,
         )
         task_ids['youtube'] = t.id
 

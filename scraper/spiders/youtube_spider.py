@@ -1,30 +1,53 @@
 """
-YouTube Spider for SYNAPSE — uses yt-dlp (no API key, no quota limits)
+YouTube Spider for SYNAPSE — uses yt-dlp flat-playlist mode (no API key, no quota, no hang).
 
-Searches YouTube for tech/AI/ML videos using yt-dlp's ytsearch backend.
-Populates VideoItem with video metadata without hitting the YouTube Data API.
+Uses `yt-dlp --flat-playlist --dump-single-json` which returns search result metadata
+instantly WITHOUT downloading video files or needing a JS runtime.
+
+Strategy:
+  1. For each search query, run yt-dlp with ytsearch<N>:<query>.
+  2. Parse the returned JSON playlist entries (title, id, description, etc.)
+  3. Apply a tech content filter to reject non-tech videos.
+  4. Yield VideoItem for each passing video.
 """
 
-import logging
-import subprocess
 import json
+import logging
+import shutil
+import subprocess
 from datetime import datetime, timezone
 
 import scrapy
+
 from scraper.items import VideoItem
 
 logger = logging.getLogger(__name__)
 
+# Keywords that strongly indicate non-tech content — skip these videos.
+NON_TECH_KEYWORDS = [
+    'workout', 'fitness', 'gym', 'yoga', 'diet', 'recipe', 'cooking',
+    'makeup', 'beauty', 'skincare', 'fashion', 'vlog', 'travel', 'prank',
+    'challenge', 'dance', 'music video', 'reaction', 'unboxing', 'asmr',
+    'meditation', 'relationship', 'dating', 'romance', 'funny', 'comedy',
+    'sport', 'football', 'basketball', 'soccer', 'cricket', 'movie review',
+    'anime', 'manga', 'gaming highlights', 'minecraft', 'fortnite', 'roblox',
+    'weight loss', 'bodybuilding', 'real estate', 'stock market tips',
+]
+
 
 class YouTubeSpider(scrapy.Spider):
     """
-    YouTube spider using yt-dlp — no API key, no quota.
-    Uses yt-dlp to search YouTube and extract video metadata.
+    YouTube spider using yt-dlp flat-playlist mode.
+
+    Runs yt-dlp --flat-playlist --dump-single-json for each query, which
+    returns search results as a JSON playlist object in under 5 seconds —
+    no video download, no JS runtime, no quota.
     """
 
     name = 'youtube'
-    allowed_domains = []  # yt-dlp handles its own requests
-    start_urls = ['https://www.youtube.com']  # dummy — overridden by start_requests
+    allowed_domains = []
+    # Dummy start URL — overridden in start_requests via yt-dlp subprocess.
+    start_urls = ['https://www.youtube.com']
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -33,48 +56,51 @@ class YouTubeSpider(scrapy.Spider):
     }
 
     DEFAULT_QUERIES = [
-        'machine learning 2024',
-        'artificial intelligence tutorial',
-        'AI agents LLM',
+        'machine learning tutorial 2024',
+        'artificial intelligence explained',
         'LangChain tutorial',
         'RAG retrieval augmented generation',
         'vector databases explained',
         'Django REST API tutorial',
-        'Next.js tutorial',
+        'Next.js tutorial 2024',
         'system design interview',
         'large language models explained',
         'open source AI tools',
         'Python data science',
+        'deep learning PyTorch',
+        'Kubernetes tutorial',
+        'DevOps CI CD pipeline',
+        'React TypeScript tutorial',
     ]
 
-    def __init__(self, queries=None, days_back=30, max_results=20, *args, **kwargs):
+    def __init__(self, queries=None, days_back=30, max_results=30, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # queries may arrive as a JSON string from Scrapy -a args or as a list
+
+        # Parse queries — may arrive as JSON string, newline-separated string, or list.
         if queries:
             if isinstance(queries, str):
                 try:
-                    import json
                     parsed = json.loads(queries)
                     self.queries = parsed if isinstance(parsed, list) else [queries]
-                except Exception:
+                except (json.JSONDecodeError, ValueError):
                     # Treat as newline-separated plain text
-                    self.queries = [q.strip() for q in queries.splitlines() if q.strip()] or self.DEFAULT_QUERIES
+                    lines = [q.strip() for q in queries.splitlines() if q.strip()]
+                    self.queries = lines if lines else self.DEFAULT_QUERIES
             else:
-                self.queries = queries
+                self.queries = list(queries)
         else:
             self.queries = self.DEFAULT_QUERIES
+
         self.max_results = int(max_results)
         self.days_back = int(days_back)
-        # How many results per query (distribute total across queries)
-        self.per_query = max(1, self.max_results // len(self.DEFAULT_QUERIES))
+        # How many yt-dlp results to request per query.
+        self.per_query = max(1, self.max_results // max(len(self.queries), 1))
+
+    # ── Scrapy entry point ──────────────────────────────────────────────────
 
     def start_requests(self):
-        """Use yt-dlp to fetch videos — yield a dummy request per query."""
-        # Use custom queries if provided, else fall back to defaults
-        active_queries = self.queries if self.queries else self.DEFAULT_QUERIES
-        # Recalculate per_query based on actual query count
-        self.per_query = max(1, self.max_results // len(active_queries))
-        for query in active_queries:
+        """Yield one dummy Scrapy request per query; actual work is in the callback."""
+        for query in self.queries:
             yield scrapy.Request(
                 url=f'https://www.youtube.com/results?search_query={query.replace(" ", "+")}',
                 callback=self.fetch_with_ytdlp,
@@ -82,15 +108,22 @@ class YouTubeSpider(scrapy.Spider):
                 dont_filter=True,
             )
 
+    # ── yt-dlp fetcher ──────────────────────────────────────────────────────
+
     def fetch_with_ytdlp(self, response, query):
-        """Run yt-dlp to get video metadata for this query."""
-        import shutil
-        # Find yt-dlp in PATH or common install locations
+        """
+        Run yt-dlp in flat-playlist mode to get search results metadata.
+
+        --flat-playlist  → do NOT visit individual video pages (no hang, no JS)
+        --dump-single-json → output entire playlist as one JSON object
+        --quiet / --no-warnings → suppress progress noise
+        """
         ytdlp_bin = (
-            shutil.which('yt-dlp') or
-            '/home/appuser/.local/bin/yt-dlp' or
-            '/usr/local/bin/yt-dlp'
+            shutil.which('yt-dlp')
+            or '/usr/local/bin/yt-dlp'
+            or '/home/appuser/.local/bin/yt-dlp'
         )
+
         n = self.per_query
         search_url = f'ytsearch{n}:{query}'
 
@@ -98,81 +131,115 @@ class YouTubeSpider(scrapy.Spider):
             result = subprocess.run(
                 [
                     ytdlp_bin,
-                    '--dump-json',
-                    '--no-playlist',
-                    '--skip-download',
-                    '--quiet',
+                    '--flat-playlist',
+                    '--dump-single-json',
                     '--no-warnings',
-                    '--extractor-args', 'youtube:skip=dash,hls',
+                    '--quiet',
                     search_url,
                 ],
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=30,  # flat-playlist is fast; 30s is very generous
             )
 
-            if result.returncode != 0 and not result.stdout.strip():
-                logger.warning(f'yt-dlp ({ytdlp_bin}) failed for query "{query}": {result.stderr[:200]}')
+            raw = (result.stdout or '').strip()
+            if not raw:
+                if result.stderr:
+                    logger.warning(f'yt-dlp no output for "{query}": {result.stderr[:200]}')
                 return
 
-            for line in result.stdout.strip().split('\n'):
-                if not line.strip():
-                    continue
-                try:
-                    info = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
+            try:
+                playlist = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                logger.warning(f'yt-dlp JSON parse error for "{query}": {exc}')
+                return
 
-                # Extract upload date
-                upload_date_str = info.get('upload_date', '')
-                try:
-                    published_at = datetime.strptime(upload_date_str, '%Y%m%d').replace(
-                        tzinfo=timezone.utc
-                    ).isoformat() if upload_date_str else datetime.now(timezone.utc).isoformat()
-                except ValueError:
-                    published_at = datetime.now(timezone.utc).isoformat()
+            entries = playlist.get('entries') or []
+            logger.info(f'yt-dlp returned {len(entries)} entries for query "{query}"')
 
-                # Best thumbnail
-                thumbnails = info.get('thumbnails', [])
-                thumbnail_url = thumbnails[-1]['url'] if thumbnails else (
-                    f"https://i.ytimg.com/vi/{info.get('id', '')}/hqdefault.jpg"
-                )
-
-                # Duration in seconds
-                duration = info.get('duration', 0) or 0
-
-                video_id = info.get('id', '')
-                if not video_id:
-                    continue
-
-                item = VideoItem()
-                item['youtube_id'] = video_id
-                item['title'] = info.get('title', '')[:500]
-                item['description'] = (info.get('description', '') or '')[:2000]
-                item['channel_name'] = info.get('uploader', '') or info.get('channel', '')
-                item['channel_id'] = info.get('channel_id', '') or info.get('uploader_id', '')
-                item['published_at'] = published_at
-                item['thumbnail_url'] = thumbnail_url
-                item['duration_seconds'] = duration
-                item['view_count'] = info.get('view_count', 0) or 0
-                item['like_count'] = info.get('like_count', 0) or 0
-                item['url'] = f'https://www.youtube.com/watch?v={video_id}'
-                item['topics'] = [query]
-                item['metadata'] = {
-                    'query': query,
-                    'source': 'yt-dlp',
-                    'categories': info.get('categories', []),
-                    'tags': (info.get('tags', []) or [])[:20],
-                    'channel_follower_count': info.get('channel_follower_count', 0),
-                    'language': info.get('language', ''),
-                }
-
-                yield item
+            for entry in entries:
+                item = self._entry_to_item(entry, query)
+                if item is not None:
+                    yield item
 
         except subprocess.TimeoutExpired:
-            logger.warning(f'yt-dlp timed out for query: {query}')
-        except Exception as e:
-            logger.error(f'yt-dlp ({ytdlp_bin}) error for query "{query}": {e}')
+            logger.warning(f'yt-dlp timed out (30s) for query: "{query}"')
+        except FileNotFoundError:
+            logger.error(f'yt-dlp binary not found at {ytdlp_bin}')
+        except Exception as exc:
+            logger.error(f'yt-dlp error for query "{query}": {exc}')
+
+    # ── Item builder ────────────────────────────────────────────────────────
+
+    def _entry_to_item(self, entry: dict, query: str):
+        """
+        Convert a yt-dlp flat-playlist entry dict to a VideoItem.
+
+        Returns None if the video should be skipped (non-tech or missing data).
+        """
+        video_id = entry.get('id', '')
+        if not video_id:
+            return None
+
+        title = (entry.get('title') or '').strip()
+        if not title:
+            return None
+
+        # ── Tech content filter ─────────────────────────────────────────
+        title_lower = title.lower()
+        desc_lower = (entry.get('description') or '').lower()
+        combined = title_lower + ' ' + desc_lower[:200]
+
+        for kw in NON_TECH_KEYWORDS:
+            if kw in combined:
+                logger.debug(f'Skipping non-tech video: "{title[:60]}" (matched "{kw}")')
+                return None
+
+        # ── Parse upload date ───────────────────────────────────────────
+        upload_date_str = entry.get('upload_date', '') or ''
+        try:
+            published_at = (
+                datetime.strptime(upload_date_str, '%Y%m%d')
+                .replace(tzinfo=timezone.utc)
+                .isoformat()
+                if upload_date_str
+                else datetime.now(timezone.utc).isoformat()
+            )
+        except ValueError:
+            published_at = datetime.now(timezone.utc).isoformat()
+
+        # ── Best thumbnail ──────────────────────────────────────────────
+        thumbnails = entry.get('thumbnails') or []
+        if thumbnails:
+            # Pick the largest available thumbnail
+            thumbnail_url = thumbnails[-1].get('url', '') or f'https://i.ytimg.com/vi/{video_id}/hqdefault.jpg'
+        else:
+            thumbnail_url = f'https://i.ytimg.com/vi/{video_id}/hqdefault.jpg'
+
+        # ── Build item ──────────────────────────────────────────────────
+        item = VideoItem()
+        item['youtube_id'] = video_id
+        item['title'] = title[:500]
+        item['description'] = (entry.get('description') or '')[:2000]
+        item['channel_name'] = (entry.get('channel') or entry.get('uploader') or '')[:200]
+        item['channel_id'] = (entry.get('channel_id') or entry.get('uploader_id') or '')[:100]
+        item['published_at'] = published_at
+        item['thumbnail_url'] = thumbnail_url
+        item['duration_seconds'] = int(entry.get('duration') or 0)
+        item['view_count'] = int(entry.get('view_count') or 0)
+        item['like_count'] = int(entry.get('like_count') or 0)
+        item['url'] = f'https://www.youtube.com/watch?v={video_id}'
+        item['topics'] = [query]
+        item['metadata'] = {
+            'query': query,
+            'source': 'yt-dlp',
+            'categories': entry.get('categories') or [],
+            'tags': (entry.get('tags') or [])[:20],
+            'channel_follower_count': entry.get('channel_follower_count') or 0,
+            'language': entry.get('language') or '',
+        }
+
+        return item
 
     def parse(self, response):
         """Not used — yt-dlp handles all fetching."""

@@ -13,7 +13,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y libpq-dev curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /wheels /wheels
 COPY --from=builder /app/requirements.txt .
-RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache /wheels/* && pip install yt-dlp --no-cache-dir
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 COPY --chown=appuser:appuser . .
 USER appuser

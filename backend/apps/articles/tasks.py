@@ -457,11 +457,14 @@ def fetch_article_excerpt(self, article_id: str) -> dict:
             meta = article.metadata or {}
             meta["excerpt"] = excerpt
             article.metadata = meta
-            # Sanitise metadata to avoid Unicode escape sequences that
-            # PostgreSQL rejects when the server_encoding is not UTF8.
+            # Sanitise metadata — remove null bytes and invalid Unicode
+            # that PostgreSQL JSON rejects.
             try:
-                import json as _json
+                import json as _json, re as _re
                 raw = _json.dumps(article.metadata, ensure_ascii=True)
+                # Strip null bytes \u0000 which PG cannot store in JSON
+                raw = raw.replace('\\u0000', '').replace('\x00', '')
+                raw = _re.sub(r'\\u0000', '', raw)
                 article.metadata = _json.loads(raw)
             except Exception:
                 article.metadata = {}
