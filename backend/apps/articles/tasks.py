@@ -300,11 +300,14 @@ def process_pending_articles_nlp(self, batch_size: int = 50) -> Dict:
 
         queued = 0
         for article_id in pending:
-            process_article_nlp.delay(str(article_id))
+            # Stagger dispatch using countdown (non-blocking) instead of sleep.
+            # 5 s apart keeps us well under the 15 RPM Gemini free-tier limit.
+            process_article_nlp.apply_async(
+                args=[str(article_id)],
+                countdown=queued * 5,
+                queue='nlp',
+            )
             queued += 1
-            # Throttle dispatch: each article task calls Gemini once.
-            # 5 s between dispatches keeps us well under the 15 RPM free-tier limit.
-            time.sleep(5)
 
         logger.info("[%s] Queued %d NLP tasks.", task_id, queued)
         return {"status": "success", "queued": queued}

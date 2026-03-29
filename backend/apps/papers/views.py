@@ -24,8 +24,8 @@ class PaperListView(generics.ListAPIView):
     filter_backends    = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class    = PaperFilter
     search_fields      = ['title', 'abstract', 'authors', 'categories']
-    ordering_fields    = ['published_date', 'citation_count']
-    ordering           = ['-published_date']
+    ordering_fields    = ['published_date', 'citation_count', 'fetched_at']
+    ordering           = ['-fetched_at']
     queryset           = ResearchPaper.objects.all()
 
 class PaperDetailView(generics.RetrieveAPIView):

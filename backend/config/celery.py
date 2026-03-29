@@ -54,13 +54,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.core.tasks.scrape_arxiv',
         'schedule': 6 * 60 * 60,  # 6 hours in seconds
         'args': (None, 7, 500),  # categories=None, days_back=7, max_papers=500
-        'options': {'queue': 'scraping'},
+        'options': {'queue': 'slow_scraping'},  # isolated so fast scrapers aren't blocked
     },
     'scrape-youtube-every-12hrs': {
         'task': 'apps.core.tasks.scrape_youtube',
         'schedule': 12 * 60 * 60,  # 12 hours in seconds
         'args': (30, 20),  # days_back=30, max_results=20
-        'options': {'queue': 'scraping'},
+        'options': {'queue': 'slow_scraping'},  # isolated so fast scrapers aren't blocked
     },
     # NLP processing — Phase 2.1
     # Run every 10 minutes to pick up newly scraped articles

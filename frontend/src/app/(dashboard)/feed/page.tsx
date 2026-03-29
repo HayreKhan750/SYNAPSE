@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ForYouTab from './ForYouTab';
 import TrendingTab from './TrendingTab';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, Search } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, Search, RefreshCw } from 'lucide-react';
 import api from '@/utils/api';
 import { ArticleCard } from '@/components/cards';
 import RecommendedSection from './RecommendedSection';
@@ -14,17 +14,79 @@ import { cn } from '@/utils/helpers';
 const TOPICS = ['All', 'AI', 'Web Dev', 'Security', 'Cloud', 'Research', 'DevOps'];
 const SORT_OPTIONS = ['Latest', 'Trending'];
 
-// How often to refetch articles while there are still pending summaries (ms).
-const SUMMARY_POLL_INTERVAL = 15_000; // 15 s
+// Poll every 15 s while any article is still missing a summary.
+const SUMMARY_POLL_INTERVAL = 15_000;
+// After a workflow run finishes, poll aggressively for 3 min to pick up new scraped data.
+const POST_WORKFLOW_POLL_INTERVAL = 10_000;
+const POST_WORKFLOW_POLL_DURATION = 3 * 60 * 1000; // 3 minutes
 
 export default function FeedPage() {
+  const queryClient = useQueryClient();
   const [selectedTopic, setSelectedTopic] = useState('All');
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<'latest' | 'trending'>('latest');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState<'latest' | 'for-you' | 'trending'>('latest');
+  // Banner shown when new articles arrive after a workflow run
+  const [newArticleCount, setNewArticleCount] = useState(0);
+  const [showNewBanner, setShowNewBanner] = useState(false);
+  // Whether to poll aggressively (after a workflow run triggered scraping)
+  const [postWorkflowPolling, setPostWorkflowPolling] = useState(false);
+  const postWorkflowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevArticleCount = useRef<number>(0);
 
   const topicParam = selectedTopic === 'All' ? undefined : selectedTopic.toLowerCase();
+
+  // Activate post-workflow polling mode for the given duration from now.
+  const activatePostWorkflowPolling = useCallback(() => {
+    setPostWorkflowPolling(true);
+    if (postWorkflowTimer.current) clearTimeout(postWorkflowTimer.current);
+    postWorkflowTimer.current = setTimeout(() => {
+      setPostWorkflowPolling(false);
+      localStorage.removeItem('synapse:workflow-complete-at');
+    }, POST_WORKFLOW_POLL_DURATION);
+  }, []);
+
+  // On mount: check if a workflow completed recently (within the last 3 min)
+  // and activate polling immediately — handles the "navigate to feed" case.
+  useEffect(() => {
+    const storedAt = localStorage.getItem('synapse:workflow-complete-at');
+    if (storedAt) {
+      const elapsed = Date.now() - parseInt(storedAt, 10);
+      if (elapsed < POST_WORKFLOW_POLL_DURATION) {
+        // Still within the 3-minute window — activate polling for the remainder
+        setPostWorkflowPolling(true);
+        const remaining = POST_WORKFLOW_POLL_DURATION - elapsed;
+        postWorkflowTimer.current = setTimeout(() => {
+          setPostWorkflowPolling(false);
+          localStorage.removeItem('synapse:workflow-complete-at');
+        }, remaining);
+      } else {
+        // Signal is stale — clear it
+        localStorage.removeItem('synapse:workflow-complete-at');
+      }
+    }
+    return () => {
+      if (postWorkflowTimer.current) clearTimeout(postWorkflowTimer.current);
+    };
+  }, []);
+
+  // Also listen for same-page event (if user stays on feed while workflow runs
+  // in background, or in a different tab via storage event).
+  useEffect(() => {
+    const onWorkflowComplete = () => activatePostWorkflowPolling();
+    const onStorageChange = (e: StorageEvent) => {
+      if (e.key === 'synapse:workflow-complete-at' && e.newValue) {
+        activatePostWorkflowPolling();
+      }
+    };
+    window.addEventListener('synapse:workflow-complete', onWorkflowComplete);
+    window.addEventListener('storage', onStorageChange);
+    return () => {
+      window.removeEventListener('synapse:workflow-complete', onWorkflowComplete);
+      window.removeEventListener('storage', onStorageChange);
+    };
+  }, [activatePostWorkflowPolling]);
 
   // Fire-and-forget: kick off summarization when the feed mounts so articles
   // get summaries even if the Celery beat worker hasn't run yet.
@@ -32,12 +94,10 @@ export default function FeedPage() {
   useEffect(() => {
     if (didTrigger.current) return;
     didTrigger.current = true;
-    api.post('/articles/summarize/', { batch_size: 20 }).catch(() => {
-      // Non-critical — silently ignore if the worker/endpoint is unavailable
-    });
+    api.post('/articles/summarize/', { batch_size: 20 }).catch(() => {});
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['articles', topicParam, page, sortBy],
     queryFn: () =>
       api.get('/articles/', {
@@ -47,25 +107,41 @@ export default function FeedPage() {
           ordering: sortBy === 'trending' ? '-trending_score' : '-published_at',
         },
       }).then(r => r.data),
-    // Poll every 15 s while any article on this page still has no summary.
-    // React Query will stop polling automatically when refetchInterval returns false.
+    // Poll aggressively after a workflow run; otherwise only while summaries are pending.
     refetchInterval: (query) => {
+      if (postWorkflowPolling) return POST_WORKFLOW_POLL_INTERVAL;
       const articles: any[] = Array.isArray(query.state.data?.data)
         ? query.state.data.data
         : Array.isArray(query.state.data?.results)
         ? query.state.data.results
         : [];
-      const hasPending = articles.some(
-        (a: any) => !a.summary || a.summary === ''
-      );
+      const hasPending = articles.some((a: any) => !a.summary || a.summary === '');
       return hasPending ? SUMMARY_POLL_INTERVAL : false;
     },
-    refetchIntervalInBackground: false, // only poll when the tab is visible
+    refetchIntervalInBackground: false,
   });
 
   const articles = Array.isArray(data?.data) ? data.data : Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
   const totalCount = data?.meta?.total || data?.count || 0;
-  const pageSize = articles.length;
+
+  // Detect when new articles arrive during post-workflow polling and show banner
+  useEffect(() => {
+    if (!postWorkflowPolling) return;
+    const current = totalCount;
+    if (prevArticleCount.current > 0 && current > prevArticleCount.current) {
+      const diff = current - prevArticleCount.current;
+      setNewArticleCount(diff);
+      setShowNewBanner(true);
+    }
+    prevArticleCount.current = current;
+  }, [totalCount, postWorkflowPolling]);
+
+  const handleRefreshFeed = useCallback(() => {
+    setShowNewBanner(false);
+    setNewArticleCount(0);
+    setPage(1);
+    queryClient.invalidateQueries({ queryKey: ['articles'] });
+  }, [queryClient]);
 
   const handleLoadMore = () => {
     setPage((p) => p + 1);
@@ -81,10 +157,22 @@ export default function FeedPage() {
             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Tech Intelligence Feed</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{totalCount} articles curated from around the web</p>
           </div>
-          <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live updates
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Manual refresh button */}
+            <button
+              onClick={handleRefreshFeed}
+              disabled={isFetching}
+              className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
+              title="Refresh feed"
+            >
+              <RefreshCw size={12} className={isFetching ? 'animate-spin' : ''} />
+              {isFetching ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
+              <span className={`w-1.5 h-1.5 rounded-full ${postWorkflowPolling ? 'bg-blue-400 animate-pulse' : 'bg-emerald-400 animate-pulse'}`} />
+              {postWorkflowPolling ? 'Watching for new articles…' : 'Live updates'}
+            </span>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -157,6 +245,25 @@ export default function FeedPage() {
           )}
         </div>
       </div>
+
+      {/* ── New articles banner (appears after workflow scraping completes) ── */}
+      {showNewBanner && (
+        <div className="flex items-center justify-between gap-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-indigo-300">
+            <span className="text-lg">🆕</span>
+            <span>
+              <strong>{newArticleCount} new article{newArticleCount !== 1 ? 's' : ''}</strong> scraped and ready!
+            </span>
+          </div>
+          <button
+            onClick={handleRefreshFeed}
+            className="flex items-center gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <RefreshCw size={12} />
+            Show now
+          </button>
+        </div>
+      )}
 
       {/* ── Content ───────────────────────────────────────────────── */}
       {activeTab === 'for-you' ? (

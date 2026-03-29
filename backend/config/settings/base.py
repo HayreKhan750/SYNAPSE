@@ -229,43 +229,61 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 min soft limit
 CELERY_RESULT_EXPIRES = 3600           # results expire after 1 hour
 CELERY_DEFAULT_QUEUE = 'default'
 CELERY_TASK_ROUTES = {
-    # Scraping — core tasks
-    'apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
-    'apps.core.tasks.scrape_github': {'queue': 'scraping'},
-    'apps.core.tasks.scrape_arxiv': {'queue': 'scraping'},
-    'apps.core.tasks.scrape_youtube': {'queue': 'scraping'},
-    'apps.core.tasks.scrape_all': {'queue': 'scraping'},
-    # Keep legacy prefixed names in case older beat entries exist
-    'backend.apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
-    'backend.apps.core.tasks.scrape_github': {'queue': 'scraping'},
-    'backend.apps.core.tasks.scrape_arxiv': {'queue': 'scraping'},
-    'backend.apps.core.tasks.scrape_youtube': {'queue': 'scraping'},
-    'backend.apps.core.tasks.scrape_all': {'queue': 'scraping'},
-    # Article / paper / repo / video scraped content
-    'apps.articles.tasks.*': {'queue': 'scraping'},
-    'apps.papers.tasks.*': {'queue': 'scraping'},
-    'apps.repositories.tasks.*': {'queue': 'scraping'},
-    'apps.videos.tasks.*': {'queue': 'scraping'},
-    # Agent tasks — Phase 5.1
-    'apps.agents.tasks.*': {'queue': 'agents'},
-    # NLP processing — Phase 2.1 (more specific rules override the wildcard above)
-    'apps.articles.tasks.process_article_nlp': {'queue': 'nlp'},
+    # ── Automation (MUST be first — highest priority) ─────────────────────────
+    # execute_workflow MUST land on 'default' so the worker that handles the
+    # ▶ Run button picks it up immediately.
+    'apps.automation.tasks.execute_workflow':    {'queue': 'default'},
+    'apps.automation.tasks.cleanup_stale_runs':  {'queue': 'default'},
+    'apps.automation.tasks.dispatch_event_trigger': {'queue': 'default'},
+
+    # ── NLP processing (Phase 2.1) ────────────────────────────────────────────
+    # These MUST be listed before the 'apps.articles.tasks.*' scraping wildcard
+    # below — Celery evaluates routes in definition order and the first match wins.
+    'apps.articles.tasks.process_article_nlp':        {'queue': 'nlp'},
     'apps.articles.tasks.process_pending_articles_nlp': {'queue': 'nlp'},
-    # Summarization — Phase 2.2
-    'apps.articles.tasks.summarize_article': {'queue': 'nlp'},
+
+    # ── Summarization (Phase 2.2) ─────────────────────────────────────────────
+    'apps.articles.tasks.summarize_article':          {'queue': 'nlp'},
     'apps.articles.tasks.summarize_pending_articles': {'queue': 'nlp'},
-    # Vector Embeddings — Phase 2.3
-    'apps.articles.embedding_tasks.*': {'queue': 'embeddings'},
-    'apps.papers.embedding_tasks.*': {'queue': 'embeddings'},
+
+    # ── Excerpt fetching (default queue — lightweight HTTP tasks) ─────────────
+    'apps.articles.tasks.fetch_article_excerpt':   {'queue': 'default'},
+    'apps.articles.tasks.fetch_pending_excerpts':  {'queue': 'default'},
+
+    # ── Core scraping tasks ───────────────────────────────────────────────────
+    'apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
+    'apps.core.tasks.scrape_github':     {'queue': 'scraping'},
+    'apps.core.tasks.scrape_arxiv':      {'queue': 'slow_scraping'},  # long-running — isolated
+    'apps.core.tasks.scrape_youtube':    {'queue': 'slow_scraping'},  # long-running — isolated
+    'apps.core.tasks.scrape_all':        {'queue': 'scraping'},
+    # Legacy prefixed names (older beat entries)
+    'backend.apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
+    'backend.apps.core.tasks.scrape_github':     {'queue': 'scraping'},
+    'backend.apps.core.tasks.scrape_arxiv':      {'queue': 'slow_scraping'},
+    'backend.apps.core.tasks.scrape_youtube':    {'queue': 'slow_scraping'},
+    'backend.apps.core.tasks.scrape_all':        {'queue': 'scraping'},
+
+    # ── Vector Embeddings (Phase 2.3) ─────────────────────────────────────────
+    'apps.articles.embedding_tasks.*':     {'queue': 'embeddings'},
+    'apps.papers.embedding_tasks.*':       {'queue': 'embeddings'},
     'apps.repositories.embedding_tasks.*': {'queue': 'embeddings'},
-    'apps.videos.embedding_tasks.*': {'queue': 'embeddings'},
-    # Automation — Phase 4.1
-    'apps.automation.tasks.execute_workflow': {'queue': 'default'},
-    'apps.automation.tasks.cleanup_stale_runs': {'queue': 'default'},
-    # Trend analysis — Phase 2.4 / 9
+    'apps.videos.embedding_tasks.*':       {'queue': 'embeddings'},
+
+    # ── Agent tasks (Phase 5.1) ───────────────────────────────────────────────
+    'apps.agents.tasks.*': {'queue': 'agents'},
+
+    # ── Trend analysis ────────────────────────────────────────────────────────
     'apps.trends.tasks.analyze_trends_task': {'queue': 'default'},
-    # Notifications — Phase 4.2
+
+    # ── Notifications (Phase 4.2) ─────────────────────────────────────────────
     'apps.notifications.tasks.*': {'queue': 'default'},
+
+    # ── Catch-all wildcards (MUST be last — lowest priority) ──────────────────
+    # Any article/paper/repo/video task not matched above goes to scraping.
+    'apps.articles.tasks.*':      {'queue': 'scraping'},
+    'apps.papers.tasks.*':        {'queue': 'scraping'},
+    'apps.repositories.tasks.*':  {'queue': 'scraping'},
+    'apps.videos.tasks.*':        {'queue': 'scraping'},
 }
 
 # ── Axes (Login Rate Limiting) ────────────────────────────────

@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/utils/api';
 import { ArticleCard, RepositoryCard, PaperCard } from '@/components/cards';
+import { VideoCard } from '@/components/cards/VideoCard';
 import { ArticleSkeleton, RepositorySkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
 
 const StatCard = ({ icon: Icon, label, value, gradient, href }: any) => (
@@ -44,36 +45,110 @@ const SectionHeader = ({ title, subtitle, href }: { title: string; subtitle?: st
 );
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
+
+  // When a workflow completes and scraping is queued, invalidate count badges
+  // so the home page reflects the new article/paper/repo counts promptly.
+  useEffect(() => {
+    const invalidateCounts = () => {
+      // Stat badge counts
+      queryClient.invalidateQueries({ queryKey: ['articles', 'count'] });
+      queryClient.invalidateQueries({ queryKey: ['papers', 'count'] });
+      queryClient.invalidateQueries({ queryKey: ['repos', 'count'] });
+      queryClient.invalidateQueries({ queryKey: ['videos', 'count'] });
+      // Content sections on home
+      queryClient.invalidateQueries({ queryKey: ['articles', 'home'] });
+      queryClient.invalidateQueries({ queryKey: ['repos', 'home'] });
+      queryClient.invalidateQueries({ queryKey: ['papers', 'home'] });
+      queryClient.invalidateQueries({ queryKey: ['videos', 'home'] });
+      // GitHub page list
+      queryClient.invalidateQueries({ queryKey: ['repos', 'list'] });
+    };
+
+    // Same-page event (unlikely on home, but included for completeness)
+    window.addEventListener('synapse:workflow-complete', invalidateCounts);
+
+    // Cross-tab / cross-page: workflow completed on automation page then user navigated here
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'synapse:workflow-complete-at' && e.newValue) invalidateCounts();
+    };
+    window.addEventListener('storage', onStorage);
+
+    // On mount: if there's a fresh workflow-complete signal (within 3 min),
+    // immediately re-fetch counts so navigation to home shows updated numbers.
+    const storedAt = localStorage.getItem('synapse:workflow-complete-at');
+    if (storedAt) {
+      const elapsed = Date.now() - parseInt(storedAt, 10);
+      if (elapsed < 3 * 60 * 1000) invalidateCounts();
+    }
+
+    return () => {
+      window.removeEventListener('synapse:workflow-complete', invalidateCounts);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [queryClient]);
+
+  // Latest content for the home sections — ordered by scraped_at so newly
+  // fetched items always appear at the top immediately after a workflow run.
   const { data: articles, isLoading: articlesLoading } = useQuery({
-    queryKey: ['articles', 'trending'],
-    queryFn: () => api.get('/articles/trending/').then(r => r.data),
+    queryKey: ['articles', 'home'],
+    queryFn: () => api.get('/articles/', { params: { page_size: 4, ordering: '-scraped_at' } }).then(r => r.data),
+    staleTime: 30_000,
   });
 
   const { data: repos, isLoading: reposLoading } = useQuery({
-    queryKey: ['repos', 'trending'],
-    queryFn: () => api.get('/repos/trending/').then(r => r.data),
+    queryKey: ['repos', 'home'],
+    queryFn: () => api.get('/repos/', { params: { page_size: 3, ordering: '-scraped_at' } }).then(r => r.data),
+    staleTime: 30_000,
   });
 
   const { data: papers, isLoading: papersLoading } = useQuery({
-    queryKey: ['papers', 'trending'],
-    queryFn: () => api.get('/papers/trending/').then(r => r.data),
+    queryKey: ['papers', 'home'],
+    queryFn: () => api.get('/papers/', { params: { page_size: 3, ordering: '-fetched_at' } }).then(r => r.data),
+    staleTime: 30_000,
   });
 
-  const { data: videos } = useQuery({
+  const { data: videosData, isLoading: videosLoading } = useQuery({
+    queryKey: ['videos', 'home'],
+    queryFn: () => api.get('/videos/', { params: { page_size: 4, ordering: '-fetched_at' } }).then(r => r.data),
+    staleTime: 30_000,
+  });
+
+  // Separate lightweight count queries for the stat badges — use page_size=1
+  // so the backend returns meta.total (the real DB count) with minimal data.
+  const { data: articleCount } = useQuery({
+    queryKey: ['articles', 'count'],
+    queryFn: () => api.get('/articles/?page_size=1').then(r => r.data),
+    staleTime: 30_000,
+  });
+
+  const { data: paperCount } = useQuery({
+    queryKey: ['papers', 'count'],
+    queryFn: () => api.get('/papers/?page_size=1').then(r => r.data),
+    staleTime: 30_000,
+  });
+
+  const { data: repoCount } = useQuery({
+    queryKey: ['repos', 'count'],
+    queryFn: () => api.get('/repos/?page_size=1').then(r => r.data),
+    staleTime: 30_000,
+  });
+
+  const { data: videoCount } = useQuery({
     queryKey: ['videos', 'count'],
     queryFn: () => api.get('/videos/?page_size=1').then(r => r.data),
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
   });
 
-  const trendingArticles = Array.isArray(articles?.data) ? articles.data.slice(0, 6)
-    : Array.isArray(articles?.results) ? articles.results.slice(0, 6)
-    : Array.isArray(articles) ? (articles as any[]).slice(0, 6) : [];
-  const trendingRepos = Array.isArray(repos?.data) ? repos.data.slice(0, 4)
-    : Array.isArray(repos?.results) ? repos.results.slice(0, 4)
-    : Array.isArray(repos) ? (repos as any[]).slice(0, 4) : [];
-  const trendingPapers = Array.isArray(papers?.data) ? papers.data.slice(0, 3)
-    : Array.isArray(papers?.results) ? papers.results.slice(0, 3)
-    : Array.isArray(papers) ? (papers as any[]).slice(0, 3) : [];
+  const extractList = (d: any, n: number) =>
+    Array.isArray(d?.results) ? d.results.slice(0, n)
+    : Array.isArray(d?.data) ? d.data.slice(0, n)
+    : Array.isArray(d) ? (d as any[]).slice(0, n) : [];
+
+  const trendingArticles = extractList(articles, 4);
+  const trendingRepos    = extractList(repos, 3);
+  const trendingPapers   = extractList(papers, 3);
+  const trendingVideos   = extractList(videosData, 4);
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -102,10 +177,10 @@ export default function Dashboard() {
 
           {/* ── Stats Row ─────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard icon={BarChart3} label="Articles" value={articles?.meta?.total || 0} gradient="bg-gradient-to-br from-indigo-500 to-indigo-700" href="/feed" />
-            <StatCard icon={BookOpen} label="Papers" value={papers?.meta?.total || 0} gradient="bg-gradient-to-br from-violet-500 to-violet-700" href="/research" />
-            <StatCard icon={GitBranch} label="Repositories" value={repos?.meta?.total || 0} gradient="bg-gradient-to-br from-emerald-500 to-emerald-700" href="/github" />
-            <StatCard icon={Youtube} label="Videos" value={videos?.meta?.total || 0} gradient="bg-gradient-to-br from-red-500 to-red-700" href="/videos" />
+            <StatCard icon={BarChart3} label="Articles" value={articleCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-indigo-500 to-indigo-700" href="/feed" />
+            <StatCard icon={BookOpen} label="Papers" value={paperCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-violet-500 to-violet-700" href="/research" />
+            <StatCard icon={GitBranch} label="Repositories" value={repoCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-emerald-500 to-emerald-700" href="/github" />
+            <StatCard icon={Youtube} label="Videos" value={videoCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-red-500 to-red-700" href="/videos" />
           </div>
 
           {/* ── Latest Articles + GitHub ───────────────────────────── */}
@@ -147,6 +222,28 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* ── Videos ───────────────────────────────────────────── */}
+          <div>
+            <SectionHeader title="Latest Videos" subtitle="AI-curated tech & ML videos" href="/videos" />
+            {videosLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse aspect-video" />
+                ))}
+              </div>
+            ) : trendingVideos.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {trendingVideos.map((video: any) => (
+                  <VideoCard key={video.id} video={video} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
+                <p className="text-slate-500 dark:text-slate-400">No videos yet</p>
+              </div>
+            )}
           </div>
 
           {/* ── Research Papers ───────────────────────────────────── */}

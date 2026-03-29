@@ -1,7 +1,17 @@
+from datetime import timedelta
 from .base import *  # noqa: F401, F403
 
 DEBUG = True
 ALLOWED_HOSTS = ['*']
+
+# ── JWT — longer token lifetime in dev so polling never hits 401 mid-run ──────
+# Production keeps 15 min (set via JWT_ACCESS_TOKEN_LIFETIME_MINUTES env var).
+# In development we use 60 min so a workflow run never causes token expiry.
+SIMPLE_JWT = {
+    **SIMPLE_JWT,
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
 
 # ── django.contrib.postgres is required for ArrayField ──────────────────────
 # Must be included when using PostgreSQL (ArrayField, HStoreField, etc.)

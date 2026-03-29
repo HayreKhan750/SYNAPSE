@@ -75,7 +75,10 @@ class TrendingArticleListView(ListAPIView):
     pagination_class = StandardPagination
 
     def get_queryset(self):
-        return Article.objects.select_related('source').order_by('-trending_score', '-published_at')[:50]
+        # Do NOT slice here — sliced querysets cannot be paginated (count() breaks).
+        # The pagination class will apply its own limit, and the meta.total will
+        # reflect the real DB count so the home-page stat cards display correctly.
+        return Article.objects.select_related('source').order_by('-trending_score', '-published_at')
 
 
 @api_view(['GET'])

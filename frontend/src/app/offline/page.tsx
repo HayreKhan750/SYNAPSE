@@ -3,6 +3,7 @@
  *
  * Phase 7.2 — PWA (Week 20)
  */
+'use client';
 
 export default function OfflinePage() {
   return (

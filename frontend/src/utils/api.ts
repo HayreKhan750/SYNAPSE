@@ -138,7 +138,11 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         processQueue(refreshErr, null)
         clearTokens()
-        if (typeof window !== 'undefined') window.location.href = '/login'
+        // Only redirect to login if not on a page that has active long-running
+        // operations (e.g. automation polling). Give the user 2s to see the error.
+        if (typeof window !== 'undefined') {
+          setTimeout(() => { window.location.href = '/login' }, 2000)
+        }
         return Promise.reject(refreshErr)
       } finally {
         isRefreshing = false

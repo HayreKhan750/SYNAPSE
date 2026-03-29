@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { GitBranch, TrendingUp } from 'lucide-react';
+import { GitBranch, TrendingUp, ArrowUpDown } from 'lucide-react';
 import api from '@/utils/api';
 import { RepositoryCard } from '@/components/cards';
 import { RepositorySkeleton } from '@/components/cards/SkeletonCard';
@@ -10,31 +10,48 @@ import { cn } from '@/utils/helpers';
 
 const LANGUAGES = ['All', 'Python', 'JavaScript', 'TypeScript', 'Rust', 'Go', 'Java'];
 
+const SORT_OPTIONS = [
+  { label: '⭐ Most Stars', value: '-stars' },
+  { label: '🍴 Most Forks', value: '-forks' },
+  { label: '🔥 Stars Today', value: '-stars_today' },
+  { label: '🕐 Newest', value: '-scraped_at' },
+];
+
 export default function GitHubPage() {
   const [selectedLanguage, setSelectedLanguage] = useState('All');
+  const [sortBy, setSortBy] = useState('-stars');
 
+  // Total count from lightweight query
+  const { data: countData } = useQuery({
+    queryKey: ['repos', 'count'],
+    queryFn: () => api.get('/repos/?page_size=1').then(r => r.data),
+    staleTime: 30_000,
+  });
+  const totalCount = countData?.meta?.total ?? 0;
+
+  // Main list — uses RepositoryListView which supports ordering + language filter
   const { data, isLoading } = useQuery({
-    queryKey: ['repos', 'trending', selectedLanguage],
+    queryKey: ['repos', 'list', selectedLanguage, sortBy],
     queryFn: () =>
-      api.get('/repos/trending/', {
+      api.get('/repos/', {
         params: {
-          language: selectedLanguage === 'All' ? undefined : selectedLanguage.toLowerCase(),
-          is_trending: true,
+          page_size: 50,
+          ordering: sortBy,
+          ...(selectedLanguage !== 'All' ? { language: selectedLanguage } : {}),
         },
       }).then(r => r.data),
+    staleTime: 30_000,
   });
 
-  const repos = Array.isArray(data?.data) ? data.data : Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-  const totalCount = data?.meta?.total || data?.count || 0;
+  const repos: any[] = Array.isArray(data?.results) ? data.results
+    : Array.isArray(data?.data) ? data.data
+    : Array.isArray(data) ? data : [];
 
-  const filteredRepos = useMemo(() => {
-    if (selectedLanguage === 'All') return repos;
-    return repos.filter((repo: any) =>
-      repo.language?.toLowerCase() === selectedLanguage.toLowerCase()
-    );
-  }, [repos, selectedLanguage]);
-
-  const trendingToday = filteredRepos.filter((repo: any) => repo.stars_today && repo.stars_today > 0).length;
+  // "Scraped in last 24h" as a proxy for "new today"
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const newToday = repos.filter((r: any) =>
+    r.scraped_at && new Date(r.scraped_at).getTime() > oneDayAgo
+  ).length;
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -50,8 +67,8 @@ export default function GitHubPage() {
         <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-90">Trending Today</p>
-              <p className="text-2xl font-bold">{trendingToday}</p>
+              <p className="text-sm opacity-90">Added Today</p>
+              <p className="text-2xl font-bold">{newToday}</p>
             </div>
             <TrendingUp size={32} className="opacity-75" />
           </div>
@@ -67,23 +84,54 @@ export default function GitHubPage() {
         </div>
       </div>
 
-      {/* Language filter pills */}
-      <div className="flex flex-wrap gap-2">
-        {LANGUAGES.map((language) => (
-          <button
-            key={language}
-            onClick={() => setSelectedLanguage(language)}
-            className={cn(
-              'px-4 py-2 rounded-full font-medium transition-all',
-              selectedLanguage === language
-                ? 'bg-indigo-500 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-            )}
-          >
-            {language}
-          </button>
-        ))}
+      {/* Sort + Language filters */}
+      <div className="space-y-3">
+        {/* Sort pills */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="flex items-center gap-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+            <ArrowUpDown size={14} /> Sort:
+          </span>
+          {SORT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setSortBy(opt.value)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-sm font-medium transition-all',
+                sortBy === opt.value
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Language pills */}
+        <div className="flex flex-wrap gap-2">
+          {LANGUAGES.map((language) => (
+            <button
+              key={language}
+              onClick={() => setSelectedLanguage(language)}
+              className={cn(
+                'px-4 py-2 rounded-full font-medium transition-all',
+                selectedLanguage === language
+                  ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              )}
+            >
+              {language}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Result count */}
+      {!isLoading && (
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {repos.length} repositories{selectedLanguage !== 'All' ? ` · ${selectedLanguage}` : ''}
+        </p>
+      )}
 
       {/* Repositories grid */}
       {isLoading ? (
@@ -92,9 +140,9 @@ export default function GitHubPage() {
             <RepositorySkeleton key={i} />
           ))}
         </div>
-      ) : filteredRepos.length > 0 ? (
+      ) : repos.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredRepos.map((repo: any) => (
+          {repos.map((repo: any) => (
             <RepositoryCard key={repo.id} repo={repo} />
           ))}
         </div>

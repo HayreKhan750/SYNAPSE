@@ -192,4 +192,45 @@ def analyze_trends_task(
         "errors": errors,
     }
     logger.info("analyze_trends_task complete: %s", summary)
+
+    # ── Fire trending_spike_signal for notable spikes ─────────────────────────
+    # A "spike" is any tech that got created (brand-new trend) or whose score
+    # exceeds the SPIKE_THRESHOLD. This wires the event-trigger automation system.
+    _emit_trending_spikes(trend_date, days_back)
+
     return summary
+
+
+_SPIKE_THRESHOLD = 10.0   # trend_score above this is considered a spike
+_SPIKE_TOP_N = 5          # only emit the top-N spikes to avoid flooding
+
+
+def _emit_trending_spikes(trend_date, days_back: int) -> None:
+    """
+    After analyze_trends_task completes, find the top trending technologies
+    and fire trending_spike_signal so matching event-triggered workflows run.
+    """
+    try:
+        from apps.trends.models import TechnologyTrend
+        from apps.automation.signals import trending_spike_signal
+
+        top = (
+            TechnologyTrend.objects
+            .filter(date=trend_date, trend_score__gte=_SPIKE_THRESHOLD)
+            .order_by('-trend_score')[:_SPIKE_TOP_N]
+        )
+
+        for trend in top:
+            logger.info(
+                "Emitting trending_spike for '%s' (score=%.1f)",
+                trend.technology_name, trend.trend_score,
+            )
+            trending_spike_signal.send(
+                sender=TechnologyTrend,
+                topic=trend.technology_name,
+                score=float(trend.trend_score),
+                language=getattr(trend, 'language', ''),
+            )
+    except Exception as exc:
+        # Never let spike emission crash the main task
+        logger.warning("_emit_trending_spikes: failed: %s", exc)

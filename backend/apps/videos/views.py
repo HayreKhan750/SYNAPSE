@@ -12,8 +12,8 @@ class VideoListView(generics.ListAPIView):
     pagination_class   = StandardPagination
     filter_backends    = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields      = ['title', 'description', 'channel_name', 'topics']
-    ordering_fields    = ['published_at', 'view_count', 'like_count']
-    ordering           = ['-published_at']
+    ordering_fields    = ['published_at', 'view_count', 'like_count', 'fetched_at']
+    ordering           = ['-fetched_at']
     queryset           = Video.objects.all()
 
 class VideoDetailView(generics.RetrieveAPIView):

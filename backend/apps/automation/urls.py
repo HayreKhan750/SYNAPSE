@@ -1,13 +1,14 @@
 """
 URL configuration for the Automation app.
 
-Routes:
   GET/POST   /api/v1/automation/workflows/
   GET/PUT/PATCH/DELETE /api/v1/automation/workflows/<id>/
   POST       /api/v1/automation/workflows/<id>/trigger/
   POST       /api/v1/automation/workflows/<id>/toggle/
   GET        /api/v1/automation/workflows/<id>/runs/
   GET        /api/v1/automation/runs/<id>/
+  GET        /api/v1/automation/runs/<id>/status/   ← live polling / SSE
+  POST       /api/v1/automation/events/trigger/     ← event dispatch
 """
 from django.urls import path
 from .views import (
@@ -17,6 +18,14 @@ from .views import (
     WorkflowToggleView,
     WorkflowRunListView,
     WorkflowRunDetailView,
+    WorkflowRunStatusView,
+    trigger_event_view,
+    action_schemas_view,
+    list_templates_view,
+    clone_template_view,
+    list_schedule_view,
+    toggle_schedule_view,
+    workflow_analytics_view,
 )
 
 urlpatterns = [
@@ -31,4 +40,24 @@ urlpatterns = [
     # Run history
     path('workflows/<uuid:pk>/runs/', WorkflowRunListView.as_view(), name='workflow-runs'),
     path('runs/<uuid:pk>/', WorkflowRunDetailView.as_view(), name='run-detail'),
+
+    # Live run status (SSE / polling)
+    path('runs/<uuid:pk>/status/', WorkflowRunStatusView.as_view(), name='run-status'),
+
+    # Internal event trigger dispatch
+    path('events/trigger/', trigger_event_view, name='event-trigger'),
+
+    # Action parameter schemas for the UI editor
+    path('action-schemas/', action_schemas_view, name='action-schemas'),
+
+    # Workflow templates
+    path('templates/', list_templates_view, name='template-list'),
+    path('templates/<str:template_id>/clone/', clone_template_view, name='template-clone'),
+
+    # Scheduled task management
+    path('schedule/', list_schedule_view, name='schedule-list'),
+    path('schedule/<uuid:pk>/toggle/', toggle_schedule_view, name='schedule-toggle'),
+
+    # Analytics
+    path('analytics/', workflow_analytics_view, name='workflow-analytics'),
 ]

@@ -5,6 +5,7 @@ Defines long-running scraping tasks that are executed asynchronously
 using Celery with a Redis broker.
 """
 import logging
+import os
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional
@@ -17,9 +18,60 @@ logger = logging.getLogger(__name__)
 # Compute project root directory
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
+def _ensure_dedup_ttl() -> None:
+    """Ensure all dedup Redis sets have a 24-hour TTL so they don't block scraping forever.
+    Called before each scrape task to keep TTLs fresh."""
+    try:
+        import redis as redis_lib
+        from django.conf import settings
+        redis_url = getattr(settings, 'REDIS_URL', 'redis://localhost:6379/0')
+        # Dedup sets live in db 0
+        r = redis_lib.from_url(redis_url.rsplit('/', 1)[0] + '/0', decode_responses=True)
+        for key in ['synapse:seen_urls', 'synapse:seen_github_ids',
+                    'synapse:seen_arxiv_ids', 'synapse:seen_youtube_ids']:
+            if r.exists(key):
+                ttl = r.ttl(key)
+                if ttl == -1:  # no TTL set — fix it
+                    r.expire(key, 24 * 60 * 60)
+    except Exception:
+        pass  # non-critical
+
+
+def _scrapy_env() -> dict:
+    """Return env vars for scrapy subprocess — ensures PYTHONPATH includes
+    the project root so 'scraper.settings' and 'scraper.pipelines.*' are importable.
+    Also loads any variables from the project-root .env file that aren't already
+    in the environment (e.g. YOUTUBE_API_KEY, GITHUB_TOKEN)."""
+    env = os.environ.copy()
+
+    # Load .env file variables that are missing from the current environment
+    env_file = BASE_DIR / '.env'
+    if env_file.exists():
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, _, val = line.partition('=')
+                key = key.strip()
+                val = val.strip().strip('"').strip("'")
+                if key and key not in env:  # don't override existing env vars
+                    env[key] = val
+
+    project_root = str(BASE_DIR)
+    backend_dir = str(BASE_DIR / 'backend')
+    current_path = env.get('PYTHONPATH', '')
+    parts = [p for p in current_path.split(':') if p]
+    for d in [project_root, backend_dir]:
+        if d not in parts:
+            parts.insert(0, d)
+    env['PYTHONPATH'] = ':'.join(parts)
+    return env
+
 
 @shared_task(bind=True, max_retries=3)
 def scrape_hackernews(self, story_type: str = 'top', limit: int = 100) -> Dict:
+    _ensure_dedup_ttl()
     """
     Scrape HackerNews stories using the HackerNews spider.
     
@@ -47,7 +99,8 @@ def scrape_hackernews(self, story_type: str = 'top', limit: int = 100) -> Dict:
             cwd=str(BASE_DIR / 'scraper'),
             capture_output=True,
             text=True,
-            timeout=300  # 5 minute timeout
+            timeout=300,  # 5 minute timeout
+            env=_scrapy_env(),
         )
         
         if result.returncode == 0:
@@ -76,6 +129,7 @@ def scrape_hackernews(self, story_type: str = 'top', limit: int = 100) -> Dict:
 
 @shared_task(bind=True, max_retries=3)
 def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limit: int = 100) -> Dict:
+    _ensure_dedup_ttl()
     """
     Scrape GitHub repositories using the GitHub spider.
     
@@ -110,7 +164,8 @@ def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limi
             cwd=str(BASE_DIR / 'scraper'),
             capture_output=True,
             text=True,
-            timeout=300  # 5 minute timeout
+            timeout=300,  # 5 minute timeout
+            env=_scrapy_env(),
         )
         
         if result.returncode == 0:
@@ -139,6 +194,7 @@ def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limi
 
 @shared_task(bind=True, max_retries=3)
 def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, max_papers: int = 500) -> Dict:
+    _ensure_dedup_ttl()
     """
     Scrape arXiv papers using the arXiv spider.
     
@@ -174,7 +230,8 @@ def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, ma
             cwd=str(BASE_DIR / 'scraper'),
             capture_output=True,
             text=True,
-            timeout=600  # 10 minute timeout for arXiv
+            timeout=600,  # 10 minute timeout for arXiv
+            env=_scrapy_env(),
         )
         
         if result.returncode == 0:
@@ -203,6 +260,7 @@ def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, ma
 
 @shared_task(bind=True, max_retries=3)
 def scrape_youtube(self, days_back: int = 30, max_results: int = 20) -> Dict:
+    _ensure_dedup_ttl()
     """
     Scrape YouTube videos using the YouTube spider.
     
@@ -232,7 +290,8 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20) -> Dict:
             cwd=str(BASE_DIR / 'scraper'),
             capture_output=True,
             text=True,
-            timeout=300  # 5 minute timeout
+            timeout=300,  # 5 minute timeout
+            env=_scrapy_env(),
         )
         
         if result.returncode == 0:

@@ -12,6 +12,8 @@ import { useAuthStore } from '@/store/authStore'
 import api from '@/utils/api'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
+import { GoogleDriveSection } from './GoogleDriveSection'
+import { MFASection } from './MFASection'
 import {
   Settings,
   Bell,
@@ -329,6 +331,15 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Integrations */}
+        <Section title="Integrations" icon={<Settings size={16} />}>
+          <p className="text-sm text-slate-400 mb-4">
+            Connect external services to power automation actions like{' '}
+            <span className="text-indigo-400 font-mono text-xs">upload_to_drive</span>.
+          </p>
+          <GoogleDriveSection />
+        </Section>
+
         {/* Appearance */}
         <Section title="Appearance" icon={<Palette size={16} />}>
           <div>
@@ -399,14 +410,8 @@ export default function SettingsPage() {
           <ChangePasswordForm />
 
           <div className="pt-4 border-t border-slate-800">
-            <p className="text-sm font-medium text-white mb-1">Multi-Factor Authentication</p>
-            <p className="text-xs text-slate-500 mb-3">Add an extra layer of security to your account</p>
-            <a
-              href="/mfa/setup/"
-              className="inline-flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
-            >
-              Set up MFA <ChevronRight size={14} />
-            </a>
+            <p className="text-sm font-medium text-white mb-3">Two-Factor Authentication (MFA)</p>
+            <MFASection />
           </div>
         </Section>
 

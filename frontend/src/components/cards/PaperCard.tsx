@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { FileText, ExternalLink, MessageSquare } from 'lucide-react';
 import { ResearchPaper } from '@/types';
-import { cn } from '@/utils/helpers';
+import { formatRelativeTime, cn } from '@/utils/helpers';
 import { BookmarkButton } from '@/components/BookmarkButton';
 
 interface PaperCardProps {
@@ -54,13 +54,13 @@ export const PaperCard = ({ paper }: PaperCardProps) => {
         'hover:shadow-lg hover:border-indigo-500/50 hover:scale-[1.01]'
       )}
     >
-      {/* Top: difficulty badge + date + categories */}
+      {/* Top: difficulty badge + relative time */}
       <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <span className={cn('text-xs font-medium px-2 py-1 rounded-full', getDifficultyColor(paper.difficulty_level))}>
           {paper.difficulty_level.charAt(0).toUpperCase() + paper.difficulty_level.slice(1)}
         </span>
-        <span className="text-xs text-slate-500 dark:text-slate-400">
-          {paper.published_date ? new Date(paper.published_date).toLocaleDateString() : ''}
+        <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+          {formatRelativeTime(paper.fetched_at || null)}
         </span>
       </div>
 

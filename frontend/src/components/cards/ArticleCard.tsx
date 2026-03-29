@@ -88,8 +88,8 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
         <span className={cn('text-xs font-medium px-2 py-1 rounded-full', getSourceColor(article.source?.source_type || article.source_type || 'blog'))}>
           {(article.source?.name || article.source_type || 'Blog')}
         </span>
-        <span className="text-xs text-slate-500 dark:text-slate-400">
-          {formatRelativeTime(article.published_at)}
+        <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+          {formatRelativeTime(article.scraped_at)}
         </span>
       </div>
 

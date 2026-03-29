@@ -130,8 +130,9 @@ class DeduplicationPipeline:
                     f"from {spider.name}"
                 )
 
-            # Add to seen set
+            # Add to seen set and refresh TTL (24h) so items re-appear the next day
             self.redis_client.sadd(redis_key, dedup_key)
+            self.redis_client.expire(redis_key, 24 * 60 * 60)
             logger.debug(f"New {item_type} ({dedup_field}={dedup_value})")
             return item
 

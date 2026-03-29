@@ -237,7 +237,9 @@ function AISynthesisPanel({ papers }: { papers: any[] }) {
 // ─── Stats Bar ────────────────────────────────────────────────────────────────
 function StatsBar({ papers }: { papers: any[] }) {
   const totalCitations = papers.reduce((s, p) => s + (p.citation_count || 0), 0);
-  const categories     = Array.from(new Set(papers.map((p: any) => p.category).filter(Boolean)));
+  const categories     = Array.from(new Set(
+    papers.flatMap((p: any) => Array.isArray(p.categories) ? p.categories : (Array.isArray(p.arxiv_categories) ? p.arxiv_categories : []))
+  )).filter(Boolean);
   const avgYear        = papers.length
     ? Math.round(papers.reduce((s, p) => s + parseInt(p.published_date?.slice(0,4) || '2024'), 0) / papers.length)
     : 2024;

@@ -7,10 +7,17 @@ class AutomationWorkflow(models.Model):
         SCHEDULE = 'schedule', 'Schedule'
         EVENT    = 'event',    'Event'
         MANUAL   = 'manual',   'Manual'
+
     class Status(models.TextChoices):
         ACTIVE = 'active', 'Active'
         PAUSED = 'paused', 'Paused'
         FAILED = 'failed', 'Failed'
+
+    class EventType(models.TextChoices):
+        NEW_ARTICLE       = 'new_article',      'New Article Published'
+        TRENDING_SPIKE    = 'trending_spike',   'Trending Topic Spike'
+        NEW_PAPER         = 'new_paper',        'New Research Paper'
+        NEW_REPO          = 'new_repo',         'New Repository Trending'
 
     id              = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user            = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workflows')
@@ -18,6 +25,8 @@ class AutomationWorkflow(models.Model):
     description     = models.TextField(blank=True)
     trigger_type    = models.CharField(max_length=20, choices=TriggerType.choices, default=TriggerType.SCHEDULE)
     cron_expression = models.CharField(max_length=100, blank=True)
+    # Event trigger config: {"event_type": "new_article", "filter": {"topic": "AI"}, "cooldown_minutes": 60}
+    event_config    = models.JSONField(default=dict, blank=True)
     actions         = models.JSONField(default=list)
     status          = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     is_active       = models.BooleanField(default=True)
@@ -34,6 +43,7 @@ class AutomationWorkflow(models.Model):
     def __str__(self):
         return f"{self.user.email} — {self.name}"
 
+
 class WorkflowRun(models.Model):
     class RunStatus(models.TextChoices):
         PENDING   = 'pending',   'Pending'
@@ -41,13 +51,15 @@ class WorkflowRun(models.Model):
         SUCCESS   = 'success',   'Success'
         FAILED    = 'failed',    'Failed'
 
-    id           = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workflow     = models.ForeignKey(AutomationWorkflow, on_delete=models.CASCADE, related_name='runs')
-    status       = models.CharField(max_length=20, choices=RunStatus.choices, default=RunStatus.PENDING)
-    started_at   = models.DateTimeField(auto_now_add=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    result       = models.JSONField(default=dict, blank=True)
-    error_message = models.TextField(blank=True)
+    id             = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workflow       = models.ForeignKey(AutomationWorkflow, on_delete=models.CASCADE, related_name='runs')
+    status         = models.CharField(max_length=20, choices=RunStatus.choices, default=RunStatus.PENDING)
+    celery_task_id = models.CharField(max_length=255, blank=True, db_index=True)
+    trigger_event  = models.JSONField(default=dict, blank=True)  # event payload that caused this run
+    started_at     = models.DateTimeField(auto_now_add=True)
+    completed_at   = models.DateTimeField(null=True, blank=True)
+    result         = models.JSONField(default=dict, blank=True)
+    error_message  = models.TextField(blank=True)
 
     class Meta:
         db_table = 'workflow_runs'

@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Play, Eye, ThumbsUp, Clock, Youtube } from 'lucide-react'
+import { formatRelativeTime } from '@/utils/helpers'
 
 interface Video {
   id: string
@@ -16,6 +17,7 @@ interface Video {
   view_count: number
   like_count: number
   published_at: string
+  fetched_at: string
   topics: string[] | string
 }
 
@@ -33,16 +35,6 @@ function formatDuration(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const days = Math.floor(diff / 86400000)
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days}d ago`
-  if (days < 30) return `${Math.floor(days / 7)}w ago`
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`
-  return `${Math.floor(days / 365)}y ago`
-}
 
 function parseTopics(topics: string[] | string): string[] {
   if (Array.isArray(topics)) return topics
@@ -62,7 +54,7 @@ export function VideoCard({ video }: { video: Video }) {
   const duration = formatDuration(video.duration_seconds)
   const views = formatViews(video.view_count)
   const likes = formatViews(video.like_count)
-  const ago = video.published_at ? timeAgo(video.published_at) : ''
+  const ago = formatRelativeTime(video.fetched_at || null)
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg hover:border-red-300 dark:hover:border-red-500 transition-all duration-200 group">
@@ -141,7 +133,7 @@ export function VideoCard({ video }: { video: Video }) {
               {likes}
             </span>
           )}
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 whitespace-nowrap">
             <Clock size={12} />
             {ago}
           </span>

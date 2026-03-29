@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Star, GitFork, AlertCircle } from 'lucide-react';
 import { Repository } from '@/types';
-import { formatNumber, cn } from '@/utils/helpers';
+import { formatNumber, formatRelativeTime, cn } from '@/utils/helpers';
 import { BookmarkButton } from '@/components/BookmarkButton';
 
 interface RepositoryCardProps {
@@ -114,7 +114,7 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
         ))}
       </div>
 
-      {/* Bottom: owner + scraped date + bookmark */}
+      {/* Bottom: owner + relative time + bookmark */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
         <div className="flex flex-col gap-0.5 flex-1">
           {(repo.owner || repo.owner_name) && (
@@ -122,11 +122,9 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
               by {repo.owner || repo.owner_name}
             </span>
           )}
-          {repo.scraped_at && (
-            <span className="text-xs text-slate-400 dark:text-slate-500">
-              {new Date(repo.scraped_at).toLocaleDateString()}
-            </span>
-          )}
+          <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
+            {formatRelativeTime(repo.scraped_at || null)}
+          </span>
         </div>
         <BookmarkButton contentType="repository" objectId={repo.id} size={16} />
       </div>
