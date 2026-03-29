@@ -100,11 +100,9 @@ export const useAuthStore = create<AuthStore>()(
               await api.post('/auth/logout/', {
                 refresh: refreshToken,
               })
-            } catch (error) {
-              // Continue with logout even if API call fails
-              if (axios.isAxiosError(error) && error.response?.status !== 401) {
-                throw error
-              }
+            } catch {
+              // Always continue with local logout regardless of API error
+              // (token may already be expired or blacklist not enabled)
             }
           }
 

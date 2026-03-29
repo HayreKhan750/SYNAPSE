@@ -50,14 +50,21 @@ class RegisterView(generics.CreateAPIView):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
-    try:
-        refresh_token = request.data.get('refresh')
-        if refresh_token:
+    """
+    POST /api/v1/auth/logout/
+    Blacklists the refresh token if possible, then always returns 200.
+    Frontend should clear local state regardless of this response.
+    """
+    refresh_token = request.data.get('refresh')
+    if refresh_token:
+        try:
             token = RefreshToken(refresh_token)
             token.blacklist()
-        return Response({'success': True, 'data': {'message': 'Logged out successfully.'}})
-    except TokenError:
-        return Response({'success': False, 'error': {'message': 'Invalid token.'}}, status=400)
+        except Exception:
+            # Token may already be expired, invalid, or blacklisting not enabled
+            # — always return success so frontend can clear local state cleanly
+            pass
+    return Response({'success': True, 'data': {'message': 'Logged out successfully.'}})
 
 
 class MeView(generics.RetrieveUpdateAPIView):
