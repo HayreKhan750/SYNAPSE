@@ -71,21 +71,21 @@ def _action_collect_news(params: dict) -> dict:
     if 'hackernews' in sources:
         t = scrape_hackernews.delay(
             story_type=params.get('story_type', 'top'),
-            limit=params.get('limit', 50),
+            limit=int(params.get('limit', params.get('items_per_source', 100))),
         )
         task_ids['hackernews'] = t.id
 
     if 'github' in sources:
         t = scrape_github.delay(
-            days_back=params.get('days_back', 1),
-            limit=params.get('limit', 50),
+            days_back=int(params.get('days_back', 7)),
+            limit=int(params.get('limit', params.get('items_per_source', 100))),
         )
         task_ids['github'] = t.id
 
     if 'arxiv' in sources:
         t = scrape_arxiv.delay(
-            days_back=params.get('days_back', 7),
-            max_papers=params.get('max_papers', 100),
+            days_back=int(params.get('days_back', 7)),
+            max_papers=int(params.get('max_papers', params.get('items_per_source', 100))),
         )
         task_ids['arxiv'] = t.id
 
@@ -100,8 +100,8 @@ def _action_collect_news(params: dict) -> dict:
             yt_queries = []
 
         t = scrape_youtube.delay(
-            days_back=params.get('days_back', 30),
-            max_results=params.get('items_per_source', params.get('max_results', 10)),
+            days_back=int(params.get('days_back', 30)),
+            max_results=int(params.get('items_per_source', params.get('max_results', 60))),
             queries=yt_queries if yt_queries else None,
         )
         task_ids['youtube'] = t.id
@@ -141,7 +141,7 @@ def _build_pdf_sections(params: dict, workflow) -> list:
     try:
         from apps.articles.models import Article
         topic_filter = params.get('topic', '')
-        qs = Article.objects.filter(is_active=True).order_by('-published_at')
+        qs = Article.objects.all().order_by('-published_at')
         if topic_filter:
             qs = qs.filter(title__icontains=topic_filter)
         limit = int(params.get('article_limit', 5))
