@@ -35,7 +35,7 @@ ACTION_PARAM_SCHEMAS = {
             'options': ['AI / ML', 'Programming', 'DevOps', 'Data Science', 'Web Dev', 'Security', 'Cloud', 'Open Source'],
         },
     },
-    'collect_news': {
+    'collect_news': {  # noqa: E501 — keep sources/items/days params then add youtube_queries
         'sources': {
             'type': 'multiselect',
             'label': 'Sources',
@@ -49,6 +49,12 @@ ACTION_PARAM_SCHEMAS = {
             'label': 'HN Story Type',
             'options': ['top', 'new', 'best'],
             'default': 'top',
+        },
+        'youtube_queries': {
+            'type': 'textarea',
+            'label': 'YouTube Search Queries (one per line)',
+            'default': '',
+            'help': 'Optional — only used when YouTube is selected as a source. Leave blank to use smart defaults (AI, programming, tech topics).',
         },
     },
     'summarize_content': {

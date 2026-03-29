@@ -194,6 +194,8 @@ function ActionParamEditor({
   return (
     <div className="mt-2 ml-2 pl-3 border-l-2 border-indigo-500/30 space-y-2">
       {Object.entries(schema).map(([key, field]) => {
+        // Hide youtube_queries unless youtube is selected in sources
+        if (key === 'youtube_queries' && !youtubeSelected) return null;
         const val = params[key] ?? field.default;
         const inputClass = "w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-indigo-500";
 

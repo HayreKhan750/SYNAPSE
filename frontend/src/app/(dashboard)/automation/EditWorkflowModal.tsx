@@ -94,9 +94,19 @@ function ActionParamEditor({
   if (!schema) return null;
   const params = action.params || {};
 
+  // For collect_news: only show youtube_queries when youtube is a selected source
+  const sources: string[] = Array.isArray(params.sources)
+    ? params.sources as string[]
+    : Array.isArray(schema.sources?.default)
+    ? schema.sources.default as string[]
+    : [];
+  const youtubeSelected = sources.includes('youtube');
+
   return (
     <div className="mt-2 ml-2 pl-3 border-l-2 border-indigo-500/30 space-y-2">
       {Object.entries(schema).map(([key, field]) => {
+        // Hide youtube_queries unless youtube is selected
+        if (key === 'youtube_queries' && !youtubeSelected) return null;
         const val = params[key] ?? field.default;
 
         if (field.type === 'multiselect' && field.options) {
