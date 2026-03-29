@@ -58,7 +58,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
 
   if (!svg) {
     return (
-      <div className="my-3 rounded-lg border border-slate-700 bg-slate-900 p-4 flex items-center gap-2">
+      <div className="my-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 p-4 flex items-center gap-2">
         <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
         <span className="text-xs text-slate-400">Rendering diagram…</span>
       </div>
@@ -68,7 +68,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
   return (
     <div
       ref={ref}
-      className="my-3 rounded-lg border border-slate-700 bg-slate-900 p-4 overflow-x-auto flex justify-center"
+      className="my-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 p-4 overflow-x-auto flex justify-center"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

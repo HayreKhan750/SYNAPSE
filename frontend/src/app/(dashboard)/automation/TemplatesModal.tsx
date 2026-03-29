@@ -74,10 +74,10 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">Workflow Templates</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Workflow Templates</h2>
             <p className="text-xs text-slate-400 mt-0.5">Clone a pre-built workflow to get started instantly.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl transition-colors">✕</button>
+          <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white text-xl transition-colors">✕</button>
         </div>
 
         {/* Category filter */}
@@ -129,7 +129,7 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
                   {/* Custom name */}
                   <input type="text" value={customNames[t.id] ?? t.name}
                     onChange={e => setCustomNames(prev => ({ ...prev, [t.id]: e.target.value }))}
-                    className="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                     placeholder="Custom workflow name..." />
 
                   <button onClick={() => handleClone(t)} disabled={cloningId === t.id}

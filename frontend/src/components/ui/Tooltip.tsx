@@ -66,7 +66,7 @@ export function Tooltip({ content, side = 'top', children, className, delay = fa
             {content}
           </div>
           {/* Arrow */}
-          <div className={cn('absolute w-2 h-2 bg-slate-800 rotate-45', arrowClasses[side])} />
+          <div className={cn('absolute w-2 h-2 bg-slate-100 dark:bg-slate-800 rotate-45', arrowClasses[side])} />
         </div>
       )}
     </div>

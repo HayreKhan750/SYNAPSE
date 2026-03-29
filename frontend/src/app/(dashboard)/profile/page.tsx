@@ -54,7 +54,7 @@ function StatCard({ icon, label, value, colour }: { icon: React.ReactNode; label
     <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
       <div className={`p-2 rounded-lg ${colour}`}>{icon}</div>
       <div>
-        <p className="text-2xl font-bold text-white">{value.toLocaleString()}</p>
+        <p className="text-2xl font-bold text-slate-900 dark:text-white">{value.toLocaleString()}</p>
         <p className="text-xs text-slate-400">{label}</p>
       </div>
     </div>
@@ -139,7 +139,7 @@ export default function ProfilePage() {
             <User size={20} className="text-indigo-400 sm:size-6" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-white truncate">My Profile</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">My Profile</h1>
             <p className="text-slate-400 text-xs sm:text-sm">Manage your account details and preferences</p>
           </div>
         </div>
@@ -174,7 +174,7 @@ export default function ProfilePage() {
                           <input
                             value={form.first_name}
                             onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
-                            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
                         <div>
@@ -182,7 +182,7 @@ export default function ProfilePage() {
                           <input
                             value={form.last_name}
                             onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
-                            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
                       </div>
@@ -193,7 +193,7 @@ export default function ProfilePage() {
                           onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
                           rows={3}
                           placeholder="Tell us about yourself…"
-                          className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                       </div>
                       <div className="flex gap-2">
@@ -216,7 +216,7 @@ export default function ProfilePage() {
                   ) : (
                     <>
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h2 className="text-lg sm:text-xl font-bold text-white truncate">
+                        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate">
                           {profile.first_name} {profile.last_name}
                         </h2>
                         <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize shrink-0 ${roleBadge[profile.role] ?? roleBadge.user}`}>
@@ -266,7 +266,7 @@ export default function ProfilePage() {
 
             {/* Account info */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
-              <h3 className="text-sm font-semibold text-white mb-4">Account Information</h3>
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-white mb-4">Account Information</h3>
               <div className="space-y-3">
                 {[
                   { label: 'Username', value: profile.username },

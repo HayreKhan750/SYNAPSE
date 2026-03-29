@@ -114,7 +114,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">📊 Workflow Analytics</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">📊 Workflow Analytics</h2>
             <p className="text-xs text-slate-400 mt-0.5">Run performance, action usage, and top workflows.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -129,7 +129,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
                 </button>
               ))}
             </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-white text-xl transition-colors">✕</button>
+            <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white text-xl transition-colors">✕</button>
           </div>
         </div>
 
@@ -234,7 +234,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
                             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                               style={{ backgroundColor: ACTION_COLORS[entry.action] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length] }} />
                             <span className="text-xs text-slate-400 flex-1 truncate">{entry.label}</span>
-                            <span className="text-xs font-medium text-white">{entry.count}</span>
+                            <span className="text-xs font-medium text-slate-800 dark:text-white">{entry.count}</span>
                           </div>
                         ))}
                       </div>

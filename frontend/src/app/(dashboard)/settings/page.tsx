@@ -40,7 +40,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
         <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">{icon}</div>
-        <h2 className="text-base font-semibold text-white">{title}</h2>
+        <h2 className="text-base font-semibold text-slate-800 dark:text-white">{title}</h2>
       </div>
       <div className="p-6 space-y-4">{children}</div>
     </div>
@@ -117,14 +117,14 @@ function AiKeysForm() {
     }
   };
 
-  const fieldClass = 'w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  const fieldClass = 'w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
   if (!loaded) return (
     <div className="space-y-4 animate-pulse">
       <div className="h-4 w-48 bg-slate-700 rounded" />
-      <div className="h-10 bg-slate-800 rounded-lg" />
+      <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg" />
       <div className="h-4 w-48 bg-slate-700 rounded" />
-      <div className="h-10 bg-slate-800 rounded-lg" />
+      <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg" />
       <div className="h-9 w-32 bg-indigo-900/50 rounded-lg" />
     </div>
   );
@@ -246,7 +246,7 @@ function ChangePasswordForm() {
               type={show ? 'text' : 'password'}
               value={form[field]}
               onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="••••••••"
             />
             <button
@@ -326,7 +326,7 @@ export default function SettingsPage() {
             <Settings size={20} className="text-indigo-400 sm:size-6" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-white truncate">Settings</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">Settings</h1>
             <p className="text-slate-400 text-xs sm:text-sm">Manage your preferences and account</p>
           </div>
         </div>
@@ -439,14 +439,14 @@ export default function SettingsPage() {
             <div className="flex gap-1.5 shrink-0">
               <button
                 onClick={() => setShowKey(s => !s)}
-                className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
                 title={showKey ? 'Hide key' : 'Show key'}
               >
                 {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
               <button
                 onClick={() => { navigator.clipboard.writeText(apiKey); toast.success('API key copied!') }}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors text-xs font-semibold whitespace-nowrap"
+                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors text-xs font-semibold whitespace-nowrap"
               >
                 Copy
               </button>
@@ -477,7 +477,7 @@ export default function SettingsPage() {
                 value={deleteConfirm}
                 onChange={e => setDeleteConfirm(e.target.value)}
                 placeholder='Type "DELETE" to confirm'
-                className="w-full bg-slate-800 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full bg-slate-100 dark:bg-slate-800 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-red-500"
               />
               <button
                 onClick={handleDeleteAccount}

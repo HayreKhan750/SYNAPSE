@@ -165,11 +165,11 @@ function AddToCollectionModal({
           <div className="flex items-center gap-2 min-w-0">
             <FolderCheck size={16} className="text-indigo-400 shrink-0" />
             <div className="min-w-0">
-              <p className="text-sm font-bold text-white">Add to Collection</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-white">Add to Collection</p>
               <p className="text-xs text-slate-500 truncate">{bookmark.content_object_title || 'Untitled'}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors shrink-0 ml-2">
+          <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors shrink-0 ml-2">
             <X size={18} />
           </button>
         </div>
@@ -270,7 +270,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors text-sm font-medium"
+          className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors text-sm font-medium"
         >
           <ArrowLeft size={16} /> Back
         </button>
@@ -280,7 +280,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
           <h2 className="text-base sm:text-lg font-bold text-white truncate">{collection.name}</h2>
           {collection.is_public
             ? <span className="flex items-center gap-1 text-xs text-cyan-400 bg-cyan-900/30 border border-cyan-700/30 px-2 py-0.5 rounded-full shrink-0"><Globe size={10} />Public</span>
-            : <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full shrink-0"><Lock size={10} />Private</span>
+            : <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full shrink-0"><Lock size={10} />Private</span>
           }
         </div>
       </div>
@@ -372,7 +372,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-white">New Collection</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20} /></button>
+          <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={20} /></button>
         </div>
         <div className="space-y-4">
           <div>
@@ -411,7 +411,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
           </label>
         </div>
         <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 px-4 py-2 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors text-sm">
+          <button onClick={onClose} className="flex-1 px-4 py-2 border border-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors text-sm">
             Cancel
           </button>
           <button
@@ -536,7 +536,7 @@ export default function LibraryPage() {
 
       {/* Collections */}
       <section>
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
           <FolderPlus size={18} className="text-cyan-600 dark:text-cyan-400" />
           Collections
           <span className="text-sm text-slate-500 font-normal">({collections.length})</span>
@@ -569,7 +569,7 @@ export default function LibraryPage() {
                   <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
                   <div className="flex items-start justify-between mb-2 gap-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white truncate text-sm sm:text-base">{col.name}</h3>
+                      <h3 className="font-semibold text-slate-800 dark:text-white truncate text-sm sm:text-base">{col.name}</h3>
                       {col.description && (
                         <p className="text-xs text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">{col.description}</p>
                       )}
@@ -612,7 +612,7 @@ export default function LibraryPage() {
       {/* Bookmarks */}
       <section>
         <div className="flex flex-col xs:flex-row xs:items-center justify-between mb-4 gap-3">
-          <h2 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2 shrink-0">
+          <h2 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2 shrink-0">
             <BookMarked size={17} className="text-rose-600 dark:text-rose-400" />
             Bookmarks
             <span className="text-xs sm:text-sm text-slate-500 font-normal">({bookmarks.length})</span>
@@ -625,7 +625,7 @@ export default function LibraryPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
                   'flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0',
-                  activeTab === tab.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  activeTab === tab.id ? 'bg-indigo-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                 )}
               >
                 <tab.icon size={11} />

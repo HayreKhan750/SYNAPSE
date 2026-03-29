@@ -205,7 +205,7 @@ function ActionParamEditor({
         // Hide youtube_queries unless youtube is selected in sources
         if (key === 'youtube_queries' && !youtubeSelected) return null;
         const val = params[key] ?? field.default;
-        const inputClass = "w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-indigo-500";
+        const inputClass = "w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-indigo-500";
 
         if (field.type === 'multiselect' && field.options) {
           const selected = (Array.isArray(val) ? val : field.default) as string[];
@@ -344,14 +344,14 @@ function WorkflowCard({
         : workflow.status;
 
   return (
-    <div className={`group relative bg-slate-800 border rounded-2xl p-4 sm:p-5 flex flex-col gap-3 transition-all duration-200 overflow-hidden ${isRunning ? 'border-blue-500/50 shadow-blue-500/10 shadow-lg' : 'border-slate-700 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5'}`}>
+    <div className={`group relative bg-slate-100 dark:bg-slate-800 border rounded-2xl p-4 sm:p-5 flex flex-col gap-3 transition-all duration-200 overflow-hidden ${isRunning ? 'border-blue-500/50 shadow-blue-500/10 shadow-lg' : 'border-slate-700 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5'}`}>
       {/* Accent top bar */}
       <div className={`absolute inset-x-0 top-0 h-0.5 rounded-t-2xl transition-opacity ${isRunning ? 'bg-gradient-to-r from-blue-500 to-indigo-500 opacity-100' : 'bg-gradient-to-r from-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100'}`} />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-white truncate text-sm sm:text-base leading-snug">{workflow.name}</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-white truncate text-sm sm:text-base leading-snug">{workflow.name}</h3>
           {workflow.description && (
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">{workflow.description}</p>
           )}
@@ -458,14 +458,14 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
               Run History — <span className="text-indigo-600 dark:text-indigo-400">{workflow.name}</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Auto-refreshes every 4s while runs are active</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => refetch()} className="text-slate-400 hover:text-white text-sm px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 transition-colors">↻</button>
-            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
+            <button onClick={() => refetch()} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white text-sm px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 transition-colors">↻</button>
+            <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors text-xl">✕</button>
           </div>
         </div>
         <div className="overflow-y-auto flex-1 p-5 space-y-2">
@@ -508,7 +508,7 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
                   </div>
 
                   {/* Card */}
-                  <div className={`flex-1 min-w-0 bg-slate-900 border rounded-xl p-3.5 transition-all hover:border-slate-600 ${
+                  <div className={`flex-1 min-w-0 bg-white dark:bg-slate-900 border rounded-xl p-3.5 transition-all hover:border-slate-600 ${
                     isSuccess ? 'border-emerald-500/20' :
                     isFailed  ? 'border-red-500/20' :
                     isRunning ? 'border-blue-500/30 animate-pulse' :
@@ -584,7 +584,7 @@ function DeleteConfirmModal({
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center text-2xl">🗑</div>
             <div>
-              <h2 className="text-lg font-semibold text-white">Delete Workflow</h2>
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Delete Workflow</h2>
               <p className="text-sm text-slate-400">This action cannot be undone.</p>
             </div>
           </div>
@@ -714,8 +714,8 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
-          <h2 className="text-lg font-semibold text-white">Create Workflow</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Create Workflow</h2>
+          <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors text-xl">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto max-h-[75vh]">
@@ -725,7 +725,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
             <input type="text" required value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Daily Tech Digest"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+              className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
           </div>
 
           {/* Description */}
@@ -734,7 +734,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
             <textarea value={form.description} rows={2}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="What does this workflow do?"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none" />
+              className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none" />
           </div>
 
           {/* Trigger Type */}
@@ -757,29 +757,29 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
 
           {/* Schedule config */}
           {form.trigger_type === 'schedule' && (
-            <div className="space-y-2 p-3 bg-slate-900/60 rounded-lg border border-slate-700">
+            <div className="space-y-2 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700">
               <label className="block text-sm font-medium text-slate-300">Cron Schedule</label>
               <select value={cronPreset} onChange={e => handleCronPreset(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500">
+                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-indigo-500">
                 {CRON_PRESETS.map(p => <option key={p.label} value={p.value}>{p.label}</option>)}
               </select>
               <input type="text" value={form.cron_expression}
                 onChange={e => setForm(f => ({ ...f, cron_expression: e.target.value }))}
                 placeholder="*/30 * * * *"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
               <p className="text-xs text-slate-500">Format: minute hour day month weekday</p>
             </div>
           )}
 
           {/* Event trigger config */}
           {form.trigger_type === 'event' && (
-            <div className="space-y-3 p-3 bg-slate-900/60 rounded-lg border border-slate-700">
+            <div className="space-y-3 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700">
               <label className="block text-sm font-medium text-slate-300">Event Configuration</label>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Event Type *</label>
                 <select value={form.event_config.event_type}
                   onChange={e => setForm(f => ({ ...f, event_config: { ...f.event_config, event_type: e.target.value as EventType } }))}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500">
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-indigo-500">
                   {EVENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -788,13 +788,13 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
                 <input type="text" value={form.event_config.filter?.topic || ''}
                   onChange={e => setForm(f => ({ ...f, event_config: { ...f.event_config, filter: { topic: e.target.value } } }))}
                   placeholder="e.g. AI, React, Python — leave blank to match all"
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Cooldown (minutes)</label>
                 <input type="number" min={1} max={1440} value={form.event_config.cooldown_minutes ?? 60}
                   onChange={e => setForm(f => ({ ...f, event_config: { ...f.event_config, cooldown_minutes: Number(e.target.value) } }))}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-indigo-500" />
                 <p className="text-xs text-slate-500 mt-1">Minimum minutes between re-fires for the same workflow.</p>
               </div>
             </div>
@@ -811,7 +811,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
                 <div key={i} className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-lg p-3">
                   <div className="flex gap-2 items-center">
                     <select value={action.type} onChange={e => updateActionType(i, e.target.value as ActionType)}
-                      className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500">
+                      className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-indigo-500">
                       {ACTION_TYPES.map(t => <option key={t} value={t}>{ACTION_LABELS[t]}</option>)}
                     </select>
                     {schemas[action.type] && (
@@ -1135,7 +1135,7 @@ export default function AutomationPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 sm:mb-8 gap-3 sm:gap-4">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-white truncate">⚙️ Automation Center</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">⚙️ Automation Center</h1>
             <p className="text-slate-400 mt-1 text-xs sm:text-sm">Schedule and automate your tech intelligence workflows.</p>
           </div>
           <div className="flex gap-2 flex-wrap shrink-0">
@@ -1169,7 +1169,7 @@ export default function AutomationPage() {
             <div key={stat.label} className={`bg-slate-800/80 border rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 transition-all ${stat.pulse ? 'border-blue-500/40 shadow-blue-500/10 shadow-md' : 'border-slate-700 hover:border-slate-600'}`}>
               <span className={`text-xl sm:text-2xl shrink-0 ${stat.pulse ? 'animate-spin' : ''}`}>{stat.icon}</span>
               <div className="min-w-0">
-                <p className="text-xl sm:text-2xl font-bold text-white leading-tight">{stat.value}</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight">{stat.value}</p>
                 <p className="text-slate-400 text-xs truncate">{stat.label}</p>
               </div>
             </div>

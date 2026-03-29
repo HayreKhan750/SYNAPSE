@@ -634,7 +634,7 @@ export default function ChatPage() {
                   className="group/close relative p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/8 transition-all"
                 >
                   <ChevronRight size={15} className="rotate-180" />
-                  <span className="pointer-events-none absolute right-0 top-full mt-1.5 bg-slate-800 text-white text-[10px] font-semibold px-2 py-1 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/close:opacity-100 transition-opacity z-50 shadow-lg">
+                  <span className="pointer-events-none absolute right-0 top-full mt-1.5 bg-slate-100 dark:bg-slate-800 text-white text-[10px] font-semibold px-2 py-1 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/close:opacity-100 transition-opacity z-50 shadow-lg">
                     Collapse sidebar
                   </span>
                 </button>
@@ -760,9 +760,9 @@ export default function ChatPage() {
               />
             </button>
             {/* Premium tooltip */}
-            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/toggle:opacity-100 transition-opacity z-50 shadow-xl">
+            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-slate-100 dark:bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/toggle:opacity-100 transition-opacity z-50 shadow-xl">
               {sidebarOpen ? 'Collapse history' : 'Open history'}
-              <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-800 border-l border-t border-slate-700 rotate-45" />
+              <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-100 dark:bg-slate-800 border-l border-t border-slate-700 rotate-45" />
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -770,7 +770,7 @@ export default function ChatPage() {
               <Bot size={14} className="text-slate-900 dark:text-white" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-white">SYNAPSE AI</h1>
+              <h1 className="text-sm font-semibold text-slate-800 dark:text-white">SYNAPSE AI</h1>
               <p className="text-[10px] text-slate-400">RAG-powered · grounded in your knowledge base</p>
             </div>
           </div>
@@ -795,7 +795,7 @@ export default function ChatPage() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -4, scale: 0.97 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute left-0 top-full mt-2 z-50 w-72 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-sm"
+                  className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-sm"
                 >
                   {/* Header */}
                   <div className="px-4 py-3 border-b border-slate-700/60 bg-slate-800/60">
@@ -876,7 +876,7 @@ export default function ChatPage() {
           {activeConversationId && (
             <button
               onClick={startNewChat}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors border border-slate-700"
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors border border-slate-700"
             >
               <Plus size={12} />
               New Chat
@@ -893,7 +893,7 @@ export default function ChatPage() {
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-900/40">
                   <Sparkles size={28} className="text-slate-900 dark:text-white" />
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">Ask SYNAPSE AI</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Ask SYNAPSE AI</h2>
                 <p className="text-sm text-slate-400 max-w-md">
                   Get answers grounded in your knowledge base — articles, papers, repositories, and more.
                 </p>

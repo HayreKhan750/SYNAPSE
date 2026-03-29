@@ -440,7 +440,7 @@ function DocumentCard({ doc, onDelete, driveConnected }: { doc: DocumentRecord; 
               <div className="flex items-center justify-between px-5 py-3 bg-gray-900/95 border-b border-white/10">
                 <div className="flex items-center gap-3">
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${cfg.bg}`}><Icon className={`w-3.5 h-3.5 ${cfg.colour}`} /></div>
-                  <div><p className="text-sm font-semibold text-white line-clamp-1">{doc.title}</p><p className="text-xs text-gray-400">{cfg.label} Preview</p></div>
+                  <div><p className="text-sm font-semibold text-slate-800 dark:text-white line-clamp-1">{doc.title}</p><p className="text-xs text-gray-400">{cfg.label} Preview</p></div>
                 </div>
                 <button onClick={() => setShowPreview(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"><X className="w-4 h-4" /></button>
               </div>

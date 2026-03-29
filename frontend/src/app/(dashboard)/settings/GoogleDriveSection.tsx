@@ -79,7 +79,7 @@ export function GoogleDriveSection() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           {/* Google Drive icon */}
-          <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-xl flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-700 flex items-center justify-center text-xl flex-shrink-0">
             ☁️
           </div>
           <div>

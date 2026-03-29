@@ -241,7 +241,7 @@ export default function NotificationsPage() {
               )}
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">Notifications</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight">Notifications</h1>
               <p className="text-slate-400 text-xs sm:text-sm">
                 {unreadCount > 0
                   ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
@@ -266,7 +266,7 @@ export default function NotificationsPage() {
             )}
             <Link
               href="/settings"
-              className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-all"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:border-slate-600 transition-all"
               title="Notification settings"
             >
               <Settings size={15} />
@@ -283,7 +283,7 @@ export default function NotificationsPage() {
                 onClick={() => setFilter(f)}
                 className={cn(
                   'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize',
-                  filter === f ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  filter === f ? 'bg-indigo-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                 )}
               >
                 {f}
@@ -306,7 +306,7 @@ export default function NotificationsPage() {
           </div>
         ) : rawNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4">
+            <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4">
               <Bell size={32} className="text-slate-600" />
             </div>
             <h3 className="text-white font-bold text-lg mb-1">No notifications yet</h3>

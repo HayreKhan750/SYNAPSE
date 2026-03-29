@@ -44,10 +44,10 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">⏱ Scheduled Tasks</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">⏱ Scheduled Tasks</h2>
             <p className="text-xs text-slate-400 mt-0.5">Manage Celery Beat schedules for your workflows.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl transition-colors">✕</button>
+          <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white text-xl transition-colors">✕</button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-5 space-y-3">
@@ -74,7 +74,7 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
 
           {schedule.map(entry => (
             <div key={entry.task_name}
-              className={`bg-slate-900 border rounded-xl p-4 transition-all ${entry.enabled ? 'border-slate-700' : 'border-slate-700/40 opacity-60'}`}>
+              className={`bg-white dark:bg-slate-900 border rounded-xl p-4 transition-all shadow-sm ${entry.enabled ? 'border-slate-700' : 'border-slate-700/40 opacity-60'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">

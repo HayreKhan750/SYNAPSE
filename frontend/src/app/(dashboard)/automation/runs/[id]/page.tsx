@@ -122,7 +122,7 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
           {action.file_path && (
             <div>
               <p className="text-xs text-slate-400 font-medium mb-1">Generated File</p>
-              <p className="text-xs font-mono text-slate-600 dark:text-slate-300 bg-slate-900 rounded p-2 break-all">{action.file_path}</p>
+              <p className="text-xs font-mono text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 rounded p-2 break-all">{action.file_path}</p>
             </div>
           )}
           {action.task_ids && Object.keys(action.task_ids).length > 0 && (
@@ -218,7 +218,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
         <div className="mt-4 mb-6 flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-xl font-bold text-white">Workflow Run</h1>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-white">Workflow Run</h1>
               <StatusBadge status={displayRun.status} />
             </div>
             <p className="text-xs font-mono text-slate-500 mt-1">{displayRun.id}</p>

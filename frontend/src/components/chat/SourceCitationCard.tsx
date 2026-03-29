@@ -31,7 +31,7 @@ function getSourceColor(contentType: string) {
     case 'article':
       return 'text-cyan-400 bg-cyan-900/30 border-cyan-800/50';
     default:
-      return 'text-slate-400 bg-slate-800 border-slate-700';
+      return 'text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-700';
   }
 }
 

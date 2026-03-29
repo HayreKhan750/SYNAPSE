@@ -79,7 +79,7 @@ const EVENT_TYPE_OPTIONS: { value: EventType; label: string }[] = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function inputClass(extra = '') {
-  return `w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 ${extra}`;
+  return `w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 ${extra}`;
 }
 
 // ── ActionParamEditor ─────────────────────────────────────────────────────────
@@ -275,10 +275,10 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">Edit Workflow</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Edit Workflow</h2>
             <p className="text-xs text-slate-500 mt-0.5 font-mono">{workflow.id.slice(0, 8)}…</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
+          <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors text-xl">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto max-h-[75vh]">
@@ -314,7 +314,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
 
           {/* Schedule config */}
           {form.trigger_type === 'schedule' && (
-            <div className="space-y-2 p-3 bg-slate-900/60 rounded-lg border border-slate-700">
+            <div className="space-y-2 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700">
               <label className="block text-sm font-medium text-slate-300">Cron Schedule</label>
               <select onChange={e => { if (e.target.value) setForm(f => ({ ...f, cron_expression: e.target.value })); }}
                 defaultValue={form.cron_expression}
@@ -330,7 +330,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
 
           {/* Event config */}
           {form.trigger_type === 'event' && (
-            <div className="space-y-3 p-3 bg-slate-900/60 rounded-lg border border-slate-700">
+            <div className="space-y-3 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700">
               <label className="block text-sm font-medium text-slate-300">Event Configuration</label>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Event Type *</label>
@@ -366,7 +366,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
                 <div key={i} className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-lg p-3">
                   <div className="flex gap-2 items-center">
                     <select value={action.type} onChange={e => updateActionType(i, e.target.value as ActionType)}
-                      className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500">
+                      className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-indigo-500">
                       {ACTION_TYPES.map(t => <option key={t} value={t}>{ACTION_LABELS[t]}</option>)}
                     </select>
                     {schemas[action.type] && (

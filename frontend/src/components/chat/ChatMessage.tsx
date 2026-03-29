@@ -83,7 +83,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   return (
     <div className="my-3 rounded-lg border border-slate-700 overflow-hidden text-sm">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-slate-900 border-b border-slate-700">
         <div className="flex items-center gap-2 text-slate-400">
           <Terminal size={13} />
           <span className="text-xs font-mono font-medium lowercase">{label}</span>
@@ -230,7 +230,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                         // Inline code
                         return (
                           <code
-                            className="bg-slate-900 text-indigo-300 rounded px-1.5 py-0.5 text-xs font-mono"
+                            className="bg-slate-100 dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 rounded px-1.5 py-0.5 text-xs font-mono"
                             {...props}
                           >
                             {children}
@@ -254,12 +254,12 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
 
                     // ── Typography ────────────────────────────────────────
                     h1: ({ children }: any) => (
-                      <h1 className="text-xl font-bold text-white mt-5 mb-2 pb-1 border-b border-slate-700">
+                      <h1 className="text-xl font-bold text-slate-800 dark:text-white mt-5 mb-2 pb-1 border-b border-slate-200 dark:border-slate-700">
                         {children}
                       </h1>
                     ),
                     h2: ({ children }: any) => (
-                      <h2 className="text-lg font-semibold text-white mt-4 mb-2">{children}</h2>
+                      <h2 className="text-lg font-semibold text-slate-800 dark:text-white mt-4 mb-2">{children}</h2>
                     ),
                     h3: ({ children }: any) => (
                       <h3 className="text-base font-semibold text-slate-100 mt-3 mb-1">{children}</h3>
@@ -277,7 +277,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       <li className="leading-relaxed">{children}</li>
                     ),
                     strong: ({ children }: any) => (
-                      <strong className="font-semibold text-white">{children}</strong>
+                      <strong className="font-semibold text-slate-800 dark:text-white">{children}</strong>
                     ),
                     em: ({ children }: any) => (
                       <em className="italic text-slate-300">{children}</em>
@@ -285,7 +285,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
 
                     // ── Blockquote ────────────────────────────────────────
                     blockquote: ({ children }: any) => (
-                      <blockquote className="border-l-4 border-indigo-500 bg-slate-900/50 pl-4 pr-2 py-2 my-3 rounded-r-lg text-slate-400 italic">
+                      <blockquote className="border-l-4 border-indigo-500 bg-slate-100 dark:bg-slate-900/50 pl-4 pr-2 py-2 my-3 rounded-r-lg text-slate-400 italic">
                         {children}
                       </blockquote>
                     ),
@@ -343,7 +343,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       };
                       return (
                         <div className="my-4 rounded-lg border border-slate-700 overflow-hidden">
-                          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-700">
+                          <div className="flex items-center justify-between px-3 py-1.5 bg-white dark:bg-slate-900 border-b border-slate-700">
                             <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Table</span>
                             <CopyTableButton onCopy={copyTableAsMarkdown} />
                           </div>

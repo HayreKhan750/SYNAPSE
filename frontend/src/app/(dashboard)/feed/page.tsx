@@ -257,7 +257,7 @@ export default function FeedPage() {
           </div>
           <button
             onClick={handleRefreshFeed}
-            className="flex items-center gap-1 sm:gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors shrink-0"
+            className="flex items-center gap-1 sm:gap-1.5 text-xs font-semibold text-slate-800 dark:text-white bg-indigo-600 hover:bg-indigo-500 px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors shrink-0"
           >
             <RefreshCw size={11} />
             Show now

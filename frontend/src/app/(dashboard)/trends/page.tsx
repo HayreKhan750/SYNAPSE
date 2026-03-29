@@ -85,7 +85,7 @@ function TrendBar({ score, maxScore, colour }: { score: number; maxScore: number
   const pct = maxScore > 0 ? Math.min(100, Math.round((score / maxScore) * 100)) : 0
   const barColour = colour.replace('text-', 'bg-')
   return (
-    <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
       <motion.div
         className={cn('h-full rounded-full', barColour)}
         initial={{ width: 0 }}
@@ -115,7 +115,7 @@ function RankBadge({ rank }: { rank: number }) {
     </div>
   )
   return (
-    <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
+    <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
       <span className="text-xs font-bold text-slate-400">#{rank}</span>
     </div>
   )
@@ -159,7 +159,7 @@ function TrendCard({ trend, rank, maxScore }: { trend: TechnologyTrend; rank: nu
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: rank * 0.02 }}
       className={cn(
-        'group relative bg-slate-900/80 border rounded-2xl p-4 sm:p-5 transition-all duration-200 overflow-hidden',
+        'group relative bg-white dark:bg-slate-900/80 border rounded-2xl p-4 sm:p-5 transition-all duration-200 overflow-hidden',
         'hover:shadow-xl hover:-translate-y-0.5',
         isHot
           ? 'border-violet-500/40 hover:border-violet-400/60 hover:shadow-violet-500/10'
@@ -219,7 +219,7 @@ function TrendCard({ trend, rank, maxScore }: { trend: TechnologyTrend; rank: nu
             {trend.sources?.length > 0 && (
               <div className="flex gap-1 flex-wrap">
                 {trend.sources.slice(0, 2).map(s => (
-                  <span key={s} className="text-[10px] bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded border border-slate-700">
+                  <span key={s} className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded border border-slate-700">
                     {s}
                   </span>
                 ))}
@@ -457,7 +457,7 @@ export default function TrendsPage() {
             <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Activity size={14} className="text-violet-600 dark:text-violet-400" />
-                <h3 className="text-sm font-semibold text-white">Category Radar</h3>
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Category Radar</h3>
                 <span className="text-xs text-slate-500 ml-auto">avg. trend score by category</span>
               </div>
               <TrendRadar
@@ -472,7 +472,7 @@ export default function TrendsPage() {
             <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Flame size={14} className="text-amber-600 dark:text-amber-400" />
-                <h3 className="text-sm font-semibold text-white">Most Mentioned</h3>
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Most Mentioned</h3>
                 <span className="text-xs text-slate-500 ml-auto">top 8 by mention count</span>
               </div>
               <TopicPieChart
@@ -495,7 +495,7 @@ export default function TrendsPage() {
           >
             <div className="flex items-center gap-2 mb-4">
               <LineChartIcon size={14} className="text-cyan-600 dark:text-cyan-400" />
-              <h3 className="text-sm font-semibold text-white">Score Over Time</h3>
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Score Over Time</h3>
               <span className="text-xs text-slate-500 ml-auto">top 8 technologies · last 30 days</span>
             </div>
             <ResponsiveContainer width="100%" height={240}>

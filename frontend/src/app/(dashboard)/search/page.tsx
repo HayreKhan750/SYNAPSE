@@ -260,7 +260,7 @@ export default function SearchPage() {
                       'flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap shrink-0',
                       activeTab === tab.id
                         ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                     )}
                   >
                     <tab.icon size={12} className={activeTab === tab.id ? 'text-slate-900 dark:text-white' : tab.colour} />
@@ -278,7 +278,7 @@ export default function SearchPage() {
         {/* ── Results ── */}
         {debouncedQuery.length < 2 ? (
           <div className="text-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4">
               <Search size={28} className="text-slate-600" />
             </div>
             <p className="text-slate-400 text-base font-medium mb-1">What are you looking for?</p>
@@ -289,7 +289,7 @@ export default function SearchPage() {
                 <button
                   key={t}
                   onClick={() => handleSelect(t)}
-                  className="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500/50 text-xs text-slate-400 hover:text-indigo-300 transition-all"
+                  className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500/50 text-xs text-slate-400 hover:text-indigo-300 transition-all"
                 >
                   {t}
                 </button>
@@ -311,7 +311,7 @@ export default function SearchPage() {
                 <button
                   key={t}
                   onClick={() => handleSelect(t)}
-                  className="px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-400 hover:text-indigo-300 hover:border-indigo-500/50 transition-all"
+                  className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-700 text-xs text-slate-400 hover:text-indigo-300 hover:border-indigo-500/50 transition-all"
                 >
                   {t}
                 </button>
