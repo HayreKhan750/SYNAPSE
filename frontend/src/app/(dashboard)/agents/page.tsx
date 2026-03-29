@@ -167,7 +167,7 @@ function AgentMarkdown({ content }: { content: string }) {
                     {copiedBlock ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
-                <pre className="overflow-x-auto p-4 text-sm text-slate-200 font-mono leading-relaxed m-0">
+                <pre className="overflow-x-auto p-4 text-sm text-slate-700 dark:text-slate-200 font-mono leading-relaxed m-0">
                   <code>{raw}</code>
                 </pre>
               </div>
@@ -177,7 +177,7 @@ function AgentMarkdown({ content }: { content: string }) {
           h1: ({ children }: any) => <h1 className="text-xl font-bold text-slate-800 dark:text-white mt-5 mb-2 pb-1 border-b border-slate-200 dark:border-slate-700">{children}</h1>,
           h2: ({ children }: any) => <h2 className="text-lg font-semibold text-slate-800 dark:text-white mt-4 mb-2 flex items-center gap-2">{children}</h2>,
           h3: ({ children }: any) => <h3 className="text-base font-semibold text-slate-100 mt-3 mb-1">{children}</h3>,
-          h4: ({ children }: any) => <h4 className="text-sm font-semibold text-slate-200 mt-2 mb-1">{children}</h4>,
+          h4: ({ children }: any) => <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mt-2 mb-1">{children}</h4>,
           p: ({ children }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-200">{children}</p>,
           ul: ({ children }: any) => <ul className="list-disc pl-5 mb-3 space-y-1 text-slate-200">{children}</ul>,
           ol: ({ children }: any) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-slate-200">{children}</ol>,
@@ -242,7 +242,7 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
           >
             <div className="mt-3 space-y-2">
               {steps.map((step, i) => (
-                <div key={i} className="bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
+                <div key={i} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
                   <div className="flex items-center gap-2 px-3 py-2 bg-slate-200 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                     <div className="w-5 h-5 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
                       <span className="text-[9px] font-bold text-indigo-400">{i + 1}</span>
@@ -431,7 +431,7 @@ function TaskCard({
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-200 font-medium leading-snug line-clamp-2">{task.prompt}</p>
+          <p className="text-sm text-slate-700 dark:text-slate-200 font-medium leading-snug line-clamp-2">{task.prompt}</p>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
           {isActive && (
@@ -848,7 +848,7 @@ export default function AgentsPage() {
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e as unknown as React.FormEvent) } }}
                     placeholder={`${TASK_TYPES.find(t => t.value === taskType)?.description ?? 'Describe your task'}…`}
                     rows={3}
-                    className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 resize-none focus:outline-none font-mono leading-relaxed min-h-[72px]"
+                    className="flex-1 bg-transparent text-sm text-slate-700 dark:text-slate-200 placeholder-slate-600 resize-none focus:outline-none font-mono leading-relaxed min-h-[72px]"
                   />
                 </div>
                 {/* Bottom toolbar */}
@@ -904,7 +904,7 @@ export default function AgentsPage() {
         </div>
 
         {/* ── Tab bar ── */}
-        <div className="flex items-center gap-1 mb-5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 mb-5 bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-fit">
           {([
             { id: 'active',  label: 'Active',  count: activeTasks.length },
             { id: 'history', label: 'History', count: historyTasks.length },

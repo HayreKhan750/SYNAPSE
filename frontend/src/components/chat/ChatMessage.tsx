@@ -99,7 +99,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
         </button>
       </div>
       {/* Code body */}
-      <pre className="bg-slate-950 p-4 overflow-x-auto m-0">
+      <pre className="bg-slate-100 dark:bg-slate-950 p-4 overflow-x-auto m-0">
         <code className="text-slate-100 text-xs font-mono leading-relaxed">
           {code}
         </code>
@@ -158,7 +158,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
               'rounded-2xl px-4 py-3 text-sm leading-relaxed',
               isHuman
                 ? 'bg-indigo-600 text-white rounded-tr-sm'
-                : 'bg-slate-800 text-slate-100 border border-slate-700 rounded-tl-sm'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-100 border border-slate-700 rounded-tl-sm'
             )}
           >
             {isHuman ? (
@@ -356,7 +356,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       );
                     },
                     thead: ({ children }: any) => (
-                      <thead className="bg-slate-900">{children}</thead>
+                      <thead className="bg-white dark:bg-slate-900">{children}</thead>
                     ),
                     tbody: ({ children }: any) => (
                       <tbody className="divide-y divide-slate-200 dark:divide-slate-700">{children}</tbody>

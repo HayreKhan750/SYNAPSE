@@ -106,7 +106,7 @@ export default function SearchPage() {
 
         {/* ── Header ── */}
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Search</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Search</h1>
           <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
             Search across articles, repositories, research papers &amp; videos
           </p>
@@ -226,7 +226,7 @@ export default function SearchPage() {
                   >
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-indigo-300 transition-colors truncate">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-300 transition-colors truncate">
                         {r.title || r.name || 'Untitled'}
                       </p>
                       {r.summary && (
@@ -331,7 +331,7 @@ export default function SearchPage() {
               {/* Articles */}
               {(activeTab === 'all' || activeTab === 'articles') && articles.length > 0 && (
                 <section>
-                  <h2 className="text-sm sm:text-base font-bold text-white mb-3 flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                     <FileText size={16} className="text-cyan-400 shrink-0" />
                     Articles
                     <span className="text-xs text-slate-500 font-normal">({articles.length})</span>
@@ -345,7 +345,7 @@ export default function SearchPage() {
               {/* Repositories */}
               {(activeTab === 'all' || activeTab === 'repos') && repos.length > 0 && (
                 <section>
-                  <h2 className="text-sm sm:text-base font-bold text-white mb-3 flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                     <GitBranch size={16} className="text-emerald-400 shrink-0" />
                     Repositories
                     <span className="text-xs text-slate-500 font-normal">({repos.length})</span>
@@ -359,7 +359,7 @@ export default function SearchPage() {
               {/* Papers */}
               {(activeTab === 'all' || activeTab === 'papers') && papers.length > 0 && (
                 <section>
-                  <h2 className="text-sm sm:text-base font-bold text-white mb-3 flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                     <BookOpen size={16} className="text-violet-400 shrink-0" />
                     Research Papers
                     <span className="text-xs text-slate-500 font-normal">({papers.length})</span>
@@ -373,7 +373,7 @@ export default function SearchPage() {
               {/* Videos */}
               {(activeTab === 'all' || activeTab === 'videos') && videos.length > 0 && (
                 <section>
-                  <h2 className="text-sm sm:text-base font-bold text-white mb-3 flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                     <Youtube size={16} className="text-red-400 shrink-0" />
                     Videos
                     <span className="text-xs text-slate-500 font-normal">({videos.length})</span>

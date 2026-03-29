@@ -62,7 +62,7 @@ export function Tooltip({ content, side = 'top', children, className, delay = fa
             className
           )}
         >
-          <div className="bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 shadow-xl shadow-black/40">
+          <div className="bg-slate-100 dark:bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 shadow-xl shadow-black/40">
             {content}
           </div>
           {/* Arrow */}

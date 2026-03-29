@@ -65,7 +65,7 @@ function InlineNoteEditor({ bookmark, onSaved }: { bookmark: any; onSaved: (note
           onChange={e => setValue(e.target.value)}
           placeholder="Add a note about this bookmark…"
           rows={2}
-          className="w-full text-xs bg-slate-700/80 border border-slate-600 rounded-lg px-2.5 py-2 text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full text-xs bg-slate-700/80 border border-slate-600 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
         />
         <div className="flex gap-1.5 mt-1.5">
           <button
@@ -321,7 +321,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
                     href={bookmark.content_object_url || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-sm text-white hover:text-indigo-300 transition-colors truncate block"
+                    className="font-semibold text-sm text-slate-800 dark:text-white hover:text-indigo-300 transition-colors truncate block"
                   >
                     {bookmark.content_object_title || 'Untitled'}
                   </a>
@@ -668,7 +668,7 @@ export default function LibraryPage() {
                       href={bookmark.content_object_url || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-semibold text-sm text-white hover:text-indigo-300 transition-colors truncate block"
+                      className="font-semibold text-sm text-slate-800 dark:text-white hover:text-indigo-300 transition-colors truncate block"
                     >
                       {bookmark.content_object_title || 'Untitled'}
                     </a>

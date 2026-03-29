@@ -108,7 +108,7 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
             </div>
           )}
           {action.answer && (
-            <div className="bg-slate-900 rounded-lg p-3">
+            <div className="bg-white dark:bg-slate-900 rounded-lg p-3">
               <p className="text-xs text-slate-400 font-medium mb-1">AI Answer</p>
               <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{action.answer}</p>
             </div>
@@ -235,7 +235,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
           ].map(m => (
             <div key={m.label} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
               <p className="text-xs text-slate-400 mb-1">{m.label}</p>
-              <p className="text-sm text-white font-medium truncate">{m.value}</p>
+              <p className="text-sm text-slate-800 dark:text-white font-medium truncate">{m.value}</p>
             </div>
           ))}
         </div>

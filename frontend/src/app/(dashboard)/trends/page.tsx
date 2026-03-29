@@ -111,7 +111,7 @@ function RankBadge({ rank }: { rank: number }) {
   )
   if (rank === 3) return (
     <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-600 to-amber-700 flex items-center justify-center shrink-0">
-      <span className="text-xs font-black text-white">3</span>
+      <span className="text-xs font-black text-slate-900 dark:text-white">3</span>
     </div>
   )
   return (
@@ -236,12 +236,12 @@ function TrendCard({ trend, rank, maxScore }: { trend: TechnologyTrend; rank: nu
 
 function StatCard({ label, value, icon: Icon, colour }: { label: string; value: string | number; icon: React.ElementType; colour: string }) {
   return (
-    <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-3 sm:p-4 flex items-center gap-3 overflow-hidden">
+    <div className="bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-3 sm:p-4 flex items-center gap-3 overflow-hidden">
       <div className={cn('p-2 rounded-xl shrink-0', colour.replace('text-', 'bg-').replace('400', '500/15'))}>
         <Icon size={18} className={colour} />
       </div>
       <div className="min-w-0">
-        <p className="text-lg sm:text-xl font-black text-white leading-tight">{value}</p>
+        <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-tight">{value}</p>
         <p className="text-xs text-slate-500 truncate">{label}</p>
       </div>
     </div>
@@ -372,7 +372,7 @@ export default function TrendsPage() {
                 <Activity size={14} className="text-violet-600 dark:text-violet-400" />
                 <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Live Radar</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight mb-1">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight mb-1">
                 Technology Trends
               </h1>
               <p className="text-slate-400 text-xs sm:text-sm">
@@ -454,7 +454,7 @@ export default function TrendsPage() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-4"
           >
             {/* Radar Chart — category scores */}
-            <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
+            <div className="bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Activity size={14} className="text-violet-600 dark:text-violet-400" />
                 <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Category Radar</h3>
@@ -469,7 +469,7 @@ export default function TrendsPage() {
             </div>
 
             {/* Donut Chart — top technologies by mentions */}
-            <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
+            <div className="bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Flame size={14} className="text-amber-600 dark:text-amber-400" />
                 <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Most Mentioned</h3>
@@ -491,7 +491,7 @@ export default function TrendsPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5"
+            className="bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5"
           >
             <div className="flex items-center gap-2 mb-4">
               <LineChartIcon size={14} className="text-cyan-600 dark:text-cyan-400" />

@@ -87,7 +87,7 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors ${
                 selectedCategory === cat
                   ? 'bg-indigo-600 border-indigo-500 text-white'
-                  : 'bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'
               }`}>
               {cat === 'all' ? '🌐 All' : CATEGORY_LABELS[cat] ?? cat}
             </button>

@@ -51,7 +51,7 @@ function Toggle({ label, description, checked, onChange }: { label: string; desc
   return (
     <div className="flex items-center justify-between gap-4">
       <div>
-        <p className="text-sm font-medium text-white">{label}</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-white">{label}</p>
         {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
       </div>
       <button
@@ -117,7 +117,7 @@ function AiKeysForm() {
     }
   };
 
-  const fieldClass = 'w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  const fieldClass = 'w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-slate-800 dark:text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
   if (!loaded) return (
     <div className="space-y-4 animate-pulse">
@@ -246,7 +246,7 @@ function ChangePasswordForm() {
               type={show ? 'text' : 'password'}
               value={form[field]}
               onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-              className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="••••••••"
             />
             <button
@@ -343,7 +343,7 @@ export default function SettingsPage() {
         {/* Appearance */}
         <Section title="Appearance" icon={<Palette size={16} />}>
           <div>
-            <p className="text-sm font-medium text-white mb-3">Theme</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-white mb-3">Theme</p>
             <div className="flex gap-2 sm:gap-3 flex-wrap">
               {themeOptions.map(({ value, icon: Icon, label }) => (
                 <button
@@ -410,7 +410,7 @@ export default function SettingsPage() {
           <ChangePasswordForm />
 
           <div className="pt-4 border-t border-slate-800">
-            <p className="text-sm font-medium text-white mb-3">Two-Factor Authentication (MFA)</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-white mb-3">Two-Factor Authentication (MFA)</p>
             <MFASection />
           </div>
         </Section>
@@ -477,7 +477,7 @@ export default function SettingsPage() {
                 value={deleteConfirm}
                 onChange={e => setDeleteConfirm(e.target.value)}
                 placeholder='Type "DELETE" to confirm'
-                className="w-full bg-slate-100 dark:bg-slate-800 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full bg-slate-100 dark:bg-slate-800 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-red-500"
               />
               <button
                 onClick={handleDeleteAccount}

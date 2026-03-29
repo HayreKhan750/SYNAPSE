@@ -59,7 +59,7 @@ export function SourceCitationCard({ source }: SourceCitationCardProps) {
       </div>
 
       {/* Title */}
-      <p className="text-xs font-medium text-slate-200 line-clamp-2 leading-tight">
+      <p className="text-xs font-medium text-slate-700 dark:text-slate-200 line-clamp-2 leading-tight">
         {source.title}
       </p>
 

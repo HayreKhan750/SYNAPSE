@@ -747,7 +747,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
                   className={`py-2 rounded-lg text-sm font-medium border transition-colors ${
                     form.trigger_type === t
                       ? 'bg-indigo-600 border-indigo-500 text-white'
-                      : 'bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'
+                      : 'bg-white dark:bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'
                   }`}>
                   {t === 'schedule' ? '⏱ Schedule' : t === 'event' ? '⚡ Event' : '🖐 Manual'}
                 </button>
@@ -819,7 +819,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
                         className={`px-2 py-2 rounded-lg text-xs border transition-colors ${
                           expandedActions.has(i)
                             ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-400'
-                            : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                            : 'bg-slate-100 dark:bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
                         }`} title="Configure parameters">
                         ⚙️
                       </button>
@@ -1140,15 +1140,15 @@ export default function AutomationPage() {
           </div>
           <div className="flex gap-2 flex-wrap shrink-0">
             <button onClick={() => setShowAnalytics(true)}
-              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
+              className="bg-slate-700 hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
               📊 <span className="hidden xs:inline">Analytics</span>
             </button>
             <button onClick={() => setShowSchedule(true)}
-              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
+              className="bg-slate-700 hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
               ⏱ <span className="hidden xs:inline">Schedule</span>
             </button>
             <button onClick={() => setShowTemplates(true)}
-              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
+              className="bg-slate-700 hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
               📋 <span className="hidden xs:inline">Templates</span>
             </button>
             <button onClick={() => setShowCreate(true)}
@@ -1223,7 +1223,7 @@ export default function AutomationPage() {
             <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Available Action Types</h3>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(ACTION_LABELS).map(([type, label]) => (
-                <div key={type} className="bg-slate-900 rounded-lg p-2.5">
+                <div key={type} className="bg-white dark:bg-slate-900 rounded-lg p-2.5">
                   <p className="text-sm text-slate-300">{label}</p>
                   <p className="text-xs text-slate-500 mt-0.5 font-mono">{type}</p>
                 </div>
@@ -1236,7 +1236,7 @@ export default function AutomationPage() {
             <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Event Trigger Types</h3>
             <div className="space-y-2">
               {EVENT_TYPE_OPTIONS.map(o => (
-                <div key={o.value} className="bg-slate-900 rounded-lg p-2.5 flex items-center gap-2">
+                <div key={o.value} className="bg-white dark:bg-slate-900 rounded-lg p-2.5 flex items-center gap-2">
                   <span className="text-sm text-slate-300">{o.label}</span>
                   <span className="ml-auto text-xs text-slate-500 font-mono">{o.value}</span>
                 </div>

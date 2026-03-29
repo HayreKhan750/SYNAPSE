@@ -624,7 +624,7 @@ export default function ChatPage() {
                     <MessageSquare size={13} className="text-slate-900 dark:text-white" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-white tracking-tight">Chat History</p>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">Chat History</p>
                     <p className="text-[10px] text-slate-500">{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
@@ -687,7 +687,7 @@ export default function ChatPage() {
                         )}
                         <div className={cn(
                           'w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors',
-                          isActive ? 'bg-indigo-600/30' : 'bg-slate-800 group-hover:bg-slate-700'
+                          isActive ? 'bg-indigo-600/30' : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-700'
                         )}>
                           <MessageSquare size={11} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'} />
                         </div>
@@ -964,7 +964,7 @@ export default function ChatPage() {
 
             {/* ── Gemini-style input card ── */}
             <div className={cn(
-              'bg-slate-800 border rounded-3xl transition-colors overflow-hidden',
+              'bg-slate-100 dark:bg-slate-800 border rounded-3xl transition-colors overflow-hidden',
               isGenerating ? 'border-slate-700' : 'border-slate-600 focus-within:border-indigo-500/70'
             )}>
 

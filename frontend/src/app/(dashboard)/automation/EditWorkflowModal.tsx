@@ -305,7 +305,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
               {(['schedule', 'event', 'manual'] as TriggerType[]).map(t => (
                 <button key={t} type="button"
                   onClick={() => setForm(f => ({ ...f, trigger_type: t }))}
-                  className={`py-2 rounded-lg text-sm font-medium border transition-colors ${form.trigger_type === t ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'}`}>
+                  className={`py-2 rounded-lg text-sm font-medium border transition-colors ${form.trigger_type === t ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'}`}>
                   {t === 'schedule' ? '⏱ Schedule' : t === 'event' ? '⚡ Event' : '🖐 Manual'}
                 </button>
               ))}
@@ -371,7 +371,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
                     </select>
                     {schemas[action.type] && (
                       <button type="button" onClick={() => toggleExpanded(i)}
-                        className={`px-2 py-2 rounded-lg text-xs border transition-colors ${expandedActions.has(i) ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-400' : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'}`}
+                        className={`px-2 py-2 rounded-lg text-xs border transition-colors ${expandedActions.has(i) ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'}`}
                         title="Configure parameters">⚙️</button>
                     )}
                     {form.actions.length > 1 && (

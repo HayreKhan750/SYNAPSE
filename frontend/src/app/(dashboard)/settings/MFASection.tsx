@@ -252,7 +252,7 @@ export function MFASection() {
     <div className={`rounded-xl border p-5 transition-all ${enabled ? 'border-green-500/30 bg-green-500/5' : 'border-slate-600/50 bg-slate-900/30'}`}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${enabled ? 'bg-green-500/20' : 'bg-slate-800'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${enabled ? 'bg-green-500/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
             {enabled ? '🔐' : '🔓'}
           </div>
           <div>

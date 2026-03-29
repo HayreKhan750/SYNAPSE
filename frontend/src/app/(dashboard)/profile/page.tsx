@@ -174,7 +174,7 @@ export default function ProfilePage() {
                           <input
                             value={form.first_name}
                             onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
-                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
                         <div>
@@ -182,7 +182,7 @@ export default function ProfilePage() {
                           <input
                             value={form.last_name}
                             onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
-                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
                       </div>
@@ -193,7 +193,7 @@ export default function ProfilePage() {
                           onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
                           rows={3}
                           placeholder="Tell us about yourself…"
-                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                       </div>
                       <div className="flex gap-2">
@@ -277,7 +277,7 @@ export default function ProfilePage() {
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
                     <span className="text-sm text-slate-400">{label}</span>
-                    <span className="text-sm text-white font-medium">{value}</span>
+                    <span className="text-sm text-slate-800 dark:text-white font-medium">{value}</span>
                   </div>
                 ))}
               </div>

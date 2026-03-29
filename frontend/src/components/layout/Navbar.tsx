@@ -424,7 +424,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
             {isUserMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-card overflow-hidden z-50">
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                  <p className="text-sm font-medium text-white">
+                  <p className="text-sm font-medium text-slate-800 dark:text-white">
                     {user?.first_name} {user?.last_name}
                   </p>
                   <p className="text-xs text-slate-400">{user?.email}</p>
