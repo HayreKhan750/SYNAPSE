@@ -146,52 +146,36 @@ export default function Dashboard() {
   const { data: articles, isLoading: articlesLoading } = useQuery({
     queryKey: ['articles', 'home'],
     queryFn: () => api.get('/articles/', { params: { page_size: 6, ordering: '-scraped_at' } }).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: 5 * 60_000, // 5 min — no refetch on tab switch
+    gcTime:   10 * 60_000,
   });
 
   const { data: repos, isLoading: reposLoading } = useQuery({
     queryKey: ['repos', 'home'],
     queryFn: () => api.get('/repos/', { params: { page_size: 3, ordering: '-scraped_at' } }).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
+    gcTime:   10 * 60_000,
   });
 
   const { data: papers, isLoading: papersLoading } = useQuery({
     queryKey: ['papers', 'home'],
     queryFn: () => api.get('/papers/', { params: { page_size: 3, ordering: '-fetched_at' } }).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
+    gcTime:   10 * 60_000,
   });
 
   const { data: videosData, isLoading: videosLoading } = useQuery({
     queryKey: ['videos', 'home'],
     queryFn: () => api.get('/videos/', { params: { page_size: 4, ordering: '-fetched_at' } }).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
+    gcTime:   10 * 60_000,
   });
 
-  // Separate lightweight count queries for the stat badges — use page_size=1
-  // so the backend returns meta.total (the real DB count) with minimal data.
-  const { data: articleCount } = useQuery({
-    queryKey: ['articles', 'count'],
-    queryFn: () => api.get('/articles/?page_size=1').then(r => r.data),
-    staleTime: 30_000,
-  });
-
-  const { data: paperCount } = useQuery({
-    queryKey: ['papers', 'count'],
-    queryFn: () => api.get('/papers/?page_size=1').then(r => r.data),
-    staleTime: 30_000,
-  });
-
-  const { data: repoCount } = useQuery({
-    queryKey: ['repos', 'count'],
-    queryFn: () => api.get('/repos/?page_size=1').then(r => r.data),
-    staleTime: 30_000,
-  });
-
-  const { data: videoCount } = useQuery({
-    queryKey: ['videos', 'count'],
-    queryFn: () => api.get('/videos/?page_size=1').then(r => r.data),
-    staleTime: 30_000,
-  });
+  // Derive counts from content queries — no extra network requests needed
+  const articleCount = articles;
+  const paperCount   = papers;
+  const repoCount    = repos;
+  const videoCount   = videosData;
 
   const extractList = (d: any, n: number) =>
     Array.isArray(d?.results) ? d.results.slice(0, n)
