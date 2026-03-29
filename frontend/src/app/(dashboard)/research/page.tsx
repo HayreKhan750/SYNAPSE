@@ -132,10 +132,10 @@ function AISynthesisPanel({ papers }: { papers: any[] }) {
       <div className="flex items-center justify-between p-4 sm:p-5 bg-gradient-to-r from-indigo-600 to-violet-600 flex-wrap gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <Brain className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <Brain className="w-4 h-4 sm:w-5 sm:h-5 text-white dark:text-white" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm sm:text-base font-bold text-white">AI Research Synthesis</h2>
+            <h2 className="text-sm sm:text-base font-bold text-white dark:text-white">AI Research Synthesis</h2>
             <p className="text-xs text-indigo-200">
               {papers.length > 0 ? `${Math.min(papers.length, 8)} papers in context` : 'Load papers to analyse'}
             </p>

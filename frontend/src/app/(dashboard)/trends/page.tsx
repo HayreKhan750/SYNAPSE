@@ -101,7 +101,7 @@ function TrendBar({ score, maxScore, colour }: { score: number; maxScore: number
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) return (
     <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/30">
-      <Award size={14} className="text-white fill-white" />
+      <Award size={14} className="text-white dark:text-white fill-white" />
     </div>
   )
   if (rank === 2) return (

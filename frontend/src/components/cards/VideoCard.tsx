@@ -83,7 +83,7 @@ export function VideoCard({ video }: { video: Video }) {
         {/* Play overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
           <div className="bg-red-600/95 rounded-full p-3 sm:p-4 shadow-2xl shadow-red-500/40 scale-90 group-hover:scale-100 transition-transform">
-            <Play size={20} className="text-white fill-white ml-0.5" />
+            <Play size={20} className="text-white dark:text-white fill-white ml-0.5" />
           </div>
         </div>
       </a>

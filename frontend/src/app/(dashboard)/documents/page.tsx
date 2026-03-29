@@ -714,7 +714,7 @@ function HtmlTemplateBuilder({ onSuccess }: { onSuccess: () => void }) {
                   </div>
                   {category === cat.id && (
                     <div className="absolute top-2 right-2 w-5 h-5 bg-violet-600 rounded-full flex items-center justify-center">
-                      <CheckCircle2 className="w-3 h-3 text-white" />
+                      <CheckCircle2 className="w-3 h-3 text-white dark:text-white" />
                     </div>
                   )}
                 </motion.button>
@@ -1221,7 +1221,7 @@ function ProjectBuilderForm({ onSuccess }: { onSuccess: () => void }) {
               <p className="text-violet-200 text-xs">AI-powered project scaffolding</p>
             </div>
           </div>
-          <p className="text-sm text-violet-100 leading-relaxed">Choose a project template. <span className="font-bold text-white">HTML Template is available now</span> — other project types are coming soon.</p>
+          <p className="text-sm text-violet-200 dark:text-violet-100 leading-relaxed">Choose a project template. <span className="font-bold text-white">HTML Template is available now</span> — other project types are coming soon.</p>
         </div>
       </div>
 
@@ -1239,7 +1239,7 @@ function ProjectBuilderForm({ onSuccess }: { onSuccess: () => void }) {
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                  <LayoutTemplate className="w-6 h-6 text-white" />
+                  <LayoutTemplate className="w-6 h-6 text-white dark:text-white" />
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-white text-base">HTML Template</h3>
@@ -1383,7 +1383,7 @@ export default function DocumentsPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 sm:gap-3 mb-2">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white dark:text-white" />
                 </div>
                 <span className="text-xs font-bold tracking-widest text-violet-200 uppercase">Document Studio</span>
               </div>
@@ -1450,7 +1450,7 @@ export default function DocumentsPage() {
                     <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center"><Wand2 className="w-4 h-4 text-white" /></div>
-                        <div><p className="font-bold text-white text-sm">Generate New Document</p><p className="text-indigo-200 text-xs">AI writes your content in seconds</p></div>
+                        <div><p className="font-bold text-white dark:text-white text-sm">Generate New Document</p><p className="text-indigo-200 text-xs">AI writes your content in seconds</p></div>
                       </div>
                       <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition"><X className="w-4 h-4" /></button>
                     </div>
