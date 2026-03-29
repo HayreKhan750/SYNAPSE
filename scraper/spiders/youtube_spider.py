@@ -56,24 +56,46 @@ class YouTubeSpider(scrapy.Spider):
     }
 
     DEFAULT_QUERIES = [
+        # AI / ML
         'machine learning tutorial 2024',
         'artificial intelligence explained',
+        'large language models explained',
+        'deep learning PyTorch',
+        'fine tuning LLMs tutorial',
+        'AI agents autonomous LLM',
+        # AI Frameworks & Tools
         'LangChain tutorial',
         'RAG retrieval augmented generation',
         'vector databases explained',
+        'open source AI tools 2024',
+        'Ollama local LLM tutorial',
+        'Hugging Face transformers tutorial',
+        # Backend & APIs
         'Django REST API tutorial',
+        'FastAPI tutorial Python',
+        'GraphQL tutorial',
+        'microservices architecture tutorial',
+        # Frontend
         'Next.js tutorial 2024',
+        'React TypeScript tutorial',
+        # Systems & Cloud
         'system design interview',
-        'large language models explained',
-        'open source AI tools',
-        'Python data science',
-        'deep learning PyTorch',
         'Kubernetes tutorial',
         'DevOps CI CD pipeline',
-        'React TypeScript tutorial',
+        'AWS Lambda tutorial',
+        'Docker tutorial for developers',
+        'Terraform infrastructure as code',
+        # Data & Programming
+        'Python data science',
+        'Rust programming tutorial',
+        'PostgreSQL advanced tutorial',
+        'Redis tutorial caching',
+        # Security & Best Practices
+        'web security best practices',
+        'API security OAuth JWT',
     ]
 
-    def __init__(self, queries=None, days_back=30, max_results=30, *args, **kwargs):
+    def __init__(self, queries=None, days_back=30, max_results=60, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Parse queries — may arrive as JSON string, newline-separated string, or list.
