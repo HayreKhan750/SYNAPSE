@@ -115,7 +115,7 @@ function NotificationCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 flex-wrap mb-0.5">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <p className={cn('text-sm font-bold truncate', notif.is_read ? 'text-slate-300' : 'text-white')}>
+              <p className={cn('text-sm font-bold truncate', notif.is_read ? 'text-slate-300' : 'text-slate-900 dark:text-white')}>
                 {notif.title}
               </p>
               <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border shrink-0', cfg.iconBg, cfg.iconColour, cfg.borderColour)}>
@@ -224,7 +224,7 @@ export default function NotificationsPage() {
   })
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6">
       <div className="max-w-2xl mx-auto pb-10 space-y-4 sm:space-y-5">
 
         {/* ── Header ── */}

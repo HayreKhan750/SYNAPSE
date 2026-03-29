@@ -101,7 +101,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-10">
 
         {/* ── Header ── */}
@@ -263,7 +263,7 @@ export default function SearchPage() {
                         : 'text-slate-400 hover:text-white'
                     )}
                   >
-                    <tab.icon size={12} className={activeTab === tab.id ? 'text-white' : tab.colour} />
+                    <tab.icon size={12} className={activeTab === tab.id ? 'text-slate-900 dark:text-white' : tab.colour} />
                     {tab.label}
                     {tab.id !== 'all' && count > 0 && (
                       <span className="opacity-60 text-[10px]">({count})</span>

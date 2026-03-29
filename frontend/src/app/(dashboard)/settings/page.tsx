@@ -317,7 +317,7 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-950">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950">
       <div className="max-w-3xl mx-auto px-4 py-8 pb-24 lg:pb-8 space-y-6">
 
         {/* Page header */}

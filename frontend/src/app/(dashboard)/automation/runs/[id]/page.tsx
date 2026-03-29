@@ -233,7 +233,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
             { label: 'Duration', value: displayRun.duration_seconds != null ? `${displayRun.duration_seconds.toFixed(1)}s` : '—' },
             { label: 'Actions', value: `${successCount}✅ ${failCount > 0 ? failCount + '❌' : ''}`.trim() || String(actions.length) },
           ].map(m => (
-            <div key={m.label} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <div key={m.label} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
               <p className="text-xs text-slate-400 mb-1">{m.label}</p>
               <p className="text-sm text-white font-medium truncate">{m.value}</p>
             </div>
@@ -277,7 +277,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
             Action Results {actions.length > 0 && <span className="text-slate-500 font-normal">({actions.length})</span>}
           </h2>
           {actions.length === 0 ? (
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 text-center text-slate-400 text-sm">
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center text-slate-400 text-sm">
               {displayRun.status === 'running' ? '⟳ Actions are executing…' : 'No action results recorded.'}
             </div>
           ) : (

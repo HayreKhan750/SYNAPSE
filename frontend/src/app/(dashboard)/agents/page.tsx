@@ -728,7 +728,7 @@ export default function AgentsPage() {
   const historyTasks = tasks.filter(t => t.status === 'completed' || t.status === 'failed')
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-950 text-white">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
       <div className="max-w-5xl mx-auto px-4 py-8 pb-24 lg:pb-8">
 
         {/* ── Page Header ── */}
@@ -770,7 +770,7 @@ export default function AgentsPage() {
             <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
-                  <Terminal size={14} className="text-white" />
+                  <Terminal size={14} className="text-slate-900 dark:text-white" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-white tracking-tight">Command Interface</h2>
@@ -904,7 +904,7 @@ export default function AgentsPage() {
         </div>
 
         {/* ── Tab bar ── */}
-        <div className="flex items-center gap-1 mb-5 bg-slate-900/80 border border-slate-700/60 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 mb-5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-fit">
           {([
             { id: 'active',  label: 'Active',  count: activeTasks.length },
             { id: 'history', label: 'History', count: historyTasks.length },

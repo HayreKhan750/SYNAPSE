@@ -589,7 +589,7 @@ export default function ChatPage() {
   return (
     // Absolutely fill the parent <main> element which is flex-1.
     // Using absolute inset-0 makes this 100% immune to any ancestor flex chain.
-    <div className="absolute inset-0 flex overflow-hidden bg-slate-950">
+    <div className="absolute inset-0 flex overflow-hidden bg-slate-50 dark:bg-slate-950">
 
       {/* ── Conversation Sidebar — premium overlay ── */}
       <AnimatePresence initial={false}>
@@ -621,7 +621,7 @@ export default function ChatPage() {
                 <div className="flex items-center gap-2.5">
                   {/* Gradient logo mark */}
                   <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
-                    <MessageSquare size={13} className="text-white" />
+                    <MessageSquare size={13} className="text-slate-900 dark:text-white" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-white tracking-tight">Chat History</p>
@@ -647,7 +647,7 @@ export default function ChatPage() {
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/20 hover:border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition-all group/new"
                 >
                   <div className="w-5 h-5 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 group-hover/new:bg-indigo-500 transition-colors">
-                    <Plus size={11} className="text-white" />
+                    <Plus size={11} className="text-slate-900 dark:text-white" />
                   </div>
                   New Conversation
                 </button>
@@ -692,7 +692,7 @@ export default function ChatPage() {
                           <MessageSquare size={11} className={isActive ? 'text-indigo-400' : 'text-slate-500'} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={cn('text-xs font-semibold truncate leading-snug', isActive ? 'text-white' : 'text-slate-300')}>
+                          <p className={cn('text-xs font-semibold truncate leading-snug', isActive ? 'text-slate-900 dark:text-white' : 'text-slate-300')}>
                             {conv.title || 'Untitled'}
                           </p>
                           <p className="text-[10px] text-slate-600 mt-0.5 flex items-center gap-1">
@@ -725,7 +725,7 @@ export default function ChatPage() {
       </AnimatePresence>
 
       {/* ── Main Chat Area — sidebar overlays, always full width ── */}
-      <div className="flex flex-col w-full min-h-0 overflow-hidden bg-slate-950">
+      <div className="flex flex-col w-full min-h-0 overflow-hidden bg-slate-50 dark:bg-slate-950">
 
         {/* ── No API key warning banner ── */}
         {apiKeyStatus && !apiKeyStatus.any_configured && (
@@ -767,7 +767,7 @@ export default function ChatPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
-              <Bot size={14} className="text-white" />
+              <Bot size={14} className="text-slate-900 dark:text-white" />
             </div>
             <div>
               <h1 className="text-sm font-semibold text-white">SYNAPSE AI</h1>
@@ -891,7 +891,7 @@ export default function ChatPage() {
             <div className="flex flex-col items-center justify-center h-full gap-8 text-center px-4">
               <div>
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-900/40">
-                  <Sparkles size={28} className="text-white" />
+                  <Sparkles size={28} className="text-slate-900 dark:text-white" />
                 </div>
                 <h2 className="text-xl font-bold text-white mb-2">Ask SYNAPSE AI</h2>
                 <p className="text-sm text-slate-400 max-w-md">

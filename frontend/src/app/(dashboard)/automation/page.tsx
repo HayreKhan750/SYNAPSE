@@ -455,7 +455,7 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <div>
             <h2 className="text-lg font-semibold text-white">
@@ -578,7 +578,7 @@ function DeleteConfirmModal({
 }: { workflow: Workflow; onConfirm: () => void; onCancel: () => void; isPending: boolean }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
         <div className="h-1 w-full bg-gradient-to-r from-red-500 to-rose-600" />
         <div className="p-6">
           <div className="flex items-center gap-4 mb-4">
@@ -712,7 +712,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <h2 className="text-lg font-semibold text-white">Create Workflow</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
@@ -1180,7 +1180,7 @@ export default function AutomationPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl p-5 animate-pulse h-48" />
+              <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 animate-pulse h-48" />
             ))}
           </div>
         ) : workflows.length === 0 ? (

@@ -40,7 +40,7 @@ const CATEGORY_CONFIG: Record<string, {
   label: string; colour: string; bg: string; border: string;
   activeBg: string; icon: React.ElementType;
 }> = {
-  all:      { label: 'All',       colour: 'text-white',        bg: 'bg-slate-700',       border: 'border-slate-500',   activeBg: 'bg-slate-600',       icon: Layers },
+  all:      { label: 'All',       colour: 'text-slate-900 dark:text-white',        bg: 'bg-slate-700',       border: 'border-slate-500',   activeBg: 'bg-slate-600',       icon: Layers },
   language: { label: 'Languages', colour: 'text-cyan-400',     bg: 'bg-cyan-500/15',     border: 'border-cyan-500/40', activeBg: 'bg-cyan-500/25',     icon: Cpu },
   ai_ml:    { label: 'AI / ML',   colour: 'text-violet-400',   bg: 'bg-violet-500/15',   border: 'border-violet-500/40', activeBg: 'bg-violet-500/25', icon: Brain },
   devops:   { label: 'DevOps',    colour: 'text-emerald-400',  bg: 'bg-emerald-500/15',  border: 'border-emerald-500/40', activeBg: 'bg-emerald-500/25', icon: Box },
@@ -236,7 +236,7 @@ function TrendCard({ trend, rank, maxScore }: { trend: TechnologyTrend; rank: nu
 
 function StatCard({ label, value, icon: Icon, colour }: { label: string; value: string | number; icon: React.ElementType; colour: string }) {
   return (
-    <div className="bg-slate-900/80 border border-slate-700/60 rounded-2xl p-3 sm:p-4 flex items-center gap-3 overflow-hidden">
+    <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-3 sm:p-4 flex items-center gap-3 overflow-hidden">
       <div className={cn('p-2 rounded-xl shrink-0', colour.replace('text-', 'bg-').replace('400', '500/15'))}>
         <Icon size={18} className={colour} />
       </div>
@@ -357,7 +357,7 @@ export default function TrendsPage() {
   }, [deduped])
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-10">
 
         {/* ── Hero Header ── */}
@@ -454,7 +454,7 @@ export default function TrendsPage() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-4"
           >
             {/* Radar Chart — category scores */}
-            <div className="bg-slate-900/80 border border-slate-700/60 rounded-2xl p-4 sm:p-5">
+            <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Activity size={14} className="text-violet-400" />
                 <h3 className="text-sm font-semibold text-white">Category Radar</h3>
@@ -469,7 +469,7 @@ export default function TrendsPage() {
             </div>
 
             {/* Donut Chart — top technologies by mentions */}
-            <div className="bg-slate-900/80 border border-slate-700/60 rounded-2xl p-4 sm:p-5">
+            <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Flame size={14} className="text-amber-400" />
                 <h3 className="text-sm font-semibold text-white">Most Mentioned</h3>
@@ -491,7 +491,7 @@ export default function TrendsPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="bg-slate-900/80 border border-slate-700/60 rounded-2xl p-4 sm:p-5"
+            className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5"
           >
             <div className="flex items-center gap-2 mb-4">
               <LineChartIcon size={14} className="text-cyan-400" />

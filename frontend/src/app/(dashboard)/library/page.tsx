@@ -158,7 +158,7 @@ function AddToCollectionModal({
         initial={{ opacity: 0, scale: 0.95, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden"
+        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
@@ -368,7 +368,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4"
+        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 w-full max-w-md mx-4"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-white">New Collection</h2>
