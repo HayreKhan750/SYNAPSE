@@ -5,7 +5,7 @@
  * Premium UI: live data, category filters, trend bars, sparklines, stats
  */
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import api from '@/utils/api'
 import { cn } from '@/utils/helpers'
+import { TrendRadar } from '@/components/charts/TrendRadar'
+import { TopicPieChart } from '@/components/charts/TopicPieChart'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -279,6 +281,37 @@ export default function TrendsPage() {
     : 0
   const topTech = deduped.sort((a,b) => b.trend_score - a.trend_score)[0]?.technology_name ?? '—'
 
+  // ── Chart data derived from real trends ───────────────────────────────────
+  const radarData = useMemo(() => {
+    // Group by category, average scores
+    const catMap: Record<string, { total: number; count: number }> = {}
+    for (const t of deduped) {
+      const cat = t.category || 'general'
+      if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 }
+      catMap[cat].total += t.trend_score
+      catMap[cat].count += 1
+    }
+    const catLabels: Record<string, string> = {
+      ai_ml: 'AI / ML', language: 'Languages', devops: 'DevOps',
+      web: 'Web', general: 'General', security: 'Security',
+    }
+    return Object.entries(catMap)
+      .map(([cat, { total, count }]) => ({
+        topic: catLabels[cat] || cat,
+        score: Math.round(total / count),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+  }, [deduped])
+
+  const pieData = useMemo(() => {
+    // Top 8 technologies by mention_count for the donut chart
+    return [...deduped]
+      .sort((a, b) => b.mention_count - a.mention_count)
+      .slice(0, 8)
+      .map(t => ({ topic: t.technology_name, count: t.mention_count }))
+  }, [deduped])
+
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-10">
@@ -367,6 +400,46 @@ export default function TrendsPage() {
             )
           })}
         </div>
+
+        {/* ── Visualizations: Radar + Donut ── */}
+        {deduped.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-4"
+          >
+            {/* Radar Chart — category scores */}
+            <div className="bg-slate-900/80 border border-slate-700/60 rounded-2xl p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <Activity size={14} className="text-violet-400" />
+                <h3 className="text-sm font-semibold text-white">Category Radar</h3>
+                <span className="text-xs text-slate-500 ml-auto">avg. trend score by category</span>
+              </div>
+              <TrendRadar
+                data={radarData}
+                height={260}
+                title=""
+                loading={isLoading}
+              />
+            </div>
+
+            {/* Donut Chart — top technologies by mentions */}
+            <div className="bg-slate-900/80 border border-slate-700/60 rounded-2xl p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <Flame size={14} className="text-amber-400" />
+                <h3 className="text-sm font-semibold text-white">Most Mentioned</h3>
+                <span className="text-xs text-slate-500 ml-auto">top 8 by mention count</span>
+              </div>
+              <TopicPieChart
+                data={pieData}
+                height={260}
+                title=""
+                loading={isLoading}
+              />
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Sort Controls ── */}
         {trends.length > 0 && (
