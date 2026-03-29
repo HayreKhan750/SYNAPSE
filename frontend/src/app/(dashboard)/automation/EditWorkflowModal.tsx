@@ -179,8 +179,19 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
   const { data: schemas = {} } = useQuery<ActionSchemas>({
     queryKey: ['action-schemas'],
     queryFn: async () => { const { data } = await api.get('/automation/action-schemas/'); return data; },
-    staleTime: Infinity,
+    staleTime: 0, // always fetch fresh schema defaults
   });
+
+  // Build default params for an action type from schema
+  const schemaDefaults = (type: ActionType): Record<string, unknown> => {
+    const schema = schemas[type];
+    if (!schema) return {};
+    const defaults: Record<string, unknown> = {};
+    for (const [key, field] of Object.entries(schema)) {
+      defaults[key] = field.default;
+    }
+    return defaults;
+  };
 
   const [form, setForm] = useState({
     name: workflow.name,
@@ -213,7 +224,10 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
     },
   });
 
-  const addAction = () => setForm(f => ({ ...f, actions: [...f.actions, { type: 'collect_news' as ActionType, params: {} }] }));
+  const addAction = () => {
+    const type: ActionType = 'collect_news';
+    setForm(f => ({ ...f, actions: [...f.actions, { type, params: schemaDefaults(type) }] }));
+  };
 
   const removeAction = (i: number) => {
     setForm(f => ({ ...f, actions: f.actions.filter((_, idx) => idx !== i) }));
@@ -221,7 +235,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
   };
 
   const updateActionType = (i: number, type: ActionType) => {
-    setForm(f => { const a = [...f.actions]; a[i] = { type, params: {} }; return { ...f, actions: a }; });
+    setForm(f => { const a = [...f.actions]; a[i] = { type, params: schemaDefaults(type) }; return { ...f, actions: a }; });
   };
 
   const updateActionParams = (i: number, params: Record<string, unknown>) => {
@@ -234,8 +248,14 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Merge schema defaults into any action params so empty params always have sensible values
+    const actionsWithDefaults = form.actions.map(action => ({
+      ...action,
+      params: { ...schemaDefaults(action.type), ...action.params },
+    }));
     const payload = {
       ...form,
+      actions: actionsWithDefaults,
       cron_expression: form.trigger_type === 'schedule' ? form.cron_expression : '',
       event_config: form.trigger_type === 'event' ? form.event_config : {},
     };

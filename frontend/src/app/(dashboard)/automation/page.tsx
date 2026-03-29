@@ -612,8 +612,19 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
   const { data: schemas = {} } = useQuery({
     queryKey: ['action-schemas'],
     queryFn: fetchActionSchemas,
-    staleTime: Infinity,
+    staleTime: 0, // always fetch fresh schema defaults
   });
+
+  // Build default params for an action type from schema
+  const schemaDefaults = (type: ActionType): Record<string, unknown> => {
+    const schema = schemas[type];
+    if (!schema) return {};
+    const defaults: Record<string, unknown> = {};
+    for (const [key, field] of Object.entries(schema as ActionSchema)) {
+      defaults[key] = field.default;
+    }
+    return defaults;
+  };
 
   const [form, setForm] = useState({
     name: '',
@@ -644,7 +655,8 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
   });
 
   const addAction = () => {
-    setForm(f => ({ ...f, actions: [...f.actions, { type: 'collect_news' as ActionType, params: {} }] }));
+    const type: ActionType = 'collect_news';
+    setForm(f => ({ ...f, actions: [...f.actions, { type, params: schemaDefaults(type) }] }));
   };
 
   const removeAction = (i: number) => {
@@ -655,7 +667,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
   const updateActionType = (i: number, type: ActionType) => {
     setForm(f => {
       const actions = [...f.actions];
-      actions[i] = { type, params: {} };
+      actions[i] = { type, params: schemaDefaults(type) };
       return { ...f, actions };
     });
   };
@@ -683,8 +695,14 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Merge schema defaults into action params so empty params always have sensible values
+    const actionsWithDefaults = form.actions.map(action => ({
+      ...action,
+      params: { ...schemaDefaults(action.type), ...action.params },
+    }));
     const payload = {
       ...form,
+      actions: actionsWithDefaults,
       // Clean up unused fields based on trigger type
       cron_expression: form.trigger_type === 'schedule' ? form.cron_expression : '',
       event_config: form.trigger_type === 'event' ? form.event_config : {},
