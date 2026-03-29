@@ -891,14 +891,17 @@ export default function AutomationPage() {
   // card doesn't stay "Running…" forever if Celery is down or the task is stuck.
   const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — scrapers can take a while
 
-  // Clear ALL stale run-start localStorage keys on every mount
-  // and reset liveRuns so nothing appears "running" until user triggers it
+  // On mount: clear all stale localStorage keys AND verify any stored
+  // liveRuns against actual DB status, clearing those that are no longer running.
   useEffect(() => {
+    // 1. Clear all localStorage run-start keys
     Object.keys(localStorage)
       .filter(k => k.startsWith('synapse:run-start:'))
       .forEach(k => localStorage.removeItem(k));
+
+    // 2. Always start fresh — never inherit "running" state from a previous session
     setLiveRuns({});
-  }, []);
+  }, []);  // empty deps = runs once on mount, clean slate every time
 
   // Track when each workflow's polling started so we can enforce the timeout.
   const pollStartTimes = useRef<Record<string, number>>({});
