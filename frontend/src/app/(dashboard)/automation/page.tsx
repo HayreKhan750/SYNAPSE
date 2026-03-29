@@ -889,7 +889,7 @@ export default function AutomationPage() {
   // as timed-out on the UI side.  The backend cleanup_stale_runs task handles
   // the DB side after 1 hour; we give up on the UI after 5 minutes so the
   // card doesn't stay "Running…" forever if Celery is down or the task is stuck.
-  const POLL_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes — give up if Celery is unresponsive
+  const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — scrapers can take a while
 
   // Track when each workflow's polling started so we can enforce the timeout.
   const pollStartTimes = useRef<Record<string, number>>({});
@@ -904,11 +904,9 @@ export default function AutomationPage() {
     // Record when we started polling so we can enforce the timeout.
     // Use localStorage so the clock survives navigation (don't reset on re-attach).
     const lsKey = `synapse:run-start:${workflowId}`;
-    const stored = localStorage.getItem(lsKey);
-    if (!stored) {
-      localStorage.setItem(lsKey, String(Date.now()));
-    }
-    pollStartTimes.current[workflowId] = stored ? parseInt(stored, 10) : Date.now();
+    // Always reset the start time when a new run is triggered — never reuse stale keys
+    localStorage.setItem(lsKey, String(Date.now()));
+    pollStartTimes.current[workflowId] = Date.now();
 
     // Seed state immediately so the card shows "Running" at once
     setLiveRuns(prev => ({ ...prev, [workflowId]: { runId, status: null } }));
