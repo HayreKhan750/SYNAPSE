@@ -692,7 +692,7 @@ export default function ChatPage() {
                           <MessageSquare size={11} className={isActive ? 'text-indigo-400' : 'text-slate-500'} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={cn('text-xs font-semibold truncate leading-snug', isActive ? 'text-slate-900 dark:text-white' : 'text-slate-300')}>
+                          <p className={cn('text-xs font-semibold truncate leading-snug', isActive ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300')}>
                             {conv.title || 'Untitled'}
                           </p>
                           <p className="text-[10px] text-slate-600 mt-0.5 flex items-center gap-1">

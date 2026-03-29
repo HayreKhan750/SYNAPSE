@@ -62,9 +62,9 @@ const NOTIF_CONFIG: Record<string, {
   borderColour: string; label: string;
 }> = {
   workflow_complete: { icon: Zap,           iconBg: 'bg-indigo-500/15', iconColour: 'text-indigo-400', borderColour: 'border-indigo-500/30', label: 'Workflow' },
-  success:          { icon: CheckCircle2,   iconBg: 'bg-emerald-500/15',iconColour: 'text-emerald-400',borderColour: 'border-emerald-500/30',label: 'Success' },
+  success:          { icon: CheckCircle2,   iconBg: 'bg-emerald-500/15',iconColour: 'text-emerald-600 dark:text-emerald-400',borderColour: 'border-emerald-500/30',label: 'Success' },
   info:             { icon: Info,           iconBg: 'bg-blue-500/15',   iconColour: 'text-blue-400',   borderColour: 'border-blue-500/30',   label: 'Info' },
-  warning:          { icon: AlertTriangle,  iconBg: 'bg-amber-500/15',  iconColour: 'text-amber-400',  borderColour: 'border-amber-500/30',  label: 'Warning' },
+  warning:          { icon: AlertTriangle,  iconBg: 'bg-amber-500/15',  iconColour: 'text-amber-600 dark:text-amber-400',  borderColour: 'border-amber-500/30',  label: 'Warning' },
   error:            { icon: AlertCircle,    iconBg: 'bg-red-500/15',    iconColour: 'text-red-400',    borderColour: 'border-red-500/30',    label: 'Error' },
 }
 const DEFAULT_CONFIG = NOTIF_CONFIG.info
@@ -115,7 +115,7 @@ function NotificationCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 flex-wrap mb-0.5">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <p className={cn('text-sm font-bold truncate', notif.is_read ? 'text-slate-300' : 'text-slate-900 dark:text-white')}>
+              <p className={cn('text-sm font-bold truncate', notif.is_read ? 'text-slate-600 dark:text-slate-300' : 'text-slate-900 dark:text-white')}>
                 {notif.title}
               </p>
               <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border shrink-0', cfg.iconBg, cfg.iconColour, cfg.borderColour)}>

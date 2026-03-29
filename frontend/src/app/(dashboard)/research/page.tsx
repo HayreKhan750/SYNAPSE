@@ -318,7 +318,7 @@ export default function ResearchPage() {
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 pb-12">
 
         {/* ── Hero Header ─────────────────────────────────────────── */}
-        <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-2xl p-5 sm:p-8 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-2xl p-5 sm:p-8 text-white dark:text-white relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-4 right-12 w-32 h-32 rounded-full bg-white" />
             <div className="absolute bottom-0 left-24 w-48 h-48 rounded-full bg-white" />

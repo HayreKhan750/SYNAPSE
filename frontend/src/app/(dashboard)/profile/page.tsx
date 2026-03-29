@@ -255,10 +255,10 @@ export default function ProfilePage() {
                   Activity Stats
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <StatCard icon={<Bookmark size={16} className="text-amber-400" />} label="Bookmarks" value={(profile.stats.articles_bookmarked || 0) + (profile.stats.papers_bookmarked || 0) + (profile.stats.repos_bookmarked || 0)} colour="bg-amber-500/10" />
+                  <StatCard icon={<Bookmark size={16} className="text-amber-600 dark:text-amber-400" />} label="Bookmarks" value={(profile.stats.articles_bookmarked || 0) + (profile.stats.papers_bookmarked || 0) + (profile.stats.repos_bookmarked || 0)} colour="bg-amber-500/10" />
                   <StatCard icon={<MessageSquare size={16} className="text-sky-400" />} label="Chat Sessions" value={profile.stats.chat_sessions || 0} colour="bg-sky-500/10" />
-                  <StatCard icon={<FileText size={16} className="text-violet-400" />} label="Documents" value={profile.stats.documents_generated || 0} colour="bg-violet-500/10" />
-                  <StatCard icon={<BookOpen size={16} className="text-emerald-400" />} label="Papers Bookmarked" value={profile.stats.papers_bookmarked || 0} colour="bg-emerald-500/10" />
+                  <StatCard icon={<FileText size={16} className="text-violet-600 dark:text-violet-400" />} label="Documents" value={profile.stats.documents_generated || 0} colour="bg-violet-500/10" />
+                  <StatCard icon={<BookOpen size={16} className="text-emerald-600 dark:text-emerald-400" />} label="Papers Bookmarked" value={profile.stats.papers_bookmarked || 0} colour="bg-emerald-500/10" />
                   <StatCard icon={<Shield size={16} className="text-indigo-400" />} label="Agent Tasks" value={profile.stats.agent_tasks || 0} colour="bg-indigo-500/10" />
                 </div>
               </div>

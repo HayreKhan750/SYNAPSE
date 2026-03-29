@@ -85,7 +85,7 @@ function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ n
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-xl text-xs">
-      <p className="text-slate-300">{payload[0].name}: <span className="font-bold text-white">{payload[0].value}</span></p>
+      <p className="text-slate-600 dark:text-slate-300">{payload[0].name}: <span className="font-bold text-white">{payload[0].value}</span></p>
     </div>
   );
 }

@@ -292,7 +292,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
       {/* Bookmark count */}
       <div className="flex items-center gap-2 text-xs text-slate-500">
         <BookMarked size={13} className="text-rose-400" />
-        <span><strong className="text-slate-300">{bookmarks.length}</strong> bookmark{bookmarks.length !== 1 ? 's' : ''} in this collection</span>
+        <span><strong className="text-slate-600 dark:text-slate-300">{bookmarks.length}</strong> bookmark{bookmarks.length !== 1 ? 's' : ''} in this collection</span>
       </div>
 
       {/* Bookmark list */}
@@ -470,8 +470,8 @@ export default function LibraryPage() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'article': return <FileText size={14} className="text-indigo-400" />
-      case 'repository': return <GitBranch size={14} className="text-emerald-400" />
-      case 'researchpaper': return <BookOpen size={14} className="text-violet-400" />
+      case 'repository': return <GitBranch size={14} className="text-emerald-600 dark:text-emerald-400" />
+      case 'researchpaper': return <BookOpen size={14} className="text-violet-600 dark:text-violet-400" />
       default: return <BookMarked size={14} className="text-slate-400" />
     }
   }
@@ -537,7 +537,7 @@ export default function LibraryPage() {
       {/* Collections */}
       <section>
         <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <FolderPlus size={18} className="text-cyan-400" />
+          <FolderPlus size={18} className="text-cyan-600 dark:text-cyan-400" />
           Collections
           <span className="text-sm text-slate-500 font-normal">({collections.length})</span>
         </h2>

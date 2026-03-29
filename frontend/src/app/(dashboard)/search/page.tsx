@@ -20,9 +20,9 @@ type TabType = 'all' | 'articles' | 'repos' | 'papers' | 'videos'
 
 const TABS: { id: TabType; label: string; icon: React.ElementType; colour: string }[] = [
   { id: 'all',      label: 'All',          icon: Search,    colour: 'text-indigo-400'  },
-  { id: 'articles', label: 'Articles',     icon: FileText,  colour: 'text-cyan-400'    },
-  { id: 'repos',    label: 'Repos',        icon: GitBranch, colour: 'text-emerald-400' },
-  { id: 'papers',   label: 'Papers',       icon: BookOpen,  colour: 'text-violet-400'  },
+  { id: 'articles', label: 'Articles',     icon: FileText,  colour: 'text-cyan-600 dark:text-cyan-400'    },
+  { id: 'repos',    label: 'Repos',        icon: GitBranch, colour: 'text-emerald-600 dark:text-emerald-400' },
+  { id: 'papers',   label: 'Papers',       icon: BookOpen,  colour: 'text-violet-600 dark:text-violet-400'  },
   { id: 'videos',   label: 'Videos',       icon: Youtube,   colour: 'text-red-400'     },
 ]
 

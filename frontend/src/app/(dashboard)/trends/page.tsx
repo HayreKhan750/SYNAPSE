@@ -41,10 +41,10 @@ const CATEGORY_CONFIG: Record<string, {
   activeBg: string; icon: React.ElementType;
 }> = {
   all:      { label: 'All',       colour: 'text-slate-900 dark:text-white',        bg: 'bg-slate-700',       border: 'border-slate-500',   activeBg: 'bg-slate-600',       icon: Layers },
-  language: { label: 'Languages', colour: 'text-cyan-400',     bg: 'bg-cyan-500/15',     border: 'border-cyan-500/40', activeBg: 'bg-cyan-500/25',     icon: Cpu },
-  ai_ml:    { label: 'AI / ML',   colour: 'text-violet-400',   bg: 'bg-violet-500/15',   border: 'border-violet-500/40', activeBg: 'bg-violet-500/25', icon: Brain },
-  devops:   { label: 'DevOps',    colour: 'text-emerald-400',  bg: 'bg-emerald-500/15',  border: 'border-emerald-500/40', activeBg: 'bg-emerald-500/25', icon: Box },
-  web:      { label: 'Web',       colour: 'text-amber-400',    bg: 'bg-amber-500/15',    border: 'border-amber-500/40', activeBg: 'bg-amber-500/25',   icon: Globe },
+  language: { label: 'Languages', colour: 'text-cyan-600 dark:text-cyan-400',     bg: 'bg-cyan-500/15',     border: 'border-cyan-500/40', activeBg: 'bg-cyan-500/25',     icon: Cpu },
+  ai_ml:    { label: 'AI / ML',   colour: 'text-violet-600 dark:text-violet-400',   bg: 'bg-violet-500/15',   border: 'border-violet-500/40', activeBg: 'bg-violet-500/25', icon: Brain },
+  devops:   { label: 'DevOps',    colour: 'text-emerald-600 dark:text-emerald-400',  bg: 'bg-emerald-500/15',  border: 'border-emerald-500/40', activeBg: 'bg-emerald-500/25', icon: Box },
+  web:      { label: 'Web',       colour: 'text-amber-600 dark:text-amber-400',    bg: 'bg-amber-500/15',    border: 'border-amber-500/40', activeBg: 'bg-amber-500/25',   icon: Globe },
   general:  { label: 'General',   colour: 'text-slate-400',    bg: 'bg-slate-500/15',    border: 'border-slate-500/40', activeBg: 'bg-slate-500/25',   icon: GitBranch },
 }
 
@@ -211,7 +211,7 @@ function TrendCard({ trend, rank, maxScore }: { trend: TechnologyTrend; rank: nu
             </span>
             <span className="flex items-center gap-1 text-xs text-slate-400">
               <BarChart2 size={11} className="text-indigo-400 shrink-0" />
-              <strong className="text-slate-300">{trend.mention_count}</strong> mentions
+              <strong className="text-slate-600 dark:text-slate-300">{trend.mention_count}</strong> mentions
             </span>
             <span className="text-xs text-slate-600">
               {new Date(trend.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
@@ -361,7 +361,7 @@ export default function TrendsPage() {
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-10">
 
         {/* ── Hero Header ── */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-900/60 via-indigo-900/40 to-slate-900 border border-violet-500/20 p-5 sm:p-7">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 via-violet-50/60 to-white dark:from-violet-900/60 dark:via-indigo-900/40 dark:to-slate-900 border border-violet-500/20 p-5 sm:p-7">
           {/* Decorative blobs */}
           <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/10 rounded-full -translate-y-16 translate-x-16 blur-2xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/10 rounded-full translate-y-8 -translate-x-8 blur-xl pointer-events-none" />
@@ -369,7 +369,7 @@ export default function TrendsPage() {
           <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
-                <Activity size={14} className="text-violet-400" />
+                <Activity size={14} className="text-violet-600 dark:text-violet-400" />
                 <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Live Radar</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight mb-1">
@@ -407,9 +407,9 @@ export default function TrendsPage() {
         {trends.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <StatCard label="Technologies tracked" value={deduped.length}                 icon={Cpu}        colour="text-indigo-400" />
-            <StatCard label="AI / ML entries"      value={categoryCounts['ai_ml'] ?? 0}   icon={Brain}      colour="text-violet-400" />
-            <StatCard label="Avg trend score"       value={avgScore}                       icon={BarChart2}  colour="text-cyan-400"   />
-            <StatCard label="🏆 Top tech"           value={topTech}                        icon={TrendingUp} colour="text-amber-400"  />
+            <StatCard label="AI / ML entries"      value={categoryCounts['ai_ml'] ?? 0}   icon={Brain}      colour="text-violet-600 dark:text-violet-400" />
+            <StatCard label="Avg trend score"       value={avgScore}                       icon={BarChart2}  colour="text-cyan-600 dark:text-cyan-400"   />
+            <StatCard label="🏆 Top tech"           value={topTech}                        icon={TrendingUp} colour="text-amber-600 dark:text-amber-400"  />
           </div>
         )}
 
@@ -456,7 +456,7 @@ export default function TrendsPage() {
             {/* Radar Chart — category scores */}
             <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
-                <Activity size={14} className="text-violet-400" />
+                <Activity size={14} className="text-violet-600 dark:text-violet-400" />
                 <h3 className="text-sm font-semibold text-white">Category Radar</h3>
                 <span className="text-xs text-slate-500 ml-auto">avg. trend score by category</span>
               </div>
@@ -471,7 +471,7 @@ export default function TrendsPage() {
             {/* Donut Chart — top technologies by mentions */}
             <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
-                <Flame size={14} className="text-amber-400" />
+                <Flame size={14} className="text-amber-600 dark:text-amber-400" />
                 <h3 className="text-sm font-semibold text-white">Most Mentioned</h3>
                 <span className="text-xs text-slate-500 ml-auto">top 8 by mention count</span>
               </div>
@@ -494,7 +494,7 @@ export default function TrendsPage() {
             className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5"
           >
             <div className="flex items-center gap-2 mb-4">
-              <LineChartIcon size={14} className="text-cyan-400" />
+              <LineChartIcon size={14} className="text-cyan-600 dark:text-cyan-400" />
               <h3 className="text-sm font-semibold text-white">Score Over Time</h3>
               <span className="text-xs text-slate-500 ml-auto">top 8 technologies · last 30 days</span>
             </div>

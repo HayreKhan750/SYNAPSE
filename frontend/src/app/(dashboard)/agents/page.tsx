@@ -75,9 +75,9 @@ const COMMAND_TEMPLATES = [
 ]
 
 const STATUS_CONFIG = {
-  pending:    { color: 'text-amber-400',  bg: 'bg-amber-400/10',  border: 'border-amber-400/30',  icon: Clock,     label: 'Pending' },
+  pending:    { color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-400/10',  border: 'border-amber-400/30',  icon: Clock,     label: 'Pending' },
   processing: { color: 'text-blue-400',   bg: 'bg-blue-400/10',   border: 'border-blue-400/30',   icon: Loader2,   label: 'Running' },
-  completed:  { color: 'text-emerald-400',bg: 'bg-emerald-400/10',border: 'border-emerald-400/30',icon: CheckCircle,label: 'Completed' },
+  completed:  { color: 'text-emerald-600 dark:text-emerald-400',bg: 'bg-emerald-400/10',border: 'border-emerald-400/30',icon: CheckCircle,label: 'Completed' },
   failed:     { color: 'text-red-400',    bg: 'bg-red-400/10',    border: 'border-red-400/30',    icon: XCircle,   label: 'Failed' },
 }
 
@@ -124,7 +124,7 @@ function CopyButton({ text }: { text: string }) {
   }
   return (
     <button onClick={handle} title="Copy" className="p-1.5 rounded text-slate-500 hover:text-slate-200 transition-colors">
-      {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+      {copied ? <Check size={13} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={13} />}
     </button>
   )
 }
@@ -163,7 +163,7 @@ function AgentMarkdown({ content }: { content: string }) {
                     }}
                     className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-200 transition-colors"
                   >
-                    {copiedBlock ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    {copiedBlock ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={12} />}
                     {copiedBlock ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
@@ -453,7 +453,7 @@ function TaskCard({
             </button>
           )}
           {answer && <CopyButton text={answer} />}
-          <div className={`p-1 rounded transition-colors ${expanded ? 'text-slate-300' : 'text-slate-600'}`}>
+          <div className={`p-1 rounded transition-colors ${expanded ? 'text-slate-600 dark:text-slate-300' : 'text-slate-600'}`}>
             {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
           </div>
         </div>

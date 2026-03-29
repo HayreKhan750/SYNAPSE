@@ -57,13 +57,13 @@ function TrendStrip() {
   const maxScore = Math.max(...trends.map((t: any) => t.trend_score), 1)
 
   return (
-    <div className="mb-6 bg-slate-800/60 dark:bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4">
+    <div className="mb-6 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 shadow-card dark:shadow-none">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <TrendingUp size={15} className="text-amber-400" />
-          <span className="text-sm font-bold text-white">🔥 Trending Technologies</span>
+          <TrendingUp size={15} className="text-amber-500 dark:text-amber-400" />
+          <span className="text-sm font-bold text-slate-800 dark:text-white">🔥 Trending Technologies</span>
         </div>
-        <Link href="/trends" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 transition-colors">
+        <Link href="/trends" className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold flex items-center gap-1 transition-colors">
           View all <ArrowRight size={11} />
         </Link>
       </div>
@@ -208,19 +208,19 @@ export default function Dashboard() {
       <div className="pb-10">
 
         {/* ── Hero Banner ──────────────────────────────────────────── */}
-        <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950/80 to-slate-900 px-6 pt-8 pb-12 overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-20" />
-          <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
-          <div className="absolute bottom-0 left-1/3 w-56 h-56 bg-cyan-600/15 rounded-full blur-3xl translate-y-1/2" />
+        <div className="relative bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:from-slate-900 dark:via-indigo-950/80 dark:to-slate-900 px-6 pt-8 pb-12 overflow-hidden border-b border-indigo-100 dark:border-transparent">
+          <div className="absolute inset-0 bg-grid-pattern opacity-10 dark:opacity-20" />
+          <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-200/40 dark:bg-indigo-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute bottom-0 left-1/3 w-56 h-56 bg-violet-200/30 dark:bg-cyan-600/15 rounded-full blur-3xl translate-y-1/2" />
           <div className="relative">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-4">
-              <Zap size={10} className="fill-indigo-400 text-indigo-400" />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-300 text-xs font-semibold mb-4">
+              <Zap size={10} className="fill-indigo-500 text-indigo-500 dark:fill-indigo-400 dark:text-indigo-400" />
               AI-Powered Tech Intelligence
             </span>
-            <h1 className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight leading-tight">
+            <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-2 tracking-tight leading-tight">
               Welcome to <span className="gradient-text">SYNAPSE</span>
             </h1>
-            <p className="text-slate-400 text-base max-w-lg">
+            <p className="text-slate-500 dark:text-slate-400 text-base max-w-lg">
               Your personal AI-curated feed of articles, papers, repos, and videos — all searchable and summarized.
             </p>
           </div>
