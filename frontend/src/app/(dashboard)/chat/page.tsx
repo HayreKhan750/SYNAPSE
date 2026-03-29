@@ -689,7 +689,7 @@ export default function ChatPage() {
                           'w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors',
                           isActive ? 'bg-indigo-600/30' : 'bg-slate-800 group-hover:bg-slate-700'
                         )}>
-                          <MessageSquare size={11} className={isActive ? 'text-indigo-400' : 'text-slate-500'} />
+                          <MessageSquare size={11} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={cn('text-xs font-semibold truncate leading-snug', isActive ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300')}>
@@ -779,7 +779,7 @@ export default function ChatPage() {
           <div ref={modelDropdownRef} className="relative ml-3">
             <button
               onClick={() => setModelDropdownOpen((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 hover:border-indigo-500/50 text-xs text-slate-300 hover:text-white transition-all group"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-700/80 hover:border-indigo-500/50 text-xs text-slate-600 dark:text-slate-300 hover:text-white transition-all group"
             >
               <Zap size={11} className="text-indigo-400 shrink-0" />
               <span className="max-w-[110px] sm:max-w-[140px] truncate font-medium">
@@ -799,8 +799,8 @@ export default function ChatPage() {
                 >
                   {/* Header */}
                   <div className="px-4 py-3 border-b border-slate-700/60 bg-slate-800/60">
-                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
-                      <Zap size={10} className="text-indigo-400" /> AI Model
+                    <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                      <Zap size={10} className="text-indigo-600 dark:text-indigo-400" /> AI Model
                     </p>
                     <p className="text-[10px] text-slate-500 mt-0.5">Choose the model for this conversation</p>
                   </div>
@@ -815,7 +815,7 @@ export default function ChatPage() {
                           'w-full flex items-center justify-between px-3 py-2 text-xs transition-all text-left group/item rounded-lg mx-1.5 mb-0.5 w-[calc(100%-12px)]',
                           selectedModel === m.id
                             ? 'bg-indigo-600/25 border border-indigo-500/30 text-white'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white border border-transparent'
+                            : 'text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-white border border-transparent'
                         )}
                       >
                         <span className="flex items-center gap-2 min-w-0">
@@ -828,9 +828,9 @@ export default function ChatPage() {
                         {m.badge && (
                           <span className={cn(
                             'text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-2 border',
-                            m.badge.includes('Default') ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' :
-                            m.badge.includes('Latest') ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
-                            m.badge.includes('Fast')   ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' :
+                            m.badge.includes('Default') ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30' :
+                            m.badge.includes('Latest') ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' :
+                            m.badge.includes('Fast')   ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30' :
                             'bg-slate-700/80 text-slate-400 border-slate-600/50'
                           )}>
                             {m.badge}
@@ -848,7 +848,7 @@ export default function ChatPage() {
                           'w-full flex items-center justify-between px-3 py-2 text-xs transition-all text-left rounded-lg mx-1.5 mb-0.5 w-[calc(100%-12px)]',
                           selectedModel === m.id
                             ? 'bg-indigo-600/25 border border-indigo-500/30 text-white'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white border border-transparent'
+                            : 'text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-white border border-transparent'
                         )}
                       >
                         <span className="flex items-center gap-2 min-w-0">
@@ -876,7 +876,7 @@ export default function ChatPage() {
           {activeConversationId && (
             <button
               onClick={startNewChat}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors border border-slate-700"
             >
               <Plus size={12} />
               New Chat
@@ -907,7 +907,7 @@ export default function ChatPage() {
                     onClick={() => sendMessage(prompt)}
                     className={cn(
                       'text-left px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/60',
-                      'text-sm text-slate-300 hover:text-white hover:border-indigo-500/60 hover:bg-slate-800',
+                      'text-sm text-slate-600 dark:text-slate-300 hover:text-white hover:border-indigo-500/60 hover:bg-slate-800',
                       'transition-all duration-150'
                     )}
                   >
@@ -1032,7 +1032,7 @@ export default function ChatPage() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isGenerating}
                   title="Attach files"
-                  className="flex-shrink-0 p-2 rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-40"
+                  className="flex-shrink-0 p-2 rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
                 >
                   <Paperclip size={18} />
                 </button>

@@ -37,7 +37,7 @@ import {
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
         <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">{icon}</div>
         <h2 className="text-base font-semibold text-white">{title}</h2>
@@ -138,7 +138,7 @@ function AiKeysForm() {
           <span className="text-indigo-400 text-xs font-normal">gemini-1.5-flash / gemini-2.0</span>
           {loaded && (geminiConfigured
             ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
-            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-400">Not set</span>
+            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">Not set</span>
           )}
         </label>
         <div className="relative">
@@ -166,7 +166,7 @@ function AiKeysForm() {
           <span className="text-violet-400 text-xs font-normal">Fallback / GPT-4o / Claude</span>
           {loaded && (openrouterConfigured
             ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
-            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-400">Not set</span>
+            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">Not set</span>
           )}
         </label>
         <div className="relative">
@@ -352,7 +352,7 @@ export default function SettingsPage() {
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                     theme === value
                       ? 'border-indigo-500 bg-indigo-600/20 text-indigo-300'
-                      : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                      : 'border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-500 hover:text-slate-200'
                   }`}
                 >
                   <Icon size={14} />
@@ -365,7 +365,7 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         <Section title="Notifications" icon={<Bell size={16} />}>
-          <div className="space-y-5 divide-y divide-slate-800">
+          <div className="space-y-5 divide-y divide-slate-200 dark:divide-slate-800">
             <Toggle
               label="Email on workflow complete"
               description="Receive an email when an automation workflow finishes"
@@ -433,7 +433,7 @@ export default function SettingsPage() {
         <Section title="API Access" icon={<Key size={16} />}>
           <p className="text-sm text-slate-400">Use this key to access the SYNAPSE API from external apps.</p>
           <div className="flex items-center gap-2 flex-wrap xs:flex-nowrap">
-            <div className="w-full xs:flex-1 min-w-0 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 font-mono text-xs sm:text-sm text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap">
+            <div className="w-full xs:flex-1 min-w-0 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-mono text-xs sm:text-sm text-slate-600 dark:text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap">
               {showKey ? apiKey : '•'.repeat(Math.min(apiKey.length, 32))}
             </div>
             <div className="flex gap-1.5 shrink-0">
@@ -459,7 +459,7 @@ export default function SettingsPage() {
           <p className="text-sm text-slate-400">Sign out of your current session on this device.</p>
           <button
             onClick={() => { logout(); router.push('/login') }}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-sm rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg transition-colors"
           >
             <LogOut size={14} /> Sign Out
           </button>

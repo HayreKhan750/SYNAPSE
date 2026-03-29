@@ -78,7 +78,7 @@ export const Sidebar = memo(function Sidebar({
         {!isCollapsed && (
           <button
             onClick={onToggle}
-            className="hidden md:flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            className="hidden md:flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
             title="Collapse sidebar"
           >
             <ChevronLeft size={16} />
@@ -86,7 +86,7 @@ export const Sidebar = memo(function Sidebar({
         )}
         <button
           onClick={onMobileClose}
-          className="md:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
+          className="md:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
           title="Close sidebar"
         >
           <ChevronLeft size={16} />
@@ -98,7 +98,7 @@ export const Sidebar = memo(function Sidebar({
         {isCollapsed && (
           <button
             onClick={onToggle}
-            className="w-full flex items-center justify-center p-2.5 mb-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-all"
+            className="w-full flex items-center justify-center p-2.5 mb-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
             title="Expand sidebar"
           >
             <ChevronRight size={18} />

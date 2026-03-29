@@ -284,7 +284,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto max-h-[75vh]">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Name *</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Name *</label>
             <input type="text" required value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               className={inputClass()} placeholder="Workflow name" />
@@ -292,7 +292,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
             <textarea value={form.description} rows={2}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               className={inputClass('resize-none')} placeholder="What does this workflow do?" />
@@ -300,7 +300,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
 
           {/* Trigger Type */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Trigger Type</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Trigger Type</label>
             <div className="grid grid-cols-3 gap-2">
               {(['schedule', 'event', 'manual'] as TriggerType[]).map(t => (
                 <button key={t} type="button"
@@ -363,7 +363,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
             </div>
             <div className="space-y-2">
               {form.actions.map((action, i) => (
-                <div key={i} className="bg-slate-900/60 border border-slate-700 rounded-lg p-3">
+                <div key={i} className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-lg p-3">
                   <div className="flex gap-2 items-center">
                     <select value={action.type} onChange={e => updateActionType(i, e.target.value as ActionType)}
                       className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500">
@@ -389,7 +389,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
 
           {/* Footer */}
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg transition-colors">Cancel</button>
             <button type="submit" disabled={mutation.isPending}
               className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors font-medium">
               {mutation.isPending ? 'Saving…' : 'Save Changes'}

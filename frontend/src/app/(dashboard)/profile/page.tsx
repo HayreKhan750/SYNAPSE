@@ -157,7 +157,7 @@ export default function ProfilePage() {
           <div className="space-y-6">
 
             {/* Avatar + info card */}
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 sm:p-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 sm:p-6">
               <div className="flex items-start gap-3 sm:gap-5 flex-wrap">
                 {/* Avatar */}
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/20">
@@ -207,7 +207,7 @@ export default function ProfilePage() {
                         </button>
                         <button
                           onClick={() => setEditing(false)}
-                          className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg transition-colors"
                         >
                           <X size={14} /> Cancel
                         </button>
@@ -237,7 +237,7 @@ export default function ProfilePage() {
                       </div>
                       <button
                         onClick={() => setEditing(true)}
-                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs sm:text-sm rounded-xl transition-colors"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm rounded-xl transition-colors"
                       >
                         <Edit3 size={13} /> Edit Profile
                       </button>
@@ -251,7 +251,7 @@ export default function ProfilePage() {
             {profile.stats && (
               <div>
                 <h3 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
-                  <TrendingUp size={14} className="text-indigo-400" />
+                  <TrendingUp size={14} className="text-indigo-600 dark:text-indigo-400" />
                   Activity Stats
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -259,13 +259,13 @@ export default function ProfilePage() {
                   <StatCard icon={<MessageSquare size={16} className="text-sky-400" />} label="Chat Sessions" value={profile.stats.chat_sessions || 0} colour="bg-sky-500/10" />
                   <StatCard icon={<FileText size={16} className="text-violet-600 dark:text-violet-400" />} label="Documents" value={profile.stats.documents_generated || 0} colour="bg-violet-500/10" />
                   <StatCard icon={<BookOpen size={16} className="text-emerald-600 dark:text-emerald-400" />} label="Papers Bookmarked" value={profile.stats.papers_bookmarked || 0} colour="bg-emerald-500/10" />
-                  <StatCard icon={<Shield size={16} className="text-indigo-400" />} label="Agent Tasks" value={profile.stats.agent_tasks || 0} colour="bg-indigo-500/10" />
+                  <StatCard icon={<Shield size={16} className="text-indigo-600 dark:text-indigo-400" />} label="Agent Tasks" value={profile.stats.agent_tasks || 0} colour="bg-indigo-500/10" />
                 </div>
               </div>
             )}
 
             {/* Account info */}
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
               <h3 className="text-sm font-semibold text-white mb-4">Account Information</h3>
               <div className="space-y-3">
                 {[

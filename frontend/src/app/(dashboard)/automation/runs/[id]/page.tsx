@@ -55,7 +55,7 @@ const ACTION_ICONS: Record<string, string> = {
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[status] ?? 'bg-slate-600 text-slate-300'}`}>
+    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[status] ?? 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300'}`}>
       {status === 'running' ? '⟳ Running'
         : status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
     </span>
@@ -110,7 +110,7 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
           {action.answer && (
             <div className="bg-slate-900 rounded-lg p-3">
               <p className="text-xs text-slate-400 font-medium mb-1">AI Answer</p>
-              <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">{action.answer}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{action.answer}</p>
             </div>
           )}
           {action.web_view_link && (
@@ -122,7 +122,7 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
           {action.file_path && (
             <div>
               <p className="text-xs text-slate-400 font-medium mb-1">Generated File</p>
-              <p className="text-xs font-mono text-slate-300 bg-slate-900 rounded p-2 break-all">{action.file_path}</p>
+              <p className="text-xs font-mono text-slate-600 dark:text-slate-300 bg-slate-900 rounded p-2 break-all">{action.file_path}</p>
             </div>
           )}
           {action.task_ids && Object.keys(action.task_ids).length > 0 && (
@@ -242,7 +242,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
 
         {/* Event trigger */}
         {displayRun.trigger_event && Object.keys(displayRun.trigger_event).length > 0 && (
-          <div className="mb-5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
+          <div className="mb-5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl p-4">
             <p className="text-xs font-medium text-indigo-400 mb-2">⚡ Triggered by Event</p>
             <pre className="text-xs text-indigo-300 overflow-x-auto">
               {JSON.stringify(displayRun.trigger_event, null, 2)}
@@ -273,7 +273,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
 
         {/* Action results */}
         <div>
-          <h2 className="text-sm font-semibold text-slate-300 mb-3">
+          <h2 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">
             Action Results {actions.length > 0 && <span className="text-slate-500 font-normal">({actions.length})</span>}
           </h2>
           {actions.length === 0 ? (
@@ -291,7 +291,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
 
         {/* Footer: celery task id */}
         {displayRun.celery_task_id && (
-          <div className="mt-6 bg-slate-800/40 border border-slate-700/60 rounded-xl p-4">
+          <div className="mt-6 bg-slate-100 dark:bg-slate-800/40 border border-slate-700/60 rounded-xl p-4">
             <p className="text-xs text-slate-500 mb-1">Celery Task ID</p>
             <p className="text-xs font-mono text-slate-400 break-all">{displayRun.celery_task_id}</p>
           </div>

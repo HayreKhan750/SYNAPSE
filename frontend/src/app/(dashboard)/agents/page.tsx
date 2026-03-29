@@ -76,7 +76,7 @@ const COMMAND_TEMPLATES = [
 
 const STATUS_CONFIG = {
   pending:    { color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-400/10',  border: 'border-amber-400/30',  icon: Clock,     label: 'Pending' },
-  processing: { color: 'text-blue-400',   bg: 'bg-blue-400/10',   border: 'border-blue-400/30',   icon: Loader2,   label: 'Running' },
+  processing: { color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-400/10',   border: 'border-blue-400/30',   icon: Loader2,   label: 'Running' },
   completed:  { color: 'text-emerald-600 dark:text-emerald-400',bg: 'bg-emerald-400/10',border: 'border-emerald-400/30',icon: CheckCircle,label: 'Completed' },
   failed:     { color: 'text-red-400',    bg: 'bg-red-400/10',    border: 'border-red-400/30',    icon: XCircle,   label: 'Failed' },
 }
@@ -204,9 +204,9 @@ function AgentMarkdown({ content }: { content: string }) {
             </div>
           ),
           thead: ({ children }: any) => <thead className="bg-slate-800">{children}</thead>,
-          tbody: ({ children }: any) => <tbody className="divide-y divide-slate-700">{children}</tbody>,
+          tbody: ({ children }: any) => <tbody className="divide-y divide-slate-200 dark:divide-slate-700">{children}</tbody>,
           tr: ({ children }: any) => <tr className="even:bg-slate-800/40 hover:bg-slate-700/40 transition-colors">{children}</tr>,
-          th: ({ children }: any) => <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">{children}</th>,
+          th: ({ children }: any) => <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">{children}</th>,
           td: ({ children }: any) => <td className="px-4 py-2.5 text-slate-300">{children}</td>,
         }}
       >
@@ -229,7 +229,7 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
         <div className="p-0.5 rounded bg-slate-800 border border-slate-700 group-hover:border-indigo-500/50 transition-colors">
           {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </div>
-        <Cpu size={11} className="text-indigo-400" />
+        <Cpu size={11} className="text-indigo-600 dark:text-indigo-400" />
         <span>{steps.length} tool call{steps.length !== 1 ? 's' : ''}</span>
       </button>
       <AnimatePresence>
@@ -252,13 +252,13 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
                   <div className="p-3 space-y-2 text-xs">
                     <div>
                       <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Input</span>
-                      <pre className="mt-1 text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-800 rounded-lg p-2 border border-slate-700">
+                      <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-700">
                         {typeof step.input === 'string' ? step.input : JSON.stringify(step.input, null, 2)}
                       </pre>
                     </div>
                     <div>
                       <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Output</span>
-                      <pre className="mt-1 text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-800 rounded-lg p-2 border border-slate-700 max-h-40 overflow-y-auto">
+                      <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-700 max-h-40 overflow-y-auto">
                         {String(step.output).slice(0, 600)}{String(step.output).length > 600 ? '\n…(truncated)' : ''}
                       </pre>
                     </div>
@@ -341,7 +341,7 @@ function DownloadResultCard({ task }: { task: AgentTask }) {
             <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {isProject ? 'Project Scaffold' : 'Generated Document'}
             </span>
-            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-mono font-bold">{ext}</span>
+            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-600 dark:text-slate-300 font-mono font-bold">{ext}</span>
           </div>
           <p className="text-sm font-semibold text-white truncate">{displayName}</p>
           {sizeStr && (
@@ -446,7 +446,7 @@ function TaskCard({
           {!isActive && (
             <button
               onClick={e => { e.stopPropagation(); onRefresh(task.id) }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               title="Refresh"
             >
               <RefreshCw size={13} />
@@ -471,13 +471,13 @@ function TaskCard({
         </span>
         {task.execution_time_s != null && (
           <span className="flex items-center gap-1 text-slate-500">
-            <Timer size={10} className="text-blue-400" />
+            <Timer size={10} className="text-blue-600 dark:text-blue-400" />
             {formatDuration(task.execution_time_s)}
           </span>
         )}
         {steps.length > 0 && (
           <span className="flex items-center gap-1 text-slate-500">
-            <Cpu size={10} className="text-indigo-400" />
+            <Cpu size={10} className="text-indigo-600 dark:text-indigo-400" />
             {steps.length} tool{steps.length !== 1 ? 's' : ''} used
           </span>
         )}
@@ -734,7 +734,7 @@ export default function AgentsPage() {
         {/* ── Page Header ── */}
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 rounded-2xl bg-indigo-600/20 border border-indigo-500/30">
-            <Bot size={28} className="text-indigo-400" />
+            <Bot size={28} className="text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">AI Agents</h1>
@@ -744,7 +744,7 @@ export default function AgentsPage() {
 
         {/* ── No API key warning banner ── */}
         {apiKeyStatus && !apiKeyStatus.any_configured && (
-          <div className="flex items-center gap-3 px-4 py-3 mb-6 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-sm">
+          <div className="flex items-center gap-3 px-4 py-3 mb-6 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl text-amber-300 text-sm">
             <AlertCircle size={16} className="flex-shrink-0 text-amber-400" />
             <span>
               No AI API key configured — agents are using the shared server key.{' '}
@@ -779,7 +779,7 @@ export default function AgentsPage() {
               </div>
               {/* Tools count chip */}
               {tools.length > 0 && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-400 text-[10px] font-bold">
                   <Zap size={10} />
                   {tools.length} tools ready
                 </div>
@@ -815,7 +815,7 @@ export default function AgentsPage() {
                           : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:border-indigo-500/30 hover:text-slate-200 hover:bg-slate-800'
                       )}
                     >
-                      <Icon size={12} className={active ? 'text-indigo-400' : 'text-slate-500'} />
+                      <Icon size={12} className={active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'} />
                       {tt.label}
                     </button>
                   )
@@ -923,7 +923,7 @@ export default function AgentsPage() {
               {tab.count > 0 && (
                 <span className={cn(
                   'text-xs px-1.5 py-0.5 rounded-full font-bold',
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-400'
+                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                 )}>
                   {tab.count}
                 </span>

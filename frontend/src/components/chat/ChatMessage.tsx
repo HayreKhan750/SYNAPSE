@@ -36,10 +36,10 @@ function CopyButton({ text, size = 14 }: { text: string; size?: number }) {
     <button
       onClick={handleCopy}
       title={copied ? 'Copied!' : 'Copy'}
-      className="p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+      className="p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
     >
       {copied
-        ? <Check size={size} className="text-green-400" />
+        ? <Check size={size} className="text-green-600 dark:text-green-400" />
         : <Copy size={size} />}
     </button>
   );
@@ -60,7 +60,7 @@ function CopyTableButton({ onCopy }: { onCopy: () => void }) {
       className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 transition-colors px-2 py-0.5 rounded hover:bg-slate-700"
     >
       {copied
-        ? <><Check size={11} className="text-green-400" /><span className="text-green-400">Copied!</span></>
+        ? <><Check size={11} className="text-green-600 dark:text-green-400" /><span className="text-green-600 dark:text-green-400">Copied!</span></>
         : <><Copy size={11} /><span>Copy</span></>}
     </button>
   );
@@ -94,7 +94,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded hover:bg-slate-700"
         >
           {copied
-            ? <><Check size={12} className="text-green-400" /><span className="text-green-400">Copied!</span></>
+            ? <><Check size={12} className="text-green-600 dark:text-green-400" /><span className="text-green-600 dark:text-green-400">Copied!</span></>
             : <><Copy size={12} /><span>Copy</span></>}
         </button>
       </div>
@@ -148,7 +148,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
             : 'bg-gradient-to-br from-violet-600 to-indigo-600'
         )}
       >
-        {isHuman ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
+        {isHuman ? <User size={16} className="text-slate-800 dark:text-white" /> : <Bot size={16} className="text-slate-800 dark:text-white" />}
       </div>
 
       {/* Bubble */}
@@ -359,7 +359,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       <thead className="bg-slate-900">{children}</thead>
                     ),
                     tbody: ({ children }: any) => (
-                      <tbody className="divide-y divide-slate-700">{children}</tbody>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700">{children}</tbody>
                     ),
                     tr: ({ children }: any) => (
                       <tr className="even:bg-slate-800/50 hover:bg-slate-700/40 transition-colors">
@@ -367,7 +367,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       </tr>
                     ),
                     th: ({ children }: any) => (
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider border-b border-slate-700">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider border-b border-slate-700">
                         {children}
                       </th>
                     ),
@@ -396,7 +396,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                   <button
                     onClick={handleEdit}
                     title="Edit message"
-                    className="p-1.5 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-slate-700 transition-colors"
+                    className="p-1.5 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     <Pencil size={13} />
                   </button>

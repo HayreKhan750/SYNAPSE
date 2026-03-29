@@ -91,7 +91,7 @@ export const PaperCard = ({ paper }: PaperCardProps) => {
       {paper.authors && paper.authors.length > 0 && (
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2.5 truncate">
           {paper.authors.slice(0, 3).join(', ')}
-          {paper.authors.length > 3 && <span className="text-slate-400"> +{paper.authors.length - 3} more</span>}
+          {paper.authors.length > 3 && <span className="text-slate-500 dark:text-slate-400"> +{paper.authors.length - 3} more</span>}
         </p>
       )}
 
@@ -116,7 +116,7 @@ export const PaperCard = ({ paper }: PaperCardProps) => {
             <button
               onClick={handlePdfClick}
               title="Open PDF"
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400"
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400"
             >
               <FileText size={15} />
             </button>
@@ -124,7 +124,7 @@ export const PaperCard = ({ paper }: PaperCardProps) => {
           <button
             onClick={handleArxivClick}
             title="Open on arXiv"
-            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400"
           >
             <ExternalLink size={15} />
           </button>

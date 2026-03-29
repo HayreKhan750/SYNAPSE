@@ -54,7 +54,7 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
           {isLoading && (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-4 animate-pulse h-20" />
+                <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 animate-pulse h-20" />
               ))}
             </div>
           )}
@@ -66,7 +66,7 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
           )}
 
           {!isLoading && !error && schedule.length === 0 && (
-            <div className="bg-slate-900 border border-slate-700 rounded-xl p-8 text-center">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center">
               <p className="text-slate-400 text-sm">No scheduled workflows found.</p>
               <p className="text-slate-500 text-xs mt-1">Create a workflow with trigger type "Schedule" to see it here.</p>
             </div>

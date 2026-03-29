@@ -171,7 +171,7 @@ const ACTION_TYPES = Object.keys(ACTION_LABELS) as ActionType[];
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status] ?? 'bg-slate-600 text-slate-300'}`}>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status] ?? 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300'}`}>
       {status === 'running' ? '⟳ Running' : status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
@@ -412,21 +412,21 @@ function WorkflowCard({
         <div className="flex gap-1.5 shrink-0">
           <button
             onClick={() => onToggle(workflow.id)}
-            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-xl transition-colors"
+            className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-xl transition-colors"
             title={workflow.is_active ? 'Pause' : 'Resume'}
           >
             {workflow.is_active ? '⏸' : '▶'}
           </button>
           <button
             onClick={() => onEdit(workflow)}
-            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-xl transition-colors"
+            className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-xl transition-colors"
             title="Edit workflow"
           >
             ✏️
           </button>
           <button
             onClick={() => onViewRuns(workflow)}
-            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-xl transition-colors"
+            className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-xl transition-colors"
             title="View run history"
           >
             📋
@@ -459,7 +459,7 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <div>
             <h2 className="text-lg font-semibold text-white">
-              Run History — <span className="text-indigo-400">{workflow.name}</span>
+              Run History — <span className="text-indigo-600 dark:text-indigo-400">{workflow.name}</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Auto-refreshes every 4s while runs are active</p>
           </div>
@@ -472,7 +472,7 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
           {isLoading && (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-20 bg-slate-900 border border-slate-700 rounded-xl animate-pulse" />
+                <div key={i} className="h-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl animate-pulse" />
               ))}
             </div>
           )}
@@ -535,7 +535,7 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
                         </span>
                       )}
                       {run.trigger_event && Object.keys(run.trigger_event).length > 0 && (
-                        <span className="text-indigo-400">⚡ {Object.keys(run.trigger_event)[0]}</span>
+                        <span className="text-indigo-600 dark:text-indigo-400">⚡ {Object.keys(run.trigger_event)[0]}</span>
                       )}
                     </div>
 
@@ -593,7 +593,7 @@ function DeleteConfirmModal({
             <p className="text-white font-medium truncate">{workflow.name}</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={onCancel} disabled={isPending} className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-300 text-sm rounded-xl transition-colors font-medium">Cancel</button>
+            <button onClick={onCancel} disabled={isPending} className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-600 dark:text-slate-300 text-sm rounded-xl transition-colors font-medium">Cancel</button>
             <button onClick={onConfirm} disabled={isPending} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm rounded-xl transition-colors font-medium">
               {isPending ? 'Deleting…' : 'Delete Workflow'}
             </button>
@@ -721,7 +721,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto max-h-[75vh]">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Workflow Name *</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Workflow Name *</label>
             <input type="text" required value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Daily Tech Digest"
@@ -730,7 +730,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
             <textarea value={form.description} rows={2}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="What does this workflow do?"
@@ -739,7 +739,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
 
           {/* Trigger Type */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Trigger Type</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Trigger Type</label>
             <div className="grid grid-cols-3 gap-2">
               {(['schedule', 'event', 'manual'] as TriggerType[]).map(t => (
                 <button key={t} type="button"
@@ -808,7 +808,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="space-y-2">
               {form.actions.map((action, i) => (
-                <div key={i} className="bg-slate-900/60 border border-slate-700 rounded-lg p-3">
+                <div key={i} className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-lg p-3">
                   <div className="flex gap-2 items-center">
                     <select value={action.type} onChange={e => updateActionType(i, e.target.value as ActionType)}
                       className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500">
@@ -843,7 +843,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
 
           {/* Submit */}
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg transition-colors">Cancel</button>
             <button type="submit" disabled={mutation.isPending}
               className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors font-medium">
               {mutation.isPending ? 'Creating…' : 'Create Workflow'}
@@ -1220,7 +1220,7 @@ export default function AutomationPage() {
         <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Action Types */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Available Action Types</h3>
+            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Available Action Types</h3>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(ACTION_LABELS).map(([type, label]) => (
                 <div key={type} className="bg-slate-900 rounded-lg p-2.5">
@@ -1233,7 +1233,7 @@ export default function AutomationPage() {
 
           {/* Event Trigger Types */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Event Trigger Types</h3>
+            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Event Trigger Types</h3>
             <div className="space-y-2">
               {EVENT_TYPE_OPTIONS.map(o => (
                 <div key={o.value} className="bg-slate-900 rounded-lg p-2.5 flex items-center gap-2">

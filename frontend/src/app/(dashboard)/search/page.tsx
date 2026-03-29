@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 type TabType = 'all' | 'articles' | 'repos' | 'papers' | 'videos'
 
 const TABS: { id: TabType; label: string; icon: React.ElementType; colour: string }[] = [
-  { id: 'all',      label: 'All',          icon: Search,    colour: 'text-indigo-400'  },
+  { id: 'all',      label: 'All',          icon: Search,    colour: 'text-indigo-600 dark:text-indigo-400'  },
   { id: 'articles', label: 'Articles',     icon: FileText,  colour: 'text-cyan-600 dark:text-cyan-400'    },
   { id: 'repos',    label: 'Repos',        icon: GitBranch, colour: 'text-emerald-600 dark:text-emerald-400' },
   { id: 'papers',   label: 'Papers',       icon: BookOpen,  colour: 'text-violet-600 dark:text-violet-400'  },
@@ -151,7 +151,7 @@ export default function SearchPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.12 }}
-                className="absolute top-full mt-2 w-full bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-20"
+                className="absolute top-full mt-2 w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-20"
               >
                 {history.length > 0 && (
                   <div className="p-3 border-b border-slate-700/60">
@@ -174,7 +174,7 @@ export default function SearchPage() {
                           className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700/60 text-left transition-colors"
                         >
                           <Clock size={13} className="text-slate-600 shrink-0" />
-                          <span className="text-sm text-slate-300 truncate">{h}</span>
+                          <span className="text-sm text-slate-600 dark:text-slate-300 truncate">{h}</span>
                         </button>
                       ))}
                     </div>
@@ -189,7 +189,7 @@ export default function SearchPage() {
                       <button
                         key={t}
                         onMouseDown={() => handleSelect(t)}
-                        className="px-2.5 py-1 rounded-full bg-slate-700/70 hover:bg-indigo-600/30 border border-slate-600/50 hover:border-indigo-500/50 text-xs text-slate-300 hover:text-indigo-300 transition-all"
+                        className="px-2.5 py-1 rounded-full bg-slate-700/70 hover:bg-indigo-600/30 border border-slate-600/50 hover:border-indigo-500/50 text-xs text-slate-600 dark:text-slate-300 hover:text-indigo-300 transition-all"
                       >
                         {t}
                       </button>

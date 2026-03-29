@@ -48,7 +48,7 @@ function BackupCodeGrid({ codes }: { codes: string[] }) {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
       <div className="grid grid-cols-2 gap-2 mb-3">
         {codes.map((code, i) => (
           <code key={i} className="text-xs font-mono bg-slate-800 text-green-400 rounded px-2 py-1.5 text-center tracking-widest">
@@ -57,7 +57,7 @@ function BackupCodeGrid({ codes }: { codes: string[] }) {
         ))}
       </div>
       <button onClick={handleCopy}
-        className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded-lg transition-colors">
+        className="w-full py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-medium rounded-lg transition-colors">
         {copied ? '✅ Copied!' : '📋 Copy All Codes'}
       </button>
     </div>
@@ -138,7 +138,7 @@ export function MFASection() {
           </div>
         </div>
         <div>
-          <p className="text-sm font-medium text-slate-300 mb-2">🔐 Backup Codes</p>
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">🔐 Backup Codes</p>
           <BackupCodeGrid codes={backupCodes} />
           <p className="text-xs text-slate-500 mt-2">Each code can only be used once. Store them somewhere secure (password manager, printed copy).</p>
         </div>
@@ -154,14 +154,14 @@ export function MFASection() {
     return (
       <div className="space-y-4">
         <div>
-          <p className="text-sm font-medium text-slate-300 mb-1">Step 2 — Enter the code from your app</p>
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Step 2 — Enter the code from your app</p>
           <p className="text-xs text-slate-400">Open your authenticator app and enter the 6-digit code for SYNAPSE.</p>
         </div>
         <OTPInput value={token} onChange={v => { setToken(v); setError(''); }} />
         {error && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
         <div className="flex gap-2">
           <button onClick={() => { setStep('setup'); setError(''); }}
-            className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-xl transition-colors">
+            className="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-xl transition-colors">
             ← Back
           </button>
           <button
@@ -181,7 +181,7 @@ export function MFASection() {
     return (
       <div className="space-y-4">
         <div>
-          <p className="text-sm font-medium text-slate-300 mb-1">Step 1 — Scan with your authenticator app</p>
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Step 1 — Scan with your authenticator app</p>
           <p className="text-xs text-slate-400">Use Google Authenticator, Authy, or any TOTP-compatible app.</p>
         </div>
 
@@ -201,7 +201,7 @@ export function MFASection() {
           <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-400 transition-colors">
             Can't scan? Enter the secret key manually ▼
           </summary>
-          <div className="mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
+          <div className="mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
             <p className="text-xs text-slate-400 mb-1">Secret key (Base32):</p>
             <code className="text-xs font-mono text-indigo-300 break-all">{setupData.secret}</code>
           </div>
@@ -228,7 +228,7 @@ export function MFASection() {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Confirm your password</label>
+          <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Confirm your password</label>
           <input type="password" value={password}
             onChange={e => { setPassword(e.target.value); setError(''); }}
             placeholder="Enter your current password"
@@ -236,7 +236,7 @@ export function MFASection() {
         </div>
         {error && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
         <div className="flex gap-2">
-          <button onClick={reset} className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-xl transition-colors">Cancel</button>
+          <button onClick={reset} className="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-xl transition-colors">Cancel</button>
           <button onClick={() => disableMutation.mutate(password)}
             disabled={!password || disableMutation.isPending}
             className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors">

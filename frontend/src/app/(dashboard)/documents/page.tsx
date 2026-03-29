@@ -422,7 +422,7 @@ function DocumentCard({ doc, onDelete, driveConnected }: { doc: DocumentRecord; 
                   <div key={v.id} className={`flex items-center gap-2 p-2 rounded-lg text-xs ${v.id === doc.id ? "bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700" : "bg-gray-50 dark:bg-gray-800"}`}>
                     <span className={`font-bold px-1.5 py-0.5 rounded text-xs ${v.id === doc.id ? "bg-indigo-600 text-white" : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300"}`}>v{v.version ?? 1}</span>
                     <span className="flex-1 text-gray-600 dark:text-gray-400 truncate">{String(v.metadata?.section_count ?? "?")} sections{v.id === doc.id && <span className="text-indigo-500 ml-1">(current)</span>}</span>
-                    <span className="text-gray-400">{new Date(v.created_at).toLocaleDateString()}</span>
+                    <span className="text-gray-500 dark:text-gray-400">{new Date(v.created_at).toLocaleDateString()}</span>
                   </div>
                 ))}
               </div>
@@ -1025,7 +1025,7 @@ function DriveConnectionPanel({ isConnected, email, onConnect, onDisconnect, isL
   return (
     <div className={`rounded-xl border p-4 flex items-center gap-4 flex-wrap ${isConnected ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800" : "bg-gray-50 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700"}`}>
       <div className={`p-2 rounded-lg ${isConnected ? "bg-green-100 dark:bg-green-900/30" : "bg-gray-100 dark:bg-gray-700"}`}>
-        <HardDrive className={`w-5 h-5 ${isConnected ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
+        <HardDrive className={`w-5 h-5 ${isConnected ? "text-green-600 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}`} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-white">Google Drive</p>
@@ -1428,7 +1428,7 @@ export default function DocumentsPage() {
                 <Icon className="w-4 h-4" />
                 {tab.label}
                 {tab.id === "projects" && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-xs font-bold">
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-bold">
                     NEW
                   </span>
                 )}

@@ -116,7 +116,7 @@ export default function GitHubPage() {
               className={cn(
                 'px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0',
                 selectedLanguage === language
-                  ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                  ? 'bg-indigo-600 dark:bg-white text-white dark:text-slate-900 shadow-sm'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               )}
             >

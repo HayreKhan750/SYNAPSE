@@ -196,7 +196,7 @@ function AddToCollectionModal({
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all',
                     isAdded
                       ? 'bg-indigo-600/20 border border-indigo-500/40 text-indigo-300'
-                      : 'bg-slate-700/50 border border-transparent hover:border-slate-600 text-slate-300 hover:text-white'
+                      : 'bg-slate-700/50 border border-transparent hover:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-white'
                   )}
                 >
                   {isLoading
@@ -291,7 +291,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
 
       {/* Bookmark count */}
       <div className="flex items-center gap-2 text-xs text-slate-500">
-        <BookMarked size={13} className="text-rose-400" />
+        <BookMarked size={13} className="text-rose-600 dark:text-rose-400" />
         <span><strong className="text-slate-600 dark:text-slate-300">{bookmarks.length}</strong> bookmark{bookmarks.length !== 1 ? 's' : ''} in this collection</span>
       </div>
 
@@ -299,7 +299,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-indigo-400" /></div>
       ) : bookmarks.length === 0 ? (
-        <div className="text-center py-16 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+        <div className="text-center py-16 bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50">
           <FolderOpen size={36} className="mx-auto text-slate-600 mb-3" />
           <p className="text-slate-400 text-sm font-medium">This collection is empty</p>
           <p className="text-slate-600 text-xs mt-1">Go to a bookmark and click the folder icon to add it here</p>
@@ -313,7 +313,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                className="flex items-center gap-3 p-3 sm:p-4 bg-slate-800 border border-slate-700 rounded-2xl hover:border-slate-600 transition-all group"
+                className="flex items-center gap-3 p-3 sm:p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl hover:border-slate-600 transition-all group"
               >
                 <div className="text-lg shrink-0">{getTypeIcon(bookmark.content_type_name)}</div>
                 <div className="flex-1 min-w-0">
@@ -381,7 +381,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. AI Papers, Rust Resources..."
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <div>
@@ -391,7 +391,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
               onChange={e => setDescription(e.target.value)}
               placeholder="What's this collection about?"
               rows={2}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
           </div>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -469,10 +469,10 @@ export default function LibraryPage() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'article': return <FileText size={14} className="text-indigo-400" />
+      case 'article': return <FileText size={14} className="text-indigo-600 dark:text-indigo-400" />
       case 'repository': return <GitBranch size={14} className="text-emerald-600 dark:text-emerald-400" />
       case 'researchpaper': return <BookOpen size={14} className="text-violet-600 dark:text-violet-400" />
-      default: return <BookMarked size={14} className="text-slate-400" />
+      default: return <BookMarked size={14} className="text-slate-500 dark:text-slate-400" />
     }
   }
 
@@ -544,9 +544,9 @@ export default function LibraryPage() {
         {collectionsLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="animate-spin text-indigo-400" /></div>
         ) : collections.length === 0 ? (
-          <div className="text-center py-10 bg-slate-800/50 rounded-xl border border-slate-700/50">
+          <div className="text-center py-10 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
             <FolderPlus size={32} className="mx-auto text-slate-600 mb-3" />
-            <p className="text-slate-400">No collections yet</p>
+            <p className="text-slate-500 dark:text-slate-400">No collections yet</p>
             <button
               onClick={() => setShowNewCollection(true)}
               className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mx-auto"
@@ -563,7 +563,7 @@ export default function LibraryPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="group relative bg-slate-800 border border-slate-700 rounded-2xl p-4 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-200 overflow-hidden cursor-pointer"
+                  className="group relative bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-200 overflow-hidden cursor-pointer"
                   onClick={() => setSelectedCollection(col)}
                 >
                   <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
@@ -613,12 +613,12 @@ export default function LibraryPage() {
       <section>
         <div className="flex flex-col xs:flex-row xs:items-center justify-between mb-4 gap-3">
           <h2 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2 shrink-0">
-            <BookMarked size={17} className="text-rose-400" />
+            <BookMarked size={17} className="text-rose-600 dark:text-rose-400" />
             Bookmarks
             <span className="text-xs sm:text-sm text-slate-500 font-normal">({bookmarks.length})</span>
           </h2>
           {/* Type filter tabs — scrollable on small screens */}
-          <div className="flex gap-1 bg-slate-800 rounded-xl p-1 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 overflow-x-auto scrollbar-hide">
             {contentTabs.map(tab => (
               <button
                 key={tab.id}
@@ -638,9 +638,9 @@ export default function LibraryPage() {
         {bookmarksLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="animate-spin text-indigo-400" /></div>
         ) : bookmarks.length === 0 ? (
-          <div className="text-center py-16 bg-slate-800/50 rounded-xl border border-slate-700/50">
+          <div className="text-center py-16 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
             <BookMarked size={40} className="mx-auto text-slate-600 mb-3" />
-            <p className="text-slate-400">No bookmarks yet</p>
+            <p className="text-slate-500 dark:text-slate-400">No bookmarks yet</p>
             <p className="text-slate-500 text-sm mt-1">
               Click the ♡ on any article, repo, or paper to save it here
             </p>
@@ -654,7 +654,7 @@ export default function LibraryPage() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 10 }}
-                  className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-slate-800 border border-slate-700 rounded-2xl hover:border-slate-600 hover:shadow-md transition-all duration-200 group overflow-hidden"
+                  className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl hover:border-slate-600 hover:shadow-md transition-all duration-200 group overflow-hidden"
                 >
                   <div className="flex-shrink-0 text-lg sm:text-xl">{getTypeIcon(bookmark.content_type_name)}</div>
                   <div className="flex-1 min-w-0">

@@ -45,7 +45,7 @@ const CATEGORY_CONFIG: Record<string, {
   ai_ml:    { label: 'AI / ML',   colour: 'text-violet-600 dark:text-violet-400',   bg: 'bg-violet-500/15',   border: 'border-violet-500/40', activeBg: 'bg-violet-500/25', icon: Brain },
   devops:   { label: 'DevOps',    colour: 'text-emerald-600 dark:text-emerald-400',  bg: 'bg-emerald-500/15',  border: 'border-emerald-500/40', activeBg: 'bg-emerald-500/25', icon: Box },
   web:      { label: 'Web',       colour: 'text-amber-600 dark:text-amber-400',    bg: 'bg-amber-500/15',    border: 'border-amber-500/40', activeBg: 'bg-amber-500/25',   icon: Globe },
-  general:  { label: 'General',   colour: 'text-slate-400',    bg: 'bg-slate-500/15',    border: 'border-slate-500/40', activeBg: 'bg-slate-500/25',   icon: GitBranch },
+  general:  { label: 'General',   colour: 'text-slate-500 dark:text-slate-400',    bg: 'bg-slate-500/15',    border: 'border-slate-500/40', activeBg: 'bg-slate-500/25',   icon: GitBranch },
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -394,7 +394,7 @@ export default function TrendsPage() {
               <button
                 onClick={() => refetch()}
                 disabled={isFetching}
-                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs sm:text-sm rounded-xl transition-colors whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm rounded-xl transition-colors whitespace-nowrap"
               >
                 <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
                 <span className="hidden xs:inline">Refresh</span>
@@ -406,7 +406,7 @@ export default function TrendsPage() {
         {/* ── Stats Grid ── */}
         {trends.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            <StatCard label="Technologies tracked" value={deduped.length}                 icon={Cpu}        colour="text-indigo-400" />
+            <StatCard label="Technologies tracked" value={deduped.length}                 icon={Cpu}        colour="text-indigo-600 dark:text-indigo-400" />
             <StatCard label="AI / ML entries"      value={categoryCounts['ai_ml'] ?? 0}   icon={Brain}      colour="text-violet-600 dark:text-violet-400" />
             <StatCard label="Avg trend score"       value={avgScore}                       icon={BarChart2}  colour="text-cyan-600 dark:text-cyan-400"   />
             <StatCard label="🏆 Top tech"           value={topTech}                        icon={TrendingUp} colour="text-amber-600 dark:text-amber-400"  />
@@ -435,7 +435,7 @@ export default function TrendsPage() {
                 {count > 0 && (
                   <span className={cn(
                     'px-1.5 py-0.5 rounded-full text-[10px] font-black',
-                    active ? 'bg-black/25' : 'bg-slate-700 text-slate-400'
+                    active ? 'bg-black/25' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                   )}>
                     {count}
                   </span>
@@ -544,7 +544,7 @@ export default function TrendsPage() {
               className={cn('flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all font-semibold',
                 sortBy === 'score'
                   ? 'bg-indigo-600 text-white border-indigo-500'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-700 hover:border-slate-500'
               )}
             >
               <Zap size={11} /> Trend Score
@@ -554,7 +554,7 @@ export default function TrendsPage() {
               className={cn('flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all font-semibold',
                 sortBy === 'mentions'
                   ? 'bg-indigo-600 text-white border-indigo-500'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-700 hover:border-slate-500'
               )}
             >
               <BarChart2 size={11} /> Mentions

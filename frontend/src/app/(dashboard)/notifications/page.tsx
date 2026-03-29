@@ -61,9 +61,9 @@ const NOTIF_CONFIG: Record<string, {
   icon: React.ElementType; iconBg: string; iconColour: string;
   borderColour: string; label: string;
 }> = {
-  workflow_complete: { icon: Zap,           iconBg: 'bg-indigo-500/15', iconColour: 'text-indigo-400', borderColour: 'border-indigo-500/30', label: 'Workflow' },
+  workflow_complete: { icon: Zap,           iconBg: 'bg-indigo-500/15', iconColour: 'text-indigo-600 dark:text-indigo-400', borderColour: 'border-indigo-500/30', label: 'Workflow' },
   success:          { icon: CheckCircle2,   iconBg: 'bg-emerald-500/15',iconColour: 'text-emerald-600 dark:text-emerald-400',borderColour: 'border-emerald-500/30',label: 'Success' },
-  info:             { icon: Info,           iconBg: 'bg-blue-500/15',   iconColour: 'text-blue-400',   borderColour: 'border-blue-500/30',   label: 'Info' },
+  info:             { icon: Info,           iconBg: 'bg-blue-500/15',   iconColour: 'text-blue-600 dark:text-blue-400',   borderColour: 'border-blue-500/30',   label: 'Info' },
   warning:          { icon: AlertTriangle,  iconBg: 'bg-amber-500/15',  iconColour: 'text-amber-600 dark:text-amber-400',  borderColour: 'border-amber-500/30',  label: 'Warning' },
   error:            { icon: AlertCircle,    iconBg: 'bg-red-500/15',    iconColour: 'text-red-400',    borderColour: 'border-red-500/30',    label: 'Error' },
 }
@@ -232,7 +232,7 @@ export default function NotificationsPage() {
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative shrink-0">
               <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-                <Bell size={18} className="text-indigo-400" />
+                <Bell size={18} className="text-indigo-600 dark:text-indigo-400" />
               </div>
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1">

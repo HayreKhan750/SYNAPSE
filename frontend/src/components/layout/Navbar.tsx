@@ -87,11 +87,11 @@ const deleteNotification = async (id: string) => {
 // ── NotifType icon/colour map ─────────────────────────────────────────────────
 
 const NOTIF_STYLES: Record<string, { icon: string; colour: string }> = {
-  workflow_complete: { icon: '⚙️', colour: 'text-indigo-400' },
-  info:             { icon: 'ℹ️', colour: 'text-blue-400' },
+  workflow_complete: { icon: '⚙️', colour: 'text-indigo-600 dark:text-indigo-400' },
+  info:             { icon: 'ℹ️', colour: 'text-blue-600 dark:text-blue-400' },
   warning:          { icon: '⚠️', colour: 'text-yellow-400' },
   error:            { icon: '❌', colour: 'text-red-400' },
-  success:          { icon: '✅', colour: 'text-green-400' },
+  success:          { icon: '✅', colour: 'text-green-600 dark:text-green-400' },
 }
 
 function timeAgo(iso: string): string {
@@ -349,7 +349,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={onMobileMenuClick}
-            className="inline-flex md:!hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+            className="inline-flex md:!hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
             aria-label="Open sidebar"
           >
             <Menu size={20} />
@@ -378,7 +378,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           {/* Dark mode toggle */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
             title="Toggle dark mode"
           >
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -388,7 +388,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           <div ref={notifRef} className="relative">
             <button
               onClick={handleBellClick}
-              className={`relative p-2 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 ${
+              className={`relative p-2 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 ${
                 isNotifOpen ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
               }`}
               title=""
@@ -411,7 +411,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           <div className="relative">
             <button
               onClick={() => { setIsUserMenuOpen(!isUserMenuOpen); setIsNotifOpen(false) }}
-              className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center">
                 <span className="text-white font-bold text-xs">
@@ -432,20 +432,20 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
                 <Link
                   href="/profile"
                   onClick={() => setIsUserMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 >
                   <User size={16} /><span className="text-sm">Profile</span>
                 </Link>
                 <Link
                   href="/settings"
                   onClick={() => setIsUserMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 >
                   <Settings size={16} /><span className="text-sm">Settings</span>
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors border-t border-slate-700"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border-t border-slate-700"
                 >
                   <LogOut size={16} /><span className="text-sm">Logout</span>
                 </button>

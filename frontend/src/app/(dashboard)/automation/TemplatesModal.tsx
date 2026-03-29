@@ -99,13 +99,13 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-4 animate-pulse h-40" />
+                <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 animate-pulse h-40" />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filtered.map(t => (
-                <div key={t.id} className="bg-slate-900 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-500/50 transition-all">
+                <div key={t.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-500/50 transition-all">
                   <div className="flex items-start gap-3">
                     <span className="text-3xl">{t.icon}</span>
                     <div className="flex-1 min-w-0">
@@ -116,7 +116,7 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
 
                   {/* Trigger info */}
                   <div className="flex flex-wrap gap-1.5">
-                    <span className="text-xs bg-slate-700 text-slate-300 rounded px-2 py-0.5">
+                    <span className="text-xs bg-slate-700 text-slate-600 dark:text-slate-300 rounded px-2 py-0.5">
                       {t.trigger_type === 'schedule' ? `⏱ ${t.cron_expression}` : t.trigger_type === 'event' ? `⚡ ${(t.event_config as { event_type?: string })?.event_type}` : '🖐 Manual'}
                     </span>
                     {t.actions.map((a, i) => (

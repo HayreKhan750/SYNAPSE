@@ -158,7 +158,7 @@ function TestUploadButton() {
   return (
     <div>
       <button onClick={handleTest} disabled={testing}
-        className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs rounded-lg transition-colors disabled:opacity-50">
+        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs rounded-lg transition-colors disabled:opacity-50">
         {testing ? '⟳ Testing…' : '🧪 Test Upload'}
       </button>
       {result && (

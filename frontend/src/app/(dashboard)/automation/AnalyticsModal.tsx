@@ -57,7 +57,7 @@ function formatDate(dateStr: string) {
 
 function StatCard({ label, value, sub, color = 'text-slate-900 dark:text-white' }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
       <p className="text-xs text-slate-400 mb-1">{label}</p>
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
       {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
@@ -70,7 +70,7 @@ function StatCard({ label, value, sub, color = 'text-slate-900 dark:text-white' 
 function RunsTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-xl text-xs">
+    <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-xl text-xs">
       <p className="text-slate-300 font-medium mb-2">{label ? formatDate(label) : ''}</p>
       {payload.map(p => (
         <p key={p.name} style={{ color: p.color }} className="mb-0.5">
@@ -84,7 +84,7 @@ function RunsTooltip({ active, payload, label }: { active?: boolean; payload?: A
 function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number }> }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-xl text-xs">
+    <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-xl text-xs">
       <p className="text-slate-600 dark:text-slate-300">{payload[0].name}: <span className="font-bold text-white">{payload[0].value}</span></p>
     </div>
   );
@@ -119,7 +119,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="flex items-center gap-3">
             {/* Period selector */}
-            <div className="flex bg-slate-900 rounded-lg p-0.5 border border-slate-700">
+            <div className="flex bg-white dark:bg-slate-900 rounded-lg p-0.5 border border-slate-700">
               {PERIOD_OPTIONS.map(opt => (
                 <button key={opt.days} onClick={() => setDays(opt.days)}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
@@ -138,7 +138,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
 
           {isLoading && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-slate-900 border border-slate-700 rounded-xl animate-pulse" />)}
+              {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl animate-pulse" />)}
             </div>
           )}
 
@@ -158,7 +158,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
                   value={`${stats?.success_rate ?? 0}%`}
                   sub={`${stats?.success_runs} ✅  ${stats?.failed_runs} ❌`}
                   color={
-                    (stats?.success_rate ?? 0) >= 80 ? 'text-green-400'
+                    (stats?.success_rate ?? 0) >= 80 ? 'text-green-600 dark:text-green-400'
                     : (stats?.success_rate ?? 0) >= 50 ? 'text-yellow-400'
                     : 'text-red-400'
                   }
@@ -172,8 +172,8 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Runs over time chart */}
-              <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
-                <p className="text-sm font-semibold text-slate-300 mb-4">Runs Over Time</p>
+              <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">Runs Over Time</p>
                 {runsData.length === 0 ? (
                   <div className="h-48 flex items-center justify-center text-slate-500 text-sm">No runs in this period.</div>
                 ) : (
@@ -205,8 +205,8 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {/* Action distribution pie */}
-                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
-                  <p className="text-sm font-semibold text-slate-300 mb-3">Action Distribution</p>
+                <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Action Distribution</p>
                   {data.action_distribution.length === 0 ? (
                     <div className="h-48 flex items-center justify-center text-slate-500 text-sm">No actions configured.</div>
                   ) : (
@@ -243,8 +243,8 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Top workflows bar */}
-                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
-                  <p className="text-sm font-semibold text-slate-300 mb-3">Top Workflows by Runs</p>
+                <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Top Workflows by Runs</p>
                   {data.top_workflows.length === 0 ? (
                     <div className="h-48 flex items-center justify-center text-slate-500 text-sm">No runs yet.</div>
                   ) : (
@@ -265,9 +265,9 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
                         {data.top_workflows.map((wf, i) => (
                           <div key={wf.workflow_id} className="flex items-center gap-2">
                             <span className="text-xs text-slate-500 w-4">{i + 1}.</span>
-                            <span className="text-xs text-slate-300 flex-1 truncate">{wf.name}</span>
+                            <span className="text-xs text-slate-600 dark:text-slate-300 flex-1 truncate">{wf.name}</span>
                             <span className="text-xs text-slate-500">{wf.total} runs</span>
-                            <span className={`text-xs font-medium ${wf.success_rate >= 80 ? 'text-green-400' : wf.success_rate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            <span className={`text-xs font-medium ${wf.success_rate >= 80 ? 'text-green-600 dark:text-green-400' : wf.success_rate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
                               {wf.success_rate}%
                             </span>
                           </div>

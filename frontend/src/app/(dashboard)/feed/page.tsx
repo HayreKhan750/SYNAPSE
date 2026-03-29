@@ -162,7 +162,7 @@ export default function FeedPage() {
             <button
               onClick={handleRefreshFeed}
               disabled={isFetching}
-              className="flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
               title="Refresh feed"
             >
               <RefreshCw size={11} className={isFetching ? 'animate-spin' : ''} />
@@ -220,7 +220,7 @@ export default function FeedPage() {
         <div className="relative flex-shrink-0">
           <button
             onClick={() => setShowSortDropdown(!showSortDropdown)}
-            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all whitespace-nowrap"
+            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-200 dark:hover:bg-slate-700 transition-all whitespace-nowrap"
           >
             {sortBy === 'latest' ? '📅 Latest' : '🔥 Trending'}
             <ChevronDown size={13} className={cn('transition-transform', showSortDropdown && 'rotate-180')} />
@@ -296,7 +296,7 @@ export default function FeedPage() {
             </>
           ) : (
             <div className="text-center py-16 bg-white dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
-              <Search size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+              <Search size={48} className="mx-auto text-slate-600 dark:text-slate-300 dark:text-slate-600 mb-3" />
               <p className="text-slate-600 dark:text-slate-400 font-medium">No articles found</p>
               <button onClick={() => { setSelectedTopic('All'); setPage(1); }} className="mt-3 text-sm text-indigo-500 hover:text-indigo-600 font-medium">
                 Clear filters
