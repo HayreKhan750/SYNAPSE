@@ -11,8 +11,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, Loader2, RefreshCw, BarChart2, Zap,
   Cpu, Globe, GitBranch, Brain, Box, ChevronUp, ChevronDown,
-  Minus, Activity, Flame, Award, Layers,
+  Minus, Activity, Flame, Award, Layers, LineChart as LineChartIcon,
 } from 'lucide-react'
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
+  Legend as ReLegend, ResponsiveContainer,
+} from 'recharts'
 import api from '@/utils/api'
 import { cn } from '@/utils/helpers'
 import { TrendRadar } from '@/components/charts/TrendRadar'
@@ -46,6 +50,12 @@ const CATEGORY_CONFIG: Record<string, {
 
 // ── API ───────────────────────────────────────────────────────────────────────
 
+interface TrendHistory {
+  technologies: string[]
+  dates: string[]
+  series: { name: string; data: (number | null)[] }[]
+}
+
 const fetchTrends = async (): Promise<TechnologyTrend[]> => {
   const { data } = await api.get('/trends/?ordering=-trend_score&limit=100')
   if (Array.isArray(data?.results)) return data.results
@@ -54,9 +64,20 @@ const fetchTrends = async (): Promise<TechnologyTrend[]> => {
   return []
 }
 
+const fetchTrendHistory = async (): Promise<TrendHistory> => {
+  const { data } = await api.get('/trends/history/?top=8&days=30')
+  return data
+}
+
 const triggerAnalysis = async () => {
   await api.post('/trends/trigger/')
 }
+
+// ── History Chart colors ───────────────────────────────────────────────────────
+const HISTORY_COLORS = [
+  '#6366f1', '#06b6d4', '#8b5cf6', '#22c55e',
+  '#f59e0b', '#ef4444', '#ec4899', '#14b8a6',
+]
 
 // ── TrendBar ──────────────────────────────────────────────────────────────────
 
@@ -239,6 +260,29 @@ export default function TrendsPage() {
     queryFn: fetchTrends,
     staleTime: 60_000,
   })
+
+  const { data: historyData } = useQuery<TrendHistory>({
+    queryKey: ['trends-history'],
+    queryFn: fetchTrendHistory,
+    staleTime: 300_000, // 5 min
+  })
+
+  // Convert history series to recharts format: [{date, Tech1: score, Tech2: score, ...}]
+  const historyChartData = useMemo(() => {
+    if (!historyData?.dates?.length) return []
+    return historyData.dates.map((date, di) => {
+      const point: Record<string, string | number> = {
+        date: date.slice(5), // Show MM-DD
+      }
+      for (const series of historyData.series) {
+        const val = series.data[di]
+        if (val !== null && val !== undefined) {
+          point[series.name] = val
+        }
+      }
+      return point
+    })
+  }, [historyData])
 
   // Deduplicate by technology_name — keep highest score entry per tech
   const deduped = React.useMemo(() => {
@@ -438,6 +482,56 @@ export default function TrendsPage() {
                 loading={isLoading}
               />
             </div>
+          </motion.div>
+        )}
+
+        {/* ── History Chart: Score Over Time ── */}
+        {historyChartData.length > 1 && historyData?.series && historyData.series.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="bg-slate-900/80 border border-slate-700/60 rounded-2xl p-4 sm:p-5"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <LineChartIcon size={14} className="text-cyan-400" />
+              <h3 className="text-sm font-semibold text-white">Score Over Time</h3>
+              <span className="text-xs text-slate-500 ml-auto">top 8 technologies · last 30 days</span>
+            </div>
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={historyChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  {historyData.series.map((s, i) => (
+                    <linearGradient key={s.name} id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={HISTORY_COLORS[i % HISTORY_COLORS.length]} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={HISTORY_COLORS[i % HISTORY_COLORS.length]} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
+                <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <ReTooltip
+                  contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, fontSize: 12 }}
+                  labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
+                  itemStyle={{ color: '#e2e8f0' }}
+                />
+                <ReLegend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconSize={8} iconType="circle" />
+                {historyData.series.map((s, i) => (
+                  <Area
+                    key={s.name}
+                    type="monotone"
+                    dataKey={s.name}
+                    stroke={HISTORY_COLORS[i % HISTORY_COLORS.length]}
+                    fill={`url(#grad-${i})`}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    connectNulls
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
           </motion.div>
         )}
 

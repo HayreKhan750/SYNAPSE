@@ -72,3 +72,80 @@ def trend_detail(request, pk):
     except TechnologyTrend.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
     return Response(TechnologyTrendSerializer(trend).data)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def trend_history(request):
+    """
+    GET /api/v1/trends/history/
+    Returns score-over-time data for the top N technologies.
+
+    Query params:
+      - top: number of top technologies to track (default 8, max 20)
+      - days: lookback window in days (default 30, max 90)
+
+    Returns:
+      {
+        "technologies": ["Python", "TypeScript", ...],
+        "dates": ["2026-03-28", "2026-03-29", ...],
+        "series": [
+          {"name": "Python", "data": [85.0, 92.0, ...]},
+          ...
+        ]
+      }
+    """
+    try:
+        top = max(1, min(int(request.query_params.get("top", 8)), 20))
+    except (ValueError, TypeError):
+        top = 8
+    try:
+        days = max(1, min(int(request.query_params.get("days", 30)), 90))
+    except (ValueError, TypeError):
+        days = 30
+
+    since = timezone.now().date() - timedelta(days=days)
+
+    # Get the top N techs by latest trend_score
+    from django.db.models import Max
+    top_techs = (
+        TechnologyTrend.objects
+        .filter(date__gte=since)
+        .values('technology_name')
+        .annotate(max_score=Max('trend_score'))
+        .order_by('-max_score')[:top]
+        .values_list('technology_name', flat=True)
+    )
+    top_techs = list(top_techs)
+
+    if not top_techs:
+        return Response({"technologies": [], "dates": [], "series": []})
+
+    # Get all records for these techs in the date range
+    qs = (
+        TechnologyTrend.objects
+        .filter(technology_name__in=top_techs, date__gte=since)
+        .values('technology_name', 'date', 'trend_score')
+        .order_by('date')
+    )
+
+    # Build a date → {tech → score} lookup
+    date_set = sorted(set(str(r['date']) for r in qs))
+    tech_map: dict = {t: {} for t in top_techs}
+    for r in qs:
+        tech_map[r['technology_name']][str(r['date'])] = round(r['trend_score'], 2)
+
+    series = [
+        {
+            "name": tech,
+            "data": [tech_map[tech].get(d, None) for d in date_set],
+        }
+        for tech in top_techs
+    ]
+
+    return Response({
+        "technologies": top_techs,
+        "dates": date_set,
+        "series": series,
+        "success": True,
+    })
