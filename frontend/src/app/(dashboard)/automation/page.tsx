@@ -191,6 +191,14 @@ function ActionParamEditor({
   if (!schema) return null;
   const params = action.params || {};
 
+  // Compute before return so it's in scope inside the map callback
+  const selectedSources: string[] = Array.isArray(params.sources)
+    ? (params.sources as string[])
+    : Array.isArray(schema.sources?.default)
+    ? (schema.sources.default as string[])
+    : [];
+  const youtubeSelected = selectedSources.includes('youtube');
+
   return (
     <div className="mt-2 ml-2 pl-3 border-l-2 border-indigo-500/30 space-y-2">
       {Object.entries(schema).map(([key, field]) => {
