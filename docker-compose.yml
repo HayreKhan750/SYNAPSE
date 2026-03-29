@@ -86,6 +86,7 @@ services:
     volumes:
       - ./backend:/app
       - ./ai_engine:/ai_engine_pkg/ai_engine
+      - ./scraper:/app/scraper
       - media_files:/app/media
       - static_files:/app/staticfiles
     depends_on:
@@ -209,6 +210,7 @@ services:
     volumes:
       - ./backend:/app
       - ./ai_engine:/ai_engine_pkg/ai_engine
+      - ./scraper:/app/scraper
       - media_files:/app/media
     depends_on:
       postgres:

@@ -17,7 +17,6 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(','
 
 # ── Applications ─────────────────────────────────────────────
 DJANGO_APPS = [
-    'daphne',  # must be before django.contrib.staticfiles
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -27,7 +26,6 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
-    'channels',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
