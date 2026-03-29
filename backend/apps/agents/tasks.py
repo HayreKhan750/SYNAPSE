@@ -59,14 +59,47 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
     # ── Resolve tool subset from task_type ────────────────────────────
     tool_map: dict[str, list[str] | None] = {
         "research":  ["search_knowledge_base", "fetch_articles", "fetch_arxiv_papers"],
-        "trends":    ["analyze_trends", "search_github", "fetch_arxiv_papers"],
+        "trends":    ["analyze_trends", "fetch_articles", "search_github"],
         "github":    ["search_github"],
         "arxiv":     ["fetch_arxiv_papers"],
-        "document":  ["generate_pdf", "generate_ppt", "generate_word_doc", "generate_markdown"],
+        "document":  ["generate_pdf", "generate_ppt", "generate_word_doc", "generate_markdown",
+                      "search_knowledge_base", "fetch_articles"],
         "project":   ["create_project"],
         "general":   None,  # all tools
     }
     tool_names = tool_map.get(task_obj.task_type, None)
+
+    # ── Prepend task-type context to prompt ───────────────────────────
+    task_context: dict[str, str] = {
+        "research": (
+            "Use search_knowledge_base and fetch_articles to find relevant information. "
+            "Make at most 3 tool calls, then write a clear summary. "
+        ),
+        "trends": (
+            "Use analyze_trends to get data, then summarize what you find. "
+            "One tool call is enough. "
+        ),
+        "github": (
+            "Use search_github to find repositories. Present the top results clearly. "
+        ),
+        "arxiv": (
+            "Use fetch_arxiv_papers to find papers. If rate-limited, use your knowledge instead. "
+        ),
+        "document": (
+            "IMPORTANT: You must call the appropriate document generation tool (generate_pdf, "
+            "generate_ppt, generate_word_doc, or generate_markdown) RIGHT NOW with content "
+            "YOU write from your own knowledge. Do NOT ask the user for content. "
+            "Create 3-5 informative sections with real, substantive content. "
+            "Use user_id='anonymous'. After calling the tool, report the file path. "
+        ),
+        "project": (
+            "Call create_project immediately with the project_type, name, and features "
+            "extracted from the user request. Use user_id='anonymous'. "
+        ),
+        "general": "",
+    }
+    context_prefix = task_context.get(task_obj.task_type, "")
+    augmented_prompt = f"{context_prefix}{task_obj.prompt}" if context_prefix else task_obj.prompt
 
     # ── Run the agent ─────────────────────────────────────────────────
     try:
@@ -75,7 +108,7 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
 
         executor = get_executor()
         result = executor.run(
-            task=task_obj.prompt,
+            task=augmented_prompt,
             tool_names=tool_names,
         )
 

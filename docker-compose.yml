@@ -200,6 +200,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      # Override host path from .env — inside Docker, media is at /app/media
+      DJANGO_MEDIA_ROOT: /app/media
+      MEDIA_ROOT: /app/media
       # ai_engine is mounted at /ai_engine and added to PYTHONPATH so that
       # 'import ai_engine' works inside summarization / NLP tasks.
       PYTHONPATH: /app:/ai_engine_pkg

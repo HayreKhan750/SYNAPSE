@@ -56,25 +56,6 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
         model_name, len(text),
     )
 
-    try:
-        from langchain_openai import ChatOpenAI           # noqa: PLC0415
-        from langchain_core.messages import HumanMessage  # noqa: PLC0415
-    except ImportError as exc:
-        logger.error("Cannot import langchain_openai: %s", exc, exc_info=True)
-        return None
-
-    try:
-        llm = ChatOpenAI(
-            model=model_name,
-            temperature=0.2,
-            max_tokens=300,
-            openai_api_key=api_key,
-            openai_api_base=base_url,
-        )
-    except Exception as exc:
-        logger.error("Failed to build ChatOpenAI (model=%s): %s", model_name, exc, exc_info=True)
-        return None
-
     has_full_content = len(text) > 300 and "Article Content:" in text
     if has_full_content:
         prompt = (
@@ -90,10 +71,53 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
             f"{text[:max_chars]}\n\nDescription:"
         )
 
+    # Try langchain_openai first; fall back to direct httpx call if not installed
+    _use_httpx = False
+    try:
+        from langchain_openai import ChatOpenAI           # noqa: PLC0415
+        from langchain_core.messages import HumanMessage  # noqa: PLC0415
+        try:
+            llm = ChatOpenAI(
+                model=model_name,
+                temperature=0.2,
+                max_tokens=300,
+                openai_api_key=api_key,
+                openai_api_base=base_url,
+            )
+        except Exception as exc:
+            logger.error("Failed to build ChatOpenAI (model=%s): %s", model_name, exc)
+            _use_httpx = True
+    except ImportError:
+        logger.warning("langchain_openai not installed — using httpx fallback for summarization")
+        _use_httpx = True
+
     for attempt in range(2):
         try:
-            result = llm.invoke([HumanMessage(content=prompt)])
-            summary = result.content.strip() if hasattr(result, "content") else ""
+            if _use_httpx:
+                import httpx  # noqa: PLC0415
+                resp = httpx.post(
+                    f"{base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://synapse.ai",
+                        "X-Title": "SYNAPSE Summarizer",
+                    },
+                    json={
+                        "model": model_name,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 300,
+                        "temperature": 0.2,
+                    },
+                    timeout=30,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                summary = data["choices"][0]["message"]["content"].strip()
+            else:
+                result = llm.invoke([HumanMessage(content=prompt)])
+                summary = result.content.strip() if hasattr(result, "content") else ""
+
             if summary:
                 logger.info(
                     "_summarize_with_gemini (openrouter): SUCCESS attempt=%d len=%d",
@@ -107,7 +131,7 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
             is_rate_limit = any(k in exc_str for k in ("429", "rate limit", "quota", "too many"))
             logger.error(
                 "OPENROUTER: API error attempt=%d model=%s rate_limit=%s: %s",
-                attempt + 1, model_name, is_rate_limit, exc, exc_info=True,
+                attempt + 1, model_name, is_rate_limit, exc,
             )
             if is_rate_limit and attempt == 0:
                 import time  # noqa: PLC0415
