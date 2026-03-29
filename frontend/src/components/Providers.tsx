@@ -64,9 +64,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="dark"
-      enableSystem
-      disableTransitionOnChange
+      defaultTheme="light"
+      enableSystem={false}
+      disableTransitionOnChange={false}
     >
       <QueryClientProvider client={queryClient}>
         {children}
@@ -77,15 +77,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
           toastOptions={{
             duration: 3500,
             style: {
-              background:   '#1e293b',
-              color:        '#f1f5f9',
+              background:   '#ffffff',
+              color:        '#0f172a',
               borderRadius: '12px',
-              border:       '1px solid rgba(99,102,241,0.2)',
+              border:       '1px solid #e2e8f0',
               fontSize:     '13px',
               maxWidth:     '380px',
+              boxShadow:    '0 4px 24px rgba(0,0,0,0.08)',
             },
-            success: { iconTheme: { primary: '#22c55e', secondary: '#f1f5f9' } },
-            error:   { iconTheme: { primary: '#ef4444', secondary: '#f1f5f9' }, duration: 5000 },
+            success: { iconTheme: { primary: '#22c55e', secondary: '#ffffff' } },
+            error:   { iconTheme: { primary: '#ef4444', secondary: '#ffffff' }, duration: 5000 },
           }}
         />
 

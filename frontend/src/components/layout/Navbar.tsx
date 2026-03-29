@@ -141,16 +141,16 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
   })
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-96 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden z-50">
+    <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-card-hover overflow-hidden z-50">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
-        <h3 className="text-sm font-semibold text-white">Notifications</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Notifications</h3>
         <div className="flex items-center gap-2">
           {notifications.length > 0 && (
             <button
               onClick={() => markAllMutation.mutate()}
               disabled={markAllMutation.isPending}
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50 flex items-center gap-1"
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors disabled:opacity-50 flex items-center gap-1"
             >
               <Check size={12} />
               Mark all read
@@ -158,7 +158,7 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
           )}
           <button
             onClick={() => { router.push('/notifications'); onClose() }}
-            className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
           >
             See all
           </button>
@@ -168,14 +168,14 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
       {/* List */}
       <div className="max-h-[360px] overflow-y-auto">
         {isLoading && (
-          <div className="px-4 py-8 text-center text-slate-400 text-sm animate-pulse">
+          <div className="px-4 py-8 text-center text-slate-500 dark:text-slate-400 text-sm animate-pulse">
             Loading…
           </div>
         )}
         {!isLoading && notifications.length === 0 && (
           <div className="px-4 py-10 text-center">
             <p className="text-2xl mb-2">🔔</p>
-            <p className="text-slate-400 text-sm">You're all caught up!</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">You're all caught up!</p>
           </div>
         )}
         {notifications.map((n) => {
@@ -183,8 +183,8 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
           return (
             <div
               key={n.id}
-              className={`flex items-start gap-3 px-4 py-3 border-b border-slate-700/50 hover:bg-slate-700/40 transition-colors group ${
-                !n.is_read ? 'bg-indigo-500/5' : ''
+              className={`flex items-start gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-700/40 transition-colors group ${
+                !n.is_read ? 'bg-indigo-50 dark:bg-indigo-500/5' : ''
               }`}
             >
               {/* Unread dot */}
@@ -199,15 +199,15 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-white truncate">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                     <span className="mr-1">{style.icon}</span>
                     {n.title}
                   </p>
-                  <span className="text-xs text-slate-500 flex-shrink-0 mt-0.5">
+                  <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0 mt-0.5">
                     {timeAgo(n.created_at)}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
               </div>
 
               {/* Actions (appear on hover) */}
@@ -215,7 +215,7 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
                 {!n.is_read && (
                   <button
                     onClick={(e) => { e.stopPropagation(); markOneMutation.mutate(n.id) }}
-                    className="p-1 hover:bg-slate-600 rounded text-slate-400 hover:text-green-400 transition-colors"
+                    className="p-1 hover:bg-green-50 dark:hover:bg-slate-600 rounded text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
                     title="Mark as read"
                   >
                     <Check size={12} />
@@ -223,7 +223,7 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(n.id) }}
-                  className="p-1 hover:bg-slate-600 rounded text-slate-400 hover:text-red-400 transition-colors"
+                  className="p-1 hover:bg-red-50 dark:hover:bg-slate-600 rounded text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                   title="Delete"
                 >
                   <Trash2 size={12} />
@@ -235,10 +235,10 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-slate-700">
+      <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-700">
         <button
           onClick={() => { router.push('/notifications'); onClose() }}
-          className="w-full text-center text-xs text-indigo-400 hover:text-indigo-300 transition-colors py-1"
+          className="w-full text-center text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors py-1"
         >
           View all notifications →
         </button>
@@ -342,19 +342,19 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
   }
 
   return (
-    <nav className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur border-b border-slate-700">
+    <nav className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700/60">
       <div className="flex items-center justify-between h-16 px-6">
 
         {/* Left: Page title / Mobile menu */}
         <div className="flex items-center gap-3">
           <button
             onClick={onMobileMenuClick}
-            className="inline-flex md:!hidden p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            className="inline-flex md:!hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
             aria-label="Open sidebar"
           >
             <Menu size={20} />
           </button>
-          <h1 className="text-lg font-semibold text-white">{getPageTitle()}</h1>
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{getPageTitle()}</h1>
         </div>
 
         {/* Center: Search */}
@@ -367,7 +367,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearch}
               placeholder="Search articles, papers, repos..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
         </div>
@@ -378,7 +378,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           {/* Dark mode toggle */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
             title="Toggle dark mode"
           >
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -388,15 +388,15 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           <div ref={notifRef} className="relative">
             <button
               onClick={handleBellClick}
-              className={`relative p-2 rounded-lg transition-colors text-slate-400 hover:text-white hover:bg-slate-800 ${
-                isNotifOpen ? 'bg-slate-800 text-white' : ''
+              className={`relative p-2 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                isNotifOpen ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
               }`}
               title=""
               aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] bg-red-500 text-white text-[11px] font-black rounded-full flex items-center justify-center px-1 ring-2 ring-slate-900 z-10 shadow-lg">
+                <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] bg-red-500 text-white text-[11px] font-black rounded-full flex items-center justify-center px-1 ring-2 ring-white dark:ring-slate-900 z-10 shadow-lg">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -411,19 +411,19 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           <div className="relative">
             <button
               onClick={() => { setIsUserMenuOpen(!isUserMenuOpen); setIsNotifOpen(false) }}
-              className="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center">
                 <span className="text-white font-bold text-xs">
                   {user?.first_name?.[0]}{user?.last_name?.[0]}
                 </span>
               </div>
-              <span className="hidden sm:inline text-sm text-slate-300">{user?.first_name}</span>
+              <span className="hidden sm:inline text-sm text-slate-600 dark:text-slate-300">{user?.first_name}</span>
             </button>
 
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-lg overflow-hidden z-50">
-                <div className="px-4 py-3 border-b border-slate-700">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-card overflow-hidden z-50">
+                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
                   <p className="text-sm font-medium text-white">
                     {user?.first_name} {user?.last_name}
                   </p>
