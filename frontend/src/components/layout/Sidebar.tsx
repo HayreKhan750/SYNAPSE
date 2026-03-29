@@ -64,14 +64,14 @@ export const Sidebar = memo(function Sidebar({
         {!isCollapsed && (
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl animated-gradient flex items-center justify-center flex-shrink-0 shadow-glow-indigo">
-              <span className="text-white font-black text-sm">S</span>
+              <span className="text-white dark:text-white font-black text-sm">S</span>
             </div>
             <h1 className="text-base font-black gradient-text tracking-tight">SYNAPSE</h1>
           </div>
         )}
         {isCollapsed && (
           <div className="w-9 h-9 rounded-xl animated-gradient flex items-center justify-center mx-auto shadow-glow-indigo">
-            <span className="text-white font-black text-sm">S</span>
+            <span className="text-white dark:text-white font-black text-sm">S</span>
           </div>
         )}
 
@@ -145,7 +145,7 @@ export const Sidebar = memo(function Sidebar({
         {isCollapsed ? (
           <div className="flex flex-col items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center flex-shrink-0 shadow-glow-indigo">
-              <span className="text-white font-bold text-xs">{initials}</span>
+              <span className="text-white dark:text-white font-bold text-xs">{initials}</span>
             </div>
             <button
               onClick={logout}
@@ -159,7 +159,7 @@ export const Sidebar = memo(function Sidebar({
           <div className="flex items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center flex-shrink-0 shadow-glow-indigo">
-                <span className="text-white font-bold text-xs">{initials}</span>
+                <span className="text-white dark:text-white font-bold text-xs">{initials}</span>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-800 dark:text-white truncate leading-tight">{displayName}</p>

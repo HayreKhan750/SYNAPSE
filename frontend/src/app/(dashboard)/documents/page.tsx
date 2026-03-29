@@ -201,7 +201,7 @@ function SectionEditorModal({ doc, onClose, onSaved }: { doc: DocumentRecord; on
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-600 to-violet-600">
-          <div><h2 className="text-lg font-bold text-white">Section Editor</h2><p className="text-xs text-indigo-200">{doc.title} — {sections.length} sections</p></div>
+          <div><h2 className="text-lg font-bold text-white dark:text-white">Section Editor</h2><p className="text-xs text-indigo-200">{doc.title} — {sections.length} sections</p></div>
           <button onClick={onClose} className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition"><X className="w-5 h-5" /></button>
         </div>
         <div className="flex items-center gap-3 px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 flex-wrap">
@@ -1404,7 +1404,7 @@ export default function DocumentsPage() {
               </motion.button>
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={() => { setActiveTab("projects"); setShowForm(false); }}
-                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur border border-white/20 text-white font-bold text-xs sm:text-sm transition whitespace-nowrap">
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur border border-white/20 text-slate-800 dark:text-white font-bold text-xs sm:text-sm transition whitespace-nowrap">
                 <FolderGit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Project Builder
               </motion.button>
             </div>

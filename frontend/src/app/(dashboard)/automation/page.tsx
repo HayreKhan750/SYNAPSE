@@ -588,9 +588,9 @@ function DeleteConfirmModal({
               <p className="text-sm text-slate-400">This action cannot be undone.</p>
             </div>
           </div>
-          <div className="bg-slate-900/70 border border-slate-700 rounded-xl px-4 py-3 mb-6">
+          <div className="bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 mb-6">
             <p className="text-xs text-slate-400 mb-0.5">Workflow to delete</p>
-            <p className="text-white font-medium truncate">{workflow.name}</p>
+            <p className="text-slate-800 dark:text-white font-medium truncate">{workflow.name}</p>
           </div>
           <div className="flex gap-3">
             <button onClick={onCancel} disabled={isPending} className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-600 dark:text-slate-300 text-sm rounded-xl transition-colors font-medium">Cancel</button>
@@ -1166,7 +1166,7 @@ export default function AutomationPage() {
             { label: 'Total Runs',      value: totalRuns,        icon: '🔄' },
             { label: 'Running Now',     value: runningCount,     icon: '⟳', pulse: runningCount > 0 },
           ].map(stat => (
-            <div key={stat.label} className={`bg-slate-800/80 border rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 transition-all ${stat.pulse ? 'border-blue-500/40 shadow-blue-500/10 shadow-md' : 'border-slate-700 hover:border-slate-600'}`}>
+            <div key={stat.label} className={`bg-slate-100 dark:bg-slate-800/80 border rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 transition-all ${stat.pulse ? 'border-blue-500/40 shadow-blue-500/10 shadow-md' : 'border-slate-700 hover:border-slate-600'}`}>
               <span className={`text-xl sm:text-2xl shrink-0 ${stat.pulse ? 'animate-spin' : ''}`}>{stat.icon}</span>
               <div className="min-w-0">
                 <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight">{stat.value}</p>
@@ -1186,7 +1186,7 @@ export default function AutomationPage() {
         ) : workflows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="text-5xl mb-4">⚙️</div>
-            <h3 className="text-white font-semibold text-lg mb-2">No workflows yet</h3>
+            <h3 className="text-slate-800 dark:text-white font-semibold text-lg mb-2">No workflows yet</h3>
             <p className="text-slate-400 text-sm mb-6 max-w-sm">
               Create your first workflow to automate content collection, summarization, and more.
             </p>
@@ -1219,7 +1219,7 @@ export default function AutomationPage() {
         {/* Action Types & Events Legend */}
         <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Action Types */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+          <div className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Available Action Types</h3>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(ACTION_LABELS).map(([type, label]) => (
@@ -1232,7 +1232,7 @@ export default function AutomationPage() {
           </div>
 
           {/* Event Trigger Types */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+          <div className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Event Trigger Types</h3>
             <div className="space-y-2">
               {EVENT_TYPE_OPTIONS.map(o => (
