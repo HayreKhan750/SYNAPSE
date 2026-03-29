@@ -162,7 +162,7 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
     context_prefix = task_context.get(task_obj.task_type, "")
     augmented_prompt = f"{context_prefix}{task_obj.prompt}" if context_prefix else task_obj.prompt
 
-    # ── Resolve per-user API keys ─────────────────────────────────────
+    # ── Resolve per-user API keys (user prefs → env vars → Django settings) ──
     openrouter_api_key = None
     gemini_api_key = None
     try:
@@ -171,6 +171,22 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
         gemini_api_key = prefs.get('gemini_api_key') or None
     except Exception:
         pass
+
+    # Fall back to environment / Django settings if user has no personal key
+    if not openrouter_api_key:
+        from django.conf import settings as django_settings
+        openrouter_api_key = (
+            os.environ.get('OPENROUTER_API_KEY')
+            or getattr(django_settings, 'OPENROUTER_API_KEY', None)
+            or None
+        )
+    if not gemini_api_key:
+        from django.conf import settings as django_settings
+        gemini_api_key = (
+            os.environ.get('GEMINI_API_KEY')
+            or getattr(django_settings, 'GEMINI_API_KEY', None)
+            or None
+        )
 
     # ── Run the agent ─────────────────────────────────────────────────
     try:

@@ -61,8 +61,8 @@ const TASK_TYPES: { value: AgentTaskType; label: string; icon: React.ElementType
   { value: 'trends',   label: 'Trends',   icon: TrendingUp, description: 'Analyze technology trends' },
   { value: 'github',   label: 'GitHub',   icon: GitBranch,  description: 'Search GitHub repositories' },
   { value: 'arxiv',    label: 'arXiv',    icon: BookOpen,   description: 'Fetch and analyze research papers' },
-  { value: 'document', label: 'Document', icon: FileText,   description: 'Generate PDF / PPT / Word docs', locked: true, lockReason: 'Coming soon — document generation agent' },
-  { value: 'project',  label: 'Project',  icon: Terminal,   description: 'Scaffold a new code project',   locked: true, lockReason: 'Coming soon — project scaffolding agent' },
+  { value: 'document', label: 'Document', icon: FileText,   description: 'Generate PDF / PPT / Word docs' },
+  { value: 'project',  label: 'Project',  icon: Terminal,   description: 'Scaffold a new code project' },
 ]
 
 const COMMAND_TEMPLATES = [
@@ -70,9 +70,8 @@ const COMMAND_TEMPLATES = [
   { label: 'Analyze React repos',    prompt: 'Search GitHub for trending React repositories and provide an analysis.', type: 'github' as AgentTaskType },
   { label: 'Fetch ML papers',        prompt: 'Fetch the latest machine learning papers from arXiv and summarize them.', type: 'arxiv' as AgentTaskType },
   { label: 'Tech trend report',      prompt: 'Analyze current technology trends in AI and cloud computing.', type: 'trends' as AgentTaskType },
-  // Locked templates — kept for future use
-  // { label: 'Generate PDF report', prompt: 'Generate a PDF report on the current state of generative AI.', type: 'document' as AgentTaskType },
-  // { label: 'Scaffold Django API',  prompt: 'Create a Django REST API project with JWT auth, Docker, and CI/CD.', type: 'project' as AgentTaskType },
+  { label: 'Generate PDF report',    prompt: 'Generate a PDF report on the current state of generative AI with key trends and breakthroughs.', type: 'document' as AgentTaskType },
+  { label: 'Scaffold Django API',    prompt: 'Create a Django REST API project with JWT auth, Docker, and CI/CD.', type: 'project' as AgentTaskType },
 ]
 
 const STATUS_CONFIG = {
