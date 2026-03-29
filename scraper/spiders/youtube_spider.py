@@ -49,7 +49,20 @@ class YouTubeSpider(scrapy.Spider):
 
     def __init__(self, queries=None, days_back=30, max_results=20, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.queries = queries if queries else self.DEFAULT_QUERIES
+        # queries may arrive as a JSON string from Scrapy -a args or as a list
+        if queries:
+            if isinstance(queries, str):
+                try:
+                    import json
+                    parsed = json.loads(queries)
+                    self.queries = parsed if isinstance(parsed, list) else [queries]
+                except Exception:
+                    # Treat as newline-separated plain text
+                    self.queries = [q.strip() for q in queries.splitlines() if q.strip()] or self.DEFAULT_QUERIES
+            else:
+                self.queries = queries
+        else:
+            self.queries = self.DEFAULT_QUERIES
         self.max_results = int(max_results)
         self.days_back = int(days_back)
         # How many results per query (distribute total across queries)
