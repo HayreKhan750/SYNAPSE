@@ -48,6 +48,21 @@ def trend_list(request):
     })
 
 
+@api_view(["POST"])
+def trend_trigger(request):
+    """
+    POST /api/v1/trends/trigger/
+    Manually trigger the trend analysis Celery task.
+    Authenticated users only.
+    """
+    try:
+        from .tasks import analyze_trends_task
+        analyze_trends_task.delay()
+        return Response({"success": True, "message": "Trend analysis task queued."})
+    except Exception as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def trend_detail(request, pk):

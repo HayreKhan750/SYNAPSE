@@ -17,3 +17,4 @@ export {
   SkeletonTable,
   SkeletonGrid,
 } from './SkeletonLoader'
+export { Tooltip } from './Tooltip'

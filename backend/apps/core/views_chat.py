@@ -123,10 +123,11 @@ class ExplainView(APIView):
         else:
             question = f'Explain the {type_label} with ID {content_id}'
 
-        pipeline = _get_pipeline()
+        explain_user = request.user if request.user.is_authenticated else None
+        pipeline = _get_pipeline(user=explain_user)
         if pipeline is None:
             return Response(
-                {'error': 'AI pipeline is temporarily unavailable'},
+                {'error': 'AI pipeline is temporarily unavailable. Please configure your API keys in Settings → AI Engine.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -158,22 +159,60 @@ class ExplainView(APIView):
         return Response({**result, 'conversation_id': conversation_id}, status=status.HTTP_200_OK)
 
 
-def _get_openrouter_key() -> str:
-    """Return the OpenRouter API key if configured."""
+def _get_user_keys(user) -> tuple:
+    """
+    Return (openrouter_key, gemini_key) from the user's saved preferences.
+    Returns ('', '') if user is not authenticated or has no keys configured.
+    """
+    if user and user.is_authenticated:
+        prefs = getattr(user, 'preferences', {}) or {}
+        return prefs.get('openrouter_api_key', ''), prefs.get('gemini_api_key', '')
+    return '', ''
+
+
+def _is_valid_key(key: str, prefix: str = "") -> bool:
+    """Return True if the key looks like a real API key (not a placeholder/test value)."""
+    if not key:
+        return False
+    bad = ("your-", "test", "fake", "placeholder", "example", "sk-or-test", "xxx")
+    low = key.lower()
+    if any(low.startswith(b) for b in bad) or any(b in low for b in ("test-key", "fake-key", "12345")):
+        return False
+    if len(key) < 20:
+        return False
+    return True
+
+
+def _get_openrouter_key(user=None) -> str:
+    """Return the OpenRouter API key — valid user key takes priority over env var."""
     import os
+    if user and user.is_authenticated:
+        prefs = getattr(user, 'preferences', {}) or {}
+        user_key = prefs.get('openrouter_api_key', '')
+        if _is_valid_key(user_key):
+            return user_key
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if key and not key.startswith("your-"):
         return key
     return ""
 
 
-def _get_gemini_keys() -> list:
+def _get_gemini_keys(user=None) -> list:
     """
-    Collect all configured Gemini API keys for round-robin rotation.
-    Reads GEMINI_API_KEY (primary) + GEMINI_API_KEY_1 … GEMINI_API_KEY_10.
+    Collect Gemini API keys for round-robin rotation.
+    User's own key takes priority. Falls back to env vars:
+    GEMINI_API_KEY (primary) + GEMINI_API_KEY_1 … GEMINI_API_KEY_10.
     """
     import os
     keys = []
+    # Check user's own key first
+    if user and user.is_authenticated:
+        prefs = getattr(user, 'preferences', {}) or {}
+        user_key = prefs.get('gemini_api_key', '')
+        if user_key:
+            keys.append(user_key)
+            return keys  # User has their own key — use only that
+    # Fall back to server-wide env var keys
     primary = os.environ.get("GEMINI_API_KEY", "")
     if primary and not primary.startswith("your-"):
         keys.append(primary)
@@ -216,19 +255,20 @@ def _pluralize_content_type(ct: str) -> str:
     return _CONTENT_TYPE_PLURAL.get(ct.lower().strip(), ct + 's')
 
 
-def _get_pipeline(model: str = None):
+def _get_pipeline(model: str = None, user=None):
     """
     Lazy-import RAG pipeline to avoid loading at Django startup.
-    Priority: OpenRouter → Gemini → unavailable.
+    Priority: user's own key → server env var → unavailable.
     Tries full RAG pipeline first; falls back to direct LLM if pgvector retriever unavailable.
 
     Args:
         model: Optional model override requested by the client.
+        user:  The authenticated Django user (used to pick up their saved API keys).
     """
     import os
 
-    openrouter_key = _get_openrouter_key()
-    gemini_keys = _get_gemini_keys()
+    openrouter_key = _get_openrouter_key(user=user)
+    gemini_keys = _get_gemini_keys(user=user)
 
     default_model = os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "google/gemini-2.0-flash-001"))
     resolved_model = model or default_model
@@ -237,11 +277,17 @@ def _get_pipeline(model: str = None):
         logger.error("No LLM API key configured (OPENROUTER_API_KEY or GEMINI_API_KEY) — chat unavailable.")
         return None
 
-    logger.info("_get_pipeline: using model=%s openrouter=%s gemini_keys=%d",
-                resolved_model, bool(openrouter_key), len(gemini_keys))
+    logger.info("_get_pipeline: using model=%s openrouter=%s gemini_keys=%d user_keys=%s",
+                resolved_model, bool(openrouter_key), len(gemini_keys),
+                bool(user and user.is_authenticated))
 
     # Try the full RAG pipeline first (pgvector + embeddings + retrieval)
-    if not model:
+    # Only use RAG when no user-specific model override and no per-user key
+    # (RAG pipeline is a singleton that cannot easily be keyed per user)
+    user_openrouter, user_gemini = _get_user_keys(user)
+    has_user_key = bool(user_openrouter or user_gemini)
+
+    if not model and not has_user_key:
         try:
             from ai_engine.rag import get_rag_pipeline
             return get_rag_pipeline()
@@ -510,10 +556,11 @@ class ChatView(APIView):
         model = request.data.get('model', '').strip() or None
         files = request.FILES.getlist('files') or []
 
-        pipeline = _get_pipeline(model=model)
+        user = request.user if request.user.is_authenticated else None
+        pipeline = _get_pipeline(model=model, user=user)
         if pipeline is None:
             return Response(
-                {'error': 'AI pipeline is temporarily unavailable'},
+                {'error': 'AI pipeline is temporarily unavailable. Please configure your API keys in Settings → AI Engine.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -536,7 +583,6 @@ class ChatView(APIView):
 
         # Persist to DB
         try:
-            user = request.user if request.user.is_authenticated else None
             conv = _get_or_create_conversation(conversation_id, user=user)
             conv.add_message('human', question)
             conv.add_message('ai', result['answer'])
@@ -570,13 +616,12 @@ class ChatStreamView(APIView):
         model = request.data.get('model', '').strip() or None
         files = request.FILES.getlist('files') or []
 
-        pipeline = _get_pipeline(model=model)
+        user = request.user if request.user.is_authenticated else None
+        pipeline = _get_pipeline(model=model, user=user)
         if pipeline is None:
             def _unavailable():
-                yield 'data: {"error": "AI pipeline unavailable"}\n\n'
+                yield 'data: {"error": "AI pipeline unavailable. Please configure your API keys in Settings → AI Engine."}\n\n'
             return StreamingHttpResponse(_unavailable(), content_type='text/event-stream')
-
-        user = request.user if request.user.is_authenticated else None
         use_files = files if hasattr(pipeline, '_build_human_message') else None
 
         def _stream_generator():

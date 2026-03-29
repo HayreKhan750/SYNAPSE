@@ -6,6 +6,38 @@ Phase 4.2 — SendGrid email delivery tasks.
 import logging
 
 from celery import shared_task
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def push_notification_to_ws(notification) -> None:
+    """Push a notification to the user's WebSocket channel (non-blocking)."""
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+        group_name = f"notifications_{notification.user_id}"
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                "type": "notify",
+                "data": {
+                    "id": str(notification.id),
+                    "title": notification.title,
+                    "message": notification.message,
+                    "notif_type": notification.notif_type,
+                    "is_read": False,
+                    "created_at": notification.created_at.isoformat(),
+                    "metadata": notification.metadata or {},
+                },
+            }
+        )
+        logger.info("WS push: user=%s title=%s", notification.user_id, notification.title)
+    except Exception as exc:
+        logger.warning("WS push failed (non-critical): %s", exc)
 
 logger = logging.getLogger(__name__)
 

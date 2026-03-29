@@ -1,202 +1,342 @@
-'use client';
+'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
-import api from '@/utils/api';
+import React, { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'react-hot-toast'
+import {
+  Bell, Check, Trash2, CheckCheck, Loader2, Settings,
+  Zap, Info, AlertTriangle, AlertCircle, CheckCircle2, X,
+} from 'lucide-react'
+import Link from 'next/link'
+import api from '@/utils/api'
+import { cn } from '@/utils/helpers'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  notif_type: string;
-  is_read: boolean;
-  created_at: string;
-  metadata: Record<string, unknown>;
+  id: string
+  title: string
+  message: string
+  notif_type: string
+  is_read: boolean
+  created_at: string
+  metadata: Record<string, unknown>
 }
+
+type FilterType = 'all' | 'unread' | 'read'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function extractList<T>(raw: unknown): T[] {
-  if (Array.isArray(raw)) return raw as T[];
+  if (Array.isArray(raw)) return raw as T[]
   if (raw && typeof raw === 'object') {
-    const obj = raw as Record<string, unknown>;
-    if (Array.isArray(obj['data'])) return obj['data'] as T[];
-    if (Array.isArray(obj['results'])) return obj['results'] as T[];
+    const obj = raw as Record<string, unknown>
+    const inner = obj['data'] ?? obj
+    if (Array.isArray(inner)) return inner as T[]
+    if (inner && typeof inner === 'object') {
+      const obj2 = inner as Record<string, unknown>
+      if (Array.isArray(obj2['results'])) return obj2['results'] as T[]
+      if (Array.isArray(obj2['data'])) return obj2['data'] as T[]
+    }
   }
-  return [];
+  return []
 }
-
-const NOTIF_STYLES: Record<string, { icon: string; colour: string; bg: string }> = {
-  workflow_complete: { icon: '⚙️', colour: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/20' },
-  info:             { icon: 'ℹ️', colour: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20' },
-  warning:          { icon: '⚠️', colour: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
-  error:            { icon: '❌', colour: 'text-red-400',    bg: 'bg-red-500/10 border-red-500/20' },
-  success:          { icon: '✅', colour: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20' },
-};
 
 function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1)  return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 7)  return `${d}d ago`
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-export default function NotificationsPage() {
-  const queryClient = useQueryClient();
+// ── Config ────────────────────────────────────────────────────────────────────
 
-  const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ['all-notifications'],
-    queryFn: async () => {
-      const { data } = await api.get('/notifications/');
-      return extractList<Notification>(data);
-    },
-  });
+const NOTIF_CONFIG: Record<string, {
+  icon: React.ElementType; iconBg: string; iconColour: string;
+  borderColour: string; label: string;
+}> = {
+  workflow_complete: { icon: Zap,           iconBg: 'bg-indigo-500/15', iconColour: 'text-indigo-400', borderColour: 'border-indigo-500/30', label: 'Workflow' },
+  success:          { icon: CheckCircle2,   iconBg: 'bg-emerald-500/15',iconColour: 'text-emerald-400',borderColour: 'border-emerald-500/30',label: 'Success' },
+  info:             { icon: Info,           iconBg: 'bg-blue-500/15',   iconColour: 'text-blue-400',   borderColour: 'border-blue-500/30',   label: 'Info' },
+  warning:          { icon: AlertTriangle,  iconBg: 'bg-amber-500/15',  iconColour: 'text-amber-400',  borderColour: 'border-amber-500/30',  label: 'Warning' },
+  error:            { icon: AlertCircle,    iconBg: 'bg-red-500/15',    iconColour: 'text-red-400',    borderColour: 'border-red-500/30',    label: 'Error' },
+}
+const DEFAULT_CONFIG = NOTIF_CONFIG.info
 
-  const markAllMutation = useMutation({
-    mutationFn: async () => { await api.post('/notifications/read-all/'); },
-    onSuccess: () => {
-      toast.success('All notifications marked as read.');
-      queryClient.invalidateQueries({ queryKey: ['all-notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-    },
-  });
+// ── NotificationCard ──────────────────────────────────────────────────────────
 
-  const markOneMutation = useMutation({
-    mutationFn: async (id: string) => { await api.post(`/notifications/${id}/read/`); },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['all-notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { await api.delete(`/notifications/${id}/`); },
-    onSuccess: () => {
-      toast.success('Notification deleted.');
-      queryClient.invalidateQueries({ queryKey: ['all-notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-    },
-  });
-
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+function NotificationCard({
+  notif,
+  onMarkRead,
+  onDelete,
+  markingRead,
+  deleting,
+}: {
+  notif: Notification
+  onMarkRead: (id: string) => void
+  onDelete: (id: string) => void
+  markingRead: boolean
+  deleting: boolean
+}) {
+  const cfg = NOTIF_CONFIG[notif.notif_type] ?? DEFAULT_CONFIG
+  const Icon = cfg.icon
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="p-6 max-w-3xl mx-auto pb-12">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
+      className={cn(
+        'group relative bg-slate-800/80 border rounded-2xl p-4 sm:p-5 transition-all duration-200 overflow-hidden',
+        !notif.is_read
+          ? `${cfg.borderColour} hover:shadow-lg`
+          : 'border-slate-700/50 opacity-60 hover:opacity-80',
+      )}
+    >
+      {/* Unread left accent */}
+      {!notif.is_read && (
+        <div className={cn('absolute left-0 top-4 bottom-4 w-0.5 rounded-r-full', cfg.iconColour.replace('text-', 'bg-'))} />
+      )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-white">🔔 Notifications</h1>
-            <p className="text-slate-400 text-sm mt-1">
-              {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'All caught up!'}
-            </p>
-          </div>
-          {unreadCount > 0 && (
-            <button
-              onClick={() => markAllMutation.mutate()}
-              disabled={markAllMutation.isPending}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-xl transition-colors font-medium"
-            >
-              ✓ Mark all read
-            </button>
-          )}
+      <div className="flex items-start gap-3 sm:gap-4">
+        {/* Icon */}
+        <div className={cn('flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center', cfg.iconBg)}>
+          <Icon size={18} className={cfg.iconColour} />
         </div>
 
-        {/* Skeleton */}
-        {isLoading && (
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl p-4 animate-pulse h-20" />
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2 flex-wrap mb-0.5">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <p className={cn('text-sm font-bold truncate', notif.is_read ? 'text-slate-300' : 'text-white')}>
+                {notif.title}
+              </p>
+              <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border shrink-0', cfg.iconBg, cfg.iconColour, cfg.borderColour)}>
+                {cfg.label}
+              </span>
+              {!notif.is_read && (
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+              )}
+            </div>
+            <span className="text-xs text-slate-500 whitespace-nowrap shrink-0">{timeAgo(notif.created_at)}</span>
+          </div>
+
+          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-2.5">{notif.message}</p>
+
+          {/* Metadata chips */}
+          {notif.metadata && Object.keys(notif.metadata).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {Object.entries(notif.metadata).slice(0, 4).map(([k, v]) => (
+                <span key={k} className="text-[10px] bg-slate-700/80 border border-slate-600/50 text-slate-400 rounded-lg px-2 py-0.5 max-w-[160px] truncate">
+                  {k}: {String(v).slice(0, 25)}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Action row */}
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50">
+            {!notif.is_read && (
+              <button
+                onClick={() => onMarkRead(notif.id)}
+                disabled={markingRead}
+                className="flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50"
+              >
+                {markingRead ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                Mark read
+              </button>
+            )}
+            <button
+              onClick={() => onDelete(notif.id)}
+              disabled={deleting}
+              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-red-400 transition-colors disabled:opacity-50 ml-auto"
+            >
+              {deleting ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function NotificationsPage() {
+  const queryClient = useQueryClient()
+  const [filter, setFilter] = useState<FilterType>('all')
+  const [markingId, setMarkingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const { data: rawNotifications = [], isLoading } = useQuery({
+    queryKey: ['all-notifications'],
+    queryFn: async () => {
+      const { data } = await api.get('/notifications/')
+      return extractList<Notification>(data)
+    },
+    refetchInterval: 30_000, // poll every 30s for new notifications
+  })
+
+  const markAllMutation = useMutation({
+    mutationFn: () => api.post('/notifications/read-all/'),
+    onSuccess: () => {
+      toast.success('All notifications marked as read')
+      queryClient.invalidateQueries({ queryKey: ['all-notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] })
+    },
+  })
+
+  const markOneMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/notifications/${id}/read/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] })
+    },
+    onSettled: () => setMarkingId(null),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/notifications/${id}/`),
+    onSuccess: () => {
+      toast.success('Notification deleted')
+      queryClient.invalidateQueries({ queryKey: ['all-notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] })
+    },
+    onSettled: () => setDeletingId(null),
+  })
+
+  const handleMarkRead = (id: string) => { setMarkingId(id); markOneMutation.mutate(id) }
+  const handleDelete   = (id: string) => { setDeletingId(id); deleteMutation.mutate(id) }
+
+  const unreadCount = rawNotifications.filter(n => !n.is_read).length
+  const filtered = rawNotifications.filter(n => {
+    if (filter === 'unread') return !n.is_read
+    if (filter === 'read')   return  n.is_read
+    return true
+  })
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6">
+      <div className="max-w-2xl mx-auto pb-10 space-y-4 sm:space-y-5">
+
+        {/* ── Header ── */}
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+                <Bell size={18} className="text-indigo-400" />
+              </div>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">Notifications</h1>
+              <p className="text-slate-400 text-xs sm:text-sm">
+                {unreadCount > 0
+                  ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
+                  : 'All caught up! 🎉'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {unreadCount > 0 && (
+              <button
+                onClick={() => markAllMutation.mutate()}
+                disabled={markAllMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-colors whitespace-nowrap"
+              >
+                {markAllMutation.isPending
+                  ? <Loader2 size={12} className="animate-spin" />
+                  : <CheckCheck size={12} />
+                }
+                Mark all read
+              </button>
+            )}
+            <Link
+              href="/settings"
+              className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-all"
+              title="Notification settings"
+            >
+              <Settings size={15} />
+            </Link>
+          </div>
+        </div>
+
+        {/* ── Filter tabs ── */}
+        {rawNotifications.length > 0 && (
+          <div className="flex gap-1 bg-slate-800/80 rounded-xl p-1 w-fit">
+            {(['all', 'unread', 'read'] as FilterType[]).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize',
+                  filter === f ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                )}
+              >
+                {f}
+                {f === 'unread' && unreadCount > 0 && (
+                  <span className="ml-1.5 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
             ))}
           </div>
         )}
 
-        {/* Empty state */}
-        {!isLoading && notifications.length === 0 && (
+        {/* ── Content ── */}
+        {isLoading ? (
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 animate-pulse h-[88px]" />
+            ))}
+          </div>
+        ) : rawNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="text-5xl mb-4">🔔</div>
-            <h3 className="text-white font-semibold text-lg mb-2">No notifications yet</h3>
-            <p className="text-slate-400 text-sm max-w-sm">
-              Notifications appear here when your workflows complete, or when there are important updates.
+            <div className="w-20 h-20 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4">
+              <Bell size={32} className="text-slate-600" />
+            </div>
+            <h3 className="text-white font-bold text-lg mb-1">No notifications yet</h3>
+            <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
+              Notifications appear here when your workflows complete, AI tasks finish, or when there are important updates.
             </p>
           </div>
-        )}
-
-        {/* Notification list */}
-        {!isLoading && notifications.length > 0 && (
-          <div className="space-y-3">
-            {notifications.map((n) => {
-              const style = NOTIF_STYLES[n.notif_type] ?? NOTIF_STYLES['info'];
-              return (
-                <div
-                  key={n.id}
-                  className={`relative bg-slate-800 border rounded-xl p-4 transition-all ${
-                    !n.is_read
-                      ? 'border-indigo-500/30 shadow-sm shadow-indigo-500/10'
-                      : 'border-slate-700 opacity-70'
-                  }`}
-                >
-                  {/* Unread indicator */}
-                  {!n.is_read && (
-                    <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-indigo-500" />
-                  )}
-
-                  <div className="flex items-start gap-3 pr-6">
-                    {/* Type badge */}
-                    <div className={`flex-shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center text-base ${style.bg}`}>
-                      {style.icon}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <p className={`text-sm font-semibold ${n.is_read ? 'text-slate-300' : 'text-white'}`}>
-                          {n.title}
-                        </p>
-                        <span className="text-xs text-slate-500 flex-shrink-0">{timeAgo(n.created_at)}</span>
-                      </div>
-                      <p className="text-sm text-slate-400 mt-1 leading-relaxed">{n.message}</p>
-
-                      {/* Metadata chips */}
-                      {n.metadata && Object.keys(n.metadata).length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {Object.entries(n.metadata).map(([k, v]) => (
-                            <span key={k} className="text-xs bg-slate-700 text-slate-400 rounded px-2 py-0.5">
-                              {k}: {String(v).slice(0, 30)}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Action buttons */}
-                  <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700">
-                    {!n.is_read && (
-                      <button
-                        onClick={() => markOneMutation.mutate(n.id)}
-                        disabled={markOneMutation.isPending}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50 flex items-center gap-1"
-                      >
-                        ✓ Mark as read
-                      </button>
-                    )}
-                    <button
-                      onClick={() => deleteMutation.mutate(n.id)}
-                      disabled={deleteMutation.isPending}
-                      className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 flex items-center gap-1 ml-auto"
-                    >
-                      🗑 Delete
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-700">
+            <X size={32} className="mx-auto text-slate-600 mb-3" />
+            <p className="text-slate-400 text-sm">No {filter} notifications</p>
+            <button onClick={() => setFilter('all')} className="text-indigo-400 text-xs mt-2 hover:underline">View all</button>
           </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            <motion.div className="space-y-2.5 sm:space-y-3">
+              {filtered.map(n => (
+                <NotificationCard
+                  key={n.id}
+                  notif={n}
+                  onMarkRead={handleMarkRead}
+                  onDelete={handleDelete}
+                  markingRead={markingId === n.id && markOneMutation.isPending}
+                  deleting={deletingId === n.id && deleteMutation.isPending}
+                />
+              ))}
+            </motion.div>
+          </AnimatePresence>
         )}
       </div>
     </div>
-  );
+  )
 }

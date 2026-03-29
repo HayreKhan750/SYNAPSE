@@ -16,6 +16,7 @@ import {
   Paperclip,
   X,
   Zap,
+  AlertCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -24,6 +25,8 @@ import { ChatMessage as ChatMessageType, Conversation, ChatSource } from '@/type
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { cn } from '@/utils/helpers';
+import { useApiKeyStatus } from '@/hooks/useApiKeyStatus';
+import Link from 'next/link';
 
 // ─── Available models via OpenRouter (free + low-cost tiers) ─────────────────
 // IDs must match OpenRouter's model identifiers: provider/model-name
@@ -135,9 +138,18 @@ async function streamChat(
       ? localStorage.getItem('synapse_access_token') || ''
       : '';
 
-  // Use a relative URL so the request goes through Next.js's dev proxy,
-  // avoiding ERR_ALPN_NEGOTIATION_FAILED from direct http→https mismatches.
-  const STREAM_URL = '/api/v1/ai/chat/stream/';
+  // Use the backend URL directly for SSE streaming to avoid the Next.js proxy
+  // doubling the trailing slash (/api/v1/ai/chat/stream// → 404).
+  // Build the stream URL. In the browser, NEXT_PUBLIC_API_URL is embedded at
+  // build time. Fall back to same-host port 8000 when running locally so the
+  // request bypasses the Next.js proxy (which mangles trailing slashes → 404).
+  const _apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+  const backendBase = _apiBase
+    ? _apiBase.replace(/\/$/, '').replace(/\/api\/v1$/, '')
+    : (typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.hostname}:8000`
+        : 'http://localhost:8000');
+  const STREAM_URL = `${backendBase}/api/v1/ai/chat/stream/`;
 
   let body: BodyInit;
   let headers: Record<string, string> = {};
@@ -241,6 +253,7 @@ interface AttachedFile {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ChatPage() {
   const queryClient = useQueryClient();
+  const { status: apiKeyStatus } = useApiKeyStatus();
 
   // Conversation state
   const [activeConversationId, setActiveConversationId] = useState<string>('');
@@ -578,105 +591,180 @@ export default function ChatPage() {
     // Using absolute inset-0 makes this 100% immune to any ancestor flex chain.
     <div className="absolute inset-0 flex overflow-hidden bg-slate-950">
 
-      {/* ── Conversation Sidebar ── */}
+      {/* ── Conversation Sidebar — premium overlay ── */}
       <AnimatePresence initial={false}>
         {sidebarOpen && (
-          <motion.aside
-            key="chat-sidebar"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col bg-slate-900 border-r border-slate-700 overflow-hidden flex-shrink-0"
-          >
-            {/* Sidebar header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-700">
-              <h2 className="text-sm font-semibold text-slate-200">Conversations</h2>
-              <button
-                onClick={startNewChat}
-                title="New chat"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors"
-              >
-                <Plus size={13} />
-                New
-              </button>
-            </div>
-
-            {/* Conversation list */}
-            <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
-              {convsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 size={20} className="animate-spin text-slate-500" />
-                </div>
-              ) : conversations.length === 0 ? (
-                <div className="text-center py-10 px-4">
-                  <MessageSquare size={32} className="mx-auto text-slate-600 mb-3" />
-                  <p className="text-xs text-slate-500">No conversations yet</p>
-                  <p className="text-xs text-slate-600 mt-1">Start a new chat to begin</p>
-                </div>
-              ) : (
-                conversations.map((conv) => (
-                  <div
-                    key={conv.conversation_id}
-                    className={cn(
-                      'group flex items-start gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors',
-                      activeConversationId === conv.conversation_id
-                        ? 'bg-indigo-600/20 border border-indigo-600/40'
-                        : 'hover:bg-slate-800 border border-transparent'
-                    )}
-                    onClick={() => loadConversation(conv.conversation_id)}
-                  >
-                    <MessageSquare
-                      size={14}
-                      className={cn(
-                        'flex-shrink-0 mt-0.5',
-                        activeConversationId === conv.conversation_id
-                          ? 'text-indigo-400'
-                          : 'text-slate-500'
-                      )}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-slate-200 truncate">
-                        {conv.title || 'Untitled'}
-                      </p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
-                        {formatChatDate(conv.updated_at)} · {conv.message_count} msgs
-                      </p>
-                    </div>
-                    {/* Delete button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteMutation.mutate(conv.conversation_id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-900/40 text-slate-500 hover:text-red-400 transition-all flex-shrink-0"
-                      title="Delete conversation"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+          <>
+            {/* Mobile backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 bg-black/50 backdrop-blur-[2px] lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <motion.aside
+              key="chat-sidebar"
+              initial={{ x: -260, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -260, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+              className="absolute left-0 top-0 bottom-0 z-30 w-[260px] flex flex-col overflow-hidden"
+              style={{
+                background: 'linear-gradient(180deg, #0f1117 0%, #0d1018 100%)',
+                borderRight: '1px solid rgba(99,102,241,0.15)',
+                boxShadow: '4px 0 32px rgba(0,0,0,0.6), 1px 0 0 rgba(99,102,241,0.08)',
+              }}
+            >
+              {/* ── Sidebar Header ── */}
+              <div className="flex items-center justify-between px-3 py-3 border-b border-white/5">
+                <div className="flex items-center gap-2.5">
+                  {/* Gradient logo mark */}
+                  <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+                    <MessageSquare size={13} className="text-white" />
                   </div>
-                ))
-              )}
-            </div>
-          </motion.aside>
+                  <div>
+                    <p className="text-xs font-bold text-white tracking-tight">Chat History</p>
+                    <p className="text-[10px] text-slate-500">{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                {/* Close button with tooltip */}
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="group/close relative p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/8 transition-all"
+                >
+                  <ChevronRight size={15} className="rotate-180" />
+                  <span className="pointer-events-none absolute right-0 top-full mt-1.5 bg-slate-800 text-white text-[10px] font-semibold px-2 py-1 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/close:opacity-100 transition-opacity z-50 shadow-lg">
+                    Collapse sidebar
+                  </span>
+                </button>
+              </div>
+
+              {/* ── New Chat Button ── */}
+              <div className="px-3 py-2.5 border-b border-white/5">
+                <button
+                  onClick={startNewChat}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/20 hover:border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition-all group/new"
+                >
+                  <div className="w-5 h-5 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 group-hover/new:bg-indigo-500 transition-colors">
+                    <Plus size={11} className="text-white" />
+                  </div>
+                  New Conversation
+                </button>
+              </div>
+
+              {/* ── Conversation list ── */}
+              <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5 scrollbar-hide">
+                {convsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 size={18} className="animate-spin text-slate-600" />
+                  </div>
+                ) : conversations.length === 0 ? (
+                  <div className="text-center py-12 px-4">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center mx-auto mb-3">
+                      <MessageSquare size={18} className="text-slate-600" />
+                    </div>
+                    <p className="text-xs font-semibold text-slate-400">No conversations yet</p>
+                    <p className="text-[10px] text-slate-600 mt-1">Start chatting to see history here</p>
+                  </div>
+                ) : (
+                  conversations.map((conv) => {
+                    const isActive = activeConversationId === conv.conversation_id
+                    return (
+                      <div
+                        key={conv.conversation_id}
+                        className={cn(
+                          'group relative flex items-start gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
+                          isActive
+                            ? 'bg-indigo-600/18 border border-indigo-500/25'
+                            : 'hover:bg-white/5 border border-transparent'
+                        )}
+                        onClick={() => loadConversation(conv.conversation_id)}
+                      >
+                        {/* Active indicator */}
+                        {isActive && (
+                          <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-indigo-500" />
+                        )}
+                        <div className={cn(
+                          'w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors',
+                          isActive ? 'bg-indigo-600/30' : 'bg-slate-800 group-hover:bg-slate-700'
+                        )}>
+                          <MessageSquare size={11} className={isActive ? 'text-indigo-400' : 'text-slate-500'} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn('text-xs font-semibold truncate leading-snug', isActive ? 'text-white' : 'text-slate-300')}>
+                            {conv.title || 'Untitled'}
+                          </p>
+                          <p className="text-[10px] text-slate-600 mt-0.5 flex items-center gap-1">
+                            <span>{formatChatDate(conv.updated_at)}</span>
+                            <span>·</span>
+                            <span>{conv.message_count} msg{conv.message_count !== 1 ? 's' : ''}</span>
+                          </p>
+                        </div>
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(conv.conversation_id); }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-900/40 text-slate-600 hover:text-red-400 transition-all shrink-0"
+                          title="Delete"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* ── Sidebar Footer ── */}
+              <div className="px-3 py-2.5 border-t border-white/5">
+                <p className="text-[10px] text-slate-600 text-center">Powered by SYNAPSE RAG</p>
+              </div>
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
 
-      {/* ── Main Chat Area ── */}
-      <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden bg-slate-950">
+      {/* ── Main Chat Area — sidebar overlays, always full width ── */}
+      <div className="flex flex-col w-full min-h-0 overflow-hidden bg-slate-950">
+
+        {/* ── No API key warning banner ── */}
+        {apiKeyStatus && !apiKeyStatus.any_configured && (
+          <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs">
+            <AlertCircle size={14} className="flex-shrink-0 text-amber-400" />
+            <span>
+              No AI API key configured — chat is using the shared server key.{' '}
+              <Link href="/settings" className="underline hover:text-amber-200 font-medium">
+                Add your own key in Settings → AI Engine
+              </Link>{' '}
+              for dedicated access.
+            </span>
+          </div>
+        )}
 
         {/* Chat header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-900/50 flex-shrink-0">
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            title={sidebarOpen ? 'Hide history' : 'Show history'}
-          >
-            <ChevronRight
-              size={18}
-              className={cn('transition-transform', sidebarOpen && 'rotate-180')}
-            />
-          </button>
+          {/* Sidebar toggle with premium tooltip */}
+          <div className="group/toggle relative">
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              className={cn(
+                'relative p-2 rounded-xl transition-all duration-200',
+                sidebarOpen
+                  ? 'text-indigo-400 bg-indigo-600/15 border border-indigo-500/25'
+                  : 'text-slate-500 hover:text-white hover:bg-slate-800/80 border border-transparent hover:border-slate-700'
+              )}
+            >
+              <ChevronRight
+                size={16}
+                className={cn('transition-transform duration-200', sidebarOpen && 'rotate-180')}
+              />
+            </button>
+            {/* Premium tooltip */}
+            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/toggle:opacity-100 transition-opacity z-50 shadow-xl">
+              {sidebarOpen ? 'Collapse history' : 'Open history'}
+              <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-800 border-l border-t border-slate-700 rotate-45" />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
               <Bot size={14} className="text-white" />
@@ -687,62 +775,98 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* ── Model selector ── */}
+          {/* ── Model selector — premium grouped dropdown ── */}
           <div ref={modelDropdownRef} className="relative ml-3">
             <button
               onClick={() => setModelDropdownOpen((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 hover:text-white transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 hover:border-indigo-500/50 text-xs text-slate-300 hover:text-white transition-all group"
             >
-              <Zap size={12} className="text-indigo-400" />
-              <span className="max-w-[120px] truncate">
-                {GEMINI_MODELS.find((m) => m.id === selectedModel)?.label ?? selectedModel}
+              <Zap size={11} className="text-indigo-400 shrink-0" />
+              <span className="max-w-[110px] sm:max-w-[140px] truncate font-medium">
+                {GEMINI_MODELS.find((m) => m.id === selectedModel)?.label ?? 'Select model'}
               </span>
-              <ChevronDown size={12} className={cn('transition-transform', modelDropdownOpen && 'rotate-180')} />
+              <ChevronDown size={11} className={cn('transition-transform shrink-0 text-slate-500 group-hover:text-slate-300', modelDropdownOpen && 'rotate-180')} />
             </button>
 
             <AnimatePresence>
               {modelDropdownOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  initial={{ opacity: 0, y: -4, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.97 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute left-0 top-full mt-1 z-50 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden"
+                  className="absolute left-0 top-full mt-2 z-50 w-72 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-sm"
                 >
-                  <div className="px-3 py-2 border-b border-slate-700">
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Free-tier Gemini Models</p>
+                  {/* Header */}
+                  <div className="px-4 py-3 border-b border-slate-700/60 bg-slate-800/60">
+                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                      <Zap size={10} className="text-indigo-400" /> AI Model
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Choose the model for this conversation</p>
                   </div>
-                  <div className="max-h-72 overflow-y-auto py-1">
-                    {GEMINI_MODELS.map((m) => (
+                  <div className="max-h-80 overflow-y-auto py-1.5">
+                    {/* Group: Free */}
+                    <p className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-500/70">🆓 Free</p>
+                    {GEMINI_MODELS.filter(m => m.badge?.includes('Free') || m.badge?.includes('Default') || m.badge?.includes('Latest') || m.badge?.includes('Fast') || m.badge?.includes('👁')).map(m => (
                       <button
                         key={m.id}
                         onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}
                         className={cn(
-                          'w-full flex items-center justify-between px-3 py-2 text-xs transition-colors text-left',
+                          'w-full flex items-center justify-between px-3 py-2 text-xs transition-all text-left group/item rounded-lg mx-1.5 mb-0.5 w-[calc(100%-12px)]',
                           selectedModel === m.id
-                            ? 'bg-indigo-600/20 text-indigo-300'
-                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                            ? 'bg-indigo-600/25 border border-indigo-500/30 text-white'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white border border-transparent'
                         )}
                       >
-                        <span className="flex items-center gap-2">
-                          {selectedModel === m.id && <Zap size={10} className="text-indigo-400 flex-shrink-0" />}
-                          {selectedModel !== m.id && <span className="w-[10px]" />}
-                          {m.label}
+                        <span className="flex items-center gap-2 min-w-0">
+                          {selectedModel === m.id
+                            ? <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                            : <div className="w-1.5 h-1.5 rounded-full bg-transparent shrink-0" />
+                          }
+                          <span className="truncate font-medium">{m.label}</span>
                         </span>
                         {m.badge && (
                           <span className={cn(
-                            'text-[9px] px-1.5 py-0.5 rounded-full font-medium',
-                            m.badge === 'Latest' ? 'bg-green-900/50 text-green-400' :
-                            m.badge === 'Preview' ? 'bg-amber-900/50 text-amber-400' :
-                            m.badge === 'Vision' ? 'bg-blue-900/50 text-blue-400' :
-                            m.badge === 'Fast' || m.badge === 'Light' ? 'bg-cyan-900/50 text-cyan-400' :
-                            'bg-slate-700 text-slate-400'
+                            'text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-2 border',
+                            m.badge.includes('Default') ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' :
+                            m.badge.includes('Latest') ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                            m.badge.includes('Fast')   ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' :
+                            'bg-slate-700/80 text-slate-400 border-slate-600/50'
                           )}>
                             {m.badge}
                           </span>
                         )}
                       </button>
                     ))}
+                    {/* Group: Paid */}
+                    <p className="px-3 pt-2 pb-1.5 text-[9px] font-black uppercase tracking-widest text-amber-500/70">💳 Paid</p>
+                    {GEMINI_MODELS.filter(m => m.badge?.includes('Paid')).map(m => (
+                      <button
+                        key={m.id}
+                        onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}
+                        className={cn(
+                          'w-full flex items-center justify-between px-3 py-2 text-xs transition-all text-left rounded-lg mx-1.5 mb-0.5 w-[calc(100%-12px)]',
+                          selectedModel === m.id
+                            ? 'bg-indigo-600/25 border border-indigo-500/30 text-white'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white border border-transparent'
+                        )}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          {selectedModel === m.id
+                            ? <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                            : <div className="w-1.5 h-1.5 rounded-full bg-transparent shrink-0" />
+                          }
+                          <span className="truncate font-medium">{m.label}</span>
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-2 border bg-amber-500/15 text-amber-300 border-amber-500/25">
+                          {m.badge}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {/* Footer */}
+                  <div className="px-4 py-2.5 border-t border-slate-700/60 bg-slate-800/40">
+                    <p className="text-[9px] text-slate-600">Powered by OpenRouter · Requires your API key in Settings</p>
                   </div>
                 </motion.div>
               )}

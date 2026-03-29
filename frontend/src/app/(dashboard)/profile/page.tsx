@@ -134,13 +134,13 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
 
         {/* Page header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-3 rounded-2xl bg-indigo-600/20 border border-indigo-500/30">
-            <User size={24} className="text-indigo-400" />
+        <div className="flex items-center gap-3 mb-6 sm:mb-8">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 shrink-0">
+            <User size={20} className="text-indigo-400 sm:size-6" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">My Profile</h1>
-            <p className="text-slate-400 text-sm">Manage your account details and preferences</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-white truncate">My Profile</h1>
+            <p className="text-slate-400 text-xs sm:text-sm">Manage your account details and preferences</p>
           </div>
         </div>
 
@@ -157,11 +157,11 @@ export default function ProfilePage() {
           <div className="space-y-6">
 
             {/* Avatar + info card */}
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6">
-              <div className="flex items-start gap-5 flex-wrap">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 sm:p-6">
+              <div className="flex items-start gap-3 sm:gap-5 flex-wrap">
                 {/* Avatar */}
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/20">
-                  <span className="text-white font-black text-2xl">{initials}</span>
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/20">
+                  <span className="text-white font-black text-xl sm:text-2xl">{initials}</span>
                 </div>
 
                 {/* Info */}
@@ -215,31 +215,31 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-3 flex-wrap mb-1">
-                        <h2 className="text-xl font-bold text-white">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <h2 className="text-lg sm:text-xl font-bold text-white truncate">
                           {profile.first_name} {profile.last_name}
                         </h2>
-                        <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium capitalize ${roleBadge[profile.role] ?? roleBadge.user}`}>
+                        <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize shrink-0 ${roleBadge[profile.role] ?? roleBadge.user}`}>
                           {profile.role}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-sm mb-1">@{profile.username}</p>
-                      {profile.bio && <p className="text-slate-300 text-sm mb-3">{profile.bio}</p>}
-                      <div className="flex flex-wrap gap-4 text-xs text-slate-500 mb-4">
-                        <span className="flex items-center gap-1.5">
-                          <Mail size={13} className="text-slate-600" />
-                          {profile.email}
+                      <p className="text-slate-400 text-xs sm:text-sm mb-1 truncate">@{profile.username}</p>
+                      {profile.bio && <p className="text-slate-300 text-sm mb-3 leading-relaxed">{profile.bio}</p>}
+                      <div className="flex flex-wrap gap-2 sm:gap-4 text-xs text-slate-500 mb-4">
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <Mail size={12} className="text-slate-600 shrink-0" />
+                          <span className="truncate max-w-[180px] sm:max-w-none">{profile.email}</span>
                         </span>
-                        <span className="flex items-center gap-1.5">
-                          <Calendar size={13} className="text-slate-600" />
+                        <span className="flex items-center gap-1.5 whitespace-nowrap">
+                          <Calendar size={12} className="text-slate-600 shrink-0" />
                           Joined {new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
                         </span>
                       </div>
                       <button
                         onClick={() => setEditing(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs sm:text-sm rounded-xl transition-colors"
                       >
-                        <Edit3 size={14} /> Edit Profile
+                        <Edit3 size={13} /> Edit Profile
                       </button>
                     </>
                   )}

@@ -24,14 +24,25 @@ logger = logging.getLogger(__name__)
 TRACKED_TECHNOLOGIES: List[str] = [
     # Languages
     "Python", "Rust", "Go", "TypeScript", "JavaScript", "Java", "C++", "Swift", "Kotlin", "Ruby",
+    "PHP", "Scala", "Elixir", "Haskell", "Zig", "Dart", "Julia",
     # AI / ML
-    "LLM", "GPT", "Claude", "Gemini", "LangChain", "LangGraph", "RAG", "Vector Search",
-    "Transformer", "Diffusion", "Reinforcement Learning", "Fine-tuning", "RLHF",
+    "LLM", "GPT", "Claude", "Gemini", "Llama", "Mistral", "LangChain", "LangGraph",
+    "RAG", "Vector Search", "Transformer", "Diffusion", "Reinforcement Learning",
+    "Fine-tuning", "RLHF", "Multimodal", "AI Agent", "Copilot", "Stable Diffusion",
+    "ChatGPT", "OpenAI", "Anthropic", "Hugging Face", "Ollama",
     # Frameworks & tools
     "PyTorch", "TensorFlow", "JAX", "FastAPI", "Django", "React", "Next.js", "Vue",
-    "Docker", "Kubernetes", "Terraform", "GitHub Actions", "PostgreSQL", "Redis",
+    "Svelte", "Angular", "Remix", "Vite", "Bun", "Deno", "Node.js",
+    "Docker", "Kubernetes", "Terraform", "Helm", "GitHub Actions", "ArgoCD",
+    "PostgreSQL", "Redis", "MongoDB", "Cassandra", "Elasticsearch", "ClickHouse",
+    "Kafka", "RabbitMQ", "Celery", "Airflow", "dbt",
+    "Rust async", "tokio", "axum",
+    # Cloud & Infra
+    "AWS", "GCP", "Azure", "Vercel", "Cloudflare", "Fly.io",
     # Trends
     "Open Source", "Edge AI", "WebAssembly", "GraphQL", "Serverless", "DevSecOps",
+    "Platform Engineering", "FinOps", "MLOps", "DataOps", "SRE",
+    "Retrieval Augmented", "Embeddings", "pgvector", "ChromaDB", "Pinecone", "Weaviate",
 ]
 
 # Weights for scoring
@@ -229,7 +240,7 @@ def _emit_trending_spikes(trend_date, days_back: int) -> None:
                 sender=TechnologyTrend,
                 topic=trend.technology_name,
                 score=float(trend.trend_score),
-                language=getattr(trend, 'language', ''),
+                category=trend.category,
             )
     except Exception as exc:
         # Never let spike emission crash the main task

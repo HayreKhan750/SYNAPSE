@@ -55,51 +55,57 @@ export default function VideosPage() {
     placeholderData: keepPreviousData,
   })
 
-  const videos = Array.isArray(data?.data) ? data.data : []
+  // Handle both paginated {data: {results: [], count: N}} and flat {data: []}
+  const rawData = data?.data
+  const videos: any[] = Array.isArray(rawData)
+    ? rawData
+    : Array.isArray(rawData?.results)
+    ? rawData.results
+    : []
   const meta = data?.meta || {}
-  const totalVideos = meta.total || 0
-  const totalPages = meta.total_pages || 1
+  const totalVideos = meta.total ?? rawData?.count ?? videos.length
+  const totalPages = meta.total_pages ?? Math.ceil(totalVideos / PAGE_SIZE) ?? 1
   const totalViews = videos.reduce((s: number, v: any) => s + (v.view_count || 0), 0)
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <div className="space-y-6 pb-8 max-w-7xl mx-auto">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="space-y-4 sm:space-y-6 pb-8 max-w-7xl mx-auto">
         {/* Header */}
         <div>
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <Youtube size={36} className="text-red-500" />
+          <h1 className="text-2xl sm:text-4xl font-bold text-slate-900 dark:text-white flex items-center gap-2 sm:gap-3 leading-tight">
+            <Youtube size={28} className="text-red-500 sm:size-9 shrink-0" />
             Video Library
           </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-2">
+          <p className="text-slate-600 dark:text-slate-400 mt-1 sm:mt-2 text-sm sm:text-base">
             AI-curated tech & ML videos — summarized and searchable
           </p>
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Total Videos</p>
-                <p className="text-3xl font-bold">{totalVideos}</p>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-3 sm:p-4 text-white overflow-hidden">
+            <div className="flex items-center justify-between gap-1">
+              <div className="min-w-0">
+                <p className="text-xs opacity-90 truncate">Videos</p>
+                <p className="text-xl sm:text-3xl font-bold">{totalVideos}</p>
               </div>
-              <Play size={32} className="opacity-75 fill-white" />
+              <Play size={22} className="opacity-75 fill-white shrink-0 sm:size-8" />
             </div>
           </div>
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Topics Covered</p>
-                <p className="text-3xl font-bold">{TOPICS.length - 1}</p>
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-3 sm:p-4 text-white overflow-hidden">
+            <div className="flex items-center justify-between gap-1">
+              <div className="min-w-0">
+                <p className="text-xs opacity-90 truncate">Topics</p>
+                <p className="text-xl sm:text-3xl font-bold">{TOPICS.length - 1}</p>
               </div>
-              <TrendingUp size={32} className="opacity-75" />
+              <TrendingUp size={22} className="opacity-75 shrink-0 sm:size-8" />
             </div>
           </div>
-          <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl p-4 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Views This Page</p>
-                <p className="text-3xl font-bold">
+          <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-3 sm:p-4 text-white overflow-hidden">
+            <div className="flex items-center justify-between gap-1">
+              <div className="min-w-0">
+                <p className="text-xs opacity-90 truncate">Views</p>
+                <p className="text-xl sm:text-3xl font-bold">
                   {totalViews >= 1_000_000
                     ? `${(totalViews / 1_000_000).toFixed(1)}M`
                     : totalViews >= 1_000
@@ -107,25 +113,25 @@ export default function VideosPage() {
                     : totalViews}
                 </p>
               </div>
-              <Eye size={32} className="opacity-75" />
+              <Eye size={22} className="opacity-75 shrink-0 sm:size-8" />
             </div>
           </div>
         </div>
 
         {/* Filters row */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          {/* Sort */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Sort:</span>
-            <div className="flex gap-2">
+          {/* Sort — scrollable on mobile */}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+            <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold shrink-0">Sort:</span>
+            <div className="flex gap-1.5 sm:gap-2">
               {SORT_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => { setSortBy(opt.value); setPage(1) }}
                   className={cn(
-                    'px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
+                    'px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0',
                     sortBy === opt.value
-                      ? 'bg-red-500 text-white'
+                      ? 'bg-red-500 text-white shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   )}
                 >
@@ -136,19 +142,19 @@ export default function VideosPage() {
           </div>
 
           {/* Result count */}
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">
             {totalVideos} videos
           </p>
         </div>
 
         {/* Topic pills - horizontal scroll */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-2 scrollbar-hide">
           {TOPICS.map((topic) => (
             <button
               key={topic}
               onClick={() => { setSelectedTopic(topic); setPage(1) }}
               className={cn(
-                'px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0',
+                'px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0',
                 selectedTopic === topic
                   ? 'bg-red-500 text-white shadow-md'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -161,27 +167,27 @@ export default function VideosPage() {
 
         {/* Videos grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             {Array.from({ length: 12 }).map((_, i) => (
               <VideoSkeleton key={i} />
             ))}
           </div>
         ) : videos.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             {videos.map((video: any) => (
               <VideoCard key={video.id} video={video} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-            <Youtube size={56} className="mx-auto text-slate-400 dark:text-slate-500 mb-4" />
-            <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">No videos found</p>
-            <p className="text-slate-500 dark:text-slate-500 text-sm mt-1">
+          <div className="text-center py-12 sm:py-16 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <Youtube size={44} className="mx-auto text-slate-400 dark:text-slate-500 mb-3" />
+            <p className="text-slate-600 dark:text-slate-400 text-base sm:text-lg font-semibold">No videos found</p>
+            <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm mt-1">
               Try selecting a different topic
             </p>
             <button
               onClick={() => setSelectedTopic('All')}
-              className="mt-4 text-red-500 hover:text-red-600 font-medium text-sm"
+              className="mt-3 text-red-500 hover:text-red-600 font-semibold text-sm"
             >
               View all videos
             </button>
@@ -190,21 +196,21 @@ export default function VideosPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-4">
+          <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-sm font-medium"
+              className="px-3 sm:px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs sm:text-sm font-semibold"
             >
               ← Prev
             </button>
-            <span className="text-sm text-slate-600 dark:text-slate-400 px-4">
+            <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 px-2 sm:px-4">
               Page {page} of {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-sm font-medium"
+              className="px-3 sm:px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs sm:text-sm font-semibold"
             >
               Next →
             </button>

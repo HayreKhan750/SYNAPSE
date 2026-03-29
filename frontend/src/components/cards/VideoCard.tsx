@@ -3,6 +3,7 @@
 import React from 'react'
 import { Play, Eye, ThumbsUp, Clock, Youtube } from 'lucide-react'
 import { formatRelativeTime } from '@/utils/helpers'
+import { cn } from '@/utils/helpers'
 
 interface Video {
   id: string
@@ -35,7 +36,6 @@ function formatDuration(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-
 function parseTopics(topics: string[] | string): string[] {
   if (Array.isArray(topics)) return topics
   if (typeof topics === 'string') {
@@ -57,63 +57,68 @@ export function VideoCard({ video }: { video: Video }) {
   const ago = formatRelativeTime(video.fetched_at || null)
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg hover:border-red-300 dark:hover:border-red-500 transition-all duration-200 group">
+    <div className={cn(
+      'group relative bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/60',
+      'overflow-hidden transition-all duration-200',
+      'hover:shadow-xl hover:shadow-red-500/10 hover:border-red-300/60 dark:hover:border-red-500/40',
+      'hover:-translate-y-0.5'
+    )}>
       {/* Thumbnail */}
-      <a href={video.url} target="_blank" rel="noopener noreferrer" className="block relative">
+      <a href={video.url} target="_blank" rel="noopener noreferrer" className="block relative overflow-hidden">
         {video.thumbnail_url ? (
           <img
             src={video.thumbnail_url}
             alt={video.title}
-            className="w-full aspect-video object-cover group-hover:opacity-90 transition-opacity"
+            className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
           <div className="w-full aspect-video bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-            <Youtube size={48} className="text-red-500 opacity-60" />
+            <Youtube size={40} className="text-red-500 opacity-60" />
           </div>
         )}
         {/* Duration badge */}
-        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs font-mono px-1.5 py-0.5 rounded">
+        <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-sm text-white text-xs font-mono px-1.5 py-0.5 rounded-md">
           {duration}
         </div>
         {/* Play overlay */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="bg-red-600/90 rounded-full p-4 shadow-lg">
-            <Play size={24} className="text-white fill-white ml-1" />
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+          <div className="bg-red-600/95 rounded-full p-3 sm:p-4 shadow-2xl shadow-red-500/40 scale-90 group-hover:scale-100 transition-transform">
+            <Play size={20} className="text-white fill-white ml-0.5" />
           </div>
         </div>
       </a>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {/* Title */}
         <a
           href={video.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block font-semibold text-slate-900 dark:text-white hover:text-red-600 dark:hover:text-red-400 transition-colors line-clamp-2 text-sm leading-snug mb-1"
+          className="block font-semibold text-slate-900 dark:text-white hover:text-red-600 dark:hover:text-red-400 transition-colors line-clamp-2 text-sm leading-snug mb-1.5"
         >
           {video.title}
         </a>
 
         {/* Channel */}
-        <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-2">
+        <p className="text-xs text-red-600 dark:text-red-400 font-semibold mb-2 truncate">
           {video.channel_name}
         </p>
 
         {/* Summary */}
         {video.summary && (
-          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
+          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2.5 leading-relaxed">
             {video.summary}
           </p>
         )}
 
         {/* Topics */}
         {topics.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
+          <div className="flex flex-wrap gap-1 mb-2.5">
             {topics.slice(0, 3).map((t) => (
               <span
                 key={t}
-                className="text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-full capitalize"
+                className="text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-full font-medium capitalize border border-red-100 dark:border-red-800/30 truncate max-w-[90px]"
               >
                 {t}
               </span>
@@ -122,19 +127,19 @@ export function VideoCard({ video }: { video: Video }) {
         )}
 
         {/* Stats row */}
-        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <span className="flex items-center gap-1">
-            <Eye size={12} />
+        <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+          <span className="flex items-center gap-1 whitespace-nowrap">
+            <Eye size={11} />
             {views}
           </span>
           {video.like_count > 0 && (
-            <span className="flex items-center gap-1">
-              <ThumbsUp size={12} />
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <ThumbsUp size={11} />
               {likes}
             </span>
           )}
           <span className="flex items-center gap-1 whitespace-nowrap">
-            <Clock size={12} />
+            <Clock size={11} />
             {ago}
           </span>
         </div>
@@ -145,13 +150,17 @@ export function VideoCard({ video }: { video: Video }) {
 
 export function VideoSkeleton() {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-pulse">
+    <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden animate-pulse">
       <div className="w-full aspect-video bg-slate-200 dark:bg-slate-700" />
-      <div className="p-4 space-y-2">
-        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
-        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
-        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-full" />
-        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
+      <div className="p-3 sm:p-4 space-y-2.5">
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-lg w-5/6" />
+        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-lg w-2/5" />
+        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-lg w-full" />
+        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-lg w-3/4" />
+        <div className="flex gap-2">
+          <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded-full w-16" />
+          <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded-full w-16" />
+        </div>
       </div>
     </div>
   )

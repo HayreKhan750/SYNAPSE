@@ -34,17 +34,19 @@ SUMMARY_FAILED_SENTINEL = "__failed__"
 # ── OpenRouter helper (replaces the old Gemini key-rotation helpers) ──────────
 
 
-def _summarize_with_gemini(text: str, max_chars: int = 8000) -> Optional[str]:
+def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[str] = None) -> Optional[str]:
     """
     Summarize text using OpenRouter (OpenAI-compatible endpoint).
-    Uses OPENROUTER_API_KEY + OPENROUTER_MODEL from environment.
+    Uses the provided api_key if given, otherwise falls back to the
+    OPENROUTER_API_KEY environment variable.
     Returns None on failure so callers fall back to local BART.
     """
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not api_key:
+        api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not api_key or api_key.startswith("your-"):
         logger.error(
             "OPENROUTER ERROR: No valid OPENROUTER_API_KEY found. "
-            "Set OPENROUTER_API_KEY in .env."
+            "Set OPENROUTER_API_KEY in .env or configure it in Settings → AI Engine."
         )
         return None
 
@@ -247,6 +249,8 @@ def process_article_nlp(self, article_id: str) -> Dict:
         # does not already have a human-supplied summary so we don't destroy
         # richer scraped content.
         if not article.summary:
+            # Try to use the article owner's API key if available (future: link articles to users)
+            # For now falls back to env var key inside _summarize_with_gemini
             gemini_summary = _summarize_with_gemini(text)
             chosen_summary = gemini_summary or result.summary
             if chosen_summary:

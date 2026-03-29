@@ -162,12 +162,25 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
     context_prefix = task_context.get(task_obj.task_type, "")
     augmented_prompt = f"{context_prefix}{task_obj.prompt}" if context_prefix else task_obj.prompt
 
+    # ── Resolve per-user API keys ─────────────────────────────────────
+    openrouter_api_key = None
+    gemini_api_key = None
+    try:
+        prefs = getattr(task_obj.user, 'preferences', {}) or {}
+        openrouter_api_key = prefs.get('openrouter_api_key') or None
+        gemini_api_key = prefs.get('gemini_api_key') or None
+    except Exception:
+        pass
+
     # ── Run the agent ─────────────────────────────────────────────────
     try:
         # Import here so Django/AI engine are fully initialised before use
         from ai_engine.agents import get_executor
 
-        executor = get_executor()
+        executor = get_executor(
+            openrouter_api_key=openrouter_api_key,
+            gemini_api_key=gemini_api_key,
+        )
         result = executor.run(
             task=augmented_prompt,
             tool_names=tool_names,

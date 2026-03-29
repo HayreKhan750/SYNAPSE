@@ -107,7 +107,7 @@ function AiKeysForm() {
       if (openrouterKey && !openrouterKey.startsWith('•')) payload.openrouter_api_key = openrouterKey;
       if (!Object.keys(payload).length) { toast.error('No new keys to save.'); setSaving(false); return; }
       await api.post('/users/ai-keys/', payload);
-      toast.success('AI keys saved! Document generation is now powered by your keys.');
+      toast.success('AI keys saved! Chat, Agent, Documents & Automation now use your keys.');
       if (payload.gemini_api_key)     { setGeminiKey('••••••••••••••••');     setGeminiConfigured(true); }
       if (payload.openrouter_api_key) { setOpenrouterKey('••••••••••••••••'); setOpenrouterConfigured(true); }
     } catch {
@@ -322,12 +322,12 @@ export default function SettingsPage() {
 
         {/* Page header */}
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-3 rounded-2xl bg-indigo-600/20 border border-indigo-500/30">
-            <Settings size={24} className="text-indigo-400" />
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 shrink-0">
+            <Settings size={20} className="text-indigo-400 sm:size-6" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Settings</h1>
-            <p className="text-slate-400 text-sm">Manage your preferences and account</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-white truncate">Settings</h1>
+            <p className="text-slate-400 text-xs sm:text-sm">Manage your preferences and account</p>
           </div>
         </div>
 
@@ -344,18 +344,18 @@ export default function SettingsPage() {
         <Section title="Appearance" icon={<Palette size={16} />}>
           <div>
             <p className="text-sm font-medium text-white mb-3">Theme</p>
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-2 sm:gap-3 flex-wrap">
               {themeOptions.map(({ value, icon: Icon, label }) => (
                 <button
                   key={value}
                   onClick={() => setTheme(value)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                     theme === value
                       ? 'border-indigo-500 bg-indigo-600/20 text-indigo-300'
                       : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500 hover:text-slate-200'
                   }`}
                 >
-                  <Icon size={15} />
+                  <Icon size={14} />
                   {label}
                 </button>
               ))}
@@ -418,8 +418,13 @@ export default function SettingsPage() {
         {/* AI Engine Keys */}
         <Section title="AI Engine" icon={<Cpu size={16} />}>
           <p className="text-sm text-slate-400 mb-4">
-            Configure AI provider keys to enable document generation, section regeneration, and chat. 
-            Keys are stored server-side — never exposed in the browser.
+            Configure your personal AI provider keys to power all AI features — 
+            <span className="text-indigo-400 font-medium"> Chat</span>,{' '}
+            <span className="text-indigo-400 font-medium">AI Agent</span>,{' '}
+            <span className="text-indigo-400 font-medium">Documents</span>, and{' '}
+            <span className="text-indigo-400 font-medium">Automation</span>.
+            Your keys are stored server-side and never exposed in the browser.
+            Each feature uses your key — you're billed directly by the provider, not by SYNAPSE.
           </p>
           <AiKeysForm />
         </Section>
@@ -427,23 +432,25 @@ export default function SettingsPage() {
         {/* API Key */}
         <Section title="API Access" icon={<Key size={16} />}>
           <p className="text-sm text-slate-400">Use this key to access the SYNAPSE API from external apps.</p>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 font-mono text-sm text-slate-300 overflow-x-auto">
-              {showKey ? apiKey : '•'.repeat(apiKey.length)}
+          <div className="flex items-center gap-2 flex-wrap xs:flex-nowrap">
+            <div className="w-full xs:flex-1 min-w-0 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 font-mono text-xs sm:text-sm text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap">
+              {showKey ? apiKey : '•'.repeat(Math.min(apiKey.length, 32))}
             </div>
-            <button
-              onClick={() => setShowKey(s => !s)}
-              className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors flex-shrink-0"
-              title={showKey ? 'Hide key' : 'Show key'}
-            >
-              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-            <button
-              onClick={() => { navigator.clipboard.writeText(apiKey); toast.success('API key copied!') }}
-              className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors flex-shrink-0 text-xs font-medium px-3"
-            >
-              Copy
-            </button>
+            <div className="flex gap-1.5 shrink-0">
+              <button
+                onClick={() => setShowKey(s => !s)}
+                className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+                title={showKey ? 'Hide key' : 'Show key'}
+              >
+                {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+              <button
+                onClick={() => { navigator.clipboard.writeText(apiKey); toast.success('API key copied!') }}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors text-xs font-semibold whitespace-nowrap"
+              >
+                Copy
+              </button>
+            </div>
           </div>
         </Section>
 

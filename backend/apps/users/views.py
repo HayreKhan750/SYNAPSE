@@ -100,9 +100,12 @@ def ai_keys_view(request):
     """
     if request.method == 'GET':
         prefs = getattr(request.user, 'preferences', {}) or {}
+        gemini_ok     = bool(prefs.get('gemini_api_key'))
+        openrouter_ok = bool(prefs.get('openrouter_api_key'))
         return Response({
-            'gemini_configured':     bool(prefs.get('gemini_api_key')),
-            'openrouter_configured': bool(prefs.get('openrouter_api_key')),
+            'gemini_configured':     gemini_ok,
+            'openrouter_configured': openrouter_ok,
+            'any_configured':        gemini_ok or openrouter_ok,
         })
 
     # POST — save keys

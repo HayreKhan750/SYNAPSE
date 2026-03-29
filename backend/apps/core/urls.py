@@ -6,6 +6,7 @@ urlpatterns = [
     path('search/', views.global_search, name='global-search'),
     path('search/semantic/', views.semantic_search, name='semantic-search'),
     path('bookmarks/', views.BookmarkListView.as_view(), name='bookmark-list'),
+    path('bookmarks/<uuid:pk>/notes/', views.BookmarkNotesView.as_view(), name='bookmark-notes'),
     path('bookmarks/<str:content_type_name>/<str:object_id>/', views.BookmarkToggleView.as_view(), name='bookmark-toggle'),
     path('collections/', views.CollectionListCreateView.as_view(), name='collection-list'),
     path('collections/<uuid:pk>/', views.CollectionDetailView.as_view(), name='collection-detail'),

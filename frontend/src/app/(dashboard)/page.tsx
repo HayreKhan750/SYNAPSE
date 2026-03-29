@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight } from 'lucide-react';
+import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, Bookmark, MessageSquare, FileText } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/utils/api';
 import { ArticleCard, RepositoryCard, PaperCard } from '@/components/cards';
@@ -29,6 +29,59 @@ const StatCard = ({ icon: Icon, label, value, gradient, href }: any) => (
     </div>
   </Link>
 );
+
+// ── TrendStrip — top 6 trending technologies ──────────────────────────────────
+const CATEGORY_COLOUR: Record<string, string> = {
+  language: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+  ai_ml:    'bg-violet-500/15 text-violet-400 border-violet-500/30',
+  devops:   'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  web:      'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  general:  'bg-slate-500/15 text-slate-400 border-slate-500/30',
+}
+
+function TrendStrip() {
+  const { data } = useQuery({
+    queryKey: ['trends-strip'],
+    queryFn: async () => {
+      const { data } = await api.get('/trends/?ordering=-trend_score&limit=6')
+      // Normalize: backend returns {success, count, results: [...]}
+      const items: any[] = Array.isArray(data?.results) ? data.results
+        : Array.isArray(data?.data) ? data.data
+        : Array.isArray(data) ? data : []
+      return items
+    },
+    staleTime: 120_000,
+  })
+  const trends: any[] = Array.isArray(data) ? data : []
+  if (!trends.length) return null
+  const maxScore = Math.max(...trends.map((t: any) => t.trend_score), 1)
+
+  return (
+    <div className="mb-6 bg-slate-800/60 dark:bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={15} className="text-amber-400" />
+          <span className="text-sm font-bold text-white">🔥 Trending Technologies</span>
+        </div>
+        <Link href="/trends" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 transition-colors">
+          View all <ArrowRight size={11} />
+        </Link>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {trends.map((t: any) => {
+          const pct = Math.round((t.trend_score / maxScore) * 100)
+          const colour = CATEGORY_COLOUR[t.category] ?? CATEGORY_COLOUR.general
+          return (
+            <Link key={t.id} href="/trends" className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all hover:scale-105 ${colour}`}>
+              <span className="truncate max-w-[80px]">{t.technology_name}</span>
+              <span className="opacity-60 text-[10px] font-bold">{pct}%</span>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 const SectionHeader = ({ title, subtitle, href }: { title: string; subtitle?: string; href?: string }) => (
   <div className="flex items-center justify-between mb-5">
@@ -92,7 +145,7 @@ export default function Dashboard() {
   // fetched items always appear at the top immediately after a workflow run.
   const { data: articles, isLoading: articlesLoading } = useQuery({
     queryKey: ['articles', 'home'],
-    queryFn: () => api.get('/articles/', { params: { page_size: 4, ordering: '-scraped_at' } }).then(r => r.data),
+    queryFn: () => api.get('/articles/', { params: { page_size: 6, ordering: '-scraped_at' } }).then(r => r.data),
     staleTime: 30_000,
   });
 
@@ -177,15 +230,18 @@ export default function Dashboard() {
 
           {/* ── Stats Row ─────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard icon={BarChart3} label="Articles" value={articleCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-indigo-500 to-indigo-700" href="/feed" />
-            <StatCard icon={BookOpen} label="Papers" value={paperCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-violet-500 to-violet-700" href="/research" />
-            <StatCard icon={GitBranch} label="Repositories" value={repoCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-emerald-500 to-emerald-700" href="/github" />
-            <StatCard icon={Youtube} label="Videos" value={videoCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-red-500 to-red-700" href="/videos" />
+            <StatCard icon={BarChart3} label="Articles"      value={articleCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-indigo-500 to-indigo-700"  href="/feed"     />
+            <StatCard icon={BookOpen}  label="Papers"        value={paperCount?.meta?.total ?? 0}   gradient="bg-gradient-to-br from-violet-500 to-violet-700"   href="/research" />
+            <StatCard icon={GitBranch} label="Repositories"  value={repoCount?.meta?.total ?? 0}    gradient="bg-gradient-to-br from-emerald-500 to-emerald-700" href="/github"   />
+            <StatCard icon={Youtube}   label="Videos"        value={videoCount?.meta?.total ?? 0}   gradient="bg-gradient-to-br from-red-500 to-red-700"         href="/videos"   />
           </div>
 
           {/* ── Latest Articles + GitHub ───────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
+              {/* ── Top Trends strip ── */}
+              <TrendStrip />
+
               <SectionHeader title="Latest from Tech Feed" subtitle="Curated articles from around the web" href="/feed" />
               {articlesLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

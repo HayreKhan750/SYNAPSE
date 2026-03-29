@@ -151,38 +151,38 @@ export default function FeedPage() {
     <div className="flex-1 overflow-y-auto">
     <div className="pb-8">
       {/* ── Page Header ───────────────────────────────────────────── */}
-      <div className="px-6 pt-6 pb-4 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Tech Intelligence Feed</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{totalCount} articles curated from around the web</p>
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">Tech Intelligence Feed</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">{totalCount} articles curated</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Manual refresh button */}
             <button
               onClick={handleRefreshFeed}
               disabled={isFetching}
-              className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
               title="Refresh feed"
             >
-              <RefreshCw size={12} className={isFetching ? 'animate-spin' : ''} />
-              {isFetching ? 'Refreshing…' : 'Refresh'}
+              <RefreshCw size={11} className={isFetching ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">{isFetching ? 'Refreshing…' : 'Refresh'}</span>
             </button>
-            <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
-              <span className={`w-1.5 h-1.5 rounded-full ${postWorkflowPolling ? 'bg-blue-400 animate-pulse' : 'bg-emerald-400 animate-pulse'}`} />
-              {postWorkflowPolling ? 'Watching for new articles…' : 'Live updates'}
+            <span className="hidden xs:flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full whitespace-nowrap">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${postWorkflowPolling ? 'bg-blue-400 animate-pulse' : 'bg-emerald-400 animate-pulse'}`} />
+              <span className="hidden sm:inline">{postWorkflowPolling ? 'Watching…' : 'Live'}</span>
             </span>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mt-4">
+        <div className="flex gap-0.5 sm:gap-1 mt-3 sm:mt-4 overflow-x-auto scrollbar-hide">
           {(['latest', 'for-you', 'trending'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                'px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize',
+                'px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0',
                 activeTab === tab
                   ? 'bg-indigo-500 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -194,18 +194,18 @@ export default function FeedPage() {
         </div>
       </div>
 
-      <div className="px-6 pt-5 space-y-5">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-5 space-y-4 sm:space-y-5">
 
       {/* ── Filters ───────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
         {/* Topic pills - scrollable */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 flex-1">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-0.5 flex-1">
           {TOPICS.map((topic) => (
             <button
               key={topic}
               onClick={() => { setSelectedTopic(topic); setPage(1); }}
               className={cn(
-                'px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0',
+                'px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0',
                 selectedTopic === topic
                   ? 'bg-indigo-500 text-white shadow-sm'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -220,21 +220,21 @@ export default function FeedPage() {
         <div className="relative flex-shrink-0">
           <button
             onClick={() => setShowSortDropdown(!showSortDropdown)}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all whitespace-nowrap"
           >
             {sortBy === 'latest' ? '📅 Latest' : '🔥 Trending'}
-            <ChevronDown size={14} className={cn('transition-transform', showSortDropdown && 'rotate-180')} />
+            <ChevronDown size={13} className={cn('transition-transform', showSortDropdown && 'rotate-180')} />
           </button>
           {showSortDropdown && (
-            <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[130px] overflow-hidden animate-scale-in">
+            <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[120px] sm:min-w-[130px] overflow-hidden">
               {SORT_OPTIONS.map((option) => (
                 <button
                   key={option}
                   onClick={() => { setSortBy(option.toLowerCase() as any); setShowSortDropdown(false); setPage(1); }}
                   className={cn(
-                    'w-full text-left px-4 py-2.5 text-sm transition-colors',
+                    'w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm transition-colors',
                     sortBy === option.toLowerCase()
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold'
                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
                   )}
                 >
@@ -246,20 +246,20 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* ── New articles banner (appears after workflow scraping completes) ── */}
+      {/* ── New articles banner ── */}
       {showNewBanner && (
-        <div className="flex items-center justify-between gap-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-indigo-300">
-            <span className="text-lg">🆕</span>
+        <div className="flex items-center justify-between gap-2 sm:gap-3 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 flex-wrap">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-indigo-300">
+            <span className="text-base sm:text-lg shrink-0">🆕</span>
             <span>
-              <strong>{newArticleCount} new article{newArticleCount !== 1 ? 's' : ''}</strong> scraped and ready!
+              <strong>{newArticleCount} new article{newArticleCount !== 1 ? 's' : ''}</strong> ready!
             </span>
           </div>
           <button
             onClick={handleRefreshFeed}
-            className="flex items-center gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1 sm:gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors shrink-0"
           >
-            <RefreshCw size={12} />
+            <RefreshCw size={11} />
             Show now
           </button>
         </div>

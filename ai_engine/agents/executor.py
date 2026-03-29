@@ -53,6 +53,8 @@ class SynapseAgentExecutor:
         max_iterations: int = 10,
         max_execution_time: int = 300,
         verbose: bool = True,
+        openrouter_api_key: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
     ) -> None:
         self.registry = registry if registry is not None else get_registry()
         self.model_name = model_name
@@ -61,6 +63,9 @@ class SynapseAgentExecutor:
         self.max_iterations = max_iterations
         self.max_execution_time = max_execution_time
         self.verbose = verbose
+        # Per-user API key overrides
+        self.openrouter_api_key = openrouter_api_key
+        self.gemini_api_key = gemini_api_key
 
         self._default_agent: Optional[SynapseAgent] = None
 
@@ -69,7 +74,24 @@ class SynapseAgentExecutor:
     # ------------------------------------------------------------------
 
     def _get_default_agent(self) -> SynapseAgent:
-        """Return (and lazily initialise) the default agent with all tools."""
+        """Return (and lazily initialise) the default agent with all tools.
+        Note: default agent is NOT cached when per-user keys are set, to avoid
+        leaking one user's key into another user's session.
+        """
+        if self.openrouter_api_key or self.gemini_api_key:
+            # Per-user keys — always build a fresh agent (no caching)
+            tools = self.registry.get_tools()
+            return SynapseAgent(
+                tools=tools,
+                model_name=self.model_name,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                max_iterations=self.max_iterations,
+                max_execution_time=self.max_execution_time,
+                verbose=self.verbose,
+                openrouter_api_key=self.openrouter_api_key,
+                gemini_api_key=self.gemini_api_key,
+            )
         if self._default_agent is None:
             tools = self.registry.get_tools()
             self._default_agent = SynapseAgent(
@@ -101,6 +123,8 @@ class SynapseAgentExecutor:
             max_iterations=self.max_iterations,
             max_execution_time=self.max_execution_time,
             verbose=self.verbose,
+            openrouter_api_key=self.openrouter_api_key,
+            gemini_api_key=self.gemini_api_key,
         )
 
     # ------------------------------------------------------------------
@@ -177,9 +201,24 @@ class SynapseAgentExecutor:
 # Module-level singleton accessor
 # ---------------------------------------------------------------------------
 
-def get_executor() -> SynapseAgentExecutor:
-    """Return the module-level SynapseAgentExecutor singleton."""
+def get_executor(
+    openrouter_api_key: Optional[str] = None,
+    gemini_api_key: Optional[str] = None,
+) -> SynapseAgentExecutor:
+    """Return a SynapseAgentExecutor.
+
+    When per-user API keys are provided, a fresh (non-cached) executor is
+    returned so that one user's keys are never shared with another.
+    When no keys are provided, the module-level singleton is returned for
+    efficiency (uses env-var keys shared across all requests).
+    """
     global _executor_instance
+    if openrouter_api_key or gemini_api_key:
+        # Per-user executor — not cached
+        return SynapseAgentExecutor(
+            openrouter_api_key=openrouter_api_key,
+            gemini_api_key=gemini_api_key,
+        )
     if _executor_instance is None:
         _executor_instance = SynapseAgentExecutor()
     return _executor_instance

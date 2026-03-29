@@ -8,12 +8,14 @@ import {
   Plus, Download, Trash2, Loader2, Sparkles, X, Archive, Cloud,
   HardDrive, CheckCircle2, Link2, Eye, Lock, Wand2, Code2,
   Palette, Layers, Zap, ChevronRight, Copy, ExternalLink,
-  LayoutTemplate, Play, RefreshCw,
+  LayoutTemplate, Play, RefreshCw, AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "@/utils/api";
 import { formatDistanceToNow } from "date-fns";
 import { useAuthStore } from "@/store/authStore";
+import { useApiKeyStatus } from "@/hooks/useApiKeyStatus";
+import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1306,6 +1308,7 @@ function ProjectBuilderForm({ onSuccess }: { onSuccess: () => void }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DocumentsPage() {
+  const { status: apiKeyStatus } = useApiKeyStatus();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"documents" | "projects">("documents");
   const [showForm, setShowForm] = useState(false);
@@ -1352,6 +1355,20 @@ export default function DocumentsPage() {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+      {/* ── No API key warning banner ── */}
+      {apiKeyStatus && !apiKeyStatus.any_configured && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs">
+          <AlertCircle size={14} className="flex-shrink-0 text-amber-400" />
+          <span>
+            No AI API key configured — document generation will use the shared server key.{' '}
+            <Link href="/settings" className="underline hover:text-amber-200 font-medium">
+              Add your own key in Settings → AI Engine
+            </Link>{' '}
+            for dedicated access.
+          </span>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 lg:pb-8 space-y-6">
 
         {/* ── Hero header ── */}

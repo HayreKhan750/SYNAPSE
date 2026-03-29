@@ -8,6 +8,8 @@ import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2 } 
 import { useAuthStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/utils/api'
+import { useNotificationSocket } from '@/hooks/useNotificationSocket'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface NavbarProps {
   onMenuClick?: () => void
@@ -248,6 +250,9 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
 // ── Main Navbar ───────────────────────────────────────────────────────────────
 
 export function Navbar({ onMobileMenuClick }: NavbarProps) {
+  // Real-time WebSocket notifications — connects once per session
+  useNotificationSocket()
+
   const router = useRouter()
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
@@ -386,7 +391,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
               className={`relative p-2 rounded-lg transition-colors text-slate-400 hover:text-white hover:bg-slate-800 ${
                 isNotifOpen ? 'bg-slate-800 text-white' : ''
               }`}
-              title="Notifications"
+              title=""
               aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
             >
               <Bell size={20} />

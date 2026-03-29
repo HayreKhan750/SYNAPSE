@@ -198,6 +198,12 @@ def _action_send_email(workflow, params: dict) -> dict:
             metadata={'workflow_id': str(workflow.id)},
         )
         send_notification_email_task.delay(str(notif.id))
+        # Push real-time WebSocket notification to the workflow owner
+        try:
+            from apps.notifications.tasks import push_notification_to_ws
+            push_notification_to_ws(notif)
+        except Exception as ws_exc:
+            logger.warning("WS push failed (non-critical): %s", ws_exc)
 
         return {
             'action': 'send_email',
@@ -284,17 +290,28 @@ def _action_upload_to_drive(params: dict, workflow=None) -> dict:
 def _action_ai_digest(params: dict, workflow=None) -> dict:
     """
     Use the SYNAPSE AI agent to research a topic and return a digest.
+    Uses the workflow owner's API keys if configured, falls back to env vars.
     """
     try:
-        import sys
-        import os
-        # ai_engine is a sibling service; import if available
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../ai_engine'))
         from ai_engine.agents.executor import get_executor
+
+        # Resolve per-user API keys from the workflow owner's preferences
+        openrouter_api_key = None
+        gemini_api_key = None
+        if workflow:
+            try:
+                prefs = getattr(workflow.user, 'preferences', {}) or {}
+                openrouter_api_key = prefs.get('openrouter_api_key') or None
+                gemini_api_key = prefs.get('gemini_api_key') or None
+            except Exception:
+                pass
 
         topic = params.get('topic', 'latest AI research and tech news')
         tool_names = params.get('tool_names', ['search_knowledge_base', 'fetch_articles', 'analyze_trends'])
-        executor = get_executor()
+        executor = get_executor(
+            openrouter_api_key=openrouter_api_key,
+            gemini_api_key=gemini_api_key,
+        )
         result = executor.run(task=f"Research and summarize: {topic}", tool_names=tool_names)
 
         return {

@@ -333,96 +333,101 @@ function WorkflowCard({
         : workflow.status;
 
   return (
-    <div className={`bg-slate-800 border rounded-xl p-5 flex flex-col gap-3 transition-all ${isRunning ? 'border-blue-500/50 shadow-blue-500/10 shadow-lg' : 'border-slate-700 hover:border-indigo-500/50'}`}>
+    <div className={`group relative bg-slate-800 border rounded-2xl p-4 sm:p-5 flex flex-col gap-3 transition-all duration-200 overflow-hidden ${isRunning ? 'border-blue-500/50 shadow-blue-500/10 shadow-lg' : 'border-slate-700 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5'}`}>
+      {/* Accent top bar */}
+      <div className={`absolute inset-x-0 top-0 h-0.5 rounded-t-2xl transition-opacity ${isRunning ? 'bg-gradient-to-r from-blue-500 to-indigo-500 opacity-100' : 'bg-gradient-to-r from-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100'}`} />
+
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-white truncate">{workflow.name}</h3>
+          <h3 className="font-semibold text-white truncate text-sm sm:text-base leading-snug">{workflow.name}</h3>
           {workflow.description && (
-            <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{workflow.description}</p>
+            <p className="text-xs sm:text-sm text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">{workflow.description}</p>
           )}
         </div>
         <StatusBadge status={displayStatus} />
       </div>
 
-      {/* Meta */}
-      <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-        <span className="bg-slate-700 rounded px-2 py-0.5">
+      {/* Meta pills */}
+      <div className="flex flex-wrap gap-1.5 text-xs text-slate-400">
+        <span className="bg-slate-700/80 border border-slate-600/50 rounded-lg px-2 py-0.5 whitespace-nowrap">
           {workflow.trigger_type === 'schedule'
             ? `⏱ ${workflow.cron_expression || 'cron'}`
             : workflow.trigger_type === 'event'
             ? `⚡ ${workflow.event_config?.event_type || 'event'}`
             : '🖐 Manual'}
         </span>
-        <span className="bg-slate-700 rounded px-2 py-0.5">🔄 {workflow.run_count} runs</span>
+        <span className="bg-slate-700/80 border border-slate-600/50 rounded-lg px-2 py-0.5 whitespace-nowrap">🔄 {workflow.run_count} runs</span>
         {workflow.last_run_at && (
-          <span className="bg-slate-700 rounded px-2 py-0.5">
+          <span className="bg-slate-700/80 border border-slate-600/50 rounded-lg px-2 py-0.5 whitespace-nowrap">
             Last: {new Date(workflow.last_run_at).toLocaleDateString()}
           </span>
         )}
       </div>
 
-      {/* Actions */}
+      {/* Action badges */}
       {workflow.actions.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {workflow.actions.map((a, i) => (
-            <span key={i} className="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded px-2 py-0.5">
+            <span key={i} className="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded-lg px-2 py-0.5 whitespace-nowrap">
               {ACTION_LABELS[a.type] ?? a.type}
             </span>
           ))}
         </div>
       )}
 
-      {/* Live progress bar */}
+      {/* Live progress */}
       {isRunning && (
-        <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
-          <div className="h-full bg-blue-500 rounded-full animate-pulse w-full" />
+        <div className="w-full bg-slate-700 rounded-full h-1 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full animate-pulse w-full" />
         </div>
       )}
       {liveStatus?.status === 'success' && (
-        <p className="text-xs text-green-400">✅ Completed in {liveStatus.duration_seconds?.toFixed(1)}s</p>
+        <p className="text-xs text-emerald-400 font-medium">✅ Completed in {liveStatus.duration_seconds?.toFixed(1)}s</p>
       )}
       {liveStatus?.status === 'failed' && (
-        <p className="text-xs text-red-400 truncate">❌ {liveStatus.error_message || 'Run failed'}</p>
+        <p className="text-xs text-red-400 line-clamp-1">❌ {liveStatus.error_message || 'Run failed'}</p>
       )}
 
-      {/* Buttons */}
-      <div className="flex gap-2 pt-1">
+      {/* Action buttons — responsive wrap on xs */}
+      <div className="flex flex-wrap gap-1.5 pt-1">
         <button
           onClick={() => onTrigger(workflow.id)}
           disabled={!workflow.is_active || isRunning}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm py-1.5 rounded-lg transition-colors font-medium"
+          className="flex-1 min-w-[80px] bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs sm:text-sm py-1.5 px-3 rounded-xl transition-colors font-semibold whitespace-nowrap"
         >
           {isRunning ? '⟳ Running…' : '▶ Run'}
         </button>
-        <button
-          onClick={() => onToggle(workflow.id)}
-          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
-          title={workflow.is_active ? 'Pause' : 'Resume'}
-        >
-          {workflow.is_active ? '⏸' : '▶'}
-        </button>
-        <button
-          onClick={() => onEdit(workflow)}
-          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
-          title="Edit workflow"
-        >
-          ✏️
-        </button>
-        <button
-          onClick={() => onViewRuns(workflow)}
-          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
-          title="View run history"
-        >
-          📋
-        </button>
-        <button
-          onClick={() => onDelete(workflow.id)}
-          className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm rounded-lg transition-colors"
-          title="Delete workflow"
-        >
-          🗑
-        </button>
+        <div className="flex gap-1.5 shrink-0">
+          <button
+            onClick={() => onToggle(workflow.id)}
+            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-xl transition-colors"
+            title={workflow.is_active ? 'Pause' : 'Resume'}
+          >
+            {workflow.is_active ? '⏸' : '▶'}
+          </button>
+          <button
+            onClick={() => onEdit(workflow)}
+            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-xl transition-colors"
+            title="Edit workflow"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={() => onViewRuns(workflow)}
+            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-xl transition-colors"
+            title="View run history"
+          >
+            📋
+          </button>
+          <button
+            onClick={() => onDelete(workflow.id)}
+            className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm rounded-xl transition-colors"
+            title="Delete workflow"
+          >
+            🗑
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -452,44 +457,103 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
             <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
           </div>
         </div>
-        <div className="overflow-y-auto flex-1 p-5 space-y-3">
-          {isLoading && <div className="text-slate-400 text-sm animate-pulse">Loading runs…</div>}
-          {!isLoading && runs.length === 0 && (
-            <div className="text-slate-400 text-sm text-center py-8">No runs yet.</div>
-          )}
-          {runs.map((run) => (
-            <div key={run.id} className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <StatusBadge status={run.status} />
-                <span className="text-xs text-slate-400">{new Date(run.started_at).toLocaleString()}</span>
-              </div>
-              {run.duration_seconds != null && (
-                <p className="text-xs text-slate-400">Duration: {run.duration_seconds.toFixed(1)}s</p>
-              )}
-              {run.trigger_event && Object.keys(run.trigger_event).length > 0 && (
-                <p className="text-xs text-indigo-400 mt-1">
-                  ⚡ Event: {JSON.stringify(run.trigger_event).slice(0, 80)}
-                </p>
-              )}
-              {run.error_message && (
-                <p className="text-xs text-red-400 mt-1 bg-red-500/10 rounded p-2">{run.error_message}</p>
-              )}
-              {run.result && (run.result as {actions?: unknown[]}).actions && (
-                <details className="mt-2">
-                  <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300">
-                    {(run.result as {actions: unknown[]}).actions.length} action results
-                  </summary>
-                  <pre className="text-xs text-slate-400 mt-1 bg-slate-950 rounded p-2 overflow-x-auto max-h-40">
-                    {JSON.stringify((run.result as {actions: unknown[]}).actions, null, 2)}
-                  </pre>
-                </details>
-              )}
-              <Link href={`/automation/runs/${run.id}`}
-                className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-                View full detail →
-              </Link>
+        <div className="overflow-y-auto flex-1 p-5 space-y-2">
+          {isLoading && (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-20 bg-slate-900 border border-slate-700 rounded-xl animate-pulse" />
+              ))}
             </div>
-          ))}
+          )}
+          {!isLoading && runs.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-3">🔄</div>
+              <p className="text-slate-400 text-sm font-medium">No runs yet</p>
+              <p className="text-slate-600 text-xs mt-1">Trigger the workflow to see run history here</p>
+            </div>
+          )}
+          {/* Timeline */}
+          <div className="relative">
+            {runs.length > 1 && (
+              <div className="absolute left-[19px] top-6 bottom-6 w-px bg-slate-700/60" />
+            )}
+            {runs.map((run, idx) => {
+              const actions = (run.result as any)?.actions ?? []
+              const successActions = actions.filter((a: any) => a.status === 'success' || a.status === 'queued' || a.status === 'completed' || a.status === 'notification_created').length
+              const failedActions  = actions.filter((a: any) => a.status === 'error' || a.status === 'failed').length
+              const isSuccess = run.status === 'success'
+              const isFailed  = run.status === 'failed'
+              const isRunning = run.status === 'running' || run.status === 'pending'
+              return (
+                <div key={run.id} className="relative flex gap-3 mb-3">
+                  {/* Timeline dot */}
+                  <div className={`relative z-10 w-9 h-9 rounded-xl flex items-center justify-center text-sm shrink-0 mt-0.5 border ${
+                    isSuccess ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' :
+                    isFailed  ? 'bg-red-500/15 border-red-500/40 text-red-400' :
+                    isRunning ? 'bg-blue-500/15 border-blue-500/40 text-blue-400' :
+                    'bg-slate-700 border-slate-600 text-slate-500'
+                  }`}>
+                    {isSuccess ? '✓' : isFailed ? '✗' : isRunning ? '⟳' : '#'}
+                  </div>
+
+                  {/* Card */}
+                  <div className={`flex-1 min-w-0 bg-slate-900 border rounded-xl p-3.5 transition-all hover:border-slate-600 ${
+                    isSuccess ? 'border-emerald-500/20' :
+                    isFailed  ? 'border-red-500/20' :
+                    isRunning ? 'border-blue-500/30 animate-pulse' :
+                    'border-slate-700/80'
+                  }`}>
+                    <div className="flex items-start justify-between gap-2 flex-wrap mb-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <StatusBadge status={run.status} />
+                        {idx === 0 && <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20">Latest</span>}
+                      </div>
+                      <span className="text-xs text-slate-500 whitespace-nowrap">{new Date(run.started_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</span>
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="flex flex-wrap gap-3 text-xs text-slate-400 mb-2">
+                      {run.duration_seconds != null && (
+                        <span className="flex items-center gap-1">⏱ {run.duration_seconds.toFixed(1)}s</span>
+                      )}
+                      {actions.length > 0 && (
+                        <span className="flex items-center gap-1">
+                          <span className="text-emerald-400 font-semibold">{successActions}✓</span>
+                          {failedActions > 0 && <span className="text-red-400 font-semibold ml-1">{failedActions}✗</span>}
+                          <span className="text-slate-500">/ {actions.length} actions</span>
+                        </span>
+                      )}
+                      {run.trigger_event && Object.keys(run.trigger_event).length > 0 && (
+                        <span className="text-indigo-400">⚡ {Object.keys(run.trigger_event)[0]}</span>
+                      )}
+                    </div>
+
+                    {/* Action mini-progress */}
+                    {actions.length > 0 && (
+                      <div className="flex gap-1 mb-2">
+                        {actions.map((a: any, i: number) => (
+                          <div key={i} title={a.action} className={`flex-1 h-1 rounded-full ${
+                            a.status === 'success' || a.status === 'queued' || a.status === 'notification_created' ? 'bg-emerald-500' :
+                            a.status === 'error' || a.status === 'failed' ? 'bg-red-500' :
+                            'bg-slate-600'
+                          }`} />
+                        ))}
+                      </div>
+                    )}
+
+                    {run.error_message && (
+                      <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-2.5 py-1.5 mb-2 line-clamp-2">{run.error_message}</p>
+                    )}
+
+                    <Link href={`/automation/runs/${run.id}`}
+                      className="inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
+                      View full detail →
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -1030,44 +1094,44 @@ export default function AutomationPage() {
       <div className="p-6 max-w-6xl mx-auto pb-12">
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white">⚙️ Automation Center</h1>
-            <p className="text-slate-400 mt-1 text-sm">Schedule and automate your tech intelligence workflows.</p>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 sm:mb-8 gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-white truncate">⚙️ Automation Center</h1>
+            <p className="text-slate-400 mt-1 text-xs sm:text-sm">Schedule and automate your tech intelligence workflows.</p>
           </div>
-          <div className="flex gap-2 flex-wrap justify-end">
+          <div className="flex gap-2 flex-wrap shrink-0">
             <button onClick={() => setShowAnalytics(true)}
-              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition-colors border border-slate-600">
-              📊 Analytics
+              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
+              📊 <span className="hidden xs:inline">Analytics</span>
             </button>
             <button onClick={() => setShowSchedule(true)}
-              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition-colors border border-slate-600">
-              ⏱ Schedule
+              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
+              ⏱ <span className="hidden xs:inline">Schedule</span>
             </button>
             <button onClick={() => setShowTemplates(true)}
-              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition-colors border border-slate-600">
-              📋 Templates
+              className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-600 whitespace-nowrap">
+              📋 <span className="hidden xs:inline">Templates</span>
             </button>
             <button onClick={() => setShowCreate(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20">
-              + New Workflow
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors shadow-lg shadow-indigo-500/20 whitespace-nowrap">
+              + <span className="hidden xs:inline">New </span>Workflow
             </button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[
             { label: 'Total Workflows', value: workflows.length, icon: '⚙️' },
             { label: 'Active',          value: activeCount,      icon: '✅' },
             { label: 'Total Runs',      value: totalRuns,        icon: '🔄' },
             { label: 'Running Now',     value: runningCount,     icon: '⟳', pulse: runningCount > 0 },
           ].map(stat => (
-            <div key={stat.label} className={`bg-slate-800 border rounded-xl p-4 flex items-center gap-3 ${stat.pulse ? 'border-blue-500/40' : 'border-slate-700'}`}>
-              <span className={`text-2xl ${stat.pulse ? 'animate-spin' : ''}`}>{stat.icon}</span>
-              <div>
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
-                <p className="text-slate-400 text-xs">{stat.label}</p>
+            <div key={stat.label} className={`bg-slate-800/80 border rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 transition-all ${stat.pulse ? 'border-blue-500/40 shadow-blue-500/10 shadow-md' : 'border-slate-700 hover:border-slate-600'}`}>
+              <span className={`text-xl sm:text-2xl shrink-0 ${stat.pulse ? 'animate-spin' : ''}`}>{stat.icon}</span>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-white leading-tight">{stat.value}</p>
+                <p className="text-slate-400 text-xs truncate">{stat.label}</p>
               </div>
             </div>
           ))}

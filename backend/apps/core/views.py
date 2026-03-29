@@ -347,6 +347,21 @@ class BookmarkToggleView(APIView):
         return Response({'success': True, 'data': {'bookmarked': True, 'bookmark': serializer.data}}, status=201)
 
 
+class BookmarkNotesView(APIView):
+    """PATCH /bookmarks/<id>/notes/ — update the notes on a bookmark."""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            bookmark = UserBookmark.objects.get(pk=pk, user=request.user)
+        except UserBookmark.DoesNotExist:
+            return Response({'success': False, 'error': 'Bookmark not found'}, status=404)
+        notes = request.data.get('notes', '')
+        bookmark.notes = notes
+        bookmark.save(update_fields=['notes'])
+        return Response({'success': True, 'data': {'notes': bookmark.notes}})
+
+
 class CollectionListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 

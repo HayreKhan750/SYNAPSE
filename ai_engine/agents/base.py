@@ -103,6 +103,8 @@ class SynapseAgent:
         max_iterations: int = MAX_ITERATIONS,
         max_execution_time: int = MAX_EXECUTION_TIME,
         verbose: bool = True,
+        openrouter_api_key: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
     ) -> None:
         self.tools = tools
         self.model_name = model_name
@@ -111,6 +113,9 @@ class SynapseAgent:
         self.max_iterations = max_iterations
         self.max_execution_time = max_execution_time
         self.verbose = verbose
+        # Per-user API key overrides (take priority over env vars)
+        self._openrouter_api_key = openrouter_api_key
+        self._gemini_api_key = gemini_api_key
 
         self._llm = self._build_llm()
         self._graph = None  # LangGraph compiled graph — built lazily
@@ -120,10 +125,17 @@ class SynapseAgent:
     # ------------------------------------------------------------------
 
     def _build_llm(self):
-        """Instantiate the LLM used by the agent via OpenRouter (OpenAI-compatible)."""
-        openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
+        """Instantiate the LLM used by the agent.
+        Priority: per-user key override → env var fallback.
+        Tries OpenRouter first, then Google Gemini.
+        """
         openrouter_base = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
         openrouter_model = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+
+        # Per-user key takes priority over env var
+        openrouter_key = self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        gemini_key = self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+
         if openrouter_key and _OPENAI_AVAILABLE and _ChatOpenAI is not None:
             return _ChatOpenAI(
                 model=openrouter_model,
@@ -137,7 +149,6 @@ class SynapseAgent:
                 },
             )
         # Fallback to Google Gemini if configured
-        gemini_key = os.environ.get("GEMINI_API_KEY", "")
         if gemini_key:
             try:
                 from langchain_google_genai import ChatGoogleGenerativeAI

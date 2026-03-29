@@ -18,7 +18,6 @@ import {
   Bot,
   Youtube,
   TrendingUp,
-  Bell,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -45,7 +44,6 @@ export function Sidebar({ isCollapsed, onToggle, mobileOpen, onMobileClose }: Si
     { href: '/agents',        label: 'AI Agents',     icon: Bot,             color: 'text-pink-400'   },
     { href: '/documents',     label: 'Documents',     icon: FileText,        color: 'text-orange-400' },
     { href: '/library',       label: 'Library',       icon: Library,         color: 'text-teal-400'   },
-    { href: '/notifications', label: 'Notifications', icon: Bell,            color: 'text-rose-400'   },
   ]
 
   const isActive = (href: string) => pathname === href

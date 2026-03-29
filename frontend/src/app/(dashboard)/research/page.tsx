@@ -20,7 +20,12 @@ const ARXIV_CATEGORIES = [
   'cs.AI', 'cs.LG', 'cs.CL', 'cs.CV', 'cs.CR',
   'cs.DB', 'cs.DS', 'cs.SE', 'math.ST',
 ];
-const SORT_OPTIONS = ['Date', 'Citations', 'Difficulty'];
+const SORT_OPTIONS = [
+  { label: 'Newest',     value: '-fetched_at'      },
+  { label: 'Date',       value: '-published_date'   },
+  { label: 'Citations',  value: '-citation_count'   },
+  { label: 'Difficulty', value: 'difficulty_level'  },
+];
 
 const CATEGORY_LABELS: Record<string, string> = {
   'cs.AI': '🤖 AI',          'cs.LG': '📈 Machine Learning',
@@ -61,23 +66,30 @@ function AISynthesisPanel({ papers }: { papers: any[] }) {
         `[${i+1}] "${p.title}" — ${p.authors?.slice(0,2).join(', ') || 'Unknown'} (${p.published_date?.slice(0,4) || ''})\nAbstract: ${(p.abstract || p.summary || '').slice(0, 300)}…`
       ).join('\n\n');
 
-      const response = await fetch('/api/v1/documents/generate-stream/', {
+      // Use the AI chat stream endpoint (bypasses Next.js proxy trailing-slash bug)
+      const backendBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
+      const response = await fetch(`${backendBase}/api/v1/ai/chat/stream/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          doc_type: 'markdown',
-          title: `Research Synthesis: ${q.slice(0, 60)}`,
-          prompt: `You are a senior research analyst. Based on the following ${papers.length} research papers, ${q}\n\nPapers:\n${paperContext}`,
-          model: 'openai/gpt-4o-mini',
+          question: `You are a senior research analyst. Analyse the following ${papers.length} research papers and answer: ${q}\n\nPapers:\n${paperContext}\n\nProvide a structured, insightful synthesis with key findings, comparisons, and actionable insights.`,
+          conversation_id: `synthesis-${Date.now()}`,
         }),
       });
 
-      const reader  = response.body!.getReader();
+      if (!response.ok || !response.body) {
+        setResult('⚠ Synthesis failed — server error. Please check your API key in Settings → AI Engine.');
+        setStreaming(false);
+        return;
+      }
+
+      const reader  = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer    = '';
+      let accumulated = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -87,33 +99,18 @@ function AISynthesisPanel({ papers }: { papers: any[] }) {
         buffer = lines.pop() ?? '';
 
         for (const line of lines) {
+          if (line.startsWith('event: done')) { setStreaming(false); return; }
           if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
           try {
-            const evt = JSON.parse(line.slice(6));
-            if (evt.step === 'generating' || evt.step === 'sections_ready') {
-              setResult(`✨ Generating synthesis…\n\n${evt.message}`);
-            }
-            if (evt.done && evt.document) {
-              // Fetch the markdown content from the generated file
-              try {
-                const dl = await api.get(
-                  evt.document.download_url
-                    .replace(/^https?:\/\/[^/]+/, '')
-                    .replace(/^\/api\/v1/, ''),
-                  { responseType: 'text' }
-                );
-                // Strip YAML front-matter for display
-                let md = dl.data as string;
-                if (md.startsWith('---')) {
-                  const end = md.indexOf('---', 3);
-                  if (end > 0) md = md.slice(end + 3).trim();
-                }
-                setResult(md);
-              } catch {
-                setResult(`Synthesis complete. ${evt.document.title}`);
-              }
-            }
-          } catch { /* ignore */ }
+            const parsed = JSON.parse(raw);
+            if (parsed.error) { setResult(`⚠ ${parsed.error}`); setStreaming(false); return; }
+            if (typeof parsed === 'string') { accumulated += parsed; setResult(accumulated); }
+          } catch {
+            accumulated += raw;
+            setResult(accumulated);
+          }
         }
       }
     } catch (err) {
@@ -132,64 +129,62 @@ function AISynthesisPanel({ papers }: { papers: any[] }) {
   return (
     <div className="rounded-2xl border border-indigo-100 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/30 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-5 bg-gradient-to-r from-indigo-600 to-violet-600">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
+      <div className="flex items-center justify-between p-4 sm:p-5 bg-gradient-to-r from-indigo-600 to-violet-600 flex-wrap gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Brain className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
-          <div>
-            <h2 className="text-base font-bold text-white">AI Research Synthesis</h2>
+          <div className="min-w-0">
+            <h2 className="text-sm sm:text-base font-bold text-white">AI Research Synthesis</h2>
             <p className="text-xs text-indigo-200">
               {papers.length > 0 ? `${Math.min(papers.length, 8)} papers in context` : 'Load papers to analyse'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {papers.length > 0 && (
-            <span className="px-2.5 py-1 rounded-full bg-white/20 text-white text-xs font-semibold">
-              {papers.length} papers
-            </span>
-          )}
-        </div>
+        {papers.length > 0 && (
+          <span className="px-2.5 py-1 rounded-full bg-white/20 text-white text-xs font-semibold shrink-0 whitespace-nowrap">
+            {papers.length} papers
+          </span>
+        )}
       </div>
 
       {/* Prompt suggestions */}
-      <div className="p-4 border-b border-indigo-100 dark:border-indigo-800/50">
+      <div className="p-3 sm:p-4 border-b border-indigo-100 dark:border-indigo-800/50">
         <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-2">Quick analyses:</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {SYNTHESIS_PROMPTS.map((p) => (
             <button
               key={p}
               onClick={() => { setQuery(p); handleSynthesize(p); }}
               disabled={streaming || papers.length === 0}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/60 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/60 transition disabled:opacity-40 disabled:cursor-not-allowed text-left leading-snug"
             >
-              {p.slice(0, 45)}…
+              {p.slice(0, 40)}…
             </button>
           ))}
         </div>
       </div>
 
       {/* Custom query input */}
-      <div className="p-4 flex gap-3">
-        <div className="relative flex-1">
+      <div className="p-3 sm:p-4 flex gap-2 sm:gap-3">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSynthesize()}
-            placeholder="Ask anything about these papers… (press Enter)"
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Ask anything about these papers…"
+            className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             disabled={streaming || papers.length === 0}
           />
         </div>
         <button
           onClick={() => handleSynthesize()}
           disabled={streaming || !query.trim() || papers.length === 0}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition disabled:opacity-50"
+          className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition disabled:opacity-50 shrink-0 whitespace-nowrap"
         >
           {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {streaming ? 'Synthesising…' : 'Analyse'}
+          <span className="hidden xs:inline">{streaming ? 'Synthesising…' : 'Analyse'}</span>
         </button>
       </div>
 
@@ -272,7 +267,7 @@ function StatsBar({ papers }: { papers: any[] }) {
 export default function ResearchPage() {
   const [selectedDifficulty,    setSelectedDifficulty]    = useState('All');
   const [selectedCategory,      setSelectedCategory]      = useState('');
-  const [sortBy,                setSortBy]                = useState('Date');
+  const [sortBy, setSortBy] = useState('-fetched_at');
   const [showCategoryDropdown,  setShowCategoryDropdown]  = useState(false);
   const [showSortDropdown,      setShowSortDropdown]      = useState(false);
   const [page,                  setPage]                  = useState(1);
@@ -282,11 +277,7 @@ export default function ResearchPage() {
   const difficultyParam = selectedDifficulty === 'All' ? undefined : selectedDifficulty.toLowerCase();
 
   const getSortOrdering = () => {
-    switch (sortBy) {
-      case 'Citations':  return '-citation_count';
-      case 'Difficulty': return 'difficulty_level';
-      default:           return '-published_date';
-    }
+    return sortBy;
   };
 
   const { data, isLoading } = useQuery({
@@ -323,37 +314,37 @@ export default function ResearchPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <div className="max-w-7xl mx-auto space-y-6 pb-12">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 pb-12">
 
         {/* ── Hero Header ─────────────────────────────────────────── */}
-        <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-2xl p-5 sm:p-8 text-white relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-4 right-12 w-32 h-32 rounded-full bg-white" />
             <div className="absolute bottom-0 left-24 w-48 h-48 rounded-full bg-white" />
           </div>
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-2">
-              <BookOpen className="w-5 h-5 text-indigo-200" />
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-200" />
               <span className="text-xs font-bold text-indigo-200 uppercase tracking-widest">SYNAPSE AI</span>
             </div>
-            <h1 className="text-4xl font-extrabold mb-2">Research Explorer</h1>
-            <p className="text-indigo-200 text-lg max-w-xl">
+            <h1 className="text-2xl sm:text-4xl font-extrabold mb-2 leading-tight">Research Explorer</h1>
+            <p className="text-indigo-200 text-sm sm:text-lg max-w-xl leading-relaxed">
               Discover, analyse, and synthesise cutting-edge research papers with AI-powered insights.
             </p>
           </div>
         </div>
 
         {/* ── Search Bar ──────────────────────────────────────────── */}
-        <div className="flex gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <div className="flex gap-2 sm:gap-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="Search papers by title, author, or keyword…"
-              className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              className="w-full pl-9 sm:pl-12 pr-4 py-2.5 sm:py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
             />
             {searchQuery && (
               <button
@@ -366,9 +357,10 @@ export default function ResearchPage() {
           </div>
           <button
             onClick={handleSearch}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm shrink-0"
           >
-            <Search className="w-4 h-4" /> Search
+            <Search className="w-4 h-4" />
+            <span className="hidden xs:inline">Search</span>
           </button>
         </div>
 
@@ -406,16 +398,16 @@ export default function ResearchPage() {
           </div>
 
           {/* Category + Sort */}
-          <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-start sm:items-end">
             {/* Category */}
-            <div className="relative flex-1 min-w-[180px]">
+            <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
               <p className="text-xs text-gray-500 mb-2 font-medium">Category</p>
               <button
                 onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                className="w-full px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-between bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-300 transition"
+                className="w-full px-3 sm:px-4 py-2 rounded-xl text-sm font-medium flex items-center justify-between bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-300 transition"
               >
-                <span>{selectedCategory ? CATEGORY_LABELS[selectedCategory] || selectedCategory : 'All Categories'}</span>
-                <ChevronDown className={cn('w-4 h-4 transition-transform', showCategoryDropdown && 'rotate-180')} />
+                <span className="truncate mr-2">{selectedCategory ? CATEGORY_LABELS[selectedCategory] || selectedCategory : 'All Categories'}</span>
+                <ChevronDown className={cn('w-4 h-4 transition-transform shrink-0', showCategoryDropdown && 'rotate-180')} />
               </button>
               {showCategoryDropdown && (
                 <div className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-20 max-h-56 overflow-y-auto">
@@ -441,25 +433,25 @@ export default function ResearchPage() {
             </div>
 
             {/* Sort */}
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <p className="text-xs text-gray-500 mb-2 font-medium">Sort by</p>
               <button
                 onClick={() => setShowSortDropdown(!showSortDropdown)}
-                className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-300 transition"
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 rounded-xl text-sm font-medium flex items-center justify-between gap-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-300 transition"
               >
-                {sortBy}
-                <ChevronDown className={cn('w-4 h-4 transition-transform', showSortDropdown && 'rotate-180')} />
+                {SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? "Sort"}
+                <ChevronDown className={cn('w-4 h-4 transition-transform shrink-0', showSortDropdown && 'rotate-180')} />
               </button>
               {showSortDropdown && (
                 <div className="absolute top-full mt-1 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-20 min-w-[140px]">
                   {SORT_OPTIONS.map((opt) => (
                     <button
-                      key={opt}
-                      onClick={() => { setSortBy(opt); setShowSortDropdown(false); setPage(1); }}
+                      key={opt.value}
+                      onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); setPage(1); }}
                       className={cn('w-full text-left px-4 py-2.5 text-sm transition first:rounded-t-xl last:rounded-b-xl',
-                        sortBy === opt ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50')}
+                        sortBy === opt.value ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50')}
                     >
-                      {opt}
+                      {opt.label}
                     </button>
                   ))}
                 </div>
@@ -467,7 +459,7 @@ export default function ResearchPage() {
             </div>
 
             {/* Clear filters */}
-            {(searchQuery || selectedDifficulty !== 'All' || selectedCategory || sortBy !== 'Date') && (
+            {(searchQuery || selectedDifficulty !== 'All' || selectedCategory || sortBy !== '-fetched_at') && (
               <button
                 onClick={clearFilters}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 transition border border-gray-200 dark:border-gray-600"

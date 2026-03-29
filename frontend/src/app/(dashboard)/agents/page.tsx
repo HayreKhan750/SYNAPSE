@@ -50,17 +50,19 @@ import {
 import toast from 'react-hot-toast'
 import api from '@/utils/api'
 import type { AgentTask, AgentTaskType, AgentTool, AgentIntermediateStep } from '@/types'
+import { useApiKeyStatus } from '@/hooks/useApiKeyStatus'
+import Link from 'next/link'
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
-const TASK_TYPES: { value: AgentTaskType; label: string; icon: React.ElementType; description: string }[] = [
+const TASK_TYPES: { value: AgentTaskType; label: string; icon: React.ElementType; description: string; locked?: boolean; lockReason?: string }[] = [
   { value: 'general',  label: 'General',  icon: Sparkles,   description: 'Open-ended reasoning and Q&A' },
   { value: 'research', label: 'Research', icon: Search,     description: 'Deep research using knowledge base' },
   { value: 'trends',   label: 'Trends',   icon: TrendingUp, description: 'Analyze technology trends' },
   { value: 'github',   label: 'GitHub',   icon: GitBranch,  description: 'Search GitHub repositories' },
   { value: 'arxiv',    label: 'arXiv',    icon: BookOpen,   description: 'Fetch and analyze research papers' },
-  { value: 'document', label: 'Document', icon: FileText,   description: 'Generate PDF / PPT / Word docs' },
-  { value: 'project',  label: 'Project',  icon: Terminal,   description: 'Scaffold a new code project' },
+  { value: 'document', label: 'Document', icon: FileText,   description: 'Generate PDF / PPT / Word docs', locked: true, lockReason: 'Coming soon — document generation agent' },
+  { value: 'project',  label: 'Project',  icon: Terminal,   description: 'Scaffold a new code project',   locked: true, lockReason: 'Coming soon — project scaffolding agent' },
 ]
 
 const COMMAND_TEMPLATES = [
@@ -68,8 +70,9 @@ const COMMAND_TEMPLATES = [
   { label: 'Analyze React repos',    prompt: 'Search GitHub for trending React repositories and provide an analysis.', type: 'github' as AgentTaskType },
   { label: 'Fetch ML papers',        prompt: 'Fetch the latest machine learning papers from arXiv and summarize them.', type: 'arxiv' as AgentTaskType },
   { label: 'Tech trend report',      prompt: 'Analyze current technology trends in AI and cloud computing.', type: 'trends' as AgentTaskType },
-  { label: 'Generate PDF report',    prompt: 'Generate a PDF report on the current state of generative AI.', type: 'document' as AgentTaskType },
-  { label: 'Scaffold Django API',    prompt: 'Create a Django REST API project with JWT auth, Docker, and CI/CD.', type: 'project' as AgentTaskType },
+  // Locked templates — kept for future use
+  // { label: 'Generate PDF report', prompt: 'Generate a PDF report on the current state of generative AI.', type: 'document' as AgentTaskType },
+  // { label: 'Scaffold Django API',  prompt: 'Create a Django REST API project with JWT auth, Docker, and CI/CD.', type: 'project' as AgentTaskType },
 ]
 
 const STATUS_CONFIG = {
@@ -546,6 +549,7 @@ function TaskCard({
 // ─── main page ───────────────────────────────────────────────────────────────
 
 export default function AgentsPage() {
+  const { status: apiKeyStatus } = useApiKeyStatus()
   const [prompt, setPrompt]           = useState('')
   const [taskType, setTaskType]       = useState<AgentTaskType>('general')
   const [submitting, setSubmitting]   = useState(false)
@@ -739,99 +743,169 @@ export default function AgentsPage() {
           </div>
         </div>
 
-        {/* ── Command Interface ── */}
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-6">
-          <h2 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-            <Terminal size={15} className="text-indigo-400" />
-            Command Interface
-          </h2>
-
-          {/* Task type picker */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {TASK_TYPES.map(tt => {
-              const Icon = tt.icon
-              const active = taskType === tt.value
-              return (
-                <button
-                  key={tt.value}
-                  onClick={() => setTaskType(tt.value)}
-                  title={tt.description}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                    active
-                      ? 'bg-indigo-600 border-indigo-500 text-white'
-                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-indigo-500/50 hover:text-slate-200'
-                  }`}
-                >
-                  <Icon size={13} />
-                  {tt.label}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Prompt input */}
-          <form onSubmit={handleSubmit}>
-            <div className="relative">
-              <textarea
-                ref={textareaRef}
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e as unknown as React.FormEvent) } }}
-                placeholder={`Describe what you want the ${TASK_TYPES.find(t => t.value === taskType)?.label ?? ''} agent to do…`}
-                rows={3}
-                className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 pr-14 text-sm text-white placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              />
-              <button
-                type="submit"
-                disabled={submitting || !prompt.trim()}
-                className="absolute right-3 bottom-3 p-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              </button>
-            </div>
-            <p className="mt-2 text-xs text-slate-500">Press Enter to run · Shift+Enter for new line · 10–4000 characters</p>
-          </form>
-
-          {/* Quick command templates */}
-          <div className="mt-4">
-            <p className="text-xs text-slate-500 mb-2">Quick commands:</p>
-            <div className="flex flex-wrap gap-2">
-              {COMMAND_TEMPLATES.map(tpl => (
-                <button
-                  key={tpl.label}
-                  onClick={() => { setPrompt(tpl.prompt); setTaskType(tpl.type) }}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-indigo-500/50 transition-all"
-                >
-                  {tpl.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Registered Tools Strip ── */}
-        {tools.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5">
-              <Zap size={12} className="text-indigo-400" />
-              {tools.length} registered tools
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {tools.map(tool => (
-                <span
-                  key={tool.name}
-                  title={tool.description}
-                  className="text-xs px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400 font-mono cursor-default"
-                >
-                  {tool.name}
-                </span>
-              ))}
-            </div>
+        {/* ── No API key warning banner ── */}
+        {apiKeyStatus && !apiKeyStatus.any_configured && (
+          <div className="flex items-center gap-3 px-4 py-3 mb-6 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-sm">
+            <AlertCircle size={16} className="flex-shrink-0 text-amber-400" />
+            <span>
+              No AI API key configured — agents are using the shared server key.{' '}
+              <Link href="/settings" className="underline hover:text-amber-200 font-medium">
+                Add your own key in Settings → AI Engine
+              </Link>{' '}
+              to use your own quota.
+            </span>
           </div>
         )}
 
+        {/* ── Command Interface — Premium Diamond ── */}
+        <div className="relative rounded-2xl mb-6 overflow-hidden" style={{
+          background: 'linear-gradient(135deg, #0c0e17 0%, #0e1020 50%, #0c0e17 100%)',
+          border: '1px solid rgba(99,102,241,0.18)',
+          boxShadow: '0 0 0 1px rgba(99,102,241,0.06), 0 8px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
+        }}>
+          {/* Subtle gradient shimmer top */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+
+          <div className="p-5 sm:p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+                  <Terminal size={14} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white tracking-tight">Command Interface</h2>
+                  <p className="text-[10px] text-slate-500">Autonomous AI agent execution</p>
+                </div>
+              </div>
+              {/* Tools count chip */}
+              {tools.length > 0 && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold">
+                  <Zap size={10} />
+                  {tools.length} tools ready
+                </div>
+              )}
+            </div>
+
+            {/* Task type picker — segmented control style */}
+            <div className="mb-4">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Agent Mode</p>
+              <div className="flex flex-wrap gap-1.5">
+                {TASK_TYPES.map(tt => {
+                  if (tt.locked) return (
+                    <div
+                      key={tt.value}
+                      title={tt.lockReason}
+                      className="relative group/lock flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700/30 bg-slate-800/20 opacity-40 cursor-not-allowed select-none"
+                    >
+                      <tt.icon size={12} className="text-slate-600 shrink-0" />
+                      <span className="text-xs font-semibold text-slate-600">{tt.label}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-600 shrink-0"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                  )
+                  const Icon = tt.icon
+                  const active = taskType === tt.value
+                  return (
+                    <button
+                      key={tt.value}
+                      onClick={() => setTaskType(tt.value)}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border',
+                        active
+                          ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-300 shadow-sm shadow-indigo-500/20'
+                          : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:border-indigo-500/30 hover:text-slate-200 hover:bg-slate-800'
+                      )}
+                    >
+                      <Icon size={12} className={active ? 'text-indigo-400' : 'text-slate-500'} />
+                      {tt.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Prompt input — premium terminal style */}
+            <form onSubmit={handleSubmit}>
+              <div className="relative rounded-xl overflow-hidden" style={{
+                background: 'rgba(8,9,14,0.8)',
+                border: '1px solid rgba(99,102,241,0.15)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+              }}>
+                {/* Terminal bar */}
+                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5">
+                  <div className="w-2 h-2 rounded-full bg-red-500/60" />
+                  <div className="w-2 h-2 rounded-full bg-amber-500/60" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-500/60" />
+                  <span className="ml-2 text-[10px] text-slate-600 font-mono">
+                    synapse-agent ~ {TASK_TYPES.find(t => t.value === taskType)?.label?.toLowerCase() ?? 'general'}
+                  </span>
+                </div>
+                <div className="flex items-start px-3 py-3">
+                  <span className="text-indigo-500 font-mono text-sm mr-2 mt-[2px] shrink-0">▶</span>
+                  <textarea
+                    ref={textareaRef}
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e as unknown as React.FormEvent) } }}
+                    placeholder={`${TASK_TYPES.find(t => t.value === taskType)?.description ?? 'Describe your task'}…`}
+                    rows={3}
+                    className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 resize-none focus:outline-none font-mono leading-relaxed min-h-[72px]"
+                  />
+                </div>
+                {/* Bottom toolbar */}
+                <div className="flex items-center justify-between px-3 py-2 border-t border-white/5">
+                  <p className="text-[10px] text-slate-600 font-mono">Enter ↵ to run · Shift+Enter for newline</p>
+                  <button
+                    type="submit"
+                    disabled={submitting || !prompt.trim()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-white text-xs font-semibold shadow-md shadow-indigo-500/20"
+                  >
+                    {submitting
+                      ? <><Loader2 size={12} className="animate-spin" /> Running…</>
+                      : <><Send size={12} /> Execute</>
+                    }
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Quick commands */}
+            <div className="mt-4">
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">Quick Commands</p>
+              <div className="flex flex-wrap gap-1.5">
+                {COMMAND_TEMPLATES.map(tpl => (
+                  <button
+                    key={tpl.label}
+                    onClick={() => { setPrompt(tpl.prompt); setTaskType(tpl.type) }}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-500 hover:text-indigo-300 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all font-medium"
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Available tools strip */}
+            {tools.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <div className="flex flex-wrap gap-1">
+                  {tools.map(tool => (
+                    <span
+                      key={tool.name}
+                      title={tool.description}
+                      className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700/50 text-slate-500 font-mono cursor-default hover:text-slate-300 transition-colors"
+                    >
+                      {tool.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* ── Tab bar ── */}
-        <div className="flex items-center gap-1 mb-5 bg-slate-900 border border-slate-700 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 mb-5 bg-slate-900/80 border border-slate-700/60 rounded-xl p-1 w-fit">
           {([
             { id: 'active',  label: 'Active',  count: activeTasks.length },
             { id: 'history', label: 'History', count: historyTasks.length },
@@ -839,17 +913,19 @@ export default function AgentsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
                 activeTab === tab.id
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
-              }`}
+              )}
             >
               {tab.label}
               {tab.count > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-300'
-                }`}>
+                <span className={cn(
+                  'text-xs px-1.5 py-0.5 rounded-full font-bold',
+                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-400'
+                )}>
                   {tab.count}
                 </span>
               )}
