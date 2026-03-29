@@ -17,9 +17,70 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+import os
+import re
+from pathlib import Path
+
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_file_meta(answer: str, task_type: str) -> dict:
+    """
+    Parse file path / metadata from the agent's text answer for
+    document and project tasks. Returns a dict with keys:
+      file_path, file_name, file_size_bytes, download_url, file_list (project only)
+    Falls back gracefully if nothing is found.
+    """
+    if task_type not in ("document", "project"):
+        return {}
+
+    meta: dict = {}
+
+    # Look for "Path: /absolute/path/to/file.ext" or "File: relative/path"
+    path_match = re.search(r"Path:\s*(.+?)(?:\n|$)", answer)
+    file_match = re.search(r"File:\s*(.+?)(?:\n|$)", answer)
+    raw_path = (path_match or file_match)
+    if raw_path:
+        p = Path(raw_path.group(1).strip())
+        meta["file_path"] = str(p)
+        meta["file_name"] = p.name
+
+        # Build a media-relative download URL
+        media_root = Path(os.environ.get("DJANGO_MEDIA_ROOT") or
+                          os.environ.get("MEDIA_ROOT") or "media")
+        try:
+            rel = p.relative_to(media_root)
+            meta["download_url"] = f"/media/{rel}"
+        except ValueError:
+            # Path not under media root — use as-is
+            meta["download_url"] = f"/media/{p.name}"
+
+        # File size
+        try:
+            if p.exists():
+                meta["file_size_bytes"] = p.stat().st_size
+        except Exception:
+            pass
+
+    # Size from text: "Size: 12,345 bytes"
+    if "file_size_bytes" not in meta:
+        size_match = re.search(r"Size:\s*([\d,]+)\s*bytes", answer)
+        if size_match:
+            try:
+                meta["file_size_bytes"] = int(size_match.group(1).replace(",", ""))
+            except ValueError:
+                pass
+
+    # For project tasks: extract file list from "Included files:\n  file1\n  file2"
+    if task_type == "project":
+        fl_match = re.search(r"Included files:\n((?:  .+\n?)+)", answer)
+        if fl_match:
+            lines = fl_match.group(1).strip().splitlines()
+            meta["file_list"] = [ln.strip() for ln in lines if ln.strip()]
+
+    return meta
 
 
 @shared_task(
@@ -117,10 +178,17 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
             AgentTask.TaskStatus.COMPLETED if result["success"]
             else AgentTask.TaskStatus.FAILED
         )
+
+        answer_text = result.get("answer", "")
+
+        # ── Parse file metadata for document/project tasks ────────────
+        file_meta = _extract_file_meta(answer_text, task_obj.task_type)
+
         task_obj.result = {
-            "answer": result.get("answer", ""),
+            "answer": answer_text,
             "intermediate_steps": result.get("intermediate_steps", []),
             "execution_time_s": result.get("execution_time_s", 0),
+            **file_meta,
         }
         task_obj.tokens_used = result.get("tokens_used", 0)
         task_obj.cost_usd = result.get("cost_usd", 0.0)

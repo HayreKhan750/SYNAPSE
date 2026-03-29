@@ -41,6 +41,7 @@ class AgentTaskSerializer(serializers.ModelSerializer):
     answer = serializers.SerializerMethodField()
     intermediate_steps = serializers.SerializerMethodField()
     execution_time_s = serializers.SerializerMethodField()
+    result = serializers.JSONField(read_only=True)
 
     class Meta:
         model = AgentTask
@@ -52,6 +53,7 @@ class AgentTaskSerializer(serializers.ModelSerializer):
             "answer",
             "intermediate_steps",
             "execution_time_s",
+            "result",
             "error_message",
             "tokens_used",
             "cost_usd",

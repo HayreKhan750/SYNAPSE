@@ -3,10 +3,15 @@
 /**
  * Phase 5.4 — Agent UI
  * /agents page: command interface, active tasks panel, task history, SSE progress
+ * Premium rewrite — full markdown rendering, rich Document/Project result cards
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 import {
   Bot,
   Send,
@@ -30,6 +35,17 @@ import {
   Download,
   RefreshCw,
   Terminal,
+  Copy,
+  Check,
+  FileCode,
+  FileJson,
+  Archive,
+  FolderOpen,
+  Presentation,
+  FileType,
+  Cpu,
+  Package,
+  ExternalLink,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/utils/api'
@@ -88,19 +104,131 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+function fileExtIcon(name: string): React.ElementType {
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  if (['pdf'].includes(ext)) return FileType
+  if (['pptx', 'ppt'].includes(ext)) return Presentation
+  if (['docx', 'doc'].includes(ext)) return FileText
+  if (['zip', 'tar', 'gz'].includes(ext)) return Archive
+  if (['json', 'yaml', 'yml', 'toml'].includes(ext)) return FileJson
+  if (['ts', 'tsx', 'js', 'jsx', 'py', 'go', 'rs', 'java', 'cs', 'cpp', 'c', 'rb', 'sh'].includes(ext)) return FileCode
+  return FileText
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const handle = async () => {
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch {}
+  }
+  return (
+    <button onClick={handle} title="Copy" className="p-1.5 rounded text-slate-500 hover:text-slate-200 transition-colors">
+      {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+    </button>
+  )
+}
+
 // ─── sub-components ──────────────────────────────────────────────────────────
 
+/** Full-featured markdown renderer — same pipeline as ChatMessage */
+function AgentMarkdown({ content }: { content: string }) {
+  const [copiedBlock, setCopiedBlock] = useState<number | null>(null)
+  return (
+    <div className="prose prose-sm prose-invert max-w-none">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={{
+          code({ className, children, ...props }: any) {
+            const language = (className ?? '').replace('language-', '').trim()
+            const raw = String(children).replace(/\n$/, '')
+            const isBlock = Boolean(className?.startsWith('language-'))
+            if (!isBlock) {
+              return (
+                <code className="bg-slate-900 text-indigo-300 rounded px-1.5 py-0.5 text-xs font-mono" {...props}>
+                  {children}
+                </code>
+              )
+            }
+            return (
+              <div className="my-3 rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
+                <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
+                  <span className="text-xs font-mono text-slate-400">{language || 'code'}</span>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(raw)
+                      setCopiedBlock(Date.now())
+                      setTimeout(() => setCopiedBlock(null), 1800)
+                    }}
+                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-200 transition-colors"
+                  >
+                    {copiedBlock ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    {copiedBlock ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <pre className="overflow-x-auto p-4 text-sm text-slate-200 font-mono leading-relaxed m-0">
+                  <code>{raw}</code>
+                </pre>
+              </div>
+            )
+          },
+          pre({ children }: any) { return <>{children}</> },
+          h1: ({ children }: any) => <h1 className="text-xl font-bold text-white mt-5 mb-2 pb-1 border-b border-slate-700">{children}</h1>,
+          h2: ({ children }: any) => <h2 className="text-lg font-semibold text-white mt-4 mb-2 flex items-center gap-2">{children}</h2>,
+          h3: ({ children }: any) => <h3 className="text-base font-semibold text-slate-100 mt-3 mb-1">{children}</h3>,
+          h4: ({ children }: any) => <h4 className="text-sm font-semibold text-slate-200 mt-2 mb-1">{children}</h4>,
+          p: ({ children }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-200">{children}</p>,
+          ul: ({ children }: any) => <ul className="list-disc pl-5 mb-3 space-y-1 text-slate-200">{children}</ul>,
+          ol: ({ children }: any) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-slate-200">{children}</ol>,
+          li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
+          strong: ({ children }: any) => <strong className="font-semibold text-white">{children}</strong>,
+          em: ({ children }: any) => <em className="italic text-slate-300">{children}</em>,
+          blockquote: ({ children }: any) => (
+            <blockquote className="border-l-4 border-indigo-500 bg-slate-900/50 pl-4 pr-2 py-2 my-3 rounded-r-lg text-slate-400 italic">
+              {children}
+            </blockquote>
+          ),
+          a: ({ href, children }: any) => (
+            <a href={href} target="_blank" rel="noopener noreferrer"
+              className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors inline-flex items-center gap-1">
+              {children}<ExternalLink size={11} className="opacity-60" />
+            </a>
+          ),
+          hr: () => <hr className="border-slate-700 my-4" />,
+          table: ({ children }: any) => (
+            <div className="my-4 rounded-lg border border-slate-700 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border-collapse">{children}</table>
+              </div>
+            </div>
+          ),
+          thead: ({ children }: any) => <thead className="bg-slate-800">{children}</thead>,
+          tbody: ({ children }: any) => <tbody className="divide-y divide-slate-700">{children}</tbody>,
+          tr: ({ children }: any) => <tr className="even:bg-slate-800/40 hover:bg-slate-700/40 transition-colors">{children}</tr>,
+          th: ({ children }: any) => <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">{children}</th>,
+          td: ({ children }: any) => <td className="px-4 py-2.5 text-slate-300">{children}</td>,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  )
+}
+
+/** Tool-call trace accordion */
 function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
   const [open, setOpen] = useState(false)
   if (!steps?.length) return null
   return (
-    <div className="mt-3">
+    <div className="mt-4">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors group"
       >
-        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        {steps.length} tool call{steps.length !== 1 ? 's' : ''}
+        <div className="p-0.5 rounded bg-slate-800 border border-slate-700 group-hover:border-indigo-500/50 transition-colors">
+          {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </div>
+        <Cpu size={11} className="text-indigo-400" />
+        <span>{steps.length} tool call{steps.length !== 1 ? 's' : ''}</span>
       </button>
       <AnimatePresence>
         {open && (
@@ -110,19 +238,28 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 space-y-2">
+            <div className="mt-3 space-y-2">
               {steps.map((step, i) => (
-                <div key={i} className="bg-slate-800 rounded-lg p-3 border border-slate-700 text-xs">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-indigo-400 font-semibold">{step.tool}</span>
+                <div key={i} className="bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 border-b border-slate-700">
+                    <div className="w-5 h-5 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[9px] font-bold text-indigo-400">{i + 1}</span>
+                    </div>
+                    <span className="font-mono text-xs text-indigo-300 font-semibold">{step.tool}</span>
                   </div>
-                  <div className="text-slate-400 mb-1">
-                    <span className="text-slate-500">Input: </span>
-                    {typeof step.input === 'string' ? step.input : JSON.stringify(step.input)}
-                  </div>
-                  <div className="text-slate-300">
-                    <span className="text-slate-500">Output: </span>
-                    {String(step.output).slice(0, 300)}{String(step.output).length > 300 ? '…' : ''}
+                  <div className="p-3 space-y-2 text-xs">
+                    <div>
+                      <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Input</span>
+                      <pre className="mt-1 text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-800 rounded-lg p-2 border border-slate-700">
+                        {typeof step.input === 'string' ? step.input : JSON.stringify(step.input, null, 2)}
+                      </pre>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Output</span>
+                      <pre className="mt-1 text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-800 rounded-lg p-2 border border-slate-700 max-h-40 overflow-y-auto">
+                        {String(step.output).slice(0, 600)}{String(step.output).length > 600 ? '\n…(truncated)' : ''}
+                      </pre>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -130,6 +267,103 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+/** Collapsible file list for project scaffolds */
+function FileListAccordion({ files }: { files: string[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
+      >
+        <FolderOpen size={11} />
+        {open ? 'Hide' : 'View'} {files.length} included files
+      </button>
+      {open && (
+        <div className="mt-2 bg-slate-900/70 rounded-lg p-2 border border-slate-700 max-h-36 overflow-y-auto">
+          {files.map((f, i) => {
+            const FI = fileExtIcon(f) as React.ComponentType<{ size?: number; className?: string }>
+            return (
+              <div key={i} className="flex items-center gap-1.5 py-0.5 text-xs text-slate-400 font-mono">
+                <FI size={11} className="text-slate-500 flex-shrink-0" />
+                {f}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Rich download card for Document & Project results */
+function DownloadResultCard({ task }: { task: AgentTask }) {
+  const result = task.result ?? {}
+  const downloadUrl = result.download_url as string | undefined
+  const fileName = result.file_name as string | undefined
+  const filePath = result.file_path as string | undefined
+  const fileSize = result.file_size_bytes as number | undefined
+  const isProject = task.task_type === 'project'
+  const isDoc = task.task_type === 'document'
+  if (!downloadUrl && !filePath) return null
+
+  const displayName = fileName ?? (filePath ? filePath.split('/').pop() : 'Generated file') ?? 'file'
+  const FileIcon = fileExtIcon(displayName) as React.ComponentType<{ size?: number }>
+  const ext = displayName.split('.').pop()?.toUpperCase() ?? 'FILE'
+  const sizeStr = fileSize
+    ? fileSize > 1024 * 1024 ? `${(fileSize / (1024 * 1024)).toFixed(1)} MB`
+    : fileSize > 1024 ? `${(fileSize / 1024).toFixed(1)} KB`
+    : `${fileSize} B`
+    : null
+
+  const accentClass = isProject
+    ? 'from-emerald-600/20 to-cyan-600/10 border-emerald-500/30'
+    : 'from-indigo-600/20 to-violet-600/10 border-indigo-500/30'
+  const iconClass = isProject ? 'text-emerald-400 bg-emerald-500/10' : 'text-indigo-400 bg-indigo-500/10'
+  const btnClass = isProject
+    ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+    : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+
+  return (
+    <div className={`mt-4 rounded-xl border bg-gradient-to-br ${accentClass} p-4`}>
+      <div className="flex items-start gap-4">
+        <div className={`p-3 rounded-xl ${iconClass} flex-shrink-0`}>
+          {isProject ? <Package size={22} /> : <FileIcon size={22} />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              {isProject ? 'Project Scaffold' : 'Generated Document'}
+            </span>
+            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-mono font-bold">{ext}</span>
+          </div>
+          <p className="text-sm font-semibold text-white truncate">{displayName}</p>
+          {sizeStr && (
+            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+              <Archive size={11} />
+              {sizeStr}
+            </p>
+          )}
+          {isProject && Array.isArray(result.file_list) && (result.file_list as string[]).length > 0 && (
+            <FileListAccordion files={result.file_list as string[]} />
+          )}
+        </div>
+        {downloadUrl && (
+          <a
+            href={downloadUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg ${btnClass}`}
+          >
+            <Download size={15} />
+            Download
+          </a>
+        )}
+      </div>
     </div>
   )
 }
@@ -149,41 +383,62 @@ function TaskCard({
   const TypeInfo = TASK_TYPES.find(t => t.value === task.task_type)
   const TypeIcon = TypeInfo?.icon ?? Bot
   const isActive = task.status === 'pending' || task.status === 'processing'
+  const answer = task.answer ?? (task.result?.answer as string | undefined)
+  const steps = task.intermediate_steps ?? (task.result?.intermediate_steps as AgentIntermediateStep[] | undefined) ?? []
+  const hasDownload = !!(task.result?.download_url || task.result?.file_path)
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className={`rounded-xl border ${cfg.border} ${cfg.bg} overflow-hidden`}
+      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      className={`rounded-2xl border ${cfg.border} bg-slate-900/80 backdrop-blur-sm overflow-hidden shadow-lg`}
     >
+      {/* Status accent bar */}
+      <div className={`h-0.5 w-full ${
+        task.status === 'processing' ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-500 animate-pulse' :
+        task.status === 'completed'  ? 'bg-gradient-to-r from-emerald-500 to-cyan-500' :
+        task.status === 'failed'     ? 'bg-gradient-to-r from-red-500 to-rose-500' :
+        'bg-gradient-to-r from-amber-500 to-orange-500'
+      }`} />
+
       {/* Header */}
       <div
-        className="flex items-start gap-3 p-4 cursor-pointer"
+        className="flex items-start gap-3 p-4 cursor-pointer select-none"
         onClick={() => setExpanded(e => !e)}
       >
-        <div className={`mt-0.5 p-1.5 rounded-lg bg-slate-800 ${cfg.color}`}>
-          <TypeIcon size={16} />
+        <div className={`mt-0.5 p-2 rounded-xl ${cfg.bg} ${cfg.color} border ${cfg.border} flex-shrink-0`}>
+          <TypeIcon size={15} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color} border ${cfg.border}`}>
-              <StatusIcon size={11} className={task.status === 'processing' ? 'animate-spin' : ''} />
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color} border ${cfg.border}`}>
+              <StatusIcon size={10} className={task.status === 'processing' ? 'animate-spin' : ''} />
               {cfg.label}
             </span>
-            <span className="text-xs text-slate-500">{timeAgo(task.created_at)}</span>
+            <span className="text-xs font-medium text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
+              {TypeInfo?.label ?? task.task_type}
+            </span>
+            <span className="text-xs text-slate-600">{timeAgo(task.created_at)}</span>
+            {hasDownload && task.status === 'completed' && (
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full">
+                <Download size={9} />
+                Ready
+              </span>
+            )}
           </div>
-          <p className="mt-1 text-sm text-slate-200 font-medium line-clamp-2">{task.prompt}</p>
+          <p className="text-sm text-slate-200 font-medium leading-snug line-clamp-2">{task.prompt}</p>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
           {isActive && (
             <button
               onClick={e => { e.stopPropagation(); onCancel(task.id) }}
               className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
               title="Cancel task"
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           )}
           {!isActive && (
@@ -192,27 +447,36 @@ function TaskCard({
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
               title="Refresh"
             >
-              <RefreshCw size={14} />
+              <RefreshCw size={13} />
             </button>
           )}
-          {expanded ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+          {answer && <CopyButton text={answer} />}
+          <div className={`p-1 rounded transition-colors ${expanded ? 'text-slate-300' : 'text-slate-600'}`}>
+            {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </div>
         </div>
       </div>
 
       {/* Metrics strip */}
-      <div className="flex items-center gap-4 px-4 pb-2 text-xs text-slate-500">
-        <span className="flex items-center gap-1">
-          <Zap size={11} />
-          {task.tokens_used.toLocaleString()} tokens
+      <div className="flex items-center gap-4 px-4 pb-3 text-xs text-slate-600 border-b border-slate-800">
+        <span className="flex items-center gap-1 text-slate-500">
+          <Zap size={10} className="text-amber-500" />
+          {(task.tokens_used || 0).toLocaleString()} tokens
         </span>
-        <span className="flex items-center gap-1">
-          <DollarSign size={11} />
+        <span className="flex items-center gap-1 text-slate-500">
+          <DollarSign size={10} className="text-emerald-500" />
           {formatCost(task.cost_usd)}
         </span>
         {task.execution_time_s != null && (
-          <span className="flex items-center gap-1">
-            <Timer size={11} />
+          <span className="flex items-center gap-1 text-slate-500">
+            <Timer size={10} className="text-blue-400" />
             {formatDuration(task.execution_time_s)}
+          </span>
+        )}
+        {steps.length > 0 && (
+          <span className="flex items-center gap-1 text-slate-500">
+            <Cpu size={10} className="text-indigo-400" />
+            {steps.length} tool{steps.length !== 1 ? 's' : ''} used
           </span>
         )}
       </div>
@@ -224,39 +488,53 @@ function TaskCard({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 border-t border-slate-700/50 pt-3">
+            <div className="px-4 pb-5 pt-4 space-y-4">
+
+              {/* Processing state */}
               {task.status === 'processing' && (
-                <div className="flex items-center gap-2 text-blue-400 text-sm mb-3">
-                  <Loader2 size={14} className="animate-spin" />
-                  Agent is working…
+                <div className="flex items-center gap-3 text-blue-400 text-sm bg-blue-400/5 border border-blue-400/20 rounded-xl px-4 py-3">
+                  <Loader2 size={15} className="animate-spin flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Agent is working…</p>
+                    <p className="text-xs text-blue-400/70 mt-0.5">Streaming results in real-time via SSE</p>
+                  </div>
                 </div>
               )}
+
+              {/* Pending state */}
+              {task.status === 'pending' && (
+                <div className="flex items-center gap-3 text-amber-400 text-sm bg-amber-400/5 border border-amber-400/20 rounded-xl px-4 py-3">
+                  <Clock size={15} className="flex-shrink-0 animate-pulse" />
+                  <p className="font-medium">Queued — waiting for agent worker</p>
+                </div>
+              )}
+
+              {/* Error state */}
               {task.status === 'failed' && task.error_message && (
-                <div className="flex items-start gap-2 text-red-400 text-sm mb-3">
-                  <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
-                  <span>{task.error_message}</span>
+                <div className="flex items-start gap-3 text-red-400 text-sm bg-red-400/5 border border-red-400/20 rounded-xl px-4 py-3">
+                  <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium mb-0.5">Task failed</p>
+                    <p className="text-xs text-red-400/80">{task.error_message}</p>
+                  </div>
                 </div>
               )}
-              {task.answer && (
-                <div className="text-sm text-slate-200 bg-slate-800/60 rounded-lg p-3 whitespace-pre-wrap leading-relaxed">
-                  {task.answer}
+
+              {/* Answer — rendered as beautiful markdown */}
+              {answer && (
+                <div className="bg-slate-800/50 rounded-xl border border-slate-700/60 px-5 py-4">
+                  <AgentMarkdown content={answer} />
                 </div>
               )}
-              {/* Download link for generated files */}
-              {task.result?.download_url && (
-                <a
-                  href={task.result.download_url as string}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
-                >
-                  <Download size={14} />
-                  Download {task.result.file_name as string || 'file'}
-                </a>
-              )}
-              <StepTrace steps={task.intermediate_steps ?? task.result?.intermediate_steps as AgentIntermediateStep[] ?? []} />
+
+              {/* Premium download card for document/project tasks */}
+              {hasDownload && <DownloadResultCard task={task} />}
+
+              {/* Tool trace accordion */}
+              {steps.length > 0 && <StepTrace steps={steps} />}
             </div>
           </motion.div>
         )}

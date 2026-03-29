@@ -267,6 +267,7 @@ def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
 
             serializer = AgentTaskSerializer(task_obj)
             data = serializer.data
+            result_data = data.get("result") or {}
             payload = json.dumps({
                 "status":             data.get("status"),
                 "answer":             data.get("answer") or "",
@@ -276,6 +277,13 @@ def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
                 "intermediate_steps": data.get("intermediate_steps") or [],
                 "error_message":      data.get("error_message") or "",
                 "completed_at":       data.get("completed_at"),
+                "result": {
+                    "download_url":    result_data.get("download_url"),
+                    "file_name":       result_data.get("file_name"),
+                    "file_path":       result_data.get("file_path"),
+                    "file_size_bytes": result_data.get("file_size_bytes"),
+                    "file_list":       result_data.get("file_list"),
+                },
             })
             yield f"data: {payload}\n\n"
 
