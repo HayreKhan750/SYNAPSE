@@ -16,7 +16,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 # Compute project root directory
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app/apps/core -> /app/apps -> /app
 
 def _ensure_dedup_ttl() -> None:
     """Ensure all dedup Redis sets have a 24-hour TTL so they don't block scraping forever.

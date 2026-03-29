@@ -457,6 +457,14 @@ def fetch_article_excerpt(self, article_id: str) -> dict:
             meta = article.metadata or {}
             meta["excerpt"] = excerpt
             article.metadata = meta
+            # Sanitise metadata to avoid Unicode escape sequences that
+            # PostgreSQL rejects when the server_encoding is not UTF8.
+            try:
+                import json as _json
+                raw = _json.dumps(article.metadata, ensure_ascii=True)
+                article.metadata = _json.loads(raw)
+            except Exception:
+                article.metadata = {}
             article.save(update_fields=["metadata", "updated_at"])
             logger.info(
                 "[%s] fetch_article_excerpt: saved %d chars for article %s",
