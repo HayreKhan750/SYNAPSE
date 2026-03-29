@@ -758,7 +758,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
           {/* Schedule config */}
           {form.trigger_type === 'schedule' && (
             <div className="space-y-2 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700">
-              <label className="block text-sm font-medium text-slate-300">Cron Schedule</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Cron Schedule</label>
               <select value={cronPreset} onChange={e => handleCronPreset(e.target.value)}
                 className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-indigo-500">
                 {CRON_PRESETS.map(p => <option key={p.label} value={p.value}>{p.label}</option>)}
@@ -774,7 +774,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
           {/* Event trigger config */}
           {form.trigger_type === 'event' && (
             <div className="space-y-3 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700">
-              <label className="block text-sm font-medium text-slate-300">Event Configuration</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Event Configuration</label>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Event Type *</label>
                 <select value={form.event_config.event_type}
@@ -803,7 +803,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
           {/* Actions */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-slate-300">Actions *</label>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Actions *</label>
               <button type="button" onClick={addAction} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">+ Add Action</button>
             </div>
             <div className="space-y-2">
@@ -1224,7 +1224,7 @@ export default function AutomationPage() {
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(ACTION_LABELS).map(([type, label]) => (
                 <div key={type} className="bg-white dark:bg-slate-900 rounded-lg p-2.5">
-                  <p className="text-sm text-slate-300">{label}</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">{label}</p>
                   <p className="text-xs text-slate-500 mt-0.5 font-mono">{type}</p>
                 </div>
               ))}
@@ -1237,7 +1237,7 @@ export default function AutomationPage() {
             <div className="space-y-2">
               {EVENT_TYPE_OPTIONS.map(o => (
                 <div key={o.value} className="bg-white dark:bg-slate-900 rounded-lg p-2.5 flex items-center gap-2">
-                  <span className="text-sm text-slate-300">{o.label}</span>
+                  <span className="text-sm text-slate-700 dark:text-slate-300">{o.label}</span>
                   <span className="ml-auto text-xs text-slate-500 font-mono">{o.value}</span>
                 </div>
               ))}

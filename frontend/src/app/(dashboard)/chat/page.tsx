@@ -785,7 +785,7 @@ export default function ChatPage() {
               <span className="max-w-[110px] sm:max-w-[140px] truncate font-medium">
                 {GEMINI_MODELS.find((m) => m.id === selectedModel)?.label ?? 'Select model'}
               </span>
-              <ChevronDown size={11} className={cn('transition-transform shrink-0 text-slate-500 group-hover:text-slate-300', modelDropdownOpen && 'rotate-180')} />
+              <ChevronDown size={11} className={cn('transition-transform shrink-0 text-slate-500 dark:group-hover:text-slate-300', modelDropdownOpen && 'rotate-180')} />
             </button>
 
             <AnimatePresence>
@@ -991,7 +991,7 @@ export default function ChatPage() {
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors rounded-xl" />
                           </>
                         ) : (
-                          <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 rounded-xl px-3 py-3 text-xs text-slate-300">
+                          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-xs text-slate-300">
                             <Paperclip size={13} className="text-indigo-400 flex-shrink-0" />
                             <span className="truncate">{af.file.name}</span>
                           </div>
@@ -1047,7 +1047,7 @@ export default function ChatPage() {
                     : 'Ask about articles, papers, repos… (Enter to send)'}
                   disabled={isGenerating}
                   rows={1}
-                  className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm resize-none focus:outline-none min-h-[24px] max-h-[160px] py-1.5 disabled:opacity-50"
+                  className="flex-1 bg-transparent text-slate-800 dark:text-slate-100 placeholder-slate-500 text-sm resize-none focus:outline-none min-h-[24px] max-h-[160px] py-1.5 disabled:opacity-50"
                 />
 
                 <button
