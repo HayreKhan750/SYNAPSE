@@ -316,11 +316,13 @@ export default function AgentsPage() {
   // ── SSE subscription for a single task ────────────────────────────────────
   const subscribeSSE = useCallback((taskId: string) => {
     if (sseRefs.current.has(taskId)) return   // already subscribed
-    const token = localStorage.getItem('access_token') ||
+    const token =
+      localStorage.getItem('synapse_access_token') ||
+      localStorage.getItem('access_token') ||
       (() => {
         try {
           const s = JSON.parse(localStorage.getItem('synapse-auth') || '{}')
-          return s?.state?.accessToken ?? ''
+          return s?.state?.accessToken ?? s?.state?.access ?? ''
         } catch { return '' }
       })()
 

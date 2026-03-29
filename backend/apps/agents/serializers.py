@@ -74,6 +74,10 @@ class AgentTaskSerializer(serializers.ModelSerializer):
 class AgentTaskListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views (no intermediate steps)."""
 
+    answer = serializers.SerializerMethodField()
+    execution_time_s = serializers.SerializerMethodField()
+    result = serializers.JSONField(read_only=True)
+
     class Meta:
         model = AgentTask
         fields = [
@@ -81,12 +85,22 @@ class AgentTaskListSerializer(serializers.ModelSerializer):
             "task_type",
             "prompt",
             "status",
+            "answer",
+            "execution_time_s",
+            "result",
+            "error_message",
             "tokens_used",
             "cost_usd",
             "created_at",
             "completed_at",
         ]
         read_only_fields = fields
+
+    def get_answer(self, obj: AgentTask) -> str:
+        return obj.result.get("answer", "") if obj.result else ""
+
+    def get_execution_time_s(self, obj: AgentTask) -> float:
+        return obj.result.get("execution_time_s", 0.0) if obj.result else 0.0
 
 
 class AgentToolDescriptionSerializer(serializers.Serializer):

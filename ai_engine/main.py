@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
     try:
         from ai_engine.agents import get_executor
         executor = get_executor()
-        logger.info("agent_executor_ready", tools=len(executor.get_tools()))
+        logger.info("agent_executor_ready", tools=len(executor.list_tools()))
     except Exception as exc:
         logger.warning("agent_executor_warmup_failed", error=str(exc))
 
@@ -164,7 +164,9 @@ async def health_rag() -> Dict[str, Any]:
 async def list_tools() -> Dict[str, Any]:
     try:
         from ai_engine.agents import get_executor
-        return {"tools": get_executor().get_tools()}
+        executor = get_executor()
+        tools = executor.list_tools()
+        return {"tools": tools, "count": len(tools)}
     except Exception as exc:
         logger.exception("list_tools_failed")
         raise HTTPException(status_code=500, detail=str(exc))
