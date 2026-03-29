@@ -71,13 +71,20 @@ class YouTubeSpider(scrapy.Spider):
 
     def fetch_with_ytdlp(self, response, query):
         """Run yt-dlp to get video metadata for this query."""
+        import shutil
+        # Find yt-dlp in PATH or common install locations
+        ytdlp_bin = (
+            shutil.which('yt-dlp') or
+            '/home/appuser/.local/bin/yt-dlp' or
+            '/usr/local/bin/yt-dlp'
+        )
         n = self.per_query
         search_url = f'ytsearch{n}:{query}'
 
         try:
             result = subprocess.run(
                 [
-                    'yt-dlp',
+                    ytdlp_bin,
                     '--dump-json',
                     '--no-playlist',
                     '--skip-download',
@@ -92,7 +99,7 @@ class YouTubeSpider(scrapy.Spider):
             )
 
             if result.returncode != 0 and not result.stdout.strip():
-                logger.warning(f'yt-dlp failed for query "{query}": {result.stderr[:200]}')
+                logger.warning(f'yt-dlp ({ytdlp_bin}) failed for query "{query}": {result.stderr[:200]}')
                 return
 
             for line in result.stdout.strip().split('\n'):
@@ -152,7 +159,7 @@ class YouTubeSpider(scrapy.Spider):
         except subprocess.TimeoutExpired:
             logger.warning(f'yt-dlp timed out for query: {query}')
         except Exception as e:
-            logger.error(f'yt-dlp error for query "{query}": {e}')
+            logger.error(f'yt-dlp ({ytdlp_bin}) error for query "{query}": {e}')
 
     def parse(self, response):
         """Not used — yt-dlp handles all fetching."""
