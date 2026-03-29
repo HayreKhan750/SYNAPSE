@@ -7,6 +7,34 @@ from .models import AutomationWorkflow, WorkflowRun
 # ── Action parameter schemas (used for UI documentation / validation) ──────────
 
 ACTION_PARAM_SCHEMAS = {
+    'scrape_videos': {
+        'queries': {
+            'type': 'textarea',
+            'label': 'Search Queries (one per line)',
+            'default': 'machine learning tutorial\nAI agents explained\nLLM fine-tuning\nPython data science',
+            'help': 'Each line is a separate YouTube search query. Leave blank to use defaults.',
+        },
+        'max_results': {
+            'type': 'number',
+            'label': 'Max Videos to Fetch',
+            'default': 20,
+            'min': 5,
+            'max': 100,
+        },
+        'days_back': {
+            'type': 'number',
+            'label': 'Days Back (recency filter)',
+            'default': 30,
+            'min': 1,
+            'max': 365,
+        },
+        'categories': {
+            'type': 'multiselect',
+            'label': 'Topic Categories',
+            'default': ['AI / ML', 'Programming'],
+            'options': ['AI / ML', 'Programming', 'DevOps', 'Data Science', 'Web Dev', 'Security', 'Cloud', 'Open Source'],
+        },
+    },
     'collect_news': {
         'sources': {
             'type': 'multiselect',

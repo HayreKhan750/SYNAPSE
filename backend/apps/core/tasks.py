@@ -259,7 +259,7 @@ def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, ma
 
 
 @shared_task(bind=True, max_retries=3)
-def scrape_youtube(self, days_back: int = 30, max_results: int = 20) -> Dict:
+def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: list = None) -> Dict:
     _ensure_dedup_ttl()
     """
     Scrape YouTube videos using the YouTube spider.
@@ -284,6 +284,10 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20) -> Dict:
             '-a', f'days_back={days_back}',
             '-a', f'max_results={max_results}',
         ]
+        # Pass custom queries if provided
+        if queries:
+            import json
+            cmd += ['-a', f'queries={json.dumps(queries)}']
         
         result = subprocess.run(
             cmd,

@@ -347,6 +347,58 @@ class BookmarkToggleView(APIView):
         return Response({'success': True, 'data': {'bookmarked': True, 'bookmark': serializer.data}}, status=201)
 
 
+class ScraperRunView(APIView):
+    """
+    POST /scraper/run/
+    Trigger a named scraper with optional custom parameters.
+    Body: { "scraper": "youtube"|"github"|"hackernews"|"arxiv", "params": {...} }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.core.tasks import (
+            scrape_youtube, scrape_github, scrape_hackernews, scrape_arxiv,
+        )
+
+        scraper_id = request.data.get('scraper', '').lower()
+        params     = request.data.get('params', {}) or {}
+
+        SCRAPERS = {
+            'youtube': lambda p: scrape_youtube.delay(
+                queries=[q.strip() for q in p.get('queries', '').splitlines() if q.strip()] or None,
+                days_back=int(p.get('days_back', 30)),
+                max_results=int(p.get('max_results', 20)),
+            ),
+            'github': lambda p: scrape_github.delay(
+                days_back=1,
+                language=p.get('language') if p.get('language') != 'All' else None,
+                limit=int(p.get('max_repos', 25)),
+            ),
+            'hackernews': lambda p: scrape_hackernews.delay(
+                story_type=p.get('story_type', 'top'),
+                limit=int(p.get('max_stories', 30)),
+            ),
+            'arxiv': lambda p: scrape_arxiv.delay(
+                categories=[c.strip() for c in p.get('categories', '').splitlines() if c.strip()] or None,
+                days_back=int(p.get('days_back', 7)),
+                max_papers=int(p.get('max_papers', 20)),
+            ),
+        }
+
+        if scraper_id not in SCRAPERS:
+            return Response({'error': f'Unknown scraper: {scraper_id}. Valid: {list(SCRAPERS.keys())}'}, status=400)
+
+        try:
+            task = SCRAPERS[scraper_id](params)
+            return Response({
+                'success': True,
+                'task_id': task.id,
+                'message': f'{scraper_id.title()} scraper queued (task {task.id[:8]}…)',
+            })
+        except Exception as exc:
+            return Response({'error': str(exc)}, status=500)
+
+
 class BookmarkNotesView(APIView):
     """PATCH /bookmarks/<id>/notes/ — update the notes on a bookmark."""
     permission_classes = [IsAuthenticated]

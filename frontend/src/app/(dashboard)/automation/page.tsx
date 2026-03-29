@@ -12,7 +12,7 @@ import { AnalyticsModal } from './AnalyticsModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type ActionType = 'collect_news' | 'summarize_content' | 'generate_pdf' | 'send_email' | 'upload_to_drive' | 'ai_digest';
+type ActionType = 'scrape_videos' | 'collect_news' | 'summarize_content' | 'generate_pdf' | 'send_email' | 'upload_to_drive' | 'ai_digest';
 type TriggerType = 'schedule' | 'event' | 'manual';
 type EventType = 'new_article' | 'trending_spike' | 'new_paper' | 'new_repo';
 
@@ -130,6 +130,7 @@ const toggleWorkflow = async (id: string) => {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ACTION_LABELS: Record<string, string> = {
+  scrape_videos:     '🎬 Scrape Videos',
   collect_news:      '📰 Collect News',
   summarize_content: '🤖 Summarize Content',
   generate_pdf:      '📄 Generate PDF',

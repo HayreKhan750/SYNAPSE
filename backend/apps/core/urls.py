@@ -5,6 +5,7 @@ urlpatterns = [
     path('health/', views.health_check, name='health-check'),
     path('search/', views.global_search, name='global-search'),
     path('search/semantic/', views.semantic_search, name='semantic-search'),
+    path('scraper/run/', views.ScraperRunView.as_view(), name='scraper-run'),
     path('bookmarks/', views.BookmarkListView.as_view(), name='bookmark-list'),
     path('bookmarks/<uuid:pk>/notes/', views.BookmarkNotesView.as_view(), name='bookmark-notes'),
     path('bookmarks/<str:content_type_name>/<str:object_id>/', views.BookmarkToggleView.as_view(), name='bookmark-toggle'),

@@ -57,7 +57,11 @@ class YouTubeSpider(scrapy.Spider):
 
     def start_requests(self):
         """Use yt-dlp to fetch videos — yield a dummy request per query."""
-        for query in self.DEFAULT_QUERIES:
+        # Use custom queries if provided, else fall back to defaults
+        active_queries = self.queries if self.queries else self.DEFAULT_QUERIES
+        # Recalculate per_query based on actual query count
+        self.per_query = max(1, self.max_results // len(active_queries))
+        for query in active_queries:
             yield scrapy.Request(
                 url=f'https://www.youtube.com/results?search_query={query.replace(" ", "+")}',
                 callback=self.fetch_with_ytdlp,

@@ -20,6 +20,45 @@ logger = logging.getLogger(__name__)
 
 # ── Action handlers ────────────────────────────────────────────────────────────
 
+def _action_scrape_videos(params: dict, workflow=None) -> dict:
+    """
+    Scrape YouTube videos based on user-configured queries and settings.
+    Passes custom queries directly to the YouTube spider.
+    """
+    try:
+        from apps.core.tasks import scrape_youtube
+
+        # Parse queries: may be a newline-separated string or a list
+        raw_queries = params.get('queries', '')
+        if isinstance(raw_queries, str):
+            queries = [q.strip() for q in raw_queries.strip().splitlines() if q.strip()]
+        elif isinstance(raw_queries, list):
+            queries = [q.strip() for q in raw_queries if q.strip()]
+        else:
+            queries = []
+
+        max_results = int(params.get('max_results', 20))
+        days_back   = int(params.get('days_back', 30))
+
+        task = scrape_youtube.delay(
+            days_back=days_back,
+            max_results=max_results,
+            queries=queries if queries else None,
+        )
+
+        return {
+            'action': 'scrape_videos',
+            'status': 'queued',
+            'task_id': task.id,
+            'queries': queries or 'default',
+            'max_results': max_results,
+            'days_back': days_back,
+        }
+    except Exception as exc:
+        logger.exception("scrape_videos action failed: %s", exc)
+        return {'action': 'scrape_videos', 'status': 'error', 'error': str(exc)}
+
+
 def _action_collect_news(params: dict) -> dict:
     """Trigger scraping tasks for specified sources."""
     from apps.core.tasks import (
@@ -335,6 +374,8 @@ def _dispatch_action(workflow, action: dict) -> dict:
 
     if action_type == 'send_email':
         return _action_send_email(workflow, params)
+    if action_type == 'scrape_videos':
+        return _action_scrape_videos(params)
     if action_type == 'collect_news':
         return _action_collect_news(params)
     if action_type == 'summarize_content':
