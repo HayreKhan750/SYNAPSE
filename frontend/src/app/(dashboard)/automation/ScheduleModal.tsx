@@ -78,7 +78,7 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="text-white font-medium text-sm truncate">{entry.workflow_name}</p>
+                    <p className="text-slate-800 dark:text-white font-medium text-sm truncate">{entry.workflow_name}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full border ${entry.enabled
                       ? 'bg-green-500/20 text-green-400 border-green-500/30'
                       : 'bg-slate-600/20 text-slate-400 border-slate-600/30'}`}>

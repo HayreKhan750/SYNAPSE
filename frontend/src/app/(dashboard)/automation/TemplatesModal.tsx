@@ -109,7 +109,7 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
                   <div className="flex items-start gap-3">
                     <span className="text-3xl">{t.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold text-sm leading-tight">{t.name}</h3>
+                      <h3 className="text-slate-800 dark:text-white font-semibold text-sm leading-tight">{t.name}</h3>
                       <p className="text-xs text-slate-400 mt-1 line-clamp-2">{t.description}</p>
                     </div>
                   </div>

@@ -795,7 +795,7 @@ export default function AgentsPage() {
                     <div
                       key={tt.value}
                       title={tt.lockReason}
-                      className="relative group/lock flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700/30 bg-slate-800/20 opacity-40 cursor-not-allowed select-none"
+                      className="relative group/lock flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/30 bg-slate-800/20 opacity-40 cursor-not-allowed select-none"
                     >
                       <tt.icon size={12} className="text-slate-600 shrink-0" />
                       <span className="text-xs font-semibold text-slate-600">{tt.label}</span>

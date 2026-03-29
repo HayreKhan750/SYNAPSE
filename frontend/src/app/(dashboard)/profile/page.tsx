@@ -51,7 +51,7 @@ interface ProfileData {
 
 function StatCard({ icon, label, value, colour }: { icon: React.ReactNode; label: string; value: number; colour: string }) {
   return (
-    <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
+    <div className="bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center gap-3">
       <div className={`p-2 rounded-lg ${colour}`}>{icon}</div>
       <div>
         <p className="text-2xl font-bold text-slate-900 dark:text-white">{value.toLocaleString()}</p>
@@ -161,7 +161,7 @@ export default function ProfilePage() {
               <div className="flex items-start gap-3 sm:gap-5 flex-wrap">
                 {/* Avatar */}
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/20">
-                  <span className="text-white font-black text-xl sm:text-2xl">{initials}</span>
+                  <span className="text-slate-900 dark:text-white font-black text-xl sm:text-2xl">{initials}</span>
                 </div>
 
                 {/* Info */}

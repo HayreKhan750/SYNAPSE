@@ -90,7 +90,7 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
         </div>
         <span className="text-xl">{icon}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-medium text-sm leading-tight">
+          <p className="text-slate-800 dark:text-white font-medium text-sm leading-tight">
             {action.action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
           </p>
           {summary && <p className="text-xs text-slate-400 mt-0.5 truncate">{summary}</p>}
@@ -139,7 +139,7 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
           )}
           <details>
             <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-400">Raw JSON</summary>
-            <pre className="text-xs text-slate-500 bg-slate-950 rounded p-2 mt-1 overflow-x-auto max-h-48">
+            <pre className="text-xs text-slate-600 dark:text-slate-500 bg-slate-100 dark:bg-slate-950 rounded p-2 mt-1 overflow-x-auto max-h-48">
               {JSON.stringify(action, null, 2)}
             </pre>
           </details>

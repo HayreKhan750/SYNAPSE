@@ -178,7 +178,7 @@ function TrendCard({ trend, rank, maxScore }: { trend: TechnologyTrend; rank: nu
           {/* Header row */}
           <div className="flex items-start justify-between gap-2 flex-wrap mb-2">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <h3 className="font-bold text-white text-sm sm:text-base leading-tight truncate">
+              <h3 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base leading-tight truncate">
                 {trend.technology_name}
               </h3>
               {isHot && (
@@ -569,7 +569,7 @@ export default function TrendsPage() {
             <p className="text-sm">Loading trend data…</p>
           </div>
         ) : isError ? (
-          <div className="text-center py-20 bg-slate-900/50 rounded-2xl border border-slate-700">
+          <div className="text-center py-20 bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             <TrendingUp size={44} className="mx-auto mb-3 opacity-20 text-slate-500" />
             <p className="text-slate-400 text-sm mb-4">Could not load trends data.</p>
             <button
@@ -580,7 +580,7 @@ export default function TrendsPage() {
             </button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-slate-900/50 rounded-2xl border border-slate-700">
+          <div className="text-center py-20 bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             <TrendingUp size={44} className="mx-auto mb-3 opacity-20 text-slate-500" />
             {trends.length === 0 ? (
               <>

@@ -244,11 +244,11 @@ export default function SearchPage() {
         {debouncedQuery.length >= 2 && !showLoading && hasResults && (
           <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
             <p className="text-slate-400 text-xs sm:text-sm shrink-0">
-              <span className="text-white font-bold">{total}</span> results for{' '}
+              <span className="text-slate-900 dark:text-white font-bold">{total}</span> results for{' '}
               <span className="text-indigo-400 font-semibold">"{debouncedQuery}"</span>
             </p>
             {/* Tabs — scrollable */}
-            <div className="flex gap-1 bg-slate-800/80 rounded-xl p-1 overflow-x-auto scrollbar-hide shrink-0">
+            <div className="flex gap-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl p-1 overflow-x-auto scrollbar-hide shrink-0">
               {TABS.map(tab => {
                 const count = tabCounts[tab.id]
                 if (tab.id !== 'all' && count === 0) return null
@@ -302,7 +302,7 @@ export default function SearchPage() {
             <p className="text-slate-500 text-sm">Searching…</p>
           </div>
         ) : !hasResults ? (
-          <div className="text-center py-20 bg-slate-900/50 rounded-2xl border border-slate-700">
+          <div className="text-center py-20 bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             <Search size={40} className="mx-auto text-slate-600 mb-3" />
             <p className="text-slate-300 font-semibold mb-1">No results found</p>
             <p className="text-slate-500 text-sm">Try different keywords or broaden your search</p>

@@ -83,7 +83,7 @@ export function GoogleDriveSection() {
             ☁️
           </div>
           <div>
-            <p className="text-white font-medium text-sm">Google Drive</p>
+            <p className="text-slate-800 dark:text-white font-medium text-sm">Google Drive</p>
             {connected && status?.google_email ? (
               <p className="text-xs text-green-400 mt-0.5">✅ Connected as {status.google_email}</p>
             ) : (
@@ -119,7 +119,7 @@ export function GoogleDriveSection() {
       )}
 
       {!connected && (
-        <div className="mt-3 bg-slate-800/60 rounded-lg p-3">
+        <div className="mt-3 bg-slate-100 dark:bg-slate-800/60 rounded-lg p-3">
           <p className="text-xs text-slate-400 font-medium mb-1">Required environment variables:</p>
           <div className="space-y-0.5">
             {['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI'].map(v => (

@@ -277,7 +277,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
         <span className="text-slate-600">/</span>
         <div className="flex items-center gap-2 min-w-0">
           <FolderOpen size={18} className="text-indigo-400 shrink-0" />
-          <h2 className="text-base sm:text-lg font-bold text-white truncate">{collection.name}</h2>
+          <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white truncate">{collection.name}</h2>
           {collection.is_public
             ? <span className="flex items-center gap-1 text-xs text-cyan-400 bg-cyan-900/30 border border-cyan-700/30 px-2 py-0.5 rounded-full shrink-0"><Globe size={10} />Public</span>
             : <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full shrink-0"><Lock size={10} />Private</span>
@@ -371,7 +371,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
         className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 w-full max-w-md mx-4"
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">New Collection</h2>
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white">New Collection</h2>
           <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={20} /></button>
         </div>
         <div className="space-y-4">
@@ -522,7 +522,7 @@ export default function LibraryPage() {
       {/* Header */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">Knowledge Library</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white truncate">Knowledge Library</h1>
           <p className="text-slate-400 mt-1 text-xs sm:text-sm">Your saved articles, repos, and papers</p>
         </div>
         <button

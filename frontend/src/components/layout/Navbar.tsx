@@ -414,7 +414,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
               className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center">
-                <span className="text-white font-bold text-xs">
+                <span className="text-white dark:text-white font-bold text-xs">
                   {user?.first_name?.[0]}{user?.last_name?.[0]}
                 </span>
               </div>

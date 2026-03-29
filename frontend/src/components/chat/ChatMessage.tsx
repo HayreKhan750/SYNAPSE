@@ -362,7 +362,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       <tbody className="divide-y divide-slate-200 dark:divide-slate-700">{children}</tbody>
                     ),
                     tr: ({ children }: any) => (
-                      <tr className="even:bg-slate-800/50 hover:bg-slate-700/40 transition-colors">
+                      <tr className="even:bg-slate-100 dark:even:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700/40 transition-colors">
                         {children}
                       </tr>
                     ),

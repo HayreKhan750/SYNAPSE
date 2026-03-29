@@ -276,7 +276,7 @@ export default function NotificationsPage() {
 
         {/* ── Filter tabs ── */}
         {rawNotifications.length > 0 && (
-          <div className="flex gap-1 bg-slate-800/80 rounded-xl p-1 w-fit">
+          <div className="flex gap-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl p-1 w-fit">
             {(['all', 'unread', 'read'] as FilterType[]).map(f => (
               <button
                 key={f}
@@ -301,7 +301,7 @@ export default function NotificationsPage() {
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 animate-pulse h-[88px]" />
+              <div key={i} className="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 animate-pulse h-[88px]" />
             ))}
           </div>
         ) : rawNotifications.length === 0 ? (
@@ -309,13 +309,13 @@ export default function NotificationsPage() {
             <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4">
               <Bell size={32} className="text-slate-600" />
             </div>
-            <h3 className="text-white font-bold text-lg mb-1">No notifications yet</h3>
+            <h3 className="text-slate-800 dark:text-white font-bold text-lg mb-1">No notifications yet</h3>
             <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
               Notifications appear here when your workflows complete, AI tasks finish, or when there are important updates.
             </p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-700">
+          <div className="text-center py-16 bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             <X size={32} className="mx-auto text-slate-600 mb-3" />
             <p className="text-slate-400 text-sm">No {filter} notifications</p>
             <button onClick={() => setFilter('all')} className="text-indigo-400 text-xs mt-2 hover:underline">View all</button>
