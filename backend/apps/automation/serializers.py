@@ -42,8 +42,8 @@ ACTION_PARAM_SCHEMAS = {
             'options': ['hackernews', 'github', 'arxiv', 'youtube'],
             'default': ['hackernews', 'github', 'arxiv', 'youtube'],
         },
-        'limit': {'type': 'number', 'label': 'Items per source', 'default': 50, 'min': 1, 'max': 500},
-        'days_back': {'type': 'number', 'label': 'Days back', 'default': 1, 'min': 1, 'max': 30},
+        'items_per_source': {'type': 'number', 'label': 'Items per source (1–500)', 'default': 100, 'min': 1, 'max': 500},
+        'days_back': {'type': 'number', 'label': 'Days back (1–30)', 'default': 7, 'min': 1, 'max': 30},
         'story_type': {
             'type': 'select',
             'label': 'HN Story Type',
