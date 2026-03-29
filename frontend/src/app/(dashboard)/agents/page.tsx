@@ -528,7 +528,7 @@ function TaskCard({
 
               {/* Answer — rendered as beautiful markdown */}
               {answer && (
-                <div className="bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 px-5 py-4">
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 px-5 py-4">
                   <AgentMarkdown content={answer} />
                 </div>
               )}
@@ -916,7 +916,7 @@ export default function AgentsPage() {
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
                 activeTab === tab.id
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 dark:bg-indigo-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               )}
             >

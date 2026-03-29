@@ -55,7 +55,7 @@ function StatCard({ icon, label, value, colour }: { icon: React.ReactNode; label
       <div className={`p-2 rounded-lg ${colour}`}>{icon}</div>
       <div>
         <p className="text-2xl font-bold text-slate-900 dark:text-white">{value.toLocaleString()}</p>
-        <p className="text-xs text-slate-400">{label}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
       </div>
     </div>
   )
@@ -124,9 +124,9 @@ export default function ProfilePage() {
     : '?'
 
   const roleBadge: Record<string, string> = {
-    user: 'bg-slate-700 text-slate-300',
-    admin: 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40',
-    moderator: 'bg-amber-600/30 text-amber-300 border border-amber-500/40',
+    user: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+    admin: 'bg-indigo-100 dark:bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/40',
+    moderator: 'bg-amber-100 dark:bg-amber-600/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/40',
   }
 
   return (
@@ -135,12 +135,12 @@ export default function ProfilePage() {
 
         {/* Page header */}
         <div className="flex items-center gap-3 mb-6 sm:mb-8">
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 shrink-0">
-            <User size={20} className="text-indigo-400 sm:size-6" />
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-indigo-100 dark:bg-indigo-600/20 border border-indigo-200 dark:border-indigo-500/30 shrink-0">
+            <User size={20} className="text-indigo-600 dark:text-indigo-400 sm:size-6" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">My Profile</h1>
-            <p className="text-slate-400 text-xs sm:text-sm">Manage your account details and preferences</p>
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Manage your account details and preferences</p>
           </div>
         </div>
 
@@ -170,7 +170,7 @@ export default function ProfilePage() {
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-slate-400 mb-1">First Name</label>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">First Name</label>
                           <input
                             value={form.first_name}
                             onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
@@ -178,7 +178,7 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-400 mb-1">Last Name</label>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Last Name</label>
                           <input
                             value={form.last_name}
                             onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
@@ -187,7 +187,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-1">Bio</label>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Bio</label>
                         <textarea
                           value={form.bio}
                           onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
@@ -223,15 +223,15 @@ export default function ProfilePage() {
                           {profile.role}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-xs sm:text-sm mb-1 truncate">@{profile.username}</p>
-                      {profile.bio && <p className="text-slate-300 text-sm mb-3 leading-relaxed">{profile.bio}</p>}
+                      <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mb-1 truncate">@{profile.username}</p>
+                      {profile.bio && <p className="text-slate-700 dark:text-slate-300 text-sm mb-3 leading-relaxed">{profile.bio}</p>}
                       <div className="flex flex-wrap gap-2 sm:gap-4 text-xs text-slate-500 mb-4">
                         <span className="flex items-center gap-1.5 min-w-0">
-                          <Mail size={12} className="text-slate-600 shrink-0" />
+                          <Mail size={12} className="text-slate-500 dark:text-slate-600 shrink-0" />
                           <span className="truncate max-w-[180px] sm:max-w-none">{profile.email}</span>
                         </span>
                         <span className="flex items-center gap-1.5 whitespace-nowrap">
-                          <Calendar size={12} className="text-slate-600 shrink-0" />
+                          <Calendar size={12} className="text-slate-500 dark:text-slate-600 shrink-0" />
                           Joined {new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
                         </span>
                       </div>
@@ -250,15 +250,15 @@ export default function ProfilePage() {
             {/* Stats grid */}
             {profile.stats && (
               <div>
-                <h3 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
                   <TrendingUp size={14} className="text-indigo-600 dark:text-indigo-400" />
                   Activity Stats
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <StatCard icon={<Bookmark size={16} className="text-amber-600 dark:text-amber-400" />} label="Bookmarks" value={(profile.stats.articles_bookmarked || 0) + (profile.stats.papers_bookmarked || 0) + (profile.stats.repos_bookmarked || 0)} colour="bg-amber-500/10" />
-                  <StatCard icon={<MessageSquare size={16} className="text-sky-400" />} label="Chat Sessions" value={profile.stats.chat_sessions || 0} colour="bg-sky-500/10" />
-                  <StatCard icon={<FileText size={16} className="text-violet-600 dark:text-violet-400" />} label="Documents" value={profile.stats.documents_generated || 0} colour="bg-violet-500/10" />
-                  <StatCard icon={<BookOpen size={16} className="text-emerald-600 dark:text-emerald-400" />} label="Papers Bookmarked" value={profile.stats.papers_bookmarked || 0} colour="bg-emerald-500/10" />
+                  <StatCard icon={<Bookmark size={16} className="text-amber-600 dark:text-amber-400" />} label="Bookmarks" value={(profile.stats.articles_bookmarked || 0) + (profile.stats.papers_bookmarked || 0) + (profile.stats.repos_bookmarked || 0)} colour="bg-amber-100 dark:bg-amber-500/10" />
+                  <StatCard icon={<MessageSquare size={16} className="text-sky-600 dark:text-sky-400" />} label="Chat Sessions" value={profile.stats.chat_sessions || 0} colour="bg-sky-100 dark:bg-sky-500/10" />
+                  <StatCard icon={<FileText size={16} className="text-violet-600 dark:text-violet-400" />} label="Documents" value={profile.stats.documents_generated || 0} colour="bg-violet-100 dark:bg-violet-500/10" />
+                  <StatCard icon={<BookOpen size={16} className="text-emerald-600 dark:text-emerald-400" />} label="Papers Bookmarked" value={profile.stats.papers_bookmarked || 0} colour="bg-emerald-100 dark:bg-emerald-500/10" />
                   <StatCard icon={<Shield size={16} className="text-indigo-600 dark:text-indigo-400" />} label="Agent Tasks" value={profile.stats.agent_tasks || 0} colour="bg-indigo-500/10" />
                 </div>
               </div>
