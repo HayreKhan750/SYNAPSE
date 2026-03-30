@@ -106,7 +106,7 @@ function timeAgo(iso: string): string {
 
 // ── Notification Dropdown ─────────────────────────────────────────────────────
 
-function NotificationDropdown({ onClose }: { onClose: () => void }) {
+const NotificationDropdown = React.memo(function NotificationDropdown({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
   const router = useRouter()
 

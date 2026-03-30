@@ -19,6 +19,10 @@ class UserBookmark(models.Model):
         db_table = 'user_bookmarks'
         unique_together = [('user', 'content_type', 'object_id')]
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'content_type'], name='ub_user_ct_idx'),
+            models.Index(fields=['user', 'created_at'], name='ub_user_created_idx'),
+        ]
 
     def __str__(self):
         return f"{self.user.email} bookmarked {self.content_type} {self.object_id}"
@@ -54,6 +58,8 @@ class UserActivity(models.Model):
         ordering = ['-timestamp']
         indexes = [
             models.Index(fields=['user', 'timestamp'], name='ua_user_time_idx'),
+            models.Index(fields=['interaction_type'], name='ua_interaction_type_idx'),
+            models.Index(fields=['user', 'interaction_type'], name='ua_user_interaction_idx'),
         ]
 
     def __str__(self):
