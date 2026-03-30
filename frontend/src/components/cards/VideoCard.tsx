@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { memo } from 'react'
 import { Play, Eye, ThumbsUp, Clock, Youtube } from 'lucide-react'
 import { formatRelativeTime } from '@/utils/helpers'
 import { cn } from '@/utils/helpers'
@@ -49,7 +49,7 @@ function parseTopics(topics: string[] | string): string[] {
   return []
 }
 
-export function VideoCard({ video }: { video: Video }) {
+export const VideoCard = memo(function VideoCard({ video }: { video: Video }) {
   const topics = parseTopics(video.topics)
   const duration = formatDuration(video.duration_seconds)
   const views = formatViews(video.view_count)
@@ -57,18 +57,23 @@ export function VideoCard({ video }: { video: Video }) {
   const ago = formatRelativeTime(video.fetched_at || null)
 
   return (
-    <div className={cn(
-      'group relative bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/60',
-      'overflow-hidden transition-all duration-200',
-      'hover:shadow-xl hover:shadow-red-500/10 hover:border-red-300/60 dark:hover:border-red-500/40',
-      'hover:-translate-y-0.5'
-    )}>
+    <div
+      style={{ contain: 'layout style' }}
+      className={cn(
+        'group relative bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/60',
+        'overflow-hidden transition-all duration-200',
+        'hover:shadow-xl hover:shadow-red-500/10 hover:border-red-300/60 dark:hover:border-red-500/40',
+        'hover:-translate-y-0.5'
+      )}
+    >
       {/* Thumbnail */}
       <a href={video.url} target="_blank" rel="noopener noreferrer" className="block relative overflow-hidden">
         {video.thumbnail_url ? (
           <img
             src={video.thumbnail_url}
             alt={video.title}
+            loading="lazy"
+            decoding="async"
             className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
@@ -83,14 +88,13 @@ export function VideoCard({ video }: { video: Video }) {
         {/* Play overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
           <div className="bg-red-600/95 rounded-full p-3 sm:p-4 shadow-2xl shadow-red-500/40 scale-90 group-hover:scale-100 transition-transform">
-            <Play size={20} className="text-white dark:text-white fill-white ml-0.5" />
+            <Play size={20} className="text-white fill-white ml-0.5" />
           </div>
         </div>
       </a>
 
       {/* Content */}
       <div className="p-3 sm:p-4">
-        {/* Title */}
         <a
           href={video.url}
           target="_blank"
@@ -100,19 +104,16 @@ export function VideoCard({ video }: { video: Video }) {
           {video.title}
         </a>
 
-        {/* Channel */}
         <p className="text-xs text-red-600 dark:text-red-400 font-semibold mb-2 truncate">
           {video.channel_name}
         </p>
 
-        {/* Summary */}
         {video.summary && (
           <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2.5 leading-relaxed">
             {video.summary}
           </p>
         )}
 
-        {/* Topics */}
         {topics.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2.5">
             {topics.slice(0, 3).map((t) => (
@@ -126,7 +127,6 @@ export function VideoCard({ video }: { video: Video }) {
           </div>
         )}
 
-        {/* Stats row */}
         <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
           <span className="flex items-center gap-1 whitespace-nowrap">
             <Eye size={11} />
@@ -146,7 +146,7 @@ export function VideoCard({ video }: { video: Video }) {
       </div>
     </div>
   )
-}
+})
 
 export function VideoSkeleton() {
   return (

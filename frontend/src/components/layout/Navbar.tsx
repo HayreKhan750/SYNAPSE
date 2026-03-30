@@ -245,11 +245,11 @@ function NotificationDropdown({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   )
-}
+})
 
 // ── Main Navbar ───────────────────────────────────────────────────────────────
 
-export function Navbar({ onMobileMenuClick }: NavbarProps) {
+export const Navbar = React.memo(function Navbar({ onMobileMenuClick }: NavbarProps) {
   // Real-time WebSocket notifications — connects once per session
   useNotificationSocket()
 
@@ -456,4 +456,4 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
       </div>
     </nav>
   )
-}
+})

@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { FileText, ExternalLink, MessageSquare } from 'lucide-react';
 import { ResearchPaper } from '@/types';
 import { formatRelativeTime, cn } from '@/utils/helpers';
@@ -22,32 +21,30 @@ interface PaperCardProps {
   onBookmark?: (id: string) => void;
 }
 
-export const PaperCard = ({ paper }: PaperCardProps) => {
+export const PaperCard = memo(function PaperCard({ paper }: PaperCardProps) {
   const router = useRouter();
 
-  const handleAskAI = (e: React.MouseEvent) => {
+  const handleAskAI = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const q = encodeURIComponent(`Explain this research paper: "${paper.title}"`);
     router.push(`/chat?q=${q}`);
-  };
+  }, [paper.title, router]);
 
-  const handlePdfClick = (e: React.MouseEvent) => {
+  const handlePdfClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (paper.pdf_url) window.open(paper.pdf_url, '_blank');
-  };
+  }, [paper.pdf_url]);
 
-  const handleArxivClick = (e: React.MouseEvent) => {
+  const handleArxivClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     window.open(paper.url, '_blank');
-  };
+  }, [paper.url]);
 
   const categories = paper.categories || paper.arxiv_categories || [];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+    <div
+      style={{ contain: 'layout style' }}
       className={cn(
         'group relative bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/60',
         'p-4 sm:p-5 transition-all duration-200 overflow-hidden',
@@ -141,6 +138,6 @@ export const PaperCard = ({ paper }: PaperCardProps) => {
           <BookmarkButton contentType="researchpaper" objectId={paper.id} size={15} />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
-};
+});

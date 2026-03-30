@@ -1,25 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    // Allow production builds to succeed even with non-critical type errors
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
   // Skip Next.js trailing-slash redirect so /api/v1/* proxy rewrites run first.
-  // Django REST Framework requires trailing slashes on its URLs.
   skipTrailingSlashRedirect: true,
-  // Proxy /api/v1/* → Django backend (fixes SSE stream + avoids CORS in dev)
+  // Proxy /api/v1/* → Django backend
   async rewrites() {
-    // Always proxy to localhost:8000 (the Django backend)
     const backendUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
       .replace(/\/api\/v1\/?$/, '')
       .replace(/\/$/, '');
     return [
-      // Proxy /api/v1/* to Django backend.
-      // Next.js strips trailing slashes before rewrites; we add it back in the
-      // destination so Django's APPEND_SLASH never triggers a 301/500 redirect.
       {
         source: '/api/v1/:path*',
         destination: `${backendUrl}/api/v1/:path*/`,
@@ -28,42 +22,85 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'avatars.githubusercontent.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'github.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'img.youtube.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'i.ytimg.com',
-      },
+      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+      { protocol: 'https', hostname: 'github.com' },
+      { protocol: 'https', hostname: 'img.youtube.com' },
+      { protocol: 'https', hostname: 'i.ytimg.com' },
     ],
+    // Serve modern formats (avif > webp > original)
+    formats: ['image/avif', 'image/webp'],
   },
   experimental: {
-    optimizePackageImports: ['lucide-react', 'framer-motion', 'recharts', '@radix-ui/react-dialog'],
+    // Tree-shake heavy packages — only import what's used
+    optimizePackageImports: [
+      'lucide-react',
+      'framer-motion',
+      'recharts',
+      '@radix-ui/react-dialog',
+      '@tanstack/react-query',
+    ],
+    // Partial pre-rendering: static shell + streaming dynamic data
+    ppr: false,
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
-  // Enable compression
+  // Enable Brotli/gzip compression
   compress: true,
-  // Production source maps off for smaller bundles
+  // No source maps in production — smaller bundle, faster parse
   productionBrowserSourceMaps: false,
-  // Strict mode for catching issues early
   reactStrictMode: true,
-  // Bundle analyzer can be enabled via ANALYZE=true
-  ...(process.env.ANALYZE === 'true' ? {
-    experimental: {
-      bundlePagesRouterDependencies: true,
+  // Explicit SWC minification (default true in Next 13+ but explicit is faster CI)
+  swcMinify: true,
+  // Persistent build cache between deploys
+  output: 'standalone',
+  // Compiler optimisations — strip console.* in production
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production'
+      ? { exclude: ['error', 'warn'] }
+      : false,
+  },
+  // Webpack: split heavy vendor chunks so tab switches load only what's needed
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      config.optimization.splitChunks = {
+        ...config.optimization.splitChunks,
+        cacheGroups: {
+          ...(config.optimization.splitChunks?.cacheGroups ?? {}),
+          // Isolate recharts — only loaded on pages that use charts
+          recharts: {
+            test: /[\\/]node_modules[\\/]recharts[\\/]/,
+            name: 'recharts',
+            chunks: 'all',
+            priority: 30,
+          },
+          // Isolate framer-motion — heavy animation library
+          framerMotion: {
+            test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+            name: 'framer-motion',
+            chunks: 'all',
+            priority: 29,
+          },
+          // Isolate markdown + katex — only needed in chat/agents
+          markdown: {
+            test: /[\\/]node_modules[\\/](react-markdown|remark|rehype|micromark|katex)[\\/]/,
+            name: 'markdown',
+            chunks: 'all',
+            priority: 28,
+          },
+          // Common vendor chunk
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+            priority: 10,
+            reuseExistingChunk: true,
+          },
+        },
+      };
     }
-  } : {}),
+    return config;
+  },
 }
 
 export default nextConfig

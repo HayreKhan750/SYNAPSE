@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { memo, useCallback } from 'react';
 import { Star, GitFork, AlertCircle, TrendingUp } from 'lucide-react';
 import { Repository } from '@/types';
 import { formatNumber, formatRelativeTime, cn } from '@/utils/helpers';
@@ -30,15 +29,13 @@ const getLanguageColor = (language?: string) => {
   return languageColors[language.toLowerCase()] || 'bg-emerald-500';
 };
 
-export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
-  const handleCardClick = () => window.open(repo.url, '_blank');
+export const RepositoryCard = memo(function RepositoryCard({ repo }: RepositoryCardProps) {
+  const handleCardClick = useCallback(() => window.open(repo.url, '_blank'), [repo.url]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+    <div
       onClick={handleCardClick}
+      style={{ contain: 'layout style' }}
       className={cn(
         'group relative bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/60',
         'p-4 sm:p-5 cursor-pointer transition-all duration-200 overflow-hidden',
@@ -131,6 +128,6 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
         </div>
         <BookmarkButton contentType="repository" objectId={repo.id} size={15} />
       </div>
-    </motion.div>
+    </div>
   );
-};
+});

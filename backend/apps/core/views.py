@@ -60,7 +60,7 @@ def global_search(request):
             Q(summary__icontains=query) |
             Q(author__icontains=query) |
             Q(topic__icontains=query)
-        ).order_by('-trending_score', '-published_at')[:limit]
+        ).select_related('source').order_by('-trending_score', '-published_at')[:limit]
         results['articles'] = ArticleListSerializer(articles, many=True).data
 
     if 'repos' in content_types:
@@ -297,8 +297,10 @@ class BookmarkListView(APIView):
         bookmarks = UserBookmark.objects.filter(user=request.user).select_related('content_type')
         if content_type_filter:
             bookmarks = bookmarks.filter(content_type__model=content_type_filter)
-        serializer = BookmarkSerializer(bookmarks, many=True)
-        return Response({'success': True, 'data': serializer.data, 'meta': {'total': bookmarks.count()}})
+        # Evaluate queryset once — avoids second COUNT(*) query
+        bookmark_list = list(bookmarks)
+        serializer = BookmarkSerializer(bookmark_list, many=True)
+        return Response({'success': True, 'data': serializer.data, 'meta': {'total': len(bookmark_list)}})
 
 
 class BookmarkToggleView(APIView):
@@ -486,6 +488,12 @@ def recommendations(request):
     except Exception:
         offset = 0
 
+    from django.core.cache import cache  # noqa: PLC0415
+    cache_key = f'recs_user_{request.user.id}_l{limit}_o{offset}'
+    cached = cache.get(cache_key)
+    if cached:
+        return Response(cached)
+
     recs = recommend_for_user(request.user, limit=limit, offset=offset)
     data = {
         'articles': ArticleListSerializer(recs['articles'], many=True).data,
@@ -493,7 +501,9 @@ def recommendations(request):
         'repos': RepositorySerializer(recs['repos'], many=True).data,
     }
     total = sum(len(v) for v in data.values())
-    return Response({'success': True, 'data': data, 'meta': {'total': total, 'limit': limit, 'offset': offset}})
+    response_data = {'success': True, 'data': data, 'meta': {'total': total, 'limit': limit, 'offset': offset}}
+    cache.set(cache_key, response_data, timeout=300)  # Cache recommendations for 5 min
+    return Response(response_data)
 
 
 @api_view(['GET'])
@@ -518,6 +528,12 @@ def trending(request):
     except Exception:
         hours = 48
 
+    from django.core.cache import cache  # noqa: PLC0415
+    cache_key = f'trending_l{limit}_h{hours}'
+    cached = cache.get(cache_key)
+    if cached:
+        return Response(cached)
+
     res = get_trending(limit_per_type=limit, hours=hours)
 
     art_objs = [o for (o, s) in res['articles']]
@@ -539,7 +555,7 @@ def trending(request):
         if i < len(reps):
             reps[i]['trend_score'] = round(float(score), 3)
 
-    return Response({
+    trending_response = {
         'success': True,
         'data': {
             'articles': arts,
@@ -552,7 +568,9 @@ def trending(request):
             'since': res['since'].isoformat(),
             'total': len(arts) + len(paps) + len(reps),
         }
-    })
+    }
+    cache.set(cache_key, trending_response, timeout=600)  # Cache trending for 10 min
+    return Response(trending_response)
 
 
 class CollectionBookmarkView(APIView):

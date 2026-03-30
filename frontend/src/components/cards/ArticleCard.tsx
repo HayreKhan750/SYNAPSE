@@ -1,22 +1,22 @@
 'use client';
 
-import React from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { MessageSquare, Clock, Sparkles } from 'lucide-react';
 import { Article } from '@/types';
 import { formatRelativeTime, cn } from '@/utils/helpers';
 import { BookmarkButton } from '@/components/BookmarkButton';
 
-function SummaryText({ text }: { text: string }) {
+const SummaryText = memo(function SummaryText({ text }: { text: string }) {
   const [expanded, setExpanded] = React.useState(false);
   if (!text) return null;
+  const isLong = text.split(' ').length > 40;
   return (
     <div>
       <p className={cn('text-sm text-slate-600 dark:text-slate-400 leading-relaxed', !expanded && 'line-clamp-3')}>
         {text}
       </p>
-      {text.split(' ').length > 40 && (
+      {isLong && (
         <button
           type="button"
           className="mt-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
@@ -27,7 +27,7 @@ function SummaryText({ text }: { text: string }) {
       )}
     </div>
   );
-}
+});
 
 interface ArticleCardProps {
   article: Article;
@@ -37,10 +37,10 @@ interface ArticleCardProps {
 const getSourceColor = (sourceType: string) => {
   const colors: Record<string, string> = {
     hackernews: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/40',
-    reddit: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/40',
-    github: 'bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600/40',
-    blog: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40',
-    news: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40',
+    reddit:     'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/40',
+    github:     'bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600/40',
+    blog:       'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40',
+    news:       'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40',
   };
   return colors[sourceType] || 'bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600/40';
 };
@@ -54,26 +54,26 @@ const getTagColor = (index: number) => {
   return colors[index % colors.length];
 };
 
-export const ArticleCard = ({ article }: ArticleCardProps) => {
+export const ArticleCard = memo(function ArticleCard({ article }: ArticleCardProps) {
   const router = useRouter();
 
-  const handleCardClick = () => window.open(article.url, '_blank');
+  const handleCardClick = useCallback(() => window.open(article.url, '_blank'), [article.url]);
 
-  const handleAskAI = (e: React.MouseEvent) => {
+  const handleAskAI = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const q = encodeURIComponent(`Explain this article: "${article.title}"`);
     router.push(`/chat?q=${q}`);
-  };
+  }, [article.title, router]);
 
-  const wordCount = article.summary?.split(' ').length || article.title.split(' ').length;
-  const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+  const readingTime = useMemo(() => {
+    const wordCount = article.summary?.split(' ').length || article.title.split(' ').length;
+    return Math.max(1, Math.ceil(wordCount / 200));
+  }, [article.summary, article.title]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+    <div
       onClick={handleCardClick}
+      style={{ contain: 'layout style' }}
       className={cn(
         'group relative bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/60',
         'p-4 sm:p-5 cursor-pointer transition-all duration-200 overflow-hidden',
@@ -177,6 +177,6 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
           <BookmarkButton contentType="article" objectId={article.id} size={15} />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
-};
+});

@@ -84,8 +84,13 @@ class TrendingArticleListView(ListAPIView):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def article_topics(request):
-    topics = Article.objects.exclude(topic='').values_list('topic', flat=True).distinct().order_by('topic')
-    return Response({'success': True, 'data': list(topics)})
+    from django.core.cache import cache  # noqa: PLC0415
+    cache_key = 'article_topics_list'
+    topics = cache.get(cache_key)
+    if topics is None:
+        topics = list(Article.objects.exclude(topic='').values_list('topic', flat=True).distinct().order_by('topic'))
+        cache.set(cache_key, topics, timeout=3600)  # Cache for 1 hour — stable data
+    return Response({'success': True, 'data': topics})
 
 
 @api_view(['GET'])
@@ -125,10 +130,10 @@ def trigger_summarization(request):
 
     # Count how many articles actually need summaries before dispatching
     from .tasks import SUMMARY_FAILED_SENTINEL  # noqa: PLC0415
-    pending_count = (
-        Article.objects.filter(summary="").exclude(summary=SUMMARY_FAILED_SENTINEL).count()
-        + Article.objects.filter(summary__isnull=True).count()
-    )
+    from django.db.models import Q as DQ  # noqa: PLC0415
+    pending_count = Article.objects.filter(
+        DQ(summary="") | DQ(summary__isnull=True)
+    ).exclude(summary=SUMMARY_FAILED_SENTINEL).count()
 
     if pending_count == 0:
         return Response({

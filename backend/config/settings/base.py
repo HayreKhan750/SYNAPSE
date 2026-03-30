@@ -102,7 +102,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', 'synapse_pass'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 60,
+        'CONN_MAX_AGE': 600,   # Keep DB connections alive for 10 min (was 60s)
         'OPTIONS': {
             'connect_timeout': 10,
         },
@@ -135,7 +135,7 @@ CACHES = {
             'CONNECTION_POOL_KWARGS': {'max_connections': 100},
         },
         'KEY_PREFIX': 'synapse',
-        'TIMEOUT': 300,
+        'TIMEOUT': 3600,  # 1 hour default (was 300s — too aggressive for stable data)
     }
 }
 

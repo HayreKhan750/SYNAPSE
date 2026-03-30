@@ -10,45 +10,57 @@ from apps.core.models import UserActivity
 
 
 def _get_recent_vectors(user, max_items: int = 20) -> tuple[list[list[float]], set, set, set]:
-    """Collect embeddings from the user's most recent bookmark/view activities."""
-    activities = (
+    """Collect embeddings from the user's most recent bookmark/view activities.
+    
+    Optimised: single DB query for activities + select_related for content_type,
+    then batch-fetch embeddings per model type instead of N individual queries.
+    """
+    activities = list(
         UserActivity.objects
-        .filter(user=user, interaction_type__in=["bookmark", "view"])  # prioritize bookmarks/views
-        .order_by('-timestamp')[: max_items]
+        .filter(user=user, interaction_type__in=["bookmark", "view"])
+        .select_related('content_type')          # eliminates N content_type lookups
+        .order_by('-timestamp')[:max_items]
     )
-    vectors: list[list[float]] = []
-    seen_articles: set = set()
-    seen_papers: set = set()
-    seen_repos: set = set()
+
+    # Group object_ids by model to do 3 batch queries instead of N individual ones
+    article_ids: list = []
+    paper_ids: list = []
+    repo_ids: list = []
 
     for act in activities:
         if not act.content_type_id or not act.object_id:
             continue
         model = act.content_type.model
         if model == 'article':
-            try:
-                obj = Article.objects.only('id', 'embedding').get(id=act.object_id)
-                if obj.embedding:
-                    vectors.append(list(obj.embedding))
-                    seen_articles.add(obj.id)
-            except Article.DoesNotExist:
-                pass
+            article_ids.append(act.object_id)
         elif model in ('researchpaper', 'paper', 'research_paper'):
-            try:
-                obj = ResearchPaper.objects.only('id', 'embedding').get(id=act.object_id)
-                if obj.embedding:
-                    vectors.append(list(obj.embedding))
-                    seen_papers.add(obj.id)
-            except ResearchPaper.DoesNotExist:
-                pass
+            paper_ids.append(act.object_id)
         elif model == 'repository':
-            try:
-                obj = Repository.objects.only('id', 'embedding').get(id=act.object_id)
-                if obj.embedding:
-                    vectors.append(list(obj.embedding))
-                    seen_repos.add(obj.id)
-            except Repository.DoesNotExist:
-                pass
+            repo_ids.append(act.object_id)
+
+    vectors: list[list[float]] = []
+    seen_articles: set = set()
+    seen_papers: set = set()
+    seen_repos: set = set()
+
+    # Batch fetch — 3 queries max instead of up to 20
+    if article_ids:
+        for obj in Article.objects.filter(id__in=article_ids).only('id', 'embedding'):
+            if obj.embedding:
+                vectors.append(list(obj.embedding))
+                seen_articles.add(obj.id)
+
+    if paper_ids:
+        for obj in ResearchPaper.objects.filter(id__in=paper_ids).only('id', 'embedding'):
+            if obj.embedding:
+                vectors.append(list(obj.embedding))
+                seen_papers.add(obj.id)
+
+    if repo_ids:
+        for obj in Repository.objects.filter(id__in=repo_ids).only('id', 'embedding'):
+            if obj.embedding:
+                vectors.append(list(obj.embedding))
+                seen_repos.add(obj.id)
 
     return vectors, seen_articles, seen_papers, seen_repos
 
