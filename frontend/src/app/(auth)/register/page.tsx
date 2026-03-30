@@ -54,7 +54,7 @@ export default function RegisterPage() {
         password2: data.confirm_password,
       })
       toast.success('Account created successfully!')
-      router.push('/feed')
+      router.push('/home')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create account'
       setError(message)

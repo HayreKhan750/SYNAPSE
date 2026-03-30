@@ -664,7 +664,7 @@ export default function LandingPage() {
 
   // Redirect logged-in users straight to the feed
   useEffect(() => {
-    if (isAuthenticated) router.replace('/feed')
+    if (isAuthenticated) router.replace('/home')
   }, [isAuthenticated, router])
 
   // Don't flash the landing page while redirecting

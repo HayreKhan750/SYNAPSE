@@ -1,6 +1,4 @@
 'use client';
-// This file is superseded by (dashboard)/home/page.tsx
-// Kept as a fallback redirect
 
 import React, { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
