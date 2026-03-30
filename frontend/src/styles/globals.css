@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Auth page inputs: fully transparent ── */
+/* ── Auth page inputs: transparent, theme-aware ── */
 .auth-input {
   background: transparent !important;
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -12,15 +12,31 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .auth-input:hover {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 .auth-input:focus {
   outline: none;
-  border-color: rgba(129, 140, 248, 0.5);
+  border-color: rgba(129, 140, 248, 0.6);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 .auth-input::placeholder {
-  color: rgba(148, 163, 184, 0.6);
+  color: rgba(148, 163, 184, 0.55);
+}
+
+/* Light mode auth inputs */
+:root:not(.dark) .auth-input {
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #1e1b4b;
+}
+:root:not(.dark) .auth-input:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+:root:not(.dark) .auth-input:focus {
+  border-color: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+:root:not(.dark) .auth-input::placeholder {
+  color: rgba(99, 102, 241, 0.4);
 }
 
 /* ── Kill browser autofill background globally ── */
@@ -28,7 +44,7 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-text-fill-color: white !important;
+  -webkit-text-fill-color: inherit !important;
   box-shadow: 0 0 0 1000px transparent inset !important;
   transition: background-color 9999s ease-in-out 0s;
   background-color: transparent !important;
