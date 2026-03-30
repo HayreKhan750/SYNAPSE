@@ -39,7 +39,7 @@ export default function LoginPage() {
     try {
       await login({ email: data.email, password: data.password })
       toast.success('Signed in successfully!')
-      router.push('/')
+      router.push('/feed')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to sign in'
       setError(message)
