@@ -77,9 +77,9 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               placeholder="you@example.com"
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-600 text-sm
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm
                 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50
-                hover:border-slate-600 transition-all duration-200"
+                hover:border-white/20 transition-all duration-200"
             />
           </div>
           {errors.email && (
@@ -106,9 +106,9 @@ export default function LoginPage() {
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               placeholder="••••••••"
-              className="w-full pl-10 pr-11 py-3 rounded-xl bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-600 text-sm
+              className="w-full pl-10 pr-11 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm
                 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50
-                hover:border-slate-600 transition-all duration-200"
+                hover:border-white/20 transition-all duration-200"
             />
             <button
               type="button"
@@ -163,9 +163,9 @@ export default function LoginPage() {
       {/* Register link */}
       <Link
         href="/register"
-        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-slate-700/60 hover:border-slate-600
+        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/10 hover:border-white/20
           text-slate-300 hover:text-white text-sm font-medium transition-all duration-200
-          bg-slate-800/30 hover:bg-slate-800/60"
+          bg-white/5 hover:bg-white/10"
       >
         Create a free account
         <ArrowRight size={14} className="text-slate-500" />

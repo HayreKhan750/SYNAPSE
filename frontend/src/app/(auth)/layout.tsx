@@ -114,8 +114,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* Form card */}
         <div className="relative w-full max-w-sm">
-          <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-cyan-500/20 blur-sm" />
-          <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-8 shadow-2xl shadow-black/60">
+          <div className="relative rounded-2xl border border-white/[0.08] p-8">
             {children}
           </div>
         </div>
