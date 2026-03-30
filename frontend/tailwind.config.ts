@@ -88,7 +88,6 @@ const config: Config = {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       animation: {
-          marquee: 'marquee 30s linear infinite',
         shimmer: 'shimmer 2s infinite',
         'fade-in': 'fadeIn 0.4s ease-out',
         'slide-up': 'slideUp 0.4s ease-out',
@@ -100,10 +99,6 @@ const config: Config = {
         'bounce-subtle': 'bounceSubtle 0.6s ease-out',
       },
       keyframes: {
-          marquee: {
-            '0%': { transform: 'translateX(0%)' },
-            '100%': { transform: 'translateX(-50%)' },
-          },
         shimmer: {
           '0%': { backgroundPosition: '-1000px 0' },
           '100%': { backgroundPosition: '1000px 0' },
