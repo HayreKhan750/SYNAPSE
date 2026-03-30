@@ -877,7 +877,7 @@ export default function AgentsPage() {
                   <button
                     key={tpl.label}
                     onClick={() => { setPrompt(tpl.prompt); setTaskType(tpl.type) }}
-                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-500 hover:text-indigo-300 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all font-medium"
+                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-300 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-all font-medium"
                   >
                     {tpl.label}
                   </button>
@@ -893,7 +893,7 @@ export default function AgentsPage() {
                     <span
                       key={tool.name}
                       title={tool.description}
-                      className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 text-slate-500 font-mono cursor-default hover:text-slate-300 transition-colors"
+                      className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-500 font-mono cursor-default hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                     >
                       {tool.name}
                     </span>
@@ -905,7 +905,7 @@ export default function AgentsPage() {
         </div>
 
         {/* ── Tab bar ── */}
-        <div className="flex items-center gap-1 mb-5 bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 mb-5 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-fit">
           {([
             { id: 'active',  label: 'Active',  count: activeTasks.length },
             { id: 'history', label: 'History', count: historyTasks.length },
@@ -917,14 +917,14 @@ export default function AgentsPage() {
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
                 activeTab === tab.id
                   ? 'bg-indigo-600 dark:bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               )}
             >
               {tab.label}
               {tab.count > 0 && (
                 <span className={cn(
                   'text-xs px-1.5 py-0.5 rounded-full font-bold',
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-400'
                 )}>
                   {tab.count}
                 </span>
