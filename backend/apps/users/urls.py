@@ -12,6 +12,10 @@ urlpatterns = [
     path('me/preferences/',  views.update_preferences,                  name='auth-preferences'),
     path('ai-keys/',         views.ai_keys_view,                        name='user-ai-keys'),
 
+    # ── Password Reset ──────────────────────────────────────────────────────────
+    path('password-reset/',          views.password_reset_request, name='password-reset-request'),
+    path('password-reset/confirm/',  views.password_reset_confirm, name='password-reset-confirm'),
+
     # ── MFA (Phase 9.1) ────────────────────────────────────────────────────────
     path('mfa/setup/',           mfa_views.mfa_setup,           name='mfa-setup'),
     path('mfa/setup/confirm/',   mfa_views.mfa_setup_confirm,   name='mfa-setup-confirm'),

@@ -1,5 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from .models import User
 
 
@@ -44,3 +47,31 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
         fields = ['preferences']
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        # Always return success to avoid user enumeration
+        return value
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid   = serializers.CharField()
+    token = serializers.CharField()
+    new_password  = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password2 = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['new_password2']:
+            raise serializers.ValidationError({'new_password': 'Passwords do not match.'})
+        try:
+            uid  = force_str(urlsafe_base64_decode(attrs['uid']))
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError, TypeError):
+            raise serializers.ValidationError({'uid': 'Invalid reset link.'})
+        if not default_token_generator.check_token(user, attrs['token']):
+            raise serializers.ValidationError({'token': 'Reset link is invalid or has expired.'})
+        attrs['user'] = user
+        return attrs

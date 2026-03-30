@@ -6,7 +6,16 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .serializers import UserRegistrationSerializer, UserProfileSerializer, UserPreferencesSerializer
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.core.mail import send_mail
+from django.conf import settings
+from .serializers import (
+    UserRegistrationSerializer, UserProfileSerializer,
+    UserPreferencesSerializer, PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
+)
 from .models import User
 
 
@@ -139,3 +148,78 @@ def ai_keys_view(request):
     request.user.save(update_fields=['preferences'])
 
     return Response({'success': True, 'gemini_configured': bool(prefs.get('gemini_api_key')), 'openrouter_configured': bool(prefs.get('openrouter_api_key'))})
+
+
+# ── Password Reset ─────────────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_request(request):
+    """
+    POST /api/v1/auth/password-reset/
+    Accepts an email and sends a password reset link.
+    Always returns 200 to avoid user enumeration.
+    """
+    serializer = PasswordResetRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    email = serializer.validated_data['email']
+
+    try:
+        user = User.objects.get(email=email)
+        uid   = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        reset_url = f"{frontend_url}/reset-password?uid={uid}&token={token}"
+
+        send_mail(
+            subject='Reset your SYNAPSE password',
+            message=(
+                f"Hi {user.first_name or user.username},\n\n"
+                f"You requested a password reset for your SYNAPSE account.\n\n"
+                f"Click the link below to reset your password (expires in 1 hour):\n"
+                f"{reset_url}\n\n"
+                f"If you didn't request this, you can safely ignore this email.\n\n"
+                f"— The SYNAPSE Team"
+            ),
+            html_message=(
+                f"<p>Hi <strong>{user.first_name or user.username}</strong>,</p>"
+                f"<p>You requested a password reset for your SYNAPSE account.</p>"
+                f"<p><a href='{reset_url}' style='background:#6366f1;color:white;padding:12px 24px;"
+                f"border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;'>"
+                f"Reset Password</a></p>"
+                f"<p>Or copy this link: <code>{reset_url}</code></p>"
+                f"<p>This link expires in <strong>1 hour</strong>. "
+                f"If you didn't request this, you can safely ignore this email.</p>"
+                f"<p>— The SYNAPSE Team</p>"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except User.DoesNotExist:
+        pass  # Silently ignore — don't leak whether email exists
+
+    return Response({
+        'success': True,
+        'message': 'If an account with that email exists, a reset link has been sent.'
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_confirm(request):
+    """
+    POST /api/v1/auth/password-reset/confirm/
+    Validates uid + token and sets new password.
+    """
+    serializer = PasswordResetConfirmSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    user = serializer.validated_data['user']
+    user.set_password(serializer.validated_data['new_password'])
+    user.save(update_fields=['password'])
+
+    return Response({
+        'success': True,
+        'message': 'Password reset successfully. You can now sign in with your new password.'
+    })
