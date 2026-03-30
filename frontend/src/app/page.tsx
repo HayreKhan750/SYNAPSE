@@ -645,6 +645,360 @@ function HeroSection() {
   )
 }
 
+// ─── Social Proof / Logo Bar ──────────────────────────────────────────────────
+
+const USED_BY = ['Engineers', 'Researchers', 'CTOs', 'Founders', 'Data Scientists', 'DevRel Teams', 'ML Engineers', 'Open Source Devs']
+
+function SocialProofBar() {
+  return (
+    <section className="py-10 bg-slate-50 dark:bg-slate-900/60 border-y border-slate-200/60 dark:border-slate-800/60 overflow-hidden">
+      <p className="text-center text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600 mb-6">
+        Trusted by tech professionals worldwide
+      </p>
+      <div className="relative flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
+        <div className="flex gap-10 animate-marquee whitespace-nowrap">
+          {[...USED_BY, ...USED_BY].map((label, i) => (
+            <span key={i} className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-500 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── How It Works ─────────────────────────────────────────────────────────────
+
+const STEPS = [
+  {
+    step: '01',
+    color: 'from-indigo-500 to-violet-600',
+    title: 'Connect your sources',
+    desc: 'SYNAPSE automatically aggregates from Hacker News, arXiv, GitHub trending, and YouTube — zero configuration. Your personalized feed is ready in seconds.',
+    visual: (
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: 'Hacker News', color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800/40' },
+          { label: 'GitHub', color: 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600' },
+          { label: 'arXiv', color: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800/40' },
+          { label: 'YouTube', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800/40' },
+        ].map(s => (
+          <span key={s.label} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${s.color}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />{s.label}
+          </span>
+        ))}
+        <span className="text-xs font-bold px-3 py-1.5 rounded-full border border-dashed border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500">+ more coming</span>
+      </div>
+    ),
+  },
+  {
+    step: '02',
+    color: 'from-violet-500 to-purple-600',
+    title: 'AI summarizes everything',
+    desc: 'Every article, paper and repo gets an AI-generated summary, topic tag, reading time and sentiment score. Never read a disappointing link again.',
+    visual: (
+      <div className="space-y-2.5">
+        {[
+          { title: 'FlashAttention-3: Fast and Accurate Attention', tag: 'AI/ML', time: '4 min', score: '92%' },
+          { title: 'Rust async runtimes compared: Tokio vs async-std', tag: 'Systems', time: '6 min', score: '87%' },
+          { title: 'Next.js 15 ships with Turbopack by default', tag: 'Frontend', time: '2 min', score: '95%' },
+        ].map(a => (
+          <div key={a.title} className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-xl px-3 py-2.5 border border-slate-100 dark:border-slate-700/60 text-xs">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-slate-800 dark:text-white truncate">{a.title}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-indigo-600 dark:text-indigo-400 font-medium">{a.tag}</span>
+                <span className="text-slate-400">·</span>
+                <span className="text-slate-500">{a.time} read</span>
+              </div>
+            </div>
+            <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400">{a.score}</span>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    step: '03',
+    color: 'from-emerald-500 to-teal-600',
+    title: 'Chat, research & automate',
+    desc: 'Ask your AI anything, send autonomous agents to research topics, and build workflows that run while you sleep. Your personal tech research team.',
+    visual: (
+      <div className="bg-slate-900 rounded-xl p-4 font-mono text-xs space-y-2">
+        <div className="text-slate-400 flex items-center gap-2">
+          <span className="text-emerald-400">▶</span> Ask SYNAPSE
+        </div>
+        <div className="text-white">"What are the best new Rust frameworks for building APIs?"</div>
+        <div className="border-t border-slate-700 pt-2 space-y-1.5 text-slate-300">
+          <div className="flex gap-2"><span className="text-emerald-400">✓</span> Searched 3,420 articles, 847 repos</div>
+          <div className="flex gap-2"><span className="text-emerald-400">✓</span> Found 6 relevant frameworks</div>
+          <div className="flex gap-2"><span className="text-violet-400">→</span> <span className="text-violet-300">Axum leads with 47k ⭐ · active ecosystem</span></div>
+        </div>
+      </div>
+    ),
+  },
+]
+
+function HowItWorksSection() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref as React.RefObject<HTMLElement>)
+  return (
+    <section ref={ref} className="py-24 bg-white dark:bg-slate-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-3">
+            <Search size={12} /> How it works
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white mb-4">
+            From noise to knowledge in 3 steps
+          </h2>
+          <p className="max-w-xl mx-auto text-slate-600 dark:text-slate-400 text-lg">
+            Set up once. Stay ahead forever.
+          </p>
+        </div>
+        <div className="space-y-16">
+          {STEPS.map((step, i) => (
+            <div key={step.step}
+              className={`flex flex-col ${i % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-12 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+              style={{ transitionDelay: `${i * 150}ms` }}>
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${step.color} text-white font-black text-xl mb-5 shadow-lg`}>
+                  {step.step}
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-4">{step.title}</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">{step.desc}</p>
+              </div>
+              {/* Visual */}
+              <div className="flex-1 w-full max-w-md">
+                <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-xl shadow-black/5">
+                  {step.visual}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Testimonials ─────────────────────────────────────────────────────────────
+
+const TESTIMONIALS = [
+  {
+    quote: "SYNAPSE replaced my 6 different RSS feeds, newsletter subscriptions AND my daily GitHub browse. I get more signal in 10 minutes than I used to in 2 hours.",
+    name: 'Alex Chen',
+    role: 'Senior Engineer @ Scale AI',
+    avatar: 'AC',
+    color: 'from-indigo-500 to-violet-600',
+  },
+  {
+    quote: "The AI agent feature is insane. I tell it to 'research the latest LLM quantization techniques and write me a summary doc' and it just does it. Perfectly.",
+    name: 'Sarah Kim',
+    role: 'ML Researcher @ DeepMind',
+    avatar: 'SK',
+    color: 'from-violet-500 to-purple-600',
+  },
+  {
+    quote: "We set up an automation that monitors arXiv for new papers on our research topic and emails the team every morning. Game changer for staying current.",
+    name: 'Marcus Torres',
+    role: 'CTO @ Inference Labs',
+    avatar: 'MT',
+    color: 'from-emerald-500 to-teal-600',
+  },
+  {
+    quote: "The GitHub Radar alone is worth it. I discovered 3 libraries that replaced tools we were building ourselves. Saved weeks of work.",
+    name: 'Priya Patel',
+    role: 'Open Source Engineer',
+    avatar: 'PP',
+    color: 'from-rose-500 to-pink-600',
+  },
+  {
+    quote: "I use the RAG chat every day to query my bookmarked articles. It's like having a research assistant who's read everything I've saved.",
+    name: 'David Park',
+    role: 'Staff Engineer @ Stripe',
+    avatar: 'DP',
+    color: 'from-amber-500 to-orange-600',
+  },
+  {
+    quote: "Finally a tool that treats developers as intelligent adults. No bloat, no gamification, just pure signal. The automation workflows are incredibly powerful.",
+    name: 'Lena Fischer',
+    role: 'DevRel Lead @ Vercel',
+    avatar: 'LF',
+    color: 'from-cyan-500 to-blue-600',
+  },
+]
+
+function TestimonialsSection() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref as React.RefObject<HTMLElement>)
+  return (
+    <section ref={ref} className="py-24 bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-3">
+            <Star size={12} /> Testimonials
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white mb-4">
+            Loved by tech professionals
+          </h2>
+          <div className="flex items-center justify-center gap-1 mb-2">
+            {[...Array(5)].map((_, i) => (
+              <svg key={i} className="w-5 h-5 text-amber-400 fill-amber-400" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+            ))}
+            <span className="ml-2 text-sm font-semibold text-slate-600 dark:text-slate-400">4.9 / 5 from early users</span>
+          </div>
+        </div>
+        <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          {TESTIMONIALS.map((t) => (
+            <div key={t.name} className="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 flex flex-col gap-4 hover:shadow-lg transition-shadow">
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} className="w-4 h-4 text-amber-400 fill-amber-400" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+                ))}
+              </div>
+              <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed flex-1">"{t.quote}"</p>
+              <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-white text-xs font-black shrink-0`}>
+                  {t.avatar}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{t.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t.role}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Comparison Table ─────────────────────────────────────────────────────────
+
+const COMPARISON_ROWS = [
+  { feature: 'Real-time tech feed', synapse: true, others: 'Partial' },
+  { feature: 'AI summaries on every item', synapse: true, others: false },
+  { feature: 'RAG chat with your bookmarks', synapse: true, others: false },
+  { feature: 'GitHub trending + star analytics', synapse: true, others: 'Partial' },
+  { feature: 'Autonomous AI agents', synapse: true, others: false },
+  { feature: 'No-code automation workflows', synapse: true, others: false },
+  { feature: 'arXiv research with semantic search', synapse: true, others: false },
+  { feature: 'PDF / PPT / Word doc generation', synapse: true, others: false },
+  { feature: 'Free tier available', synapse: true, others: 'Partial' },
+]
+
+function ComparisonSection() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref as React.RefObject<HTMLElement>)
+  return (
+    <section ref={ref} className="py-24 bg-white dark:bg-slate-950">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-3">
+            <Shield size={12} /> Why SYNAPSE
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white mb-4">
+            Everything. In one place.
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 text-lg">
+            Stop paying for 5 separate tools. SYNAPSE replaces all of them.
+          </p>
+        </div>
+        <div className={`rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-xl transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          {/* Header */}
+          <div className="grid grid-cols-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/60">
+            <div className="px-5 py-4 text-sm font-bold text-slate-600 dark:text-slate-400">Feature</div>
+            <div className="px-5 py-4 text-sm font-black text-center">
+              <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">SYNAPSE</span>
+            </div>
+            <div className="px-5 py-4 text-sm font-bold text-center text-slate-400 dark:text-slate-500">Other tools</div>
+          </div>
+          {/* Rows */}
+          {COMPARISON_ROWS.map((row, i) => (
+            <div key={row.feature} className={`grid grid-cols-3 border-b border-slate-100 dark:border-slate-800/60 last:border-0 ${i % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-900/30'}`}>
+              <div className="px-5 py-3.5 text-sm text-slate-700 dark:text-slate-300 font-medium">{row.feature}</div>
+              <div className="px-5 py-3.5 flex justify-center">
+                <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                  <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+              </div>
+              <div className="px-5 py-3.5 flex justify-center items-center">
+                {row.others === true ? (
+                  <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                    <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                ) : row.others === false ? (
+                  <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
+                    <X size={13} className="text-red-500 dark:text-red-400" />
+                  </div>
+                ) : (
+                  <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-500/20">{row.others}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── FAQ ──────────────────────────────────────────────────────────────────────
+
+const FAQS = [
+  { q: 'Is SYNAPSE really free?', a: 'Yes! The Free tier gives you 50 AI messages/day, 10 document generations, 5 automation workflows and full access to the tech feed. No credit card required.' },
+  { q: 'What AI models does SYNAPSE use?', a: 'SYNAPSE supports Google Gemini 2.0 Flash (default) and 50+ models via OpenRouter including GPT-4o, Claude 3.5, Llama 3, and Mistral. You can bring your own API key for dedicated access.' },
+  { q: 'How does the RAG chat work?', a: 'SYNAPSE embeds every article, paper and repo you bookmark into a vector database. When you chat, it retrieves the most relevant items and uses them as context — so answers are grounded in real sources, not hallucinations.' },
+  { q: 'Can I use SYNAPSE for my team?', a: 'Enterprise plan includes team workspaces, RBAC (role-based access), SSO/SAML, shared automations, and a dedicated support channel.' },
+  { q: 'How often is the feed updated?', a: 'Content is scraped every 30 minutes from Hacker News, GitHub trending, arXiv, and YouTube. AI summaries are generated within 2 minutes of discovery.' },
+  { q: 'Can agents generate real documents?', a: 'Yes — AI agents can generate PDFs, PowerPoints, Word docs, Markdown files and scaffold complete project structures with real code. Files are downloadable immediately.' },
+]
+
+function FAQSection() {
+  const [open, setOpen] = useState<number | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref as React.RefObject<HTMLElement>)
+  return (
+    <section ref={ref} className="py-24 bg-slate-50 dark:bg-slate-900/50">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-3">
+            <MessageSquare size={12} /> FAQ
+          </div>
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-3">Questions? Answered.</h2>
+        </div>
+        <div className={`space-y-3 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+          {FAQS.map((faq, i) => (
+            <div key={i} className="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden">
+              <button
+                onClick={() => setOpen(open === i ? null : i)}
+                className="w-full flex items-center justify-between gap-4 px-6 py-4 text-left"
+              >
+                <span className="font-semibold text-slate-900 dark:text-white text-sm">{faq.q}</span>
+                <span className={`shrink-0 w-6 h-6 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center transition-transform ${open === i ? 'rotate-45 bg-indigo-600 border-indigo-600' : ''}`}>
+                  <svg viewBox="0 0 12 12" className={`w-3 h-3 ${open === i ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 1v10M1 6h10" />
+                  </svg>
+                </span>
+              </button>
+              {open === i && (
+                <div className="px-6 pb-4 text-sm text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-700/60 pt-3">
+                  {faq.a}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
@@ -663,9 +1017,14 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white overflow-x-hidden">
       <LandingNavbar />
       <HeroSection />
+      <SocialProofBar />
       <StatsSection />
+      <HowItWorksSection />
       <FeaturesSection />
+      <TestimonialsSection />
+      <ComparisonSection />
       <TrendingSection />
+      <FAQSection />
       <PricingSection />
       <CTASection />
       <Footer />
