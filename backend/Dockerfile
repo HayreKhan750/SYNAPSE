@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y \
     build-essential libpq-dev gcc curl \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+RUN pip install --upgrade pip && pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt --use-deprecated=legacy-resolver
 
 # ── Stage 2: Development ─────────────────────────────────
 FROM python:3.11-slim AS development
