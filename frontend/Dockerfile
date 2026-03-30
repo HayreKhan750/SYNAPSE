@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install dependencies with clean npm (no legacy flags needed — package.json is clean)
 COPY package.json package-lock.json ./
-RUN npm install --frozen-lockfile
+RUN npm install
 
 # ── Stage 2: Builder ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
