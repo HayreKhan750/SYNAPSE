@@ -192,7 +192,9 @@ function FeaturesSection() {
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref as React.RefObject<HTMLElement>)
   return (
-    <section id="features" ref={ref} className="py-24 bg-slate-50 dark:bg-slate-900/50">
+    <section id="features" ref={ref} className="relative py-24 bg-slate-50 dark:bg-slate-900/50">
+      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white dark:from-slate-950 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white dark:from-slate-950 to-transparent pointer-events-none" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-3">
@@ -236,7 +238,8 @@ function StatsSection() {
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref as React.RefObject<HTMLElement>)
   return (
-    <section ref={ref} className="py-20 bg-white dark:bg-slate-950 border-y border-slate-100 dark:border-slate-800/60">
+    <section ref={ref} className="relative py-20 bg-white dark:bg-slate-950">
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-50 dark:from-slate-900/50 to-transparent pointer-events-none" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
           {STATS.map(({ icon: Icon, label, value, suffix }) => (
@@ -322,7 +325,9 @@ function PricingSection() {
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref as React.RefObject<HTMLElement>)
   return (
-    <section id="pricing" ref={ref} className="py-24 bg-slate-50 dark:bg-slate-900/50">
+    <section id="pricing" ref={ref} className="relative py-24 bg-slate-50 dark:bg-slate-900/50">
+      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white dark:from-slate-950 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-indigo-600/20 to-transparent pointer-events-none" />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-3">
@@ -440,7 +445,9 @@ function TrendingSection() {
   const inView = useInView(ref as React.RefObject<HTMLElement>)
 
   return (
-    <section id="trending" ref={ref} className="py-24 bg-white dark:bg-slate-950">
+    <section id="trending" ref={ref} className="relative py-24 bg-white dark:bg-slate-950">
+      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-slate-50 dark:from-slate-900/50 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-50 dark:from-slate-900/50 to-transparent pointer-events-none" />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-3">
@@ -485,12 +492,14 @@ function TrendingSection() {
 
 function CTASection() {
   return (
-    <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-700 to-purple-800" />
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-      </div>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+    <section className="py-24 relative overflow-hidden isolate bg-gradient-to-br from-indigo-600 via-violet-700 to-purple-800">
+      {/* Dot grid overlay */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+      {/* Top fade from previous section */}
+      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-50/30 dark:from-slate-900/30 to-transparent pointer-events-none" />
+      {/* Bottom fade into footer */}
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/60 to-transparent pointer-events-none" />
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-semibold mb-8">
           <Sparkles size={12} /> No credit card required
         </div>
@@ -552,13 +561,15 @@ function Footer() {
 
 function HeroSection() {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center pt-16 pb-24 overflow-hidden">
+    <section className="relative min-h-screen flex flex-col items-center justify-center pt-16 pb-24 overflow-hidden bg-white dark:bg-slate-950">
       {/* Background blobs */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-indigo-400/20 to-violet-600/20 blur-3xl dark:from-indigo-500/10 dark:to-violet-700/10" />
         <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-cyan-400/15 to-indigo-400/15 blur-3xl dark:from-cyan-500/8 dark:to-indigo-500/8" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-r from-violet-400/5 to-indigo-400/5 blur-3xl" />
       </div>
+      {/* Bottom fade into StatsSection */}
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white dark:from-slate-950 to-transparent pointer-events-none" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
         {/* Badge */}
