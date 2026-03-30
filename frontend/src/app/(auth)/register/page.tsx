@@ -26,11 +26,7 @@ const registerSchema = z
 
 type RegisterFormData = z.infer<typeof registerSchema>
 
-const inputClass = `w-full pl-10 pr-4 py-2.5 rounded-xl border border-white/15 text-white placeholder-slate-500 text-sm
-  bg-transparent focus:bg-white/[0.05]
-  focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400/40
-  hover:border-white/25 transition-all duration-200
-  [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(67,56,202,0.12)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]`
+const inputClass = `auth-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm`
 
 const labelClass = "block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5"
 

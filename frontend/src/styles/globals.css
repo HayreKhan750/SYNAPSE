@@ -4,14 +4,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Auth page inputs: fully transparent ── */
+.auth-input {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.auth-input:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.auth-input:focus {
+  outline: none;
+  border-color: rgba(129, 140, 248, 0.5);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.auth-input::placeholder {
+  color: rgba(148, 163, 184, 0.6);
+}
+
 /* ── Kill browser autofill background globally ── */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-text-fill-color: white !important;
-  box-shadow: 0 0 0 1000px rgba(67, 56, 202, 0.1) inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
   transition: background-color 9999s ease-in-out 0s;
+  background-color: transparent !important;
 }
 
 @layer base {
