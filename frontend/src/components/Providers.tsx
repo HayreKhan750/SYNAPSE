@@ -10,10 +10,12 @@
  *  ✓ Optimised defaults: staleTime 5min, gcTime 10min, retry with exponential backoff
  *  ✓ ReactQueryDevtools only in development (zero prod bundle cost)
  *  ✓ Structured toast styles matching design system
+ *  ✓ GoogleOAuthProvider for Google Sign-In
  */
 
 import React, { useState } from 'react'
 import { ThemeProvider } from 'next-themes'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import {
   QueryClient,
   QueryClientProvider,
@@ -29,7 +31,6 @@ function makeQueryClient() {
   return new QueryClient({
     queryCache: new QueryCache({
       onError: (error, query) => {
-        // Only show toast for background refetch errors (not initial load failures)
         if (query.state.data !== undefined) {
           const { message } = normaliseApiError(error)
           toast.error(`Sync error: ${message}`, { id: 'bg-error', duration: 4000 })
@@ -44,8 +45,8 @@ function makeQueryClient() {
     }),
     defaultOptions: {
       queries: {
-        staleTime:            5 * 60 * 1000,   // 5 min
-        gcTime:               10 * 60 * 1000,  // 10 min
+        staleTime:            5 * 60 * 1000,
+        gcTime:               10 * 60 * 1000,
         retry:                2,
         retryDelay:           (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
         refetchOnWindowFocus: true,
@@ -60,39 +61,42 @@ function makeQueryClient() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => makeQueryClient())
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
 
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="light"
-      enableSystem={false}
-      disableTransitionOnChange={false}
-    >
-      <QueryClientProvider client={queryClient}>
-        {children}
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="light"
+        enableSystem={false}
+        disableTransitionOnChange={false}
+      >
+        <QueryClientProvider client={queryClient}>
+          {children}
 
-        <Toaster
-          position="top-right"
-          gutter={8}
-          toastOptions={{
-            duration: 3500,
-            style: {
-              background:   '#ffffff',
-              color:        '#0f172a',
-              borderRadius: '12px',
-              border:       '1px solid #e2e8f0',
-              fontSize:     '13px',
-              maxWidth:     '380px',
-              boxShadow:    '0 4px 24px rgba(0,0,0,0.08)',
-            },
-            success: { iconTheme: { primary: '#22c55e', secondary: '#ffffff' } },
-            error:   { iconTheme: { primary: '#ef4444', secondary: '#ffffff' }, duration: 5000 },
-          }}
-        />
+          <Toaster
+            position="top-right"
+            gutter={8}
+            toastOptions={{
+              duration: 3500,
+              style: {
+                background:   '#ffffff',
+                color:        '#0f172a',
+                borderRadius: '12px',
+                border:       '1px solid #e2e8f0',
+                fontSize:     '13px',
+                maxWidth:     '380px',
+                boxShadow:    '0 4px 24px rgba(0,0,0,0.08)',
+              },
+              success: { iconTheme: { primary: '#22c55e', secondary: '#ffffff' } },
+              error:   { iconTheme: { primary: '#ef4444', secondary: '#ffffff' }, duration: 5000 },
+            }}
+          />
 
-        {/* Tree-shaken from production builds automatically */}
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
-      </QueryClientProvider>
-    </ThemeProvider>
+          {/* Tree-shaken from production builds automatically */}
+          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </GoogleOAuthProvider>
   )
 }

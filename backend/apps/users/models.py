@@ -9,14 +9,19 @@ class User(AbstractUser):
         PREMIUM = 'premium', 'Premium'
         USER    = 'user',    'User'
 
-    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email       = models.EmailField(unique=True)
-    role        = models.CharField(max_length=20, choices=Role.choices, default=Role.USER)
-    avatar_url  = models.URLField(max_length=500, blank=True)
-    preferences = models.JSONField(default=dict, blank=True)
-    bio         = models.TextField(blank=True)
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
+    id                       = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email                    = models.EmailField(unique=True)
+    role                     = models.CharField(max_length=20, choices=Role.choices, default=Role.USER)
+    avatar_url               = models.URLField(max_length=500, blank=True)
+    preferences              = models.JSONField(default=dict, blank=True)
+    bio                      = models.TextField(blank=True)
+    created_at               = models.DateTimeField(auto_now_add=True)
+    updated_at               = models.DateTimeField(auto_now=True)
+    # ── Email verification ────────────────────────────────────
+    email_verified           = models.BooleanField(default=False)
+    email_verification_token = models.UUIDField(null=True, blank=True, default=uuid.uuid4)
+    # ── Social auth ───────────────────────────────────────────
+    google_id                = models.CharField(max_length=255, blank=True, unique=True, null=True)
 
     USERNAME_FIELD  = 'email'
     REQUIRED_FIELDS = ['username']

@@ -11,10 +11,12 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.core.mail import send_mail
 from django.conf import settings
+import uuid
+import requests as http_requests
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer,
     UserPreferencesSerializer, PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer,
+    PasswordResetConfirmSerializer, send_verification_email,
 )
 from .models import User
 
@@ -43,15 +45,25 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        # Send verification email
+        send_verification_email(user)
+
         refresh = RefreshToken.for_user(user)
         return Response({
             'success': True,
-            'data': {
-                'user': UserProfileSerializer(user).data,
-                'tokens': {
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh),
-                }
+            'email_verification_required': True,
+            'message': 'Account created! Please check your email to verify your address.',
+            'user': {
+                'id': str(user.id),
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'email_verified': user.email_verified,
+            },
+            'tokens': {
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
             }
         }, status=status.HTTP_201_CREATED)
 
@@ -222,4 +234,159 @@ def password_reset_confirm(request):
     return Response({
         'success': True,
         'message': 'Password reset successfully. You can now sign in with your new password.'
+    })
+
+
+# ── Email Verification ─────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    """
+    GET /api/v1/auth/verify-email/?token=<uuid>
+    Verifies the user's email address using the token sent in the registration email.
+    """
+    token = request.query_params.get('token')
+    if not token:
+        return Response({'error': 'Verification token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        token_uuid = uuid.UUID(str(token))
+        user = User.objects.get(email_verification_token=token_uuid, email_verified=False)
+    except (User.DoesNotExist, ValueError):
+        return Response({'error': 'Invalid or expired verification link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.email_verified = True
+    user.email_verification_token = None  # Invalidate token after use
+    user.save(update_fields=['email_verified', 'email_verification_token'])
+
+    # Return fresh JWT tokens so user is automatically logged in
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'success': True,
+        'message': 'Email verified successfully! Welcome to SYNAPSE.',
+        'user': {
+            'id': str(user.id),
+            'email': user.email,
+            'username': user.username,
+            'first_name': user.first_name,
+            'email_verified': True,
+        },
+        'tokens': {
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        }
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_verification_email(request):
+    """
+    POST /api/v1/auth/verify-email/resend/
+    Resend verification email.
+    """
+    email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        user = User.objects.get(email=email, email_verified=False)
+        # Generate a fresh token
+        user.email_verification_token = uuid.uuid4()
+        user.save(update_fields=['email_verification_token'])
+        send_verification_email(user)
+    except User.DoesNotExist:
+        pass  # Don't leak info
+    return Response({'success': True, 'message': 'If your email is registered and unverified, a new link has been sent.'})
+
+
+# ── Google OAuth ───────────────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def google_auth(request):
+    """
+    POST /api/v1/auth/google/
+    Body: { "access_token": "<google_access_token>" }
+
+    Verifies Google access token, finds or creates a user, returns JWT tokens.
+    """
+    access_token = request.data.get('access_token')
+    if not access_token:
+        return Response({'error': 'Google access token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verify token with Google and get user info
+    try:
+        google_response = http_requests.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            headers={'Authorization': f'Bearer {access_token}'},
+            timeout=10,
+        )
+        if google_response.status_code != 200:
+            return Response({'error': 'Invalid Google token.'}, status=status.HTTP_400_BAD_REQUEST)
+        google_data = google_response.json()
+    except Exception:
+        return Response({'error': 'Failed to verify Google token.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    google_id = google_data.get('sub')
+    email     = google_data.get('email')
+    first_name = google_data.get('given_name', '')
+    last_name  = google_data.get('family_name', '')
+    avatar_url = google_data.get('picture', '')
+    email_verified_by_google = google_data.get('email_verified', False)
+
+    if not email or not google_id:
+        return Response({'error': 'Could not retrieve email from Google.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Find existing user by google_id or email
+    user = None
+    try:
+        user = User.objects.get(google_id=google_id)
+    except User.DoesNotExist:
+        try:
+            # Link existing email account
+            user = User.objects.get(email=email)
+            user.google_id = google_id
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+            user.email_verified = user.email_verified or email_verified_by_google
+            user.save(update_fields=['google_id', 'avatar_url', 'email_verified'])
+        except User.DoesNotExist:
+            # Create new user
+            username_base = email.split('@')[0]
+            username = username_base
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{username_base}{counter}"
+                counter += 1
+
+            user = User.objects.create_user(
+                email=email,
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                password=None,  # No password for Google users
+                google_id=google_id,
+                avatar_url=avatar_url,
+                email_verified=email_verified_by_google,
+            )
+            user.set_unusable_password()
+            user.save()
+
+    # Return JWT tokens
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'success': True,
+        'user': {
+            'id': str(user.id),
+            'email': user.email,
+            'username': user.username,
+            'first_name': user.first_name,
+            'email_verified': user.email_verified,
+            'avatar_url': user.avatar_url,
+        },
+        'tokens': {
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        }
     })

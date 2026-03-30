@@ -15,6 +15,7 @@ interface AuthStore {
   logout: () => Promise<void>
   fetchUser: () => Promise<void>
   setTokens: (access: string, refresh: string) => void
+  googleAuth: (accessToken: string) => Promise<void>
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -143,6 +144,32 @@ export const useAuthStore = create<AuthStore>()(
 
         localStorage.setItem('synapse_access_token', access)
         localStorage.setItem('synapse_refresh_token', refresh)
+      },
+
+      googleAuth: async (accessToken: string) => {
+        set({ isLoading: true })
+        try {
+          const response = await authApi.post('/auth/google/', { access_token: accessToken })
+          const { tokens, user } = response.data
+
+          set({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh,
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+          })
+
+          localStorage.setItem('synapse_access_token', tokens.access)
+          localStorage.setItem('synapse_refresh_token', tokens.refresh)
+        } catch (error: unknown) {
+          set({ isLoading: false })
+          if (axios.isAxiosError(error)) {
+            const msg = error.response?.data?.error || 'Google sign-in failed. Please try again.'
+            throw new Error(msg)
+          }
+          throw error
+        }
       },
     }),
     {
