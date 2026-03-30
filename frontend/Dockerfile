@@ -1,26 +1,26 @@
-# ── Stage 1: Dependencies ────────────────────────────────────────────────────
+# ── Stage 1: Dependencies (cached unless package.json changes) ────────────────
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Install dependencies with clean npm (no legacy flags needed — package.json is clean)
+# Copy ONLY package files first — Docker caches this layer until they change
 COPY package.json package-lock.json ./
 RUN npm install
 
-# ── Stage 2: Builder ─────────────────────────────────────────────────────────
+# ── Stage 2: Builder ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build — type errors are non-fatal in Next.js builds (ignoreBuildErrors in config)
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx next build
 
-# ── Stage 3: Development (used by docker-compose) ────────────────────────────
+# ── Stage 3: Development (used by docker-compose) ─────────────────────────────
 FROM node:20-alpine AS development
 WORKDIR /app
 
+# Reuse cached node_modules — only reinstall if package.json changed
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 

@@ -1,33 +1,50 @@
-# ── Stage 1: Builder ─────────────────────────────────────
+# ── Stage 1: Dependencies (cached unless requirements.txt changes) ────────────
 FROM python:3.11-slim AS builder
 WORKDIR /app
+
 RUN apt-get update && apt-get install -y \
     build-essential libpq-dev gcc curl \
     && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt --use-deprecated=legacy-resolver
 
-# ── Stage 2: Development ─────────────────────────────────
+# Copy ONLY requirements first — Docker caches this layer until requirements.txt changes
+COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt --use-deprecated=legacy-resolver
+
+# ── Stage 2: Development ──────────────────────────────────────────────────────
 FROM python:3.11-slim AS development
 WORKDIR /app
+
 RUN apt-get update && apt-get install -y libpq-dev curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /wheels /wheels
-COPY --from=builder /app/requirements.txt .
-RUN pip install --no-cache /wheels/* && pip install yt-dlp --no-cache-dir
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+RUN pip install yt-dlp --no-cache-dir
+
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Copy source code last — changes here don't invalidate the pip cache
 COPY --chown=appuser:appuser . .
+
 USER appuser
 EXPOSE 8000
 
-# ── Stage 3: Production ──────────────────────────────────
+# ── Stage 3: Production ───────────────────────────────────────────────────────
 FROM python:3.11-slim AS production
 WORKDIR /app
+
 RUN apt-get update && apt-get install -y libpq-dev curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /wheels /wheels
-COPY --from=builder /app/requirements.txt .
-RUN pip install --no-cache /wheels/* && pip install gunicorn
+
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+RUN pip install gunicorn --no-cache-dir
+
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 COPY --chown=appuser:appuser . .
+
 USER appuser
 EXPOSE 8000
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]
