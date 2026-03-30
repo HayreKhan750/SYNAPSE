@@ -97,7 +97,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* ── Right Panel – auth form ── */}
       <div className="w-full lg:w-1/2 xl:w-2/5 flex flex-col items-center justify-center p-6 sm:p-10 relative bg-gradient-to-br from-indigo-950 via-violet-950 to-slate-950">
 
-        {/* Subtle top-right glow */}
+        {/* Same grid overlay as left panel */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+
+        {/* Subtle glow blobs */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-60 h-60 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
 
