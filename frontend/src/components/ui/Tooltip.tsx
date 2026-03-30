@@ -62,11 +62,11 @@ export function Tooltip({ content, side = 'top', children, className, delay = fa
             className
           )}
         >
-          <div className="bg-slate-100 dark:bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 shadow-xl shadow-black/40">
+          <div className="bg-slate-800 dark:bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-600 dark:border-slate-700 shadow-xl shadow-black/30 dark:shadow-black/40">
             {content}
           </div>
           {/* Arrow */}
-          <div className={cn('absolute w-2 h-2 bg-slate-100 dark:bg-slate-800 rotate-45', arrowClasses[side])} />
+          <div className={cn('absolute w-2 h-2 bg-slate-800 dark:bg-slate-800 rotate-45 border-slate-600 dark:border-slate-700', arrowClasses[side])} />
         </div>
       )}
     </div>

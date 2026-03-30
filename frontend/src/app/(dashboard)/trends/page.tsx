@@ -40,7 +40,7 @@ const CATEGORY_CONFIG: Record<string, {
   label: string; colour: string; bg: string; border: string;
   activeBg: string; icon: React.ElementType;
 }> = {
-  all:      { label: 'All',       colour: 'text-slate-900 dark:text-white',        bg: 'bg-slate-700',       border: 'border-slate-500',   activeBg: 'bg-slate-600',       icon: Layers },
+  all:      { label: 'All',       colour: 'text-slate-700 dark:text-white',        bg: 'bg-slate-200 dark:bg-slate-700',       border: 'border-slate-400 dark:border-slate-500',   activeBg: 'bg-slate-300 dark:bg-slate-600',       icon: Layers },
   language: { label: 'Languages', colour: 'text-cyan-600 dark:text-cyan-400',     bg: 'bg-cyan-500/15',     border: 'border-cyan-500/40', activeBg: 'bg-cyan-500/25',     icon: Cpu },
   ai_ml:    { label: 'AI / ML',   colour: 'text-violet-600 dark:text-violet-400',   bg: 'bg-violet-500/15',   border: 'border-violet-500/40', activeBg: 'bg-violet-500/25', icon: Brain },
   devops:   { label: 'DevOps',    colour: 'text-emerald-600 dark:text-emerald-400',  bg: 'bg-emerald-500/15',  border: 'border-emerald-500/40', activeBg: 'bg-emerald-500/25', icon: Box },
@@ -207,10 +207,10 @@ function TrendCard({ trend, rank, maxScore }: { trend: TechnologyTrend; rank: nu
           <div className="flex items-center gap-3 sm:gap-4 mt-2 flex-wrap">
             <span className="flex items-center gap-1 text-xs text-slate-400">
               <Zap size={11} className="text-amber-400 shrink-0" />
-              Score: <strong className="text-slate-200 ml-0.5">{trend.trend_score.toFixed(1)}</strong>
+              Score: <strong className="text-slate-800 dark:text-slate-200 ml-0.5">{trend.trend_score.toFixed(1)}</strong>
             </span>
             <span className="flex items-center gap-1 text-xs text-slate-400">
-              <BarChart2 size={11} className="text-indigo-400 shrink-0" />
+              <BarChart2 size={11} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
               <strong className="text-slate-600 dark:text-slate-300">{trend.mention_count}</strong> mentions
             </span>
             <span className="text-xs text-slate-600">
@@ -394,7 +394,7 @@ export default function TrendsPage() {
               <button
                 onClick={() => refetch()}
                 disabled={isFetching}
-                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm rounded-xl transition-colors whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm rounded-xl transition-colors whitespace-nowrap"
               >
                 <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
                 <span className="hidden xs:inline">Refresh</span>
@@ -427,7 +427,7 @@ export default function TrendsPage() {
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all whitespace-nowrap shrink-0',
                   active
                     ? `${cfg.activeBg} ${cfg.colour} ${cfg.border} shadow-sm`
-                    : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-200'
+                    : 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
                 )}
               >
                 <Icon size={12} />
@@ -435,7 +435,7 @@ export default function TrendsPage() {
                 {count > 0 && (
                   <span className={cn(
                     'px-1.5 py-0.5 rounded-full text-[10px] font-black',
-                    active ? 'bg-black/25' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                    active ? 'bg-black/20 text-inherit' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                   )}>
                     {count}
                   </span>
@@ -584,7 +584,7 @@ export default function TrendsPage() {
             <TrendingUp size={44} className="mx-auto mb-3 opacity-20 text-slate-500" />
             {trends.length === 0 ? (
               <>
-                <p className="text-slate-300 font-semibold mb-1">No trend data yet</p>
+                <p className="text-slate-700 dark:text-slate-300 font-semibold mb-1">No trend data yet</p>
                 <p className="text-slate-500 text-sm mb-4">Run the analysis to populate trend scores from your articles &amp; repos.</p>
                 <button
                   onClick={handleTrigger}

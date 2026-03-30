@@ -57,7 +57,7 @@ function CopyTableButton({ onCopy }: { onCopy: () => void }) {
     <button
       onClick={handle}
       title={copied ? 'Copied!' : 'Copy table as markdown'}
-      className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 transition-colors px-2 py-0.5 rounded hover:bg-slate-700"
+      className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors px-2 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
     >
       {copied
         ? <><Check size={11} className="text-green-600 dark:text-green-400" /><span className="text-green-600 dark:text-green-400">Copied!</span></>
@@ -81,9 +81,9 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   const label = language || 'code';
 
   return (
-    <div className="my-3 rounded-lg border border-slate-700 overflow-hidden text-sm">
+    <div className="my-3 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-sm">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-slate-900 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-2 text-slate-400">
           <Terminal size={13} />
           <span className="text-xs font-mono font-medium lowercase">{label}</span>
@@ -91,7 +91,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
         <button
           onClick={handleCopy}
           title={copied ? 'Copied!' : 'Copy code'}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded hover:bg-slate-700"
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
         >
           {copied
             ? <><Check size={12} className="text-green-600 dark:text-green-400" /><span className="text-green-600 dark:text-green-400">Copied!</span></>
@@ -100,7 +100,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
       </div>
       {/* Code body */}
       <pre className="bg-slate-100 dark:bg-slate-950 p-4 overflow-x-auto m-0">
-        <code className="text-slate-100 text-xs font-mono leading-relaxed">
+        <code className="text-slate-800 dark:text-slate-100 text-xs font-mono leading-relaxed">
           {code}
         </code>
       </pre>
@@ -158,7 +158,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
               'rounded-2xl px-4 py-3 text-sm leading-relaxed',
               isHuman
                 ? 'bg-indigo-600 text-white rounded-tr-sm'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-100 border border-slate-700 rounded-tl-sm'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-tl-sm'
             )}
           >
             {isHuman ? (
@@ -202,7 +202,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       {files.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {files.map((att, i) => (
-                            <div key={i} className="flex items-center gap-1.5 bg-indigo-700/40 border border-indigo-500/30 rounded-lg px-2.5 py-1.5 text-xs text-indigo-200">
+                            <div key={i} className="flex items-center gap-1.5 bg-indigo-100 dark:bg-indigo-700/40 border border-indigo-300 dark:border-indigo-500/30 rounded-lg px-2.5 py-1.5 text-xs text-indigo-700 dark:text-indigo-200">
                               <Paperclip size={11} className="flex-shrink-0" />
                               <span className="truncate max-w-[160px]">{att.name}</span>
                             </div>
@@ -215,7 +215,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                 {contentStr && <p className="whitespace-pre-wrap">{contentStr}</p>}
               </>
             ) : (
-              <div className="prose prose-sm prose-invert max-w-none">
+              <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkMath]}
                   rehypePlugins={[rehypeKatex]}
@@ -262,16 +262,16 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       <h2 className="text-lg font-semibold text-slate-800 dark:text-white mt-4 mb-2">{children}</h2>
                     ),
                     h3: ({ children }: any) => (
-                      <h3 className="text-base font-semibold text-slate-100 mt-3 mb-1">{children}</h3>
+                      <h3 className="text-base font-semibold text-slate-700 dark:text-slate-100 mt-3 mb-1">{children}</h3>
                     ),
                     p: ({ children }: any) => (
-                      <p className="mb-3 last:mb-0 leading-relaxed text-slate-200">{children}</p>
+                      <p className="mb-3 last:mb-0 leading-relaxed text-slate-700 dark:text-slate-200">{children}</p>
                     ),
                     ul: ({ children }: any) => (
-                      <ul className="list-disc pl-5 mb-3 space-y-1 text-slate-200">{children}</ul>
+                      <ul className="list-disc pl-5 mb-3 space-y-1 text-slate-700 dark:text-slate-200">{children}</ul>
                     ),
                     ol: ({ children }: any) => (
-                      <ol className="list-decimal pl-5 mb-3 space-y-1 text-slate-200">{children}</ol>
+                      <ol className="list-decimal pl-5 mb-3 space-y-1 text-slate-700 dark:text-slate-200">{children}</ol>
                     ),
                     li: ({ children }: any) => (
                       <li className="leading-relaxed">{children}</li>
@@ -280,12 +280,12 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       <strong className="font-semibold text-slate-800 dark:text-white">{children}</strong>
                     ),
                     em: ({ children }: any) => (
-                      <em className="italic text-slate-300">{children}</em>
+                      <em className="italic text-slate-600 dark:text-slate-300">{children}</em>
                     ),
 
                     // ── Blockquote ────────────────────────────────────────
                     blockquote: ({ children }: any) => (
-                      <blockquote className="border-l-4 border-indigo-500 bg-slate-100 dark:bg-slate-900/50 pl-4 pr-2 py-2 my-3 rounded-r-lg text-slate-400 italic">
+                      <blockquote className="border-l-4 border-indigo-500 bg-slate-100 dark:bg-slate-900/50 pl-4 pr-2 py-2 my-3 rounded-r-lg text-slate-600 dark:text-slate-400 italic">
                         {children}
                       </blockquote>
                     ),
@@ -296,13 +296,13 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
+                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 underline underline-offset-2 transition-colors"
                       >
                         {children}
                       </a>
                     ),
 
-                    hr: () => <hr className="border-slate-700 my-4" />,
+                    hr: () => <hr className="border-slate-300 dark:border-slate-700 my-4" />,
 
                     // ── Tables (with copy-as-markdown button) ─────────────
                     table: ({ children, node }: any) => {
@@ -342,8 +342,8 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                         } catch { /* noop */ }
                       };
                       return (
-                        <div className="my-4 rounded-lg border border-slate-700 overflow-hidden">
-                          <div className="flex items-center justify-between px-3 py-1.5 bg-white dark:bg-slate-900 border-b border-slate-700">
+                        <div className="my-4 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-1.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                             <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Table</span>
                             <CopyTableButton onCopy={copyTableAsMarkdown} />
                           </div>
@@ -367,12 +367,12 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       </tr>
                     ),
                     th: ({ children }: any) => (
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider border-b border-slate-700">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
                         {children}
                       </th>
                     ),
                     td: ({ children }: any) => (
-                      <td className="px-4 py-2.5 text-slate-300">{children}</td>
+                      <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">{children}</td>
                     ),
                   }}
                 >
@@ -409,7 +409,7 @@ export function ChatMessage({ message, messageIndex = 0, onEdit, onDelete }: Cha
                       'p-1.5 rounded-md transition-colors text-xs flex items-center gap-1',
                       confirmDelete
                         ? 'text-red-400 bg-red-900/30 hover:bg-red-900/50'
-                        : 'text-slate-400 hover:text-red-400 hover:bg-slate-700'
+                        : 'text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700'
                     )}
                   >
                     <Trash2 size={13} />

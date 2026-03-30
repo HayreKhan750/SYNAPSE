@@ -71,7 +71,7 @@ function RunsTooltip({ active, payload, label }: { active?: boolean; payload?: A
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-xl text-xs">
-      <p className="text-slate-300 font-medium mb-2">{label ? formatDate(label) : ''}</p>
+      <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">{label ? formatDate(label) : ''}</p>
       {payload.map(p => (
         <p key={p.name} style={{ color: p.color }} className="mb-0.5">
           {p.name}: <span className="font-bold">{p.value}</span>
@@ -85,7 +85,7 @@ function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ n
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-xl text-xs">
-      <p className="text-slate-600 dark:text-slate-300">{payload[0].name}: <span className="font-bold text-white">{payload[0].value}</span></p>
+      <p className="text-slate-600 dark:text-slate-300">{payload[0].name}: <span className="font-bold text-slate-900 dark:text-white">{payload[0].value}</span></p>
     </div>
   );
 }
@@ -112,18 +112,18 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-700">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
           <div>
             <h2 className="text-lg font-semibold text-slate-800 dark:text-white">📊 Workflow Analytics</h2>
             <p className="text-xs text-slate-400 mt-0.5">Run performance, action usage, and top workflows.</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Period selector */}
-            <div className="flex bg-white dark:bg-slate-900 rounded-lg p-0.5 border border-slate-700">
+            <div className="flex bg-white dark:bg-slate-900 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
               {PERIOD_OPTIONS.map(opt => (
                 <button key={opt.days} onClick={() => setDays(opt.days)}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                    days === opt.days ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-300'
+                    days === opt.days ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'
                   }`}>
                   {opt.label}
                 </button>
@@ -172,7 +172,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Runs over time chart */}
-              <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+              <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
                 <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">Runs Over Time</p>
                 {runsData.length === 0 ? (
                   <div className="h-48 flex items-center justify-center text-slate-500 text-sm">No runs in this period.</div>
@@ -205,7 +205,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {/* Action distribution pie */}
-                <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
                   <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Action Distribution</p>
                   {data.action_distribution.length === 0 ? (
                     <div className="h-48 flex items-center justify-center text-slate-500 text-sm">No actions configured.</div>
@@ -243,7 +243,7 @@ export function AnalyticsModal({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Top workflows bar */}
-                <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                <div className="bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
                   <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">Top Workflows by Runs</p>
                   {data.top_workflows.length === 0 ? (
                     <div className="h-48 flex items-center justify-center text-slate-500 text-sm">No runs yet.</div>

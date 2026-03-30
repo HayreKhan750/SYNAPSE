@@ -38,7 +38,7 @@ import {
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 dark:border-slate-700">
         <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">{icon}</div>
         <h2 className="text-base font-semibold text-slate-800 dark:text-white">{title}</h2>
       </div>
@@ -59,7 +59,7 @@ function Toggle({ label, description, checked, onChange }: { label: string; desc
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-          checked ? 'bg-indigo-600' : 'bg-slate-700'
+          checked ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
         }`}
       >
         <span
@@ -121,11 +121,11 @@ function AiKeysForm() {
 
   if (!loaded) return (
     <div className="space-y-4 animate-pulse">
-      <div className="h-4 w-48 bg-slate-700 rounded" />
+      <div className="h-4 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
       <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg" />
-      <div className="h-4 w-48 bg-slate-700 rounded" />
+      <div className="h-4 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
       <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg" />
-      <div className="h-9 w-32 bg-indigo-900/50 rounded-lg" />
+      <div className="h-9 w-32 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg" />
     </div>
   );
 
@@ -135,7 +135,7 @@ function AiKeysForm() {
       <div>
         <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-2">
           Google Gemini API Key
-          <span className="text-indigo-400 text-xs font-normal">gemini-1.5-flash / gemini-2.0</span>
+          <span className="text-indigo-600 dark:text-indigo-400 text-xs font-normal">gemini-1.5-flash / gemini-2.0</span>
           {loaded && (geminiConfigured
             ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
             : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">Not set</span>
@@ -155,7 +155,7 @@ function AiKeysForm() {
           </button>
         </div>
         <p className="text-xs text-slate-600 mt-1">
-          Get from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">Google AI Studio</a>
+          Get from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Google AI Studio</a>
         </p>
       </div>
 
@@ -163,7 +163,7 @@ function AiKeysForm() {
       <div>
         <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-2">
           OpenRouter API Key
-          <span className="text-violet-400 text-xs font-normal">Fallback / GPT-4o / Claude</span>
+          <span className="text-violet-600 dark:text-violet-400 text-xs font-normal">Fallback / GPT-4o / Claude</span>
           {loaded && (openrouterConfigured
             ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
             : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">Not set</span>
@@ -183,7 +183,7 @@ function AiKeysForm() {
           </button>
         </div>
         <p className="text-xs text-slate-600 mt-1">
-          Get from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">OpenRouter</a> — 200+ models available
+          Get from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">OpenRouter</a> — 200+ models available
         </p>
       </div>
 
@@ -323,7 +323,7 @@ export default function SettingsPage() {
         {/* Page header */}
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2.5 sm:p-3 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 shrink-0">
-            <Settings size={20} className="text-indigo-400 sm:size-6" />
+            <Settings size={20} className="text-indigo-600 dark:text-indigo-400 sm:size-6" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">Settings</h1>
@@ -335,7 +335,7 @@ export default function SettingsPage() {
         <Section title="Integrations" icon={<Settings size={16} />}>
           <p className="text-sm text-slate-400 mb-4">
             Connect external services to power automation actions like{' '}
-            <span className="text-indigo-400 font-mono text-xs">upload_to_drive</span>.
+            <span className="text-indigo-600 dark:text-indigo-400 font-mono text-xs">upload_to_drive</span>.
           </p>
           <GoogleDriveSection />
         </Section>
@@ -351,8 +351,8 @@ export default function SettingsPage() {
                   onClick={() => setTheme(value)}
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                     theme === value
-                      ? 'border-indigo-500 bg-indigo-600/20 text-indigo-300'
-                      : 'border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                      ? 'border-indigo-500 bg-indigo-600/20 text-indigo-700 dark:text-indigo-300'
+                      : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
                   <Icon size={14} />
@@ -409,7 +409,7 @@ export default function SettingsPage() {
         <Section title="Security" icon={<Shield size={16} />}>
           <ChangePasswordForm />
 
-          <div className="pt-4 border-t border-slate-800">
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
             <p className="text-sm font-medium text-slate-800 dark:text-white mb-3">Two-Factor Authentication (MFA)</p>
             <MFASection />
           </div>
@@ -419,10 +419,10 @@ export default function SettingsPage() {
         <Section title="AI Engine" icon={<Cpu size={16} />}>
           <p className="text-sm text-slate-400 mb-4">
             Configure your personal AI provider keys to power all AI features — 
-            <span className="text-indigo-400 font-medium"> Chat</span>,{' '}
-            <span className="text-indigo-400 font-medium">AI Agent</span>,{' '}
-            <span className="text-indigo-400 font-medium">Documents</span>, and{' '}
-            <span className="text-indigo-400 font-medium">Automation</span>.
+            <span className="text-indigo-600 dark:text-indigo-400 font-medium"> Chat</span>,{' '}
+            <span className="text-indigo-600 dark:text-indigo-400 font-medium">AI Agent</span>,{' '}
+            <span className="text-indigo-600 dark:text-indigo-400 font-medium">Documents</span>, and{' '}
+            <span className="text-indigo-600 dark:text-indigo-400 font-medium">Automation</span>.
             Your keys are stored server-side and never exposed in the browser.
             Each feature uses your key — you're billed directly by the provider, not by SYNAPSE.
           </p>
@@ -459,7 +459,7 @@ export default function SettingsPage() {
           <p className="text-sm text-slate-400">Sign out of your current session on this device.</p>
           <button
             onClick={() => { logout(); router.push('/login') }}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg transition-colors"
           >
             <LogOut size={14} /> Sign Out
           </button>

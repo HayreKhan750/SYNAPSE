@@ -121,7 +121,7 @@ function ActionParamEditor({
                       const next = selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt];
                       onChange({ ...params, [key]: next });
                     }}
-                    className={`text-xs px-2 py-1 rounded border transition-colors ${selected.includes(opt) ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-700 border-slate-600 text-slate-400 hover:border-slate-500'}`}>
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${selected.includes(opt) ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500'}`}>
                     {opt}
                   </button>
                 ))}
@@ -273,7 +273,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-700">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
           <div>
             <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Edit Workflow</h2>
             <p className="text-xs text-slate-500 mt-0.5 font-mono">{workflow.id.slice(0, 8)}…</p>
@@ -305,7 +305,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
               {(['schedule', 'event', 'manual'] as TriggerType[]).map(t => (
                 <button key={t} type="button"
                   onClick={() => setForm(f => ({ ...f, trigger_type: t }))}
-                  className={`py-2 rounded-lg text-sm font-medium border transition-colors ${form.trigger_type === t ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'}`}>
+                  className={`py-2 rounded-lg text-sm font-medium border transition-colors ${form.trigger_type === t ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500'}`}>
                   {t === 'schedule' ? '⏱ Schedule' : t === 'event' ? '⚡ Event' : '🖐 Manual'}
                 </button>
               ))}
@@ -315,7 +315,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
           {/* Schedule config */}
           {form.trigger_type === 'schedule' && (
             <div className="space-y-2 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700">
-              <label className="block text-sm font-medium text-slate-300">Cron Schedule</label>
+              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Cron Schedule</label>
               <select onChange={e => { if (e.target.value) setForm(f => ({ ...f, cron_expression: e.target.value })); }}
                 defaultValue={form.cron_expression}
                 className={inputClass()}>
@@ -331,7 +331,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
           {/* Event config */}
           {form.trigger_type === 'event' && (
             <div className="space-y-3 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700">
-              <label className="block text-sm font-medium text-slate-300">Event Configuration</label>
+              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Event Configuration</label>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Event Type *</label>
                 <select value={form.event_config.event_type}
@@ -358,12 +358,12 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
           {/* Actions */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-slate-300">Actions *</label>
-              <button type="button" onClick={addAction} className="text-xs text-indigo-400 hover:text-indigo-300">+ Add Action</button>
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-300">Actions *</label>
+              <button type="button" onClick={addAction} className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">+ Add Action</button>
             </div>
             <div className="space-y-2">
               {form.actions.map((action, i) => (
-                <div key={i} className="bg-white/80 dark:bg-slate-900/60 border border-slate-700 rounded-lg p-3">
+                <div key={i} className="bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
                   <div className="flex gap-2 items-center">
                     <select value={action.type} onChange={e => updateActionType(i, e.target.value as ActionType)}
                       className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-indigo-500">
@@ -371,7 +371,7 @@ export function EditWorkflowModal({ workflow, onClose }: { workflow: Workflow; o
                     </select>
                     {schemas[action.type] && (
                       <button type="button" onClick={() => toggleExpanded(i)}
-                        className={`px-2 py-2 rounded-lg text-xs border transition-colors ${expandedActions.has(i) ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'}`}
+                        className={`px-2 py-2 rounded-lg text-xs border transition-colors ${expandedActions.has(i) ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500'}`}
                         title="Configure parameters">⚙️</button>
                     )}
                     {form.actions.length > 1 && (

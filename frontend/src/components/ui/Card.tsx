@@ -41,10 +41,10 @@ export function Card({
       onClick={onClick}
       className={clsx(
         'bg-white dark:bg-slate-800/80',
-        'rounded-2xl border border-slate-200/80 dark:border-slate-700/60',
+        'rounded-2xl border border-slate-300 dark:border-slate-700/60',
         'transition-colors duration-200',
         !noPadding && 'p-5',
-        hoverable && 'cursor-pointer hover:border-indigo-300/60 dark:hover:border-indigo-500/30',
+        hoverable && 'cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500/30',
         onClick && 'cursor-pointer',
         className,
       )}
@@ -105,7 +105,7 @@ export function CardFooter({
   return (
     <div
       className={clsx(
-        'mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/60 flex items-center gap-2',
+        'mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/60 flex items-center gap-2',
         className,
       )}
     >

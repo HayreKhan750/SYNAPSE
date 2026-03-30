@@ -51,7 +51,7 @@ export const Sidebar = memo(function Sidebar({
       fixed left-0 top-0 h-screen flex flex-col z-50
       transition-all duration-300 ease-in-out
       bg-white dark:bg-slate-950
-      border-r border-slate-200 dark:border-slate-800/60
+      border-r border-slate-300 dark:border-slate-800/60
       ${isCollapsed ? 'w-[72px]' : 'w-64'}
       md:translate-x-0
       ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -60,7 +60,7 @@ export const Sidebar = memo(function Sidebar({
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500" />
 
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-slate-200 dark:border-slate-800/60">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-slate-300 dark:border-slate-800/60">
         {!isCollapsed && (
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl animated-gradient flex items-center justify-center flex-shrink-0 shadow-glow-indigo">
@@ -78,7 +78,7 @@ export const Sidebar = memo(function Sidebar({
         {!isCollapsed && (
           <button
             onClick={onToggle}
-            className="hidden md:flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            className="hidden md:flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
             title="Collapse sidebar"
           >
             <ChevronLeft size={16} />
@@ -86,7 +86,7 @@ export const Sidebar = memo(function Sidebar({
         )}
         <button
           onClick={onMobileClose}
-          className="md:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
+          className="md:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
           title="Close sidebar"
         >
           <ChevronLeft size={16} />
@@ -98,7 +98,7 @@ export const Sidebar = memo(function Sidebar({
         {isCollapsed && (
           <button
             onClick={onToggle}
-            className="w-full flex items-center justify-center p-2.5 mb-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            className="w-full flex items-center justify-center p-2.5 mb-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-all"
             title="Expand sidebar"
           >
             <ChevronRight size={18} />
@@ -117,7 +117,7 @@ export const Sidebar = memo(function Sidebar({
                 flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group relative
                 ${active
                   ? 'bg-indigo-50 dark:bg-indigo-600/15 text-indigo-700 dark:text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
+                  : 'text-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
                 }
                 ${isCollapsed ? 'justify-center' : ''}
               `}
@@ -141,7 +141,7 @@ export const Sidebar = memo(function Sidebar({
       </nav>
 
       {/* User Section */}
-      <div className="border-t border-slate-200 dark:border-slate-800/60 p-3">
+      <div className="border-t border-slate-300 dark:border-slate-800/60 p-3">
         {isCollapsed ? (
           <div className="flex flex-col items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center flex-shrink-0 shadow-glow-indigo">
@@ -149,7 +149,7 @@ export const Sidebar = memo(function Sidebar({
             </div>
             <button
               onClick={logout}
-              className="p-2 rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
+              className="p-2 rounded-lg text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-500 transition-colors"
               title="Logout"
             >
               <LogOut size={15} />
@@ -162,13 +162,13 @@ export const Sidebar = memo(function Sidebar({
                 <span className="text-white dark:text-white font-bold text-xs">{initials}</span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-800 dark:text-white truncate leading-tight">{displayName}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-500 truncate">{user?.email}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white truncate leading-tight">{displayName}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-500 truncate">{user?.email}</p>
               </div>
             </div>
             <button
               onClick={logout}
-              className="p-2 rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors flex-shrink-0"
+              className="p-2 rounded-lg text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-500 transition-colors flex-shrink-0"
               title="Logout"
             >
               <LogOut size={15} />

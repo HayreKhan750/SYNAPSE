@@ -237,7 +237,7 @@ export default function ProfilePage() {
                       </div>
                       <button
                         onClick={() => setEditing(true)}
-                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm rounded-xl transition-colors"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm rounded-xl transition-colors"
                       >
                         <Edit3 size={13} /> Edit Profile
                       </button>
@@ -275,7 +275,7 @@ export default function ProfilePage() {
                   { label: 'Member since', value: new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
                   { label: 'Last login', value: profile.last_login ? new Date(profile.last_login).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A' },
                 ].map(({ label, value }) => (
-                  <div key={label} className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
+                  <div key={label} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
                     <span className="text-sm text-slate-400">{label}</span>
                     <span className="text-sm text-slate-800 dark:text-white font-medium">{value}</span>
                   </div>

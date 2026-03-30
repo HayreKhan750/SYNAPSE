@@ -94,10 +94,10 @@ function NotificationCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
       className={cn(
-        'group relative bg-slate-800/80 border rounded-2xl p-4 sm:p-5 transition-all duration-200 overflow-hidden',
+        'group relative bg-white dark:bg-slate-800/80 border rounded-2xl p-4 sm:p-5 transition-all duration-200 overflow-hidden shadow-card',
         !notif.is_read
-          ? `${cfg.borderColour} hover:shadow-lg`
-          : 'border-slate-700/50 opacity-60 hover:opacity-80',
+          ? `${cfg.borderColour} hover:shadow-md`
+          : 'border-slate-200 dark:border-slate-700/50 opacity-75 hover:opacity-100',
       )}
     >
       {/* Unread left accent */}
@@ -115,7 +115,7 @@ function NotificationCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 flex-wrap mb-0.5">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <p className={cn('text-sm font-bold truncate', notif.is_read ? 'text-slate-600 dark:text-slate-300' : 'text-slate-900 dark:text-white')}>
+              <p className={cn('text-sm font-bold truncate', notif.is_read ? 'text-slate-500 dark:text-slate-300' : 'text-slate-900 dark:text-white')}>
                 {notif.title}
               </p>
               <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border shrink-0', cfg.iconBg, cfg.iconColour, cfg.borderColour)}>
@@ -134,7 +134,7 @@ function NotificationCard({
           {notif.metadata && Object.keys(notif.metadata).length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {Object.entries(notif.metadata).slice(0, 4).map(([k, v]) => (
-                <span key={k} className="text-[10px] bg-slate-700/80 border border-slate-600/50 text-slate-400 rounded-lg px-2 py-0.5 max-w-[160px] truncate">
+                <span key={k} className="text-[10px] bg-slate-100 dark:bg-slate-700/80 border border-slate-300 dark:border-slate-600/50 text-slate-600 dark:text-slate-400 rounded-lg px-2 py-0.5 max-w-[160px] truncate">
                   {k}: {String(v).slice(0, 25)}
                 </span>
               ))}
@@ -142,12 +142,12 @@ function NotificationCard({
           )}
 
           {/* Action row */}
-          <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50">
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-700/50">
             {!notif.is_read && (
               <button
                 onClick={() => onMarkRead(notif.id)}
                 disabled={markingRead}
-                className="flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors disabled:opacity-50"
               >
                 {markingRead ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                 Mark read
@@ -156,7 +156,7 @@ function NotificationCard({
             <button
               onClick={() => onDelete(notif.id)}
               disabled={deleting}
-              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-red-400 transition-colors disabled:opacity-50 ml-auto"
+              className="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50 ml-auto"
             >
               {deleting ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
               Delete
@@ -266,7 +266,7 @@ export default function NotificationsPage() {
             )}
             <Link
               href="/settings"
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:border-slate-600 transition-all"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:border-slate-400 dark:hover:border-slate-600 transition-all"
               title="Notification settings"
             >
               <Settings size={15} />
@@ -276,7 +276,7 @@ export default function NotificationsPage() {
 
         {/* ── Filter tabs ── */}
         {rawNotifications.length > 0 && (
-          <div className="flex gap-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl p-1 w-fit">
+          <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl p-1 w-fit">
             {(['all', 'unread', 'read'] as FilterType[]).map(f => (
               <button
                 key={f}
@@ -306,8 +306,8 @@ export default function NotificationsPage() {
           </div>
         ) : rawNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4">
-              <Bell size={32} className="text-slate-600" />
+            <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center mx-auto mb-4">
+              <Bell size={32} className="text-slate-500 dark:text-slate-600" />
             </div>
             <h3 className="text-slate-800 dark:text-white font-bold text-lg mb-1">No notifications yet</h3>
             <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
@@ -316,7 +316,7 @@ export default function NotificationsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-            <X size={32} className="mx-auto text-slate-600 mb-3" />
+            <X size={32} className="mx-auto text-slate-400 dark:text-slate-600 mb-3" />
             <p className="text-slate-400 text-sm">No {filter} notifications</p>
             <button onClick={() => setFilter('all')} className="text-indigo-400 text-xs mt-2 hover:underline">View all</button>
           </div>

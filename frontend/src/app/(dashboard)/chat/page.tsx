@@ -609,23 +609,22 @@ export default function ChatPage() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -260, opacity: 0 }}
               transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-              className="absolute left-0 top-0 bottom-0 z-30 w-[260px] flex flex-col overflow-hidden"
+              className="absolute left-0 top-0 bottom-0 z-30 w-[260px] flex flex-col overflow-hidden bg-white dark:bg-[#0f1117]"
               style={{
-                background: 'linear-gradient(180deg, #0f1117 0%, #0d1018 100%)',
                 borderRight: '1px solid rgba(99,102,241,0.15)',
-                boxShadow: '4px 0 32px rgba(0,0,0,0.6), 1px 0 0 rgba(99,102,241,0.08)',
+                boxShadow: '4px 0 32px rgba(0,0,0,0.3), 1px 0 0 rgba(99,102,241,0.08)',
               }}
             >
               {/* ── Sidebar Header ── */}
-              <div className="flex items-center justify-between px-3 py-3 border-b border-white/5">
+              <div className="flex items-center justify-between px-3 py-3 border-b border-slate-200 dark:border-white/5">
                 <div className="flex items-center gap-2.5">
                   {/* Gradient logo mark */}
                   <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
                     <MessageSquare size={13} className="text-slate-900 dark:text-white" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">Chat History</p>
-                    <p className="text-[10px] text-slate-500">{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
+                    <p className="text-xs font-bold text-slate-800 dark:text-white tracking-tight">Chat History</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-500">{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
                 {/* Close button with tooltip */}
@@ -634,17 +633,17 @@ export default function ChatPage() {
                   className="group/close relative p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/8 transition-all"
                 >
                   <ChevronRight size={15} className="rotate-180" />
-                  <span className="pointer-events-none absolute right-0 top-full mt-1.5 bg-slate-100 dark:bg-slate-800 text-white text-[10px] font-semibold px-2 py-1 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/close:opacity-100 transition-opacity z-50 shadow-lg">
+                  <span className="pointer-events-none absolute right-0 top-full mt-1.5 bg-slate-800 dark:bg-slate-800 text-white text-[10px] font-semibold px-2 py-1 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/close:opacity-100 transition-opacity z-50 shadow-lg">
                     Collapse sidebar
                   </span>
                 </button>
               </div>
 
               {/* ── New Chat Button ── */}
-              <div className="px-3 py-2.5 border-b border-white/5">
+              <div className="px-3 py-2.5 border-b border-slate-200 dark:border-white/5">
                 <button
                   onClick={startNewChat}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/20 hover:border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition-all group/new"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-600/15 hover:bg-indigo-100 dark:hover:bg-indigo-600/25 border border-indigo-200 dark:border-indigo-500/20 hover:border-indigo-300 dark:hover:border-indigo-500/40 text-indigo-600 dark:text-indigo-300 hover:text-indigo-700 dark:hover:text-white text-xs font-semibold transition-all group/new"
                 >
                   <div className="w-5 h-5 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 group-hover/new:bg-indigo-500 transition-colors">
                     <Plus size={11} className="text-slate-900 dark:text-white" />
@@ -661,8 +660,8 @@ export default function ChatPage() {
                   </div>
                 ) : conversations.length === 0 ? (
                   <div className="text-center py-12 px-4">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-200 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-center mx-auto mb-3">
-                      <MessageSquare size={18} className="text-slate-600" />
+                    <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-center mx-auto mb-3">
+                      <MessageSquare size={18} className="text-slate-500 dark:text-slate-600" />
                     </div>
                     <p className="text-xs font-semibold text-slate-400">No conversations yet</p>
                     <p className="text-[10px] text-slate-600 mt-1">Start chatting to see history here</p>
@@ -676,8 +675,8 @@ export default function ChatPage() {
                         className={cn(
                           'group relative flex items-start gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
                           isActive
-                            ? 'bg-indigo-600/18 border border-indigo-500/25'
-                            : 'hover:bg-white/5 border border-transparent'
+                            ? 'bg-indigo-50 dark:bg-indigo-600/18 border border-indigo-200 dark:border-indigo-500/25'
+                            : 'hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent'
                         )}
                         onClick={() => loadConversation(conv.conversation_id)}
                       >
@@ -687,15 +686,15 @@ export default function ChatPage() {
                         )}
                         <div className={cn(
                           'w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors',
-                          isActive ? 'bg-indigo-600/30' : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-700'
+                          isActive ? 'bg-indigo-100 dark:bg-indigo-600/30' : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
                         )}>
                           <MessageSquare size={11} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={cn('text-xs font-semibold truncate leading-snug', isActive ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300')}>
+                          <p className={cn('text-xs font-semibold truncate leading-snug', isActive ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300')}>
                             {conv.title || 'Untitled'}
                           </p>
-                          <p className="text-[10px] text-slate-600 mt-0.5 flex items-center gap-1">
+                          <p className="text-[10px] text-slate-500 dark:text-slate-600 mt-0.5 flex items-center gap-1">
                             <span>{formatChatDate(conv.updated_at)}</span>
                             <span>·</span>
                             <span>{conv.message_count} msg{conv.message_count !== 1 ? 's' : ''}</span>
@@ -704,7 +703,7 @@ export default function ChatPage() {
                         {/* Delete button */}
                         <button
                           onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(conv.conversation_id); }}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-900/40 text-slate-600 hover:text-red-400 transition-all shrink-0"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/40 text-slate-500 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 transition-all shrink-0"
                           title="Delete"
                         >
                           <Trash2 size={11} />
@@ -716,8 +715,8 @@ export default function ChatPage() {
               </div>
 
               {/* ── Sidebar Footer ── */}
-              <div className="px-3 py-2.5 border-t border-white/5">
-                <p className="text-[10px] text-slate-600 text-center">Powered by SYNAPSE RAG</p>
+              <div className="px-3 py-2.5 border-t border-slate-200 dark:border-white/5">
+                <p className="text-[10px] text-slate-500 dark:text-slate-600 text-center">Powered by SYNAPSE RAG</p>
               </div>
             </motion.aside>
           </>
@@ -729,11 +728,11 @@ export default function ChatPage() {
 
         {/* ── No API key warning banner ── */}
         {apiKeyStatus && !apiKeyStatus.any_configured && (
-          <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs">
-            <AlertCircle size={14} className="flex-shrink-0 text-amber-400" />
+          <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs">
+            <AlertCircle size={14} className="flex-shrink-0 text-amber-500 dark:text-amber-400" />
             <span>
               No AI API key configured — chat is using the shared server key.{' '}
-              <Link href="/settings" className="underline hover:text-amber-200 font-medium">
+              <Link href="/settings" className="underline hover:text-amber-600 dark:hover:text-amber-200 font-medium">
                 Add your own key in Settings → AI Engine
               </Link>{' '}
               for dedicated access.
@@ -750,7 +749,7 @@ export default function ChatPage() {
               className={cn(
                 'relative p-2 rounded-xl transition-all duration-200',
                 sidebarOpen
-                  ? 'text-indigo-400 bg-indigo-600/15 border border-indigo-500/25'
+                  ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-600/15 border border-indigo-500/25'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-300 dark:hover:border-slate-700'
               )}
             >
@@ -760,9 +759,9 @@ export default function ChatPage() {
               />
             </button>
             {/* Premium tooltip */}
-            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-slate-100 dark:bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/toggle:opacity-100 transition-opacity z-50 shadow-xl">
+            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-slate-800 dark:bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/toggle:opacity-100 transition-opacity z-50 shadow-xl">
               {sidebarOpen ? 'Collapse history' : 'Open history'}
-              <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-100 dark:bg-slate-800 border-l border-t border-slate-700 rotate-45" />
+              <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-800 dark:bg-slate-800 border-l border-t border-slate-700 rotate-45" />
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -779,9 +778,9 @@ export default function ChatPage() {
           <div ref={modelDropdownRef} className="relative ml-3">
             <button
               onClick={() => setModelDropdownOpen((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-700/80 hover:border-indigo-500/50 text-xs text-slate-600 dark:text-slate-300 hover:text-white transition-all group"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/80 hover:border-indigo-300 dark:hover:border-indigo-500/50 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all group"
             >
-              <Zap size={11} className="text-indigo-400 shrink-0" />
+              <Zap size={11} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span className="max-w-[110px] sm:max-w-[140px] truncate font-medium">
                 {GEMINI_MODELS.find((m) => m.id === selectedModel)?.label ?? 'Select model'}
               </span>
@@ -795,10 +794,10 @@ export default function ChatPage() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -4, scale: 0.97 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-sm"
+                  className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/40 overflow-hidden backdrop-blur-sm"
                 >
                   {/* Header */}
-                  <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/60">
+                  <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/60">
                     <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
                       <Zap size={10} className="text-indigo-600 dark:text-indigo-400" /> AI Model
                     </p>
@@ -814,13 +813,13 @@ export default function ChatPage() {
                         className={cn(
                           'w-full flex items-center justify-between px-3 py-2 text-xs transition-all text-left group/item rounded-lg mx-1.5 mb-0.5 w-[calc(100%-12px)]',
                           selectedModel === m.id
-                            ? 'bg-indigo-600/25 border border-indigo-500/30 text-white'
-                            : 'text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-white border border-transparent'
+                            ? 'bg-indigo-600/15 dark:bg-indigo-600/25 border border-indigo-300 dark:border-indigo-500/30 text-indigo-700 dark:text-white'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-transparent'
                         )}
                       >
                         <span className="flex items-center gap-2 min-w-0">
                           {selectedModel === m.id
-                            ? <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                            ? <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 shrink-0" />
                             : <div className="w-1.5 h-1.5 rounded-full bg-transparent shrink-0" />
                           }
                           <span className="truncate font-medium">{m.label}</span>
@@ -831,7 +830,7 @@ export default function ChatPage() {
                             m.badge.includes('Default') ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30' :
                             m.badge.includes('Latest') ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' :
                             m.badge.includes('Fast')   ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30' :
-                            'bg-slate-700/80 text-slate-400 border-slate-600/50'
+                            'bg-slate-100 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600/50'
                           )}>
                             {m.badge}
                           </span>
@@ -847,26 +846,26 @@ export default function ChatPage() {
                         className={cn(
                           'w-full flex items-center justify-between px-3 py-2 text-xs transition-all text-left rounded-lg mx-1.5 mb-0.5 w-[calc(100%-12px)]',
                           selectedModel === m.id
-                            ? 'bg-indigo-600/25 border border-indigo-500/30 text-white'
-                            : 'text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-white border border-transparent'
+                            ? 'bg-indigo-600/15 dark:bg-indigo-600/25 border border-indigo-300 dark:border-indigo-500/30 text-indigo-700 dark:text-white'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-transparent'
                         )}
                       >
                         <span className="flex items-center gap-2 min-w-0">
                           {selectedModel === m.id
-                            ? <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                            ? <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 shrink-0" />
                             : <div className="w-1.5 h-1.5 rounded-full bg-transparent shrink-0" />
                           }
                           <span className="truncate font-medium">{m.label}</span>
                         </span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-2 border bg-amber-500/15 text-amber-300 border-amber-500/25">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-2 border bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-200 dark:border-amber-500/25">
                           {m.badge}
                         </span>
                       </button>
                     ))}
                   </div>
                   {/* Footer */}
-                  <div className="px-4 py-2.5 border-t border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/40">
-                    <p className="text-[9px] text-slate-600">Powered by OpenRouter · Requires your API key in Settings</p>
+                  <div className="px-4 py-2.5 border-t border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40">
+                    <p className="text-[9px] text-slate-500 dark:text-slate-600">Powered by OpenRouter · Requires your API key in Settings</p>
                   </div>
                 </motion.div>
               )}
@@ -965,7 +964,7 @@ export default function ChatPage() {
             {/* ── Gemini-style input card ── */}
             <div className={cn(
               'bg-slate-100 dark:bg-slate-800 border rounded-3xl transition-colors overflow-hidden',
-              isGenerating ? 'border-slate-700' : 'border-slate-600 focus-within:border-indigo-500/70'
+              isGenerating ? 'border-slate-200 dark:border-slate-700' : 'border-slate-300 dark:border-slate-600 focus-within:border-indigo-400 dark:focus-within:border-indigo-500/70'
             )}>
 
               {/* Image grid staging area — shown above textarea when files are attached */}
@@ -991,8 +990,8 @@ export default function ChatPage() {
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors rounded-xl" />
                           </>
                         ) : (
-                          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-xs text-slate-300">
-                            <Paperclip size={13} className="text-indigo-400 flex-shrink-0" />
+                          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-xs text-slate-600 dark:text-slate-300">
+                            <Paperclip size={13} className="text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
                             <span className="truncate">{af.file.name}</span>
                           </div>
                         )}
@@ -1057,7 +1056,7 @@ export default function ChatPage() {
                     'flex-shrink-0 p-2.5 rounded-full transition-all',
                     (inputValue.trim() || attachedFiles.length > 0) && !isGenerating
                       ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/40'
-                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                   )}
                   title="Send message"
                 >

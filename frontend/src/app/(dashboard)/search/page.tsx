@@ -115,10 +115,10 @@ export default function SearchPage() {
         {/* ── Search Input + Dropdown ── */}
         <div className="relative">
           <div className={cn(
-            'flex items-center gap-3 px-4 py-3 sm:py-4 bg-slate-800/90 border rounded-2xl transition-all duration-200',
+            'flex items-center gap-3 px-4 py-3 sm:py-4 bg-slate-100 dark:bg-slate-800/90 border rounded-2xl transition-all duration-200',
             inputFocused
-              ? 'border-indigo-500/80 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30'
-              : 'border-slate-700 hover:border-slate-600'
+              ? 'border-indigo-400 dark:border-indigo-500/80 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-400/30 dark:ring-indigo-500/30'
+              : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
           )}>
             <Search size={18} className="text-slate-500 shrink-0" />
             <input
@@ -131,12 +131,12 @@ export default function SearchPage() {
               onKeyDown={e => e.key === 'Escape' && handleClear()}
               placeholder="Search articles, papers, repos, videos…"
               autoFocus
-              className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none text-sm sm:text-base min-w-0"
+              className="flex-1 bg-transparent text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none text-sm sm:text-base min-w-0"
             />
             {showLoading
-              ? <Loader2 size={16} className="text-indigo-400 animate-spin shrink-0" />
+              ? <Loader2 size={16} className="text-indigo-600 dark:text-indigo-400 animate-spin shrink-0" />
               : query
-              ? <button onClick={handleClear} className="text-slate-500 hover:text-slate-200 transition-colors shrink-0 p-0.5 rounded">
+              ? <button onClick={handleClear} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shrink-0 p-0.5 rounded">
                   <X size={16} />
                 </button>
               : null
@@ -154,7 +154,7 @@ export default function SearchPage() {
                 className="absolute top-full mt-2 w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-20"
               >
                 {history.length > 0 && (
-                  <div className="p-3 border-b border-slate-700/60">
+                  <div className="p-3 border-b border-slate-200 dark:border-slate-700/60">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
                         <Clock size={11} /> Recent
@@ -171,7 +171,7 @@ export default function SearchPage() {
                         <button
                           key={h}
                           onMouseDown={() => handleSelect(h)}
-                          className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700/60 text-left transition-colors"
+                          className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/60 text-left transition-colors"
                         >
                           <Clock size={13} className="text-slate-600 shrink-0" />
                           <span className="text-sm text-slate-600 dark:text-slate-300 truncate">{h}</span>
@@ -189,7 +189,7 @@ export default function SearchPage() {
                       <button
                         key={t}
                         onMouseDown={() => handleSelect(t)}
-                        className="px-2.5 py-1 rounded-full bg-slate-700/70 hover:bg-indigo-600/30 border border-slate-600/50 hover:border-indigo-500/50 text-xs text-slate-600 dark:text-slate-300 hover:text-indigo-300 transition-all"
+                        className="px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-700/70 hover:bg-indigo-100 dark:hover:bg-indigo-600/30 border border-slate-300 dark:border-slate-600/50 hover:border-indigo-400 dark:hover:border-indigo-500/50 text-xs text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 transition-all"
                       >
                         {t}
                       </button>
@@ -211,9 +211,9 @@ export default function SearchPage() {
               className="bg-gradient-to-r from-indigo-900/30 to-violet-900/20 border border-indigo-500/25 rounded-2xl p-4"
             >
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles size={14} className="text-indigo-400 shrink-0" />
-                <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest">AI Semantic Match</span>
-                {semanticFetching && <Loader2 size={12} className="animate-spin text-indigo-400" />}
+                <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-widest">AI Semantic Match</span>
+                {semanticFetching && <Loader2 size={12} className="animate-spin text-indigo-600 dark:text-indigo-400" />}
               </div>
               <div className="space-y-2">
                 {semanticResults.slice(0, 3).map((r: any, i: number) => (
@@ -245,10 +245,10 @@ export default function SearchPage() {
           <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
             <p className="text-slate-400 text-xs sm:text-sm shrink-0">
               <span className="text-slate-900 dark:text-white font-bold">{total}</span> results for{' '}
-              <span className="text-indigo-400 font-semibold">"{debouncedQuery}"</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-semibold">"{debouncedQuery}"</span>
             </p>
             {/* Tabs — scrollable */}
-            <div className="flex gap-1 bg-slate-200 dark:bg-slate-800/80 rounded-xl p-1 overflow-x-auto scrollbar-hide shrink-0">
+            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl p-1 overflow-x-auto scrollbar-hide shrink-0">
               {TABS.map(tab => {
                 const count = tabCounts[tab.id]
                 if (tab.id !== 'all' && count === 0) return null
@@ -278,7 +278,7 @@ export default function SearchPage() {
         {/* ── Results ── */}
         {debouncedQuery.length < 2 ? (
           <div className="text-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center mx-auto mb-4">
               <Search size={28} className="text-slate-600" />
             </div>
             <p className="text-slate-400 text-base font-medium mb-1">What are you looking for?</p>
@@ -289,7 +289,7 @@ export default function SearchPage() {
                 <button
                   key={t}
                   onClick={() => handleSelect(t)}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500/50 text-xs text-slate-400 hover:text-indigo-300 transition-all"
+                  className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-600/20 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500/50 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-all"
                 >
                   {t}
                 </button>
@@ -298,20 +298,20 @@ export default function SearchPage() {
           </div>
         ) : showLoading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <Loader2 size={32} className="animate-spin text-indigo-400" />
+            <Loader2 size={32} className="animate-spin text-indigo-600 dark:text-indigo-400" />
             <p className="text-slate-500 text-sm">Searching…</p>
           </div>
         ) : !hasResults ? (
           <div className="text-center py-20 bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             <Search size={40} className="mx-auto text-slate-600 mb-3" />
-            <p className="text-slate-300 font-semibold mb-1">No results found</p>
+            <p className="text-slate-700 dark:text-slate-300 font-semibold mb-1">No results found</p>
             <p className="text-slate-500 text-sm">Try different keywords or broaden your search</p>
             <div className="flex flex-wrap justify-center gap-2 mt-5">
               {TRENDING_SEARCHES.slice(0, 4).map(t => (
                 <button
                   key={t}
                   onClick={() => handleSelect(t)}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-700 text-xs text-slate-400 hover:text-indigo-300 hover:border-indigo-500/50 transition-all"
+                  className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:border-indigo-400 dark:hover:border-indigo-500/50 transition-all"
                 >
                   {t}
                 </button>

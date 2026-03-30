@@ -342,14 +342,14 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
   }
 
   return (
-    <nav className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-700/60">
+    <nav className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-300 dark:border-slate-700/60">
       <div className="flex items-center justify-between h-16 px-6">
 
         {/* Left: Page title / Mobile menu */}
         <div className="flex items-center gap-3">
           <button
             onClick={onMobileMenuClick}
-            className="inline-flex md:!hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+            className="inline-flex md:!hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
             aria-label="Open sidebar"
           >
             <Menu size={20} />
@@ -378,7 +378,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           {/* Dark mode toggle */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
             title="Toggle dark mode"
           >
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -388,7 +388,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           <div ref={notifRef} className="relative">
             <button
               onClick={handleBellClick}
-              className={`relative p-2 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 ${
+              className={`relative p-2 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 ${
                 isNotifOpen ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
               }`}
               title=""
@@ -411,7 +411,7 @@ export function Navbar({ onMobileMenuClick }: NavbarProps) {
           <div className="relative">
             <button
               onClick={() => { setIsUserMenuOpen(!isUserMenuOpen); setIsNotifOpen(false) }}
-              className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center">
                 <span className="text-white dark:text-white font-bold text-xs">

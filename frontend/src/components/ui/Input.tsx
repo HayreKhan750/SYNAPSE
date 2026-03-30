@@ -45,9 +45,9 @@ type Props = InputProps | TextareaProps
 // ── Base classes ───────────────────────────────────────────────────────────────
 
 const BASE =
-  'w-full rounded-xl border bg-white dark:bg-slate-800/80 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed'
+  'w-full rounded-xl border bg-white dark:bg-slate-800/80 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-500 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed'
 
-const BORDER_NORMAL = 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+const BORDER_NORMAL = 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
 const BORDER_ERROR  = 'border-red-400 dark:border-red-500 focus:ring-red-400/40 focus:border-red-500'
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
       <div className={clsx('flex flex-col gap-1.5', fullWidth && 'w-full', wrapperClass)}>
         {/* Label */}
         {label && (
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label className="text-sm font-medium text-slate-900 dark:text-slate-300">
             {label}
           </label>
         )}
@@ -92,7 +92,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
         <div className="relative">
           {/* Left icon */}
           {(leftIcon || isSearch) && (
-            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none">
               {isSearch ? <Search size={15} /> : leftIcon}
             </div>
           )}
@@ -119,13 +119,13 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 transition-colors"
               tabIndex={-1}
             >
               {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           ) : rightIcon ? (
-            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none">
               {rightIcon}
             </div>
           ) : null}
@@ -151,7 +151,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-xs text-slate-400 dark:text-slate-500"
+              className="text-xs text-slate-600 dark:text-slate-500"
             >
               {hint}
             </motion.p>

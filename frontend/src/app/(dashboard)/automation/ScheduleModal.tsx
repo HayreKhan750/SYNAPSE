@@ -42,7 +42,7 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[80vh]">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-700">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
           <div>
             <h2 className="text-lg font-semibold text-slate-800 dark:text-white">⏱ Scheduled Tasks</h2>
             <p className="text-xs text-slate-400 mt-0.5">Manage Celery Beat schedules for your workflows.</p>
@@ -74,7 +74,7 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
 
           {schedule.map(entry => (
             <div key={entry.task_name}
-              className={`bg-white dark:bg-slate-900 border rounded-xl p-4 transition-all shadow-sm ${entry.enabled ? 'border-slate-700' : 'border-slate-700/40 opacity-60'}`}>
+              className={`bg-white dark:bg-slate-900 border rounded-xl p-4 transition-all shadow-sm ${entry.enabled ? 'border-slate-200 dark:border-slate-700' : 'border-slate-200/60 dark:border-slate-700/40 opacity-60'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -85,7 +85,7 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
                       {entry.enabled ? 'Active' : 'Paused'}
                     </span>
                   </div>
-                  <p className="text-xs font-mono text-indigo-400 mb-2">⏱ {entry.cron_expression}</p>
+                  <p className="text-xs font-mono text-indigo-600 dark:text-indigo-400 mb-2">⏱ {entry.cron_expression}</p>
                   <div className="flex flex-wrap gap-3 text-xs text-slate-500">
                     <span>🔄 {entry.total_run_count} total runs</span>
                     {entry.last_run_at && (
@@ -108,7 +108,7 @@ export function ScheduleModal({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700">
           <p className="text-xs text-slate-500 text-center">
             Schedules are powered by Celery Beat. Changes take effect on the next scheduler heartbeat.
           </p>

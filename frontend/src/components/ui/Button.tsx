@@ -37,7 +37,7 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   secondary:
     'bg-cyan-600 hover:bg-cyan-700 active:bg-cyan-800 text-white shadow-sm border border-cyan-700/50',
   ghost:
-    'bg-transparent hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-transparent',
+    'bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-transparent',
   destructive:
     'bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-sm hover:shadow-glow-red border border-red-700/50',
   outline:

@@ -72,7 +72,7 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-700">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
           <div>
             <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Workflow Templates</h2>
             <p className="text-xs text-slate-400 mt-0.5">Clone a pre-built workflow to get started instantly.</p>
@@ -81,13 +81,13 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Category filter */}
-        <div className="flex gap-2 px-5 py-3 border-b border-slate-700 overflow-x-auto">
+        <div className="flex gap-2 px-5 py-3 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
           {categories.map(cat => (
             <button key={cat} onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors ${
                 selectedCategory === cat
                   ? 'bg-indigo-600 border-indigo-500 text-white'
-                  : 'bg-white dark:bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500'
               }`}>
               {cat === 'all' ? '🌐 All' : CATEGORY_LABELS[cat] ?? cat}
             </button>
@@ -116,11 +116,11 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
 
                   {/* Trigger info */}
                   <div className="flex flex-wrap gap-1.5">
-                    <span className="text-xs bg-slate-700 text-slate-600 dark:text-slate-300 rounded px-2 py-0.5">
+                    <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded px-2 py-0.5">
                       {t.trigger_type === 'schedule' ? `⏱ ${t.cron_expression}` : t.trigger_type === 'event' ? `⚡ ${(t.event_config as { event_type?: string })?.event_type}` : '🖐 Manual'}
                     </span>
                     {t.actions.map((a, i) => (
-                      <span key={i} className="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded px-1.5 py-0.5">
+                      <span key={i} className="text-xs bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/20 rounded px-1.5 py-0.5">
                         {ACTION_LABELS[a.type] ?? a.type}
                       </span>
                     ))}
@@ -129,7 +129,7 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
                   {/* Custom name */}
                   <input type="text" value={customNames[t.id] ?? t.name}
                     onChange={e => setCustomNames(prev => ({ ...prev, [t.id]: e.target.value }))}
-                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-white text-xs placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                     placeholder="Custom workflow name..." />
 
                   <button onClick={() => handleClone(t)} disabled={cloningId === t.id}

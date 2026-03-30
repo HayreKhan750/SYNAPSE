@@ -76,10 +76,10 @@ const COMMAND_TEMPLATES = [
 ]
 
 const STATUS_CONFIG = {
-  pending:    { color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-400/10',  border: 'border-amber-400/30',  icon: Clock,     label: 'Pending' },
-  processing: { color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-400/10',   border: 'border-blue-400/30',   icon: Loader2,   label: 'Running' },
-  completed:  { color: 'text-emerald-600 dark:text-emerald-400',bg: 'bg-emerald-400/10',border: 'border-emerald-400/30',icon: CheckCircle,label: 'Completed' },
-  failed:     { color: 'text-red-400',    bg: 'bg-red-400/10',    border: 'border-red-400/30',    icon: XCircle,   label: 'Failed' },
+  pending:    { color: 'text-amber-700 dark:text-amber-400',  bg: 'bg-amber-100 dark:bg-amber-400/10',  border: 'border-amber-300 dark:border-amber-400/30',  icon: Clock,     label: 'Pending' },
+  processing: { color: 'text-blue-700 dark:text-blue-400',   bg: 'bg-blue-100 dark:bg-blue-400/10',   border: 'border-blue-300 dark:border-blue-400/30',   icon: Loader2,   label: 'Running' },
+  completed:  { color: 'text-emerald-700 dark:text-emerald-400',bg: 'bg-emerald-100 dark:bg-emerald-400/10',border: 'border-emerald-300 dark:border-emerald-400/30',icon: CheckCircle,label: 'Completed' },
+  failed:     { color: 'text-red-700 dark:text-red-400',    bg: 'bg-red-100 dark:bg-red-400/10',    border: 'border-red-300 dark:border-red-400/30',    icon: XCircle,   label: 'Failed' },
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ function CopyButton({ text }: { text: string }) {
 function AgentMarkdown({ content }: { content: string }) {
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null)
   return (
-    <div className="prose prose-sm prose-invert max-w-none">
+    <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
@@ -186,19 +186,19 @@ function AgentMarkdown({ content }: { content: string }) {
           strong: ({ children }: any) => <strong className="font-semibold text-slate-800 dark:text-white">{children}</strong>,
           em: ({ children }: any) => <em className="italic text-slate-600 dark:text-slate-300">{children}</em>,
           blockquote: ({ children }: any) => (
-            <blockquote className="border-l-4 border-indigo-500 bg-slate-100 dark:bg-slate-900/50 pl-4 pr-2 py-2 my-3 rounded-r-lg text-slate-400 italic">
+            <blockquote className="border-l-4 border-indigo-500 bg-slate-100 dark:bg-slate-900/50 pl-4 pr-2 py-2 my-3 rounded-r-lg text-slate-600 dark:text-slate-400 italic">
               {children}
             </blockquote>
           ),
           a: ({ href, children }: any) => (
             <a href={href} target="_blank" rel="noopener noreferrer"
-              className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors inline-flex items-center gap-1">
+              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 underline underline-offset-2 transition-colors inline-flex items-center gap-1">
               {children}<ExternalLink size={11} className="opacity-60" />
             </a>
           ),
-          hr: () => <hr className="border-slate-700 my-4" />,
+          hr: () => <hr className="border-slate-300 dark:border-slate-700 my-4" />,
           table: ({ children }: any) => (
-            <div className="my-4 rounded-lg border border-slate-700 overflow-hidden">
+            <div className="my-4 rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm border-collapse">{children}</table>
               </div>
@@ -227,7 +227,7 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors group"
       >
-        <div className="p-0.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 group-hover:border-indigo-500/50 transition-colors">
+        <div className="p-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 group-hover:border-indigo-500/50 transition-colors">
           {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </div>
         <Cpu size={11} className="text-indigo-600 dark:text-indigo-400" />
@@ -243,23 +243,23 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
           >
             <div className="mt-3 space-y-2">
               {steps.map((step, i) => (
-                <div key={i} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
-                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-200 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <div key={i} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                     <div className="w-5 h-5 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
-                      <span className="text-[9px] font-bold text-indigo-400">{i + 1}</span>
+                      <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400">{i + 1}</span>
                     </div>
-                    <span className="font-mono text-xs text-indigo-300 font-semibold">{step.tool}</span>
+                    <span className="font-mono text-xs text-indigo-600 dark:text-indigo-300 font-semibold">{step.tool}</span>
                   </div>
                   <div className="p-3 space-y-2 text-xs">
                     <div>
                       <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Input</span>
-                      <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-700">
+                      <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-700">
                         {typeof step.input === 'string' ? step.input : JSON.stringify(step.input, null, 2)}
                       </pre>
                     </div>
                     <div>
                       <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Output</span>
-                      <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-700 max-h-40 overflow-y-auto">
+                      <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-700 max-h-40 overflow-y-auto">
                         {String(step.output).slice(0, 600)}{String(step.output).length > 600 ? '\n…(truncated)' : ''}
                       </pre>
                     </div>
@@ -287,7 +287,7 @@ function FileListAccordion({ files }: { files: string[] }) {
         {open ? 'Hide' : 'View'} {files.length} included files
       </button>
       {open && (
-        <div className="mt-2 bg-slate-100 dark:bg-slate-900/70 rounded-lg p-2 border border-slate-200 dark:border-slate-700 max-h-36 overflow-y-auto">
+        <div className="mt-2 bg-slate-50 dark:bg-slate-900/70 rounded-lg p-2 border border-slate-200 dark:border-slate-700 max-h-36 overflow-y-auto">
           {files.map((f, i) => {
             const FI = fileExtIcon(f) as React.ComponentType<{ size?: number; className?: string }>
             return (
@@ -326,7 +326,7 @@ function DownloadResultCard({ task }: { task: AgentTask }) {
   const accentClass = isProject
     ? 'from-emerald-600/20 to-cyan-600/10 border-emerald-500/30'
     : 'from-indigo-600/20 to-violet-600/10 border-indigo-500/30'
-  const iconClass = isProject ? 'text-emerald-400 bg-emerald-500/10' : 'text-indigo-400 bg-indigo-500/10'
+  const iconClass = isProject ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
   const btnClass = isProject
     ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
     : 'bg-indigo-600 hover:bg-indigo-500 text-white'
@@ -342,7 +342,7 @@ function DownloadResultCard({ task }: { task: AgentTask }) {
             <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
               {isProject ? 'Project Scaffold' : 'Generated Document'}
             </span>
-            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-600 dark:text-slate-300 font-mono font-bold">{ext}</span>
+            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono font-bold">{ext}</span>
           </div>
           <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{displayName}</p>
           {sizeStr && (
@@ -397,7 +397,7 @@ function TaskCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className={`rounded-2xl border ${cfg.border} bg-white dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden shadow-card dark:shadow-lg`}
+      className={`rounded-2xl border bg-white dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden shadow-card dark:shadow-lg border-slate-200 dark:${cfg.border}`}
     >
       {/* Status accent bar */}
       <div className={`h-0.5 w-full ${
@@ -421,10 +421,10 @@ function TaskCard({
               <StatusIcon size={10} className={task.status === 'processing' ? 'animate-spin' : ''} />
               {cfg.label}
             </span>
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
               {TypeInfo?.label ?? task.task_type}
             </span>
-            <span className="text-xs text-slate-600">{timeAgo(task.created_at)}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-600">{timeAgo(task.created_at)}</span>
             {hasDownload && task.status === 'completed' && (
               <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full">
                 <Download size={9} />
@@ -461,24 +461,24 @@ function TaskCard({
       </div>
 
       {/* Metrics strip */}
-      <div className="flex items-center gap-4 px-4 pb-3 text-xs text-slate-600 border-b border-slate-800">
-        <span className="flex items-center gap-1 text-slate-500">
+      <div className="flex items-center gap-4 px-4 pb-3 text-xs border-b border-slate-200 dark:border-slate-800">
+        <span className="flex items-center gap-1 text-slate-500 dark:text-slate-500">
           <Zap size={10} className="text-amber-500" />
           {(task.tokens_used || 0).toLocaleString()} tokens
         </span>
-        <span className="flex items-center gap-1 text-slate-500">
+        <span className="flex items-center gap-1 text-slate-500 dark:text-slate-500">
           <DollarSign size={10} className="text-emerald-500" />
           {formatCost(task.cost_usd)}
         </span>
         {task.execution_time_s != null && (
-          <span className="flex items-center gap-1 text-slate-500">
-            <Timer size={10} className="text-blue-600 dark:text-blue-400" />
+          <span className="flex items-center gap-1 text-slate-500 dark:text-slate-500">
+            <Timer size={10} className="text-blue-500 dark:text-blue-400" />
             {formatDuration(task.execution_time_s)}
           </span>
         )}
         {steps.length > 0 && (
-          <span className="flex items-center gap-1 text-slate-500">
-            <Cpu size={10} className="text-indigo-600 dark:text-indigo-400" />
+          <span className="flex items-center gap-1 text-slate-500 dark:text-slate-500">
+            <Cpu size={10} className="text-indigo-500 dark:text-indigo-400" />
             {steps.length} tool{steps.length !== 1 ? 's' : ''} used
           </span>
         )}
@@ -528,7 +528,7 @@ function TaskCard({
 
               {/* Answer — rendered as beautiful markdown */}
               {answer && (
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 px-5 py-4">
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 px-5 py-4 prose-headings:text-slate-800 dark:prose-headings:text-white prose-p:text-slate-700 dark:prose-p:text-slate-300">
                   <AgentMarkdown content={answer} />
                 </div>
               )}
@@ -745,11 +745,11 @@ export default function AgentsPage() {
 
         {/* ── No API key warning banner ── */}
         {apiKeyStatus && !apiKeyStatus.any_configured && (
-          <div className="flex items-center gap-3 px-4 py-3 mb-6 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl text-amber-300 text-sm">
-            <AlertCircle size={16} className="flex-shrink-0 text-amber-400" />
+          <div className="flex items-center gap-3 px-4 py-3 mb-6 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl text-amber-700 dark:text-amber-300 text-sm">
+            <AlertCircle size={16} className="flex-shrink-0 text-amber-500 dark:text-amber-400" />
             <span>
               No AI API key configured — agents are using the shared server key.{' '}
-              <Link href="/settings" className="underline hover:text-amber-200 font-medium">
+              <Link href="/settings" className="underline hover:text-amber-600 dark:hover:text-amber-200 font-medium">
                 Add your own key in Settings → AI Engine
               </Link>{' '}
               to use your own quota.
@@ -757,50 +757,47 @@ export default function AgentsPage() {
           </div>
         )}
 
-        {/* ── Command Interface — Premium Diamond ── */}
-        <div className="relative rounded-2xl mb-6 overflow-hidden" style={{
-          background: 'linear-gradient(135deg, #0c0e17 0%, #0e1020 50%, #0c0e17 100%)',
-          border: '1px solid rgba(99,102,241,0.18)',
-          boxShadow: '0 0 0 1px rgba(99,102,241,0.06), 0 8px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
-        }}>
-          {/* Subtle gradient shimmer top */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+        {/* ── Command Interface ── */}
+        {/* Light mode: clean card with indigo accent. Dark mode: premium dark terminal. */}
+        <div className="relative rounded-2xl mb-6 overflow-hidden bg-white dark:bg-[#0c0e17] border border-indigo-200 dark:border-indigo-500/20 shadow-lg shadow-indigo-500/5 dark:shadow-[0_0_0_1px_rgba(99,102,241,0.06),0_8px_40px_rgba(0,0,0,0.5)]">
+          {/* Top accent line */}
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500" />
 
           <div className="p-5 sm:p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
-                  <Terminal size={14} className="text-slate-900 dark:text-white" />
+                  <Terminal size={14} className="text-white" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-slate-800 dark:text-white tracking-tight">Command Interface</h2>
-                  <p className="text-[10px] text-slate-500">Autonomous AI agent execution</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Autonomous AI agent execution</p>
                 </div>
               </div>
               {/* Tools count chip */}
               {tools.length > 0 && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-400 text-[10px] font-bold">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold">
                   <Zap size={10} />
                   {tools.length} tools ready
                 </div>
               )}
             </div>
 
-            {/* Task type picker — segmented control style */}
+            {/* Task type picker */}
             <div className="mb-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Agent Mode</p>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Agent Mode</p>
               <div className="flex flex-wrap gap-1.5">
                 {TASK_TYPES.map(tt => {
                   if (tt.locked) return (
                     <div
                       key={tt.value}
                       title={tt.lockReason}
-                      className="relative group/lock flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/30 bg-slate-800/20 opacity-40 cursor-not-allowed select-none"
+                      className="relative group/lock flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/30 bg-slate-100 dark:bg-slate-800/20 opacity-40 cursor-not-allowed select-none"
                     >
-                      <tt.icon size={12} className="text-slate-600 shrink-0" />
-                      <span className="text-xs font-semibold text-slate-600">{tt.label}</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-600 shrink-0"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      <tt.icon size={12} className="text-slate-500 shrink-0" />
+                      <span className="text-xs font-semibold text-slate-500">{tt.label}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-500 shrink-0"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                   )
                   const Icon = tt.icon
@@ -812,11 +809,11 @@ export default function AgentsPage() {
                       className={cn(
                         'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border',
                         active
-                          ? 'bg-indigo-100 dark:bg-indigo-600/25 border-indigo-300 dark:border-indigo-500/50 text-indigo-700 dark:text-indigo-300 shadow-sm shadow-indigo-200 dark:shadow-indigo-500/20'
-                          : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:border-indigo-400 dark:hover:border-indigo-500/30 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
+                          ? 'bg-indigo-50 dark:bg-indigo-500/20 border-indigo-300 dark:border-indigo-400/60 text-indigo-700 dark:text-indigo-200 shadow-sm'
+                          : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-400/40 hover:text-indigo-600 dark:hover:text-slate-200 hover:bg-indigo-50/50 dark:hover:bg-white/8'
                       )}
                     >
-                      <Icon size={12} className={active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'} />
+                      <Icon size={12} className={active ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400 dark:text-slate-500'} />
                       {tt.label}
                     </button>
                   )
@@ -824,19 +821,15 @@ export default function AgentsPage() {
               </div>
             </div>
 
-            {/* Prompt input — premium terminal style */}
+            {/* Prompt input */}
             <form onSubmit={handleSubmit}>
-              <div className="relative rounded-xl overflow-hidden" style={{
-                background: 'rgba(8,9,14,0.8)',
-                border: '1px solid rgba(99,102,241,0.15)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-              }}>
+              <div className="relative rounded-xl overflow-hidden bg-slate-50 dark:bg-[rgba(4,5,10,0.9)] border border-slate-200 dark:border-indigo-500/20">
                 {/* Terminal bar */}
-                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5">
-                  <div className="w-2 h-2 rounded-full bg-red-500/60" />
-                  <div className="w-2 h-2 rounded-full bg-amber-500/60" />
-                  <div className="w-2 h-2 rounded-full bg-emerald-500/60" />
-                  <span className="ml-2 text-[10px] text-slate-600 font-mono">
+                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-transparent">
+                  <div className="w-2 h-2 rounded-full bg-red-400/70" />
+                  <div className="w-2 h-2 rounded-full bg-amber-400/70" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-400/70" />
+                  <span className="ml-2 text-[10px] text-slate-400 dark:text-slate-600 font-mono">
                     synapse-agent ~ {TASK_TYPES.find(t => t.value === taskType)?.label?.toLowerCase() ?? 'general'}
                   </span>
                 </div>
@@ -849,12 +842,12 @@ export default function AgentsPage() {
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e as unknown as React.FormEvent) } }}
                     placeholder={`${TASK_TYPES.find(t => t.value === taskType)?.description ?? 'Describe your task'}…`}
                     rows={3}
-                    className="flex-1 bg-transparent text-sm text-slate-700 dark:text-slate-200 placeholder-slate-600 resize-none focus:outline-none font-mono leading-relaxed min-h-[72px]"
+                    className="flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 resize-none focus:outline-none font-mono leading-relaxed min-h-[72px]"
                   />
                 </div>
                 {/* Bottom toolbar */}
-                <div className="flex items-center justify-between px-3 py-2 border-t border-white/5">
-                  <p className="text-[10px] text-slate-600 font-mono">Enter ↵ to run · Shift+Enter for newline</p>
+                <div className="flex items-center justify-between px-3 py-2 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-transparent">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">Enter ↵ to run · Shift+Enter for newline</p>
                   <button
                     type="submit"
                     disabled={submitting || !prompt.trim()}
@@ -871,13 +864,13 @@ export default function AgentsPage() {
 
             {/* Quick commands */}
             <div className="mt-4">
-              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">Quick Commands</p>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Quick Commands</p>
               <div className="flex flex-wrap gap-1.5">
                 {COMMAND_TEMPLATES.map(tpl => (
                   <button
                     key={tpl.label}
                     onClick={() => { setPrompt(tpl.prompt); setTaskType(tpl.type) }}
-                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-300 hover:border-indigo-400 dark:hover:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-all font-medium"
+                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:border-indigo-300 dark:hover:border-indigo-400/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-all font-medium"
                   >
                     {tpl.label}
                   </button>
@@ -887,13 +880,13 @@ export default function AgentsPage() {
 
             {/* Available tools strip */}
             {tools.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-white/5">
+              <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5">
                 <div className="flex flex-wrap gap-1">
                   {tools.map(tool => (
                     <span
                       key={tool.name}
                       title={tool.description}
-                      className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-500 font-mono cursor-default hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                      className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-500 font-mono cursor-default hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                     >
                       {tool.name}
                     </span>
@@ -905,7 +898,7 @@ export default function AgentsPage() {
         </div>
 
         {/* ── Tab bar ── */}
-        <div className="flex items-center gap-1 mb-5 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 mb-5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-fit shadow-sm">
           {([
             { id: 'active',  label: 'Active',  count: activeTasks.length },
             { id: 'history', label: 'History', count: historyTasks.length },
@@ -916,15 +909,15 @@ export default function AgentsPage() {
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
                 activeTab === tab.id
-                  ? 'bg-indigo-600 dark:bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               )}
             >
               {tab.label}
               {tab.count > 0 && (
                 <span className={cn(
                   'text-xs px-1.5 py-0.5 rounded-full font-bold',
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-400'
+                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                 )}>
                   {tab.count}
                 </span>

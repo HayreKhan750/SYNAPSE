@@ -65,7 +65,7 @@ function InlineNoteEditor({ bookmark, onSaved }: { bookmark: any; onSaved: (note
           onChange={e => setValue(e.target.value)}
           placeholder="Add a note about this bookmark…"
           rows={2}
-          className="w-full text-xs bg-slate-700/80 border border-slate-600 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full text-xs bg-slate-50 dark:bg-slate-700/80 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
         />
         <div className="flex gap-1.5 mt-1.5">
           <button
@@ -78,7 +78,7 @@ function InlineNoteEditor({ bookmark, onSaved }: { bookmark: any; onSaved: (note
           </button>
           <button
             onClick={handleCancel}
-            className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-slate-400 text-xs rounded-lg transition-colors"
+            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-400 text-xs rounded-lg transition-colors"
           >
             Cancel
           </button>
@@ -96,7 +96,7 @@ function InlineNoteEditor({ bookmark, onSaved }: { bookmark: any; onSaved: (note
       )}
       <button
         onClick={handleEdit}
-        className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 text-slate-600 hover:text-indigo-400 transition-all rounded"
+        className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all rounded"
         title="Edit note"
       >
         <Pencil size={11} />
@@ -161,9 +161,9 @@ function AddToCollectionModal({
         className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-2 min-w-0">
-            <FolderCheck size={16} className="text-indigo-400 shrink-0" />
+            <FolderCheck size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-800 dark:text-white">Add to Collection</p>
               <p className="text-xs text-slate-500 truncate">{bookmark.content_object_title || 'Untitled'}</p>
@@ -177,7 +177,7 @@ function AddToCollectionModal({
         {/* Collection list */}
         <div className="p-3 max-h-72 overflow-y-auto space-y-1.5">
           {isLoading ? (
-            <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-indigo-400" /></div>
+            <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-indigo-600 dark:text-indigo-400" /></div>
           ) : collections.length === 0 ? (
             <div className="text-center py-8 text-slate-500 text-sm">
               <FolderOpen size={32} className="mx-auto mb-2 opacity-40" />
@@ -195,14 +195,14 @@ function AddToCollectionModal({
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all',
                     isAdded
-                      ? 'bg-indigo-600/20 border border-indigo-500/40 text-indigo-300'
-                      : 'bg-slate-700/50 border border-transparent hover:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-white'
+                      ? 'bg-indigo-50 dark:bg-indigo-600/20 border border-indigo-300 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-300'
+                      : 'bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-transparent hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                   )}
                 >
                   {isLoading
                     ? <Loader2 size={15} className="animate-spin shrink-0" />
                     : isAdded
-                    ? <Check size={15} className="text-indigo-400 shrink-0" />
+                    ? <Check size={15} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                     : <FolderPlus size={15} className="text-slate-500 shrink-0" />
                   }
                   <div className="flex-1 min-w-0">
@@ -276,7 +276,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
         </button>
         <span className="text-slate-600">/</span>
         <div className="flex items-center gap-2 min-w-0">
-          <FolderOpen size={18} className="text-indigo-400 shrink-0" />
+          <FolderOpen size={18} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
           <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white truncate">{collection.name}</h2>
           {collection.is_public
             ? <span className="flex items-center gap-1 text-xs text-cyan-400 bg-cyan-900/30 border border-cyan-700/30 px-2 py-0.5 rounded-full shrink-0"><Globe size={10} />Public</span>
@@ -297,7 +297,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
 
       {/* Bookmark list */}
       {isLoading ? (
-        <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-indigo-400" /></div>
+        <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-indigo-600 dark:text-indigo-400" /></div>
       ) : bookmarks.length === 0 ? (
         <div className="text-center py-16 bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50">
           <FolderOpen size={36} className="mx-auto text-slate-600 mb-3" />
@@ -381,7 +381,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. AI Papers, Rust Resources..."
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <div>
@@ -391,7 +391,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
               onChange={e => setDescription(e.target.value)}
               placeholder="What's this collection about?"
               rows={2}
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
           </div>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -399,7 +399,7 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
               onClick={() => setIsPublic(!isPublic)}
               className={cn(
                 'w-10 h-5 rounded-full transition-colors relative',
-                isPublic ? 'bg-indigo-600' : 'bg-slate-700'
+                isPublic ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
               )}
             >
               <div className={cn(
@@ -407,11 +407,11 @@ function NewCollectionModal({ onClose, onCreated }: { onClose: () => void; onCre
                 isPublic ? 'translate-x-5' : 'translate-x-0.5'
               )} />
             </div>
-            <span className="text-sm text-slate-300">Make public</span>
+            <span className="text-sm text-slate-600 dark:text-slate-300">Make public</span>
           </label>
         </div>
         <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 px-4 py-2 border border-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors text-sm">
+          <button onClick={onClose} className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors text-sm">
             Cancel
           </button>
           <button
@@ -478,9 +478,9 @@ export default function LibraryPage() {
 
   const getTypeBadge = (type: string) => {
     const styles: Record<string, string> = {
-      article: 'bg-indigo-900/50 text-indigo-300',
-      repository: 'bg-emerald-900/50 text-emerald-300',
-      researchpaper: 'bg-violet-900/50 text-violet-300',
+      article: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300',
+      repository: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300',
+      researchpaper: 'bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300',
     }
     const labels: Record<string, string> = {
       article: 'Article',
@@ -488,7 +488,7 @@ export default function LibraryPage() {
       researchpaper: 'Paper',
     }
     return (
-      <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', styles[type] || 'bg-slate-700 text-slate-300')}>
+      <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', styles[type] || 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300')}>
         {labels[type] || type}
       </span>
     )
@@ -542,14 +542,14 @@ export default function LibraryPage() {
           <span className="text-sm text-slate-500 font-normal">({collections.length})</span>
         </h2>
         {collectionsLoading ? (
-          <div className="flex justify-center py-8"><Loader2 className="animate-spin text-indigo-400" /></div>
+          <div className="flex justify-center py-8"><Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" /></div>
         ) : collections.length === 0 ? (
           <div className="text-center py-10 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
             <FolderPlus size={32} className="mx-auto text-slate-600 mb-3" />
             <p className="text-slate-500 dark:text-slate-400">No collections yet</p>
             <button
               onClick={() => setShowNewCollection(true)}
-              className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mx-auto"
+              className="mt-3 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 flex items-center gap-1 mx-auto"
             >
               <Plus size={14} /> Create your first collection
             </button>
@@ -589,7 +589,7 @@ export default function LibraryPage() {
                           <Globe size={9} /> Public
                         </span>
                       )}
-                      <span className="flex items-center gap-1 text-xs text-slate-500 group-hover:text-indigo-400 transition-colors whitespace-nowrap">
+                      <span className="flex items-center gap-1 text-xs text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors whitespace-nowrap">
                         Open <ChevronRight size={12} />
                       </span>
                     </div>
@@ -600,7 +600,7 @@ export default function LibraryPage() {
             {/* Add new collection card */}
             <button
               onClick={() => setShowNewCollection(true)}
-              className="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-indigo-400 transition-all min-h-[90px] sm:min-h-[100px]"
+              className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all min-h-[90px] sm:min-h-[100px]"
             >
               <Plus size={18} />
               <span className="text-xs sm:text-sm font-medium">New Collection</span>
@@ -636,7 +636,7 @@ export default function LibraryPage() {
         </div>
 
         {bookmarksLoading ? (
-          <div className="flex justify-center py-8"><Loader2 className="animate-spin text-indigo-400" /></div>
+          <div className="flex justify-center py-8"><Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" /></div>
         ) : bookmarks.length === 0 ? (
           <div className="text-center py-16 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
             <BookMarked size={40} className="mx-auto text-slate-600 mb-3" />
@@ -668,7 +668,7 @@ export default function LibraryPage() {
                       href={bookmark.content_object_url || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-semibold text-sm text-slate-800 dark:text-white hover:text-indigo-300 transition-colors truncate block"
+                      className="font-semibold text-sm text-slate-800 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors truncate block"
                     >
                       {bookmark.content_object_title || 'Untitled'}
                     </a>

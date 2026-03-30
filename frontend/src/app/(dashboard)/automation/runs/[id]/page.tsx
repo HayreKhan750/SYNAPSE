@@ -80,12 +80,12 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
   const isError = action.status === 'error' || action.status === 'failed';
 
   return (
-    <div className={`border rounded-xl overflow-hidden transition-all ${isError ? 'border-red-500/30 bg-red-500/5' : 'border-slate-700 bg-slate-800/60'}`}>
+    <div className={`border rounded-xl overflow-hidden transition-all ${isError ? 'border-red-500/30 bg-red-50 dark:bg-red-500/5' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60'}`}>
       <button
-        className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-700/20 transition-colors"
+        className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
-        <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-400 flex-shrink-0">
+        <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-400 flex-shrink-0">
           {index + 1}
         </div>
         <span className="text-xl">{icon}</span>
@@ -100,7 +100,7 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
       </button>
 
       {expanded && (
-        <div className="border-t border-slate-700 p-4 space-y-3">
+        <div className="border-t border-slate-200 dark:border-slate-700 p-4 space-y-3">
           {action.error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
               <p className="text-xs text-red-400 font-medium mb-1">Error</p>
@@ -115,7 +115,7 @@ function ActionCard({ action, index }: { action: ActionResult; index: number }) 
           )}
           {action.web_view_link && (
             <a href={action.web_view_link} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors underline">
+              className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors underline">
               ☁️ View in Google Drive →
             </a>
           )}
@@ -197,7 +197,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
     return (
       <div className="flex-1 p-8">
         <p className="text-red-400 mb-2">Run not found.</p>
-        <Link href="/automation" className="text-indigo-400 text-sm hover:text-indigo-300">← Back to Automation</Link>
+        <Link href="/automation" className="text-indigo-600 dark:text-indigo-400 text-sm hover:text-indigo-500 dark:hover:text-indigo-300">← Back to Automation</Link>
       </div>
     );
   }
@@ -210,7 +210,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
     <div className="flex-1 overflow-y-auto">
       <div className="p-6 max-w-3xl mx-auto pb-12">
         {/* Back */}
-        <Link href="/automation" className="text-indigo-400 text-sm hover:text-indigo-300 transition-colors inline-flex items-center gap-1">
+        <Link href="/automation" className="text-indigo-600 dark:text-indigo-400 text-sm hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors inline-flex items-center gap-1">
           ← Back to Automation
         </Link>
 
@@ -243,8 +243,8 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
         {/* Event trigger */}
         {displayRun.trigger_event && Object.keys(displayRun.trigger_event).length > 0 && (
           <div className="mb-5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl p-4">
-            <p className="text-xs font-medium text-indigo-400 mb-2">⚡ Triggered by Event</p>
-            <pre className="text-xs text-indigo-300 overflow-x-auto">
+            <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-2">⚡ Triggered by Event</p>
+            <pre className="text-xs text-indigo-700 dark:text-indigo-300 overflow-x-auto">
               {JSON.stringify(displayRun.trigger_event, null, 2)}
             </pre>
           </div>
@@ -265,7 +265,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
               <p className="text-xs text-blue-400 animate-pulse">⟳ Workflow is running…</p>
               <p className="text-xs text-slate-500">refreshing every 2.5s</p>
             </div>
-            <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
               <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '100%' }} />
             </div>
           </div>
@@ -291,9 +291,9 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
 
         {/* Footer: celery task id */}
         {displayRun.celery_task_id && (
-          <div className="mt-6 bg-slate-100 dark:bg-slate-800/40 border border-slate-700/60 rounded-xl p-4">
+          <div className="mt-6 bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 rounded-xl p-4">
             <p className="text-xs text-slate-500 mb-1">Celery Task ID</p>
-            <p className="text-xs font-mono text-slate-400 break-all">{displayRun.celery_task_id}</p>
+            <p className="text-xs font-mono text-slate-600 dark:text-slate-400 break-all">{displayRun.celery_task_id}</p>
           </div>
         )}
       </div>

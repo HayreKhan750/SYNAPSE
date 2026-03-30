@@ -219,7 +219,7 @@ function SectionEditorModal({ doc, onClose, onSaved }: { doc: DocumentRecord; on
             {sections.length === 0 ? <div className="p-4 text-xs text-gray-400 text-center mt-4">No sections found.</div>
               : sections.map((sec, idx) => (
                 <button key={idx} onClick={() => handleEdit(idx)} className={`w-full text-left px-4 py-3 text-xs border-b border-gray-200 dark:border-gray-700 transition ${editingIdx === idx ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"}`}>
-                  <span className="block font-bold text-indigo-400 mb-0.5">{String(idx + 1).padStart(2, "0")}</span>
+                  <span className="block font-bold text-indigo-600 dark:text-indigo-400 mb-0.5">{String(idx + 1).padStart(2, "0")}</span>
                   <span className="line-clamp-2">{sec.heading}</span>
                 </button>
               ))}
@@ -1361,7 +1361,7 @@ export default function DocumentsPage() {
           <AlertCircle size={14} className="flex-shrink-0 text-amber-400" />
           <span>
             No AI API key configured — document generation will use the shared server key.{' '}
-            <Link href="/settings" className="underline hover:text-amber-200 font-medium">
+            <Link href="/settings" className="underline hover:text-amber-600 dark:hover:text-amber-200 font-medium">
               Add your own key in Settings → AI Engine
             </Link>{' '}
             for dedicated access.

@@ -203,7 +203,7 @@ export function MFASection() {
           </summary>
           <div className="mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
             <p className="text-xs text-slate-400 mb-1">Secret key (Base32):</p>
-            <code className="text-xs font-mono text-indigo-300 break-all">{setupData.secret}</code>
+            <code className="text-xs font-mono text-indigo-600 dark:text-indigo-300 break-all">{setupData.secret}</code>
           </div>
         </details>
 
