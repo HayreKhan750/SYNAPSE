@@ -1,5 +1,5 @@
 # SYNAPSE AI Engine — pinned requirements
-# Industry best practice: pin all versions for reproducible builds
+# All versions pinned to compatible set (tested together)
 
 # ── FastAPI stack ──────────────────────────────────────────────
 fastapi>=0.111,<0.112
@@ -10,13 +10,14 @@ python-multipart>=0.0.9,<0.1
 # ── Rate limiting ──────────────────────────────────────────────
 slowapi>=0.1.9,<0.2
 
-# ── AI / ML ───────────────────────────────────────────────────
-langchain>=0.2,<0.4
-langchain-community>=0.2,<0.4
-langchain-openai>=0.1,<0.3
-langchain-google-genai>=1.0,<2.0
-langgraph>=0.1,<0.3
-langsmith>=0.1,<0.3
+# ── AI / ML — pinned to compatible set ────────────────────────
+# langchain-google-genai 2.x works with langchain-core>=0.3
+langchain>=0.3,<0.4
+langchain-community>=0.3,<0.4
+langchain-openai>=0.2,<0.3
+langchain-google-genai>=2.0,<3.0
+langgraph>=0.2,<0.3
+langsmith>=0.2,<0.3
 sentence-transformers>=3.0,<4.0
 torch>=2.3,<3.0
 
