@@ -123,12 +123,17 @@ def ai_keys_view(request):
     gemini_key     = request.data.get('gemini_api_key', '').strip()
     openrouter_key = request.data.get('openrouter_api_key', '').strip()
 
+    # Basic format validation — reject obviously invalid keys
     if gemini_key:
+        if len(gemini_key) < 10 or len(gemini_key) > 512:
+            return Response({'success': False, 'error': 'Invalid Gemini API key format.'}, status=400)
         prefs['gemini_api_key'] = gemini_key
-        import os; os.environ['GEMINI_API_KEY'] = gemini_key
+        # SECURITY: do NOT set os.environ — that leaks keys process-wide to all users
     if openrouter_key:
+        if len(openrouter_key) < 10 or len(openrouter_key) > 512:
+            return Response({'success': False, 'error': 'Invalid OpenRouter API key format.'}, status=400)
         prefs['openrouter_api_key'] = openrouter_key
-        import os; os.environ['OPENROUTER_API_KEY'] = openrouter_key
+        # SECURITY: do NOT set os.environ — per-user keys are read from prefs at request time
 
     request.user.preferences = prefs
     request.user.save(update_fields=['preferences'])

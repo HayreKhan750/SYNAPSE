@@ -41,17 +41,22 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     """
 
     async def connect(self):
+        # Accept the connection first; auth happens via first message (token frame)
+        # OR via Django session/scope user if already authenticated via middleware.
         user = self.scope.get("user")
-        if not user or not user.is_authenticated:
-            await self.close(code=4001)
-            return
-
-        self.user_id = str(user.id)
-        self.group_name = f"notifications_{self.user_id}"
-
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
-        logger.info("WS connected: user=%s group=%s", self.user_id, self.group_name)
+        if user and user.is_authenticated:
+            # Already authenticated via session middleware
+            self.user_id = str(user.id)
+            self.group_name = f"notifications_{self.user_id}"
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            await self.accept()
+            logger.info("WS connected (session): user=%s group=%s", self.user_id, self.group_name)
+        else:
+            # Accept temporarily — wait for auth message with token
+            await self.accept()
+            self.user_id = None
+            self.group_name = None
+            self._authenticated = False
 
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
@@ -59,14 +64,47 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         logger.info("WS disconnected: user=%s code=%s", getattr(self, "user_id", "?"), close_code)
 
     async def receive(self, text_data=None, bytes_data=None):
-        """Ping/pong keepalive."""
-        if text_data:
+        """Handle auth token message and ping/pong keepalive."""
+        if not text_data:
+            return
+        try:
+            msg = json.loads(text_data)
+        except Exception:
+            return
+
+        msg_type = msg.get("type")
+
+        # ── Auth via first message ────────────────────────────────────────────
+        if msg_type == "auth":
+            if getattr(self, '_authenticated', False) or self.user_id:
+                return  # already authed
+            token_str = msg.get("token", "")
+            if not token_str:
+                await self.close(code=4001)
+                return
             try:
-                msg = json.loads(text_data)
-                if msg.get("type") == "ping":
-                    await self.send(text_data=json.dumps({"type": "pong"}))
-            except Exception:
-                pass
+                from rest_framework_simplejwt.authentication import JWTAuthentication
+                from channels.db import database_sync_to_async
+                jwt_auth = JWTAuthentication()
+                validated = jwt_auth.get_validated_token(token_str.encode())
+                user = await database_sync_to_async(jwt_auth.get_user)(validated)
+                if not user or not user.is_authenticated:
+                    await self.close(code=4001)
+                    return
+                self.user_id = str(user.id)
+                self.group_name = f"notifications_{self.user_id}"
+                self._authenticated = True
+                await self.channel_layer.group_add(self.group_name, self.channel_name)
+                await self.send(text_data=json.dumps({"type": "auth_ok"}))
+                logger.info("WS authenticated (token): user=%s", self.user_id)
+            except Exception as exc:
+                logger.warning("WS token auth failed: %s", exc)
+                await self.close(code=4001)
+            return
+
+        # ── Ping/pong keepalive ───────────────────────────────────────────────
+        if msg_type == "ping":
+            await self.send(text_data=json.dumps({"type": "pong"}))
 
     # ── Group message handlers ────────────────────────────────────────────────
 

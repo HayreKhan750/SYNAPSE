@@ -23,10 +23,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    # SECURITY: expose a sanitised view of preferences — never include raw API keys
+    preferences_safe = serializers.SerializerMethodField()
+
+    def get_preferences_safe(self, obj):
+        prefs = getattr(obj, 'preferences', {}) or {}
+        # Strip sensitive keys — only expose non-secret preference flags
+        return {k: v for k, v in prefs.items()
+                if k not in ('gemini_api_key', 'openrouter_api_key',
+                             'mfa_secret', 'mfa_backup_codes')}
+
     class Meta:
         model  = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'role', 'avatar_url', 'bio', 'preferences', 'created_at', 'last_login']
+                  'role', 'avatar_url', 'bio', 'preferences_safe', 'created_at', 'last_login']
         read_only_fields = ['id', 'email', 'role', 'created_at', 'last_login']
 
 

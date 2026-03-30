@@ -16,11 +16,24 @@ Endpoints (mounted at /api/v1/auth/mfa/):
 from __future__ import annotations
 
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
+
+
+class MFAVerifyThrottle(UserRateThrottle):
+    """Strict rate limit for MFA endpoints — max 5 attempts per minute per user."""
+    rate = '5/minute'
+    scope = 'mfa_verify'
+
+
+class MFASetupThrottle(UserRateThrottle):
+    """Rate limit for MFA setup — max 3 per minute."""
+    rate = '3/minute'
+    scope = 'mfa_setup'
 
 from .mfa import (
     setup_totp_device,
@@ -33,6 +46,7 @@ from .mfa import (
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([MFASetupThrottle])
 def mfa_setup(request: Request) -> Response:
     """Generate TOTP secret + QR code for the authenticated user."""
     try:
@@ -71,6 +85,7 @@ def mfa_setup_confirm(request: Request) -> Response:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([MFAVerifyThrottle])
 def mfa_verify(request: Request) -> Response:
     """
     Verify TOTP token as 2nd factor during login.
@@ -99,6 +114,7 @@ def mfa_verify(request: Request) -> Response:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([MFAVerifyThrottle])
 def mfa_verify_backup(request: Request) -> Response:
     """Verify a backup code (single-use)."""
     code = request.data.get("code", "").strip()
@@ -125,6 +141,7 @@ def mfa_verify_backup(request: Request) -> Response:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([MFAVerifyThrottle])
 def mfa_disable(request: Request) -> Response:
     """Disable MFA (requires current password for confirmation)."""
     password = request.data.get("password", "")

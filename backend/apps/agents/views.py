@@ -84,11 +84,19 @@ class AgentTaskListCreateView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        # Sanitize prompt to prevent injection
+        raw_prompt = serializer.validated_data["prompt"]
+        try:
+            from apps.core.security import sanitise_text  # noqa: PLC0415
+            safe_prompt = sanitise_text(raw_prompt)
+        except Exception:
+            safe_prompt = raw_prompt[:4000]  # hard cap if sanitiser unavailable
+
         # Create the AgentTask record
         task_obj = AgentTask.objects.create(
             user=request.user,
             task_type=serializer.validated_data["task_type"],
-            prompt=serializer.validated_data["prompt"],
+            prompt=safe_prompt,
             status=AgentTask.TaskStatus.PENDING,
         )
 

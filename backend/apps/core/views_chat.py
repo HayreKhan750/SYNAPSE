@@ -51,11 +51,12 @@ class MessageDeleteView(APIView):
     Removes the human message at *index* (0-based) and the AI reply below it.
     Used by the frontend Edit/Delete buttons on user bubbles.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request: Request, conversation_id: str, index: int) -> Response:
         try:
-            conv = Conversation.objects.get(conversation_id=conversation_id)
+            # SECURITY: filter by user to prevent IDOR
+            conv = Conversation.objects.get(conversation_id=conversation_id, user=request.user)
         except Conversation.DoesNotExist:
             return Response({"error": "Conversation not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -679,11 +680,12 @@ class ConversationHistoryView(APIView):
 
     Returns the full message history for a conversation.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, conversation_id: str) -> Response:
         try:
-            conv = Conversation.objects.get(conversation_id=conversation_id)
+            # SECURITY: filter by user to prevent IDOR
+            conv = Conversation.objects.get(conversation_id=conversation_id, user=request.user)
         except Conversation.DoesNotExist:
             # Try fetching from pipeline memory (may exist there even if not in DB)
             pipeline = _get_pipeline()
@@ -740,16 +742,13 @@ class ConversationListView(APIView):
     """
     GET /api/v1/ai/chat/conversations
 
-    Lists conversations for the authenticated user (or anonymous sessions).
+    Lists conversations for the authenticated user.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        user = request.user if request.user.is_authenticated else None
-        if user:
-            conversations = Conversation.objects.filter(user=user).order_by('-updated_at')[:50]
-        else:
-            conversations = Conversation.objects.none()
+        # SECURITY: always scope to authenticated user
+        conversations = Conversation.objects.filter(user=request.user).order_by('-updated_at')[:50]
 
         data = [{
             'conversation_id': c.conversation_id,
@@ -768,12 +767,12 @@ class ConversationDeleteView(APIView):
 
     Deletes a conversation from DB and pipeline memory.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request: Request, conversation_id: str) -> Response:
-        # Delete from DB
+        # SECURITY: filter by user to prevent IDOR
         deleted_count, _ = Conversation.objects.filter(
-            conversation_id=conversation_id
+            conversation_id=conversation_id, user=request.user
         ).delete()
 
         # Delete from pipeline memory

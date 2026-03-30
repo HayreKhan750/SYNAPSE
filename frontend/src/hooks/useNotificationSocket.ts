@@ -20,10 +20,13 @@ import { useAuthStore } from '@/store/authStore'
 const MAX_RETRIES = 8
 const BASE_DELAY_MS = 1_000
 
-function getWsUrl(token: string): string {
+function getWsUrl(): string {
+  // SECURITY: token is NOT passed in URL (would leak to server logs/browser history).
+  // The Django Channels middleware authenticates via the session cookie or
+  // a token sent as the first WebSocket message after connection.
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
   const host = process.env.NEXT_PUBLIC_WS_HOST || window.location.host.replace(/:\d+$/, ':8000')
-  return `${proto}://${host}/ws/notifications/?token=${encodeURIComponent(token)}`
+  return `${proto}://${host}/ws/notifications/`
 }
 
 const NOTIF_TYPE_TOAST: Record<string, (msg: string) => void> = {
@@ -48,12 +51,17 @@ export function useNotificationSocket() {
 
     function connect() {
       if (!alive) return
-      const url = getWsUrl(token as string)
+      const url = getWsUrl()
       const ws = new WebSocket(url)
       wsRef.current = ws
 
       ws.onopen = () => {
         retries.current = 0
+        // SECURITY: send token as first message (not in URL query param)
+        // This keeps the token out of server logs, browser history, and referer headers
+        if (token) {
+          ws.send(JSON.stringify({ type: 'auth', token: token as string }))
+        }
         // keepalive ping every 25s
         const ping = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
