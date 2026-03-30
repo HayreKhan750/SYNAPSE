@@ -151,9 +151,9 @@ export default function LoginPage() {
 
       {/* Divider */}
       <div className="flex items-center gap-3 my-6">
-        <div className="flex-1 h-px bg-slate-800" />
-        <span className="text-slate-600 text-xs">New to SYNAPSE?</span>
-        <div className="flex-1 h-px bg-slate-800" />
+        <div className="flex-1 h-px bg-white/15" />
+        <span className="text-slate-400 text-xs">New to SYNAPSE?</span>
+        <div className="flex-1 h-px bg-white/15" />
       </div>
 
       {/* Register link */}

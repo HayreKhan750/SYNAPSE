@@ -117,8 +117,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         {/* Footer */}
-        <p className="relative mt-8 text-xs text-slate-600">
-          © {new Date().getFullYear()} SYNAPSE · <Link href="/" className="hover:text-slate-400 transition-colors">Home</Link>
+        <p className="relative mt-8 text-xs text-slate-400">
+          © {new Date().getFullYear()} SYNAPSE · <Link href="/" className="hover:text-white transition-colors">Home</Link>
         </p>
       </div>
     </div>

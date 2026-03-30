@@ -179,9 +179,9 @@ export default function RegisterPage() {
 
       {/* Divider */}
       <div className="flex items-center gap-3 my-5">
-        <div className="flex-1 h-px bg-white/10" />
-        <span className="text-slate-500 text-xs">Already have an account?</span>
-        <div className="flex-1 h-px bg-white/10" />
+        <div className="flex-1 h-px bg-white/15" />
+        <span className="text-slate-400 text-xs">Already have an account?</span>
+        <div className="flex-1 h-px bg-white/15" />
       </div>
 
       <Link href="/login"
