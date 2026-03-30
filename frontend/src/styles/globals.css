@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Kill browser autofill background globally ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: white !important;
+  box-shadow: 0 0 0 1000px rgba(67, 56, 202, 0.1) inset !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 @layer base {
   :root {
     /* ── Premium Light Mode Design Tokens ─────────────────────────── */

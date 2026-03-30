@@ -77,11 +77,11 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               placeholder="you@example.com"
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/20 text-white placeholder-slate-400 text-sm
-                bg-white/[0.08] focus:bg-white/[0.12] hover:bg-white/[0.11]
-                focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50
-                hover:border-white/30 transition-all duration-200
-                [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(79,70,229,0.15)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/15 text-white placeholder-slate-500 text-sm
+                bg-transparent focus:bg-white/[0.05]
+                focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400/40
+                hover:border-white/25 transition-all duration-200
+                [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(67,56,202,0.12)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
             />
           </div>
           {errors.email && (
@@ -108,11 +108,11 @@ export default function LoginPage() {
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               placeholder="••••••••"
-              className="w-full pl-10 pr-11 py-3 rounded-xl border border-white/20 text-white placeholder-slate-400 text-sm
-                bg-white/[0.08] focus:bg-white/[0.12] hover:bg-white/[0.11]
-                focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50
-                hover:border-white/30 transition-all duration-200
-                [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(79,70,229,0.15)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+              className="w-full pl-10 pr-11 py-3 rounded-xl border border-white/15 text-white placeholder-slate-500 text-sm
+                bg-transparent focus:bg-white/[0.05]
+                focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400/40
+                hover:border-white/25 transition-all duration-200
+                [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(67,56,202,0.12)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
             />
             <button
               type="button"
