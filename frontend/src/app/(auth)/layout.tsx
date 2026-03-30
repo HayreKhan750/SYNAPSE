@@ -13,7 +13,7 @@ const features = [
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex bg-slate-950">
+    <div className="min-h-screen flex bg-gradient-to-br from-indigo-950 via-violet-950 to-slate-950">
 
       {/* ── Left Panel – branding & social proof ── */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative flex-col justify-between p-12 overflow-hidden">
@@ -95,7 +95,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* ── Right Panel – auth form ── */}
-      <div className="w-full lg:w-1/2 xl:w-2/5 flex flex-col items-center justify-center p-6 sm:p-10 relative bg-slate-950">
+      <div className="w-full lg:w-1/2 xl:w-2/5 flex flex-col items-center justify-center p-6 sm:p-10 relative bg-gradient-to-br from-indigo-950 via-violet-950 to-slate-950">
 
         {/* Subtle top-right glow */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
