@@ -14,6 +14,19 @@ are defined in config/settings/base.py and loaded via config_from_object below.
 This file only defines the Celery app, autodiscovers tasks, and sets the beat
 schedule (which is harder to express purely in Django settings).
 """
+
+# ── Langchain compatibility patch ─────────────────────────────────────────────
+# langchain-openai >= 0.2.14 needs ContextOverflowError from langchain-core,
+# which is missing in langchain-core 0.3.83. Patch it before any task imports.
+try:
+    from langchain_core import exceptions as _lc_exc
+    if not hasattr(_lc_exc, 'ContextOverflowError'):
+        class _ContextOverflowError(_lc_exc.LangChainException):
+            """Context window exceeded — compatibility shim."""
+        _lc_exc.ContextOverflowError = _ContextOverflowError
+except Exception:
+    pass
+# ─────────────────────────────────────────────────────────────────────────────
 import os
 from celery import Celery
 from celery.schedules import crontab
@@ -38,29 +51,81 @@ app.autodiscover_tasks()
 # initialised first.  The CELERY_ prefix is NOT used here — beat_schedule is
 # applied directly on the app after config is loaded.
 CELERY_BEAT_SCHEDULE = {
+    # ── HackerNews — every 30 minutes ────────────────────────────────────────
     'scrape-hackernews-every-30min': {
         'task': 'apps.core.tasks.scrape_hackernews',
-        'schedule': 30 * 60,  # 30 minutes in seconds
-        'args': ('top', 100),  # story_type='top', limit=100
+        'schedule': 30 * 60,
+        'args': ('top', 100),
         'options': {'queue': 'scraping'},
     },
+    # Also scrape "new" stories every 2 hours for fresher content
+    'scrape-hackernews-new-every-2hrs': {
+        'task': 'apps.core.tasks.scrape_hackernews',
+        'schedule': 2 * 60 * 60,
+        'args': ('new', 50),
+        'options': {'queue': 'scraping'},
+    },
+
+    # ── GitHub — every 2 hours ────────────────────────────────────────────────
     'scrape-github-every-2hrs': {
         'task': 'apps.core.tasks.scrape_github',
-        'schedule': 2 * 60 * 60,  # 2 hours in seconds
-        'args': (1, None, 100),  # days_back=1, language=None, limit=100
+        'schedule': 2 * 60 * 60,
+        'args': (1, None, 100),   # days_back=1, language=None, limit=100
         'options': {'queue': 'scraping'},
     },
+    # Also scrape Python-specific repos every 4 hours
+    'scrape-github-python-every-4hrs': {
+        'task': 'apps.core.tasks.scrape_github',
+        'schedule': 4 * 60 * 60,
+        'args': (1, 'Python', 50),
+        'options': {'queue': 'scraping'},
+    },
+    # Also scrape TypeScript repos every 4 hours (offset by 1hr)
+    'scrape-github-typescript-every-4hrs': {
+        'task': 'apps.core.tasks.scrape_github',
+        'schedule': crontab(minute=0, hour='1,5,9,13,17,21'),
+        'args': (1, 'TypeScript', 50),
+        'options': {'queue': 'scraping'},
+    },
+
+    # ── arXiv — every 6 hours ────────────────────────────────────────────────
     'scrape-arxiv-every-6hrs': {
         'task': 'apps.core.tasks.scrape_arxiv',
-        'schedule': 6 * 60 * 60,  # 6 hours in seconds
-        'args': (None, 7, 500),  # categories=None, days_back=7, max_papers=500
-        'options': {'queue': 'slow_scraping'},  # isolated so fast scrapers aren't blocked
+        'schedule': 6 * 60 * 60,
+        'args': (None, 7, 500),   # categories=None, days_back=7, max_papers=500
+        'options': {'queue': 'slow_scraping'},
     },
-    'scrape-youtube-every-12hrs': {
+
+    # ── YouTube — every 6 hours (was 12hrs, 8 queries now completes in ~34s) ─
+    'scrape-youtube-every-6hrs': {
         'task': 'apps.core.tasks.scrape_youtube',
-        'schedule': 12 * 60 * 60,  # 12 hours in seconds
-        'args': (30, 20),  # days_back=30, max_results=20
-        'options': {'queue': 'slow_scraping'},  # isolated so fast scrapers aren't blocked
+        'schedule': 6 * 60 * 60,
+        'args': (30, 40),         # days_back=30, max_results=40 (5 per query)
+        'options': {'queue': 'slow_scraping'},
+    },
+
+    # ── X/Twitter via official API v2 — every 4 hours ────────────────────────
+    # NOTE: Nitter is removed (dead tech). Use Twitter API v2 Bearer Token.
+    # Requires TWITTER_BEARER_TOKEN env var. Set use_nitter=False.
+    'scrape-twitter-ai-every-4hrs': {
+        'task': 'apps.core.tasks.scrape_twitter',
+        'schedule': crontab(minute=30, hour='0,4,8,12,16,20'),
+        'kwargs': {'max_results': 50, 'query': 'AI machine learning LLM', 'use_nitter': False},
+        'options': {'queue': 'scraping'},
+    },
+    # Python/programming tweets every 4 hours (offset)
+    'scrape-twitter-python-every-4hrs': {
+        'task': 'apps.core.tasks.scrape_twitter',
+        'schedule': crontab(minute=0, hour='2,6,10,14,18,22'),
+        'kwargs': {'max_results': 50, 'query': 'Python programming open source', 'use_nitter': False},
+        'options': {'queue': 'scraping'},
+    },
+    # Tweet embeddings — generate vectors for newly scraped tweets every hour
+    'embed-pending-tweets-every-hour': {
+        'task': 'apps.tweets.embedding_tasks.generate_pending_tweet_embeddings',
+        'schedule': 60 * 60,
+        'args': (100,),
+        'options': {'queue': 'embeddings'},
     },
     # NLP processing — Phase 2.1
     # Run every 10 minutes to pick up newly scraped articles

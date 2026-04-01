@@ -66,7 +66,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     # SECURITY: expose a sanitised view of preferences — never include raw API keys
-    preferences_safe = serializers.SerializerMethodField()
+    preferences_safe   = serializers.SerializerMethodField()
+    onboarding         = serializers.SerializerMethodField()
+    github_connected   = serializers.SerializerMethodField()
 
     def get_preferences_safe(self, obj):
         prefs = getattr(obj, 'preferences', {}) or {}
@@ -75,11 +77,35 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 if k not in ('gemini_api_key', 'openrouter_api_key',
                              'mfa_secret', 'mfa_backup_codes')}
 
+    def get_onboarding(self, obj):
+        try:
+            prefs = obj.onboarding_prefs
+            return {
+                'is_onboarded':  obj.is_onboarded,
+                'current_step':  prefs.current_step,
+                'interests':     prefs.interests,
+                'use_case':      prefs.use_case,
+                'completed':     prefs.completed,
+            }
+        except Exception:
+            return {'is_onboarded': obj.is_onboarded, 'current_step': 1, 'interests': [], 'use_case': '', 'completed': False}
+
+    def get_github_connected(self, obj):
+        return bool(obj.github_id)
+
     class Meta:
         model  = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'role', 'avatar_url', 'bio', 'preferences_safe', 'created_at', 'last_login']
-        read_only_fields = ['id', 'email', 'role', 'created_at', 'last_login']
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'role', 'avatar_url', 'bio', 'preferences_safe',
+            'created_at', 'last_login',
+            'is_onboarded', 'onboarded_at',
+            'digest_enabled', 'digest_day',
+            'github_connected', 'github_username',
+            'onboarding',
+        ]
+        read_only_fields = ['id', 'email', 'role', 'created_at', 'last_login',
+                            'is_onboarded', 'onboarded_at', 'github_connected']
 
 
 class UserPreferencesSerializer(serializers.ModelSerializer):

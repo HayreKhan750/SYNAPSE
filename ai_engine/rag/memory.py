@@ -1,7 +1,8 @@
 """
 SYNAPSE Conversation Memory Manager
 Manages per-conversation history using ConversationBufferWindowMemory (last 10 turns).
-Redis is used for persistence; falls back to in-memory if Redis is unavailable.
+Redis is used for persistence. Redis is REQUIRED — no in-memory fallback to prevent
+silent data loss on worker restarts.
 """
 
 import json
@@ -26,7 +27,12 @@ MEMORY_WINDOW_K = 10
 # Redis client (lazy, best-effort)
 # ---------------------------------------------------------------------------
 
-def _get_redis_client() -> Optional[redis.Redis]:
+def _get_redis_client() -> redis.Redis:
+    """
+    Return a connected Redis client. Raises RuntimeError if Redis is unreachable.
+    Redis is required — there is no in-memory fallback (would cause silent data loss
+    on worker restart).
+    """
     try:
         client = redis.Redis(
             host=os.environ.get("REDIS_HOST", "localhost"),
@@ -38,8 +44,15 @@ def _get_redis_client() -> Optional[redis.Redis]:
         client.ping()
         return client
     except Exception as exc:
-        logger.warning("Redis unavailable for conversation memory: %s", exc)
-        return None
+        logger.critical(
+            "Redis connection failed — conversation history unavailable. "
+            "Ensure Redis is running and REDIS_HOST/REDIS_PORT are set correctly. "
+            "Error: %s", exc
+        )
+        raise RuntimeError(
+            f"Redis connection failed — conversation history disabled. "
+            f"Check REDIS_HOST and REDIS_PORT environment variables. Original error: {exc}"
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -72,11 +85,12 @@ class ConversationMemoryManager:
     """
     Manages SimpleWindowMemory instances keyed by conversation_id.
     Persists message history to Redis so memory survives worker restarts.
+    Redis is REQUIRED — instantiation will raise RuntimeError if Redis is down.
     """
 
     def __init__(self) -> None:
         self._cache: Dict[str, SimpleWindowMemory] = {}
-        self._redis = _get_redis_client()
+        self._redis = _get_redis_client()  # raises RuntimeError if unavailable
 
     # ------------------------------------------------------------------
     # Public API
@@ -101,8 +115,6 @@ class ConversationMemoryManager:
         ai_message: str,
     ) -> None:
         """Persist a new conversation turn to Redis."""
-        if self._redis is None:
-            return
         key = self._redis_key(conversation_id)
         try:
             history = self._load_history(conversation_id)
@@ -120,16 +132,13 @@ class ConversationMemoryManager:
     def delete_conversation(self, conversation_id: str) -> None:
         """Remove conversation from both in-memory cache and Redis."""
         self._cache.pop(conversation_id, None)
-        if self._redis:
-            try:
-                self._redis.delete(self._redis_key(conversation_id))
-            except Exception:
-                pass
+        try:
+            self._redis.delete(self._redis_key(conversation_id))
+        except Exception:
+            pass
 
     def list_conversations(self, user_prefix: str) -> List[str]:
         """List conversation IDs for a given user prefix (best-effort)."""
-        if self._redis is None:
-            return list(self._cache.keys())
         try:
             pattern = self._redis_key(f"{user_prefix}:*")
             keys = self._redis.keys(pattern)
