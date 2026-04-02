@@ -4,12 +4,42 @@ import React, { useState, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2 } from 'lucide-react'
+import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2, CreditCard, Zap } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/utils/api'
 import { useNotificationSocket } from '@/hooks/useNotificationSocket'
 import { Tooltip } from '@/components/ui/Tooltip'
+
+// ── Plan Badge ────────────────────────────────────────────────────────────────
+
+const PLAN_BADGE: Record<string, { label: string; cls: string }> = {
+  free:       { label: 'FREE',       cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' },
+  pro:        { label: 'PRO',        cls: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' },
+  enterprise: { label: 'ENTERPRISE', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
+}
+
+function PlanBadge() {
+  const { data } = useQuery({
+    queryKey: ['billing-subscription'],
+    queryFn: () => api.get('/billing/subscription/').then(r => r.data),
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+  const plan  = data?.plan ?? 'free'
+  const badge = PLAN_BADGE[plan] ?? PLAN_BADGE.free
+  return (
+    <Link
+      href="/billing"
+      className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide transition-opacity hover:opacity-80 ${badge.cls}`}
+      title="Manage billing"
+    >
+      {plan === 'free' && <Zap size={10} />}
+      {plan !== 'free' && <CreditCard size={10} />}
+      {badge.label}
+    </Link>
+  )
+}
 
 interface NavbarProps {
   onMenuClick?: () => void
@@ -407,6 +437,9 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick }: NavbarPr
             )}
           </div>
 
+          {/* Plan badge */}
+          <PlanBadge />
+
           {/* User menu */}
           <div className="relative">
             <button
@@ -442,6 +475,13 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick }: NavbarPr
                   className="flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 >
                   <Settings size={16} /><span className="text-sm">Settings</span>
+                </Link>
+                <Link
+                  href="/billing"
+                  onClick={() => setIsUserMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <CreditCard size={16} /><span className="text-sm">Billing</span>
                 </Link>
                 <button
                   onClick={handleLogout}

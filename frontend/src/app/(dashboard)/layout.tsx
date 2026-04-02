@@ -30,10 +30,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMobileOpen(false)
   }, [pathname])
 
-  // Show nothing until mounted (avoids SSR/hydration flash)
-  if (!isMounted) return null
-  // After mount: if not authenticated, we're redirecting — show nothing
-  if (!isAuthenticated) return null
+  // Show a dark loading screen while auth state rehydrates — prevents flash of landing page
+  if (!isMounted || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 animate-pulse">
+            <span className="text-white font-black text-base">S</span>
+          </div>
+          <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">

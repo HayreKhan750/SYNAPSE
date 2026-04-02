@@ -75,25 +75,33 @@ function Toggle({ label, description, checked, onChange }: { label: string; desc
 // ── AI Keys form ──────────────────────────────────────────────────────────────
 
 function AiKeysForm() {
-  const [geminiKey, setGeminiKey]       = useState('');
-  const [openrouterKey, setOpenrouterKey] = useState('');
-  const [showGemini, setShowGemini]     = useState(false);
+  const [geminiKey, setGeminiKey]           = useState('');
+  const [openrouterKey, setOpenrouterKey]   = useState('');
+  const [githubToken, setGithubToken]       = useState('');
+  const [xApiKey, setXApiKey]               = useState('');
+  const [showGemini, setShowGemini]         = useState(false);
   const [showOpenrouter, setShowOpenrouter] = useState(false);
-  const [saving, setSaving]             = useState(false);
-  const [loaded, setLoaded]             = useState(false);
+  const [showGithub, setShowGithub]         = useState(false);
+  const [showXApi, setShowXApi]             = useState(false);
+  const [saving, setSaving]                 = useState(false);
+  const [loaded, setLoaded]                 = useState(false);
 
   const [geminiConfigured, setGeminiConfigured]         = useState(false);
   const [openrouterConfigured, setOpenrouterConfigured] = useState(false);
+  const [githubConfigured, setGithubConfigured]         = useState(false);
+  const [xApiConfigured, setXApiConfigured]             = useState(false);
 
   useEffect(() => {
-    // Load masked key status from backend — always refetch fresh on mount
     const controller = new AbortController();
     api.get('/users/ai-keys/', { signal: controller.signal }).then(({ data }) => {
       setGeminiConfigured(!!data.gemini_configured);
       setOpenrouterConfigured(!!data.openrouter_configured);
-      // Only set bullets if key is configured AND user hasn't started typing
+      setGithubConfigured(!!data.github_configured);
+      setXApiConfigured(!!data.x_api_configured);
       setGeminiKey(data.gemini_configured ? '••••••••••••••••' : '');
       setOpenrouterKey(data.openrouter_configured ? '••••••••••••••••' : '');
+      setGithubToken(data.github_configured ? '••••••••••••••••' : '');
+      setXApiKey(data.x_api_configured ? '••••••••••••••••' : '');
       setLoaded(true);
     }).catch((e) => { if (!axios.isCancel(e)) setLoaded(true); });
     return () => controller.abort();
@@ -103,13 +111,17 @@ function AiKeysForm() {
     setSaving(true);
     try {
       const payload: Record<string, string> = {};
-      if (geminiKey && !geminiKey.startsWith('•'))     payload.gemini_api_key = geminiKey;
+      if (geminiKey && !geminiKey.startsWith('•'))         payload.gemini_api_key = geminiKey;
       if (openrouterKey && !openrouterKey.startsWith('•')) payload.openrouter_api_key = openrouterKey;
+      if (githubToken && !githubToken.startsWith('•'))     payload.github_token = githubToken;
+      if (xApiKey && !xApiKey.startsWith('•'))             payload.x_api_key = xApiKey;
       if (!Object.keys(payload).length) { toast.error('No new keys to save.'); setSaving(false); return; }
       await api.post('/users/ai-keys/', payload);
-      toast.success('AI keys saved! Chat, Agent, Documents & Automation now use your keys.');
+      toast.success('Keys saved! AI, GitHub and X/Twitter scrapers now use your keys.');
       if (payload.gemini_api_key)     { setGeminiKey('••••••••••••••••');     setGeminiConfigured(true); }
       if (payload.openrouter_api_key) { setOpenrouterKey('••••••••••••••••'); setOpenrouterConfigured(true); }
+      if (payload.github_token)       { setGithubToken('••••••••••••••••');   setGithubConfigured(true); }
+      if (payload.x_api_key)          { setXApiKey('••••••••••••••••');       setXApiConfigured(true); }
     } catch {
       toast.error('Failed to save keys.');
     } finally {
@@ -187,13 +199,74 @@ function AiKeysForm() {
         </p>
       </div>
 
+      {/* Divider */}
+      <div className="border-t border-slate-200 dark:border-slate-700 pt-2">
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Scraper API Keys</p>
+      </div>
+
+      {/* GitHub Token */}
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-2">
+          GitHub Personal Access Token
+          <span className="text-emerald-600 dark:text-emerald-400 text-xs font-normal">5,000 req/hr vs 60 without</span>
+          {loaded && (githubConfigured
+            ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
+            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">Optional</span>
+          )}
+        </label>
+        <div className="relative">
+          <input
+            type={showGithub ? 'text' : 'password'}
+            value={githubToken}
+            onChange={(e) => setGithubToken(e.target.value)}
+            placeholder="ghp_..."
+            className={fieldClass}
+          />
+          <button type="button" onClick={() => setShowGithub(s => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            {showGithub ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        <p className="text-xs text-slate-600 mt-1">
+          Get from <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">GitHub → Settings → Developer settings → Personal access tokens</a>. Only needs <code className="text-xs bg-slate-200 dark:bg-slate-700 px-1 rounded">public_repo</code> scope.
+        </p>
+      </div>
+
+      {/* X/Twitter Bearer Token */}
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-2">
+          X (Twitter) API Bearer Token
+          <span className="text-sky-500 dark:text-sky-400 text-xs font-normal">Required for tweet scraping</span>
+          {loaded && (xApiConfigured
+            ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
+            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">Not set</span>
+          )}
+        </label>
+        <div className="relative">
+          <input
+            type={showXApi ? 'text' : 'password'}
+            value={xApiKey}
+            onChange={(e) => setXApiKey(e.target.value)}
+            placeholder="AAAA..."
+            className={fieldClass}
+          />
+          <button type="button" onClick={() => setShowXApi(s => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            {showXApi ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        <p className="text-xs text-slate-600 mt-1">
+          Get from <a href="https://developer.twitter.com/en/portal/dashboard" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">X Developer Portal</a> — Free tier gives 1,500 tweets/month.
+        </p>
+      </div>
+
       <button
         onClick={handleSave}
         disabled={saving}
         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors font-medium"
       >
         {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-        Save API Keys
+        Save Keys
       </button>
     </div>
   );

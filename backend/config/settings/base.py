@@ -44,6 +44,7 @@ LOCAL_APPS = [
     'apps.repositories',
     'apps.papers',
     'apps.videos',
+    'apps.tweets',        # X/Twitter integration
     'apps.automation',
     'apps.agents',
     'apps.documents',
@@ -272,12 +273,14 @@ CELERY_TASK_ROUTES = {
     'apps.core.tasks.scrape_github':     {'queue': 'scraping'},
     'apps.core.tasks.scrape_arxiv':      {'queue': 'slow_scraping'},  # long-running — isolated
     'apps.core.tasks.scrape_youtube':    {'queue': 'slow_scraping'},  # long-running — isolated
+    'apps.core.tasks.scrape_twitter':    {'queue': 'scraping'},
     'apps.core.tasks.scrape_all':        {'queue': 'scraping'},
     # Legacy prefixed names (older beat entries)
     'backend.apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_github':     {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_arxiv':      {'queue': 'slow_scraping'},
     'backend.apps.core.tasks.scrape_youtube':    {'queue': 'slow_scraping'},
+    'backend.apps.core.tasks.scrape_twitter':    {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_all':        {'queue': 'scraping'},
 
     # ── Vector Embeddings (Phase 2.3) ─────────────────────────────────────────
@@ -285,6 +288,7 @@ CELERY_TASK_ROUTES = {
     'apps.papers.embedding_tasks.*':       {'queue': 'embeddings'},
     'apps.repositories.embedding_tasks.*': {'queue': 'embeddings'},
     'apps.videos.embedding_tasks.*':       {'queue': 'embeddings'},
+    'apps.tweets.embedding_tasks.*':       {'queue': 'embeddings'},
 
     # ── Agent tasks (Phase 5.1) ───────────────────────────────────────────────
     'apps.agents.tasks.*': {'queue': 'agents'},
@@ -301,6 +305,7 @@ CELERY_TASK_ROUTES = {
     'apps.papers.tasks.*':        {'queue': 'scraping'},
     'apps.repositories.tasks.*':  {'queue': 'scraping'},
     'apps.videos.tasks.*':        {'queue': 'scraping'},
+    'apps.tweets.tasks.*':        {'queue': 'scraping'},
 }
 
 # ── Axes (Login Rate Limiting) ────────────────────────────────

@@ -123,6 +123,7 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
         "trends":    ["analyze_trends", "fetch_articles", "search_github"],
         "github":    ["search_github"],
         "arxiv":     ["fetch_arxiv_papers"],
+        "tweets":    ["search_knowledge_base", "fetch_articles", "analyze_trends"],
         "document":  ["generate_pdf", "generate_ppt", "generate_word_doc", "generate_markdown",
                       "search_knowledge_base", "fetch_articles"],
         "project":   ["create_project"],
@@ -145,6 +146,15 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
         ),
         "arxiv": (
             "Use fetch_arxiv_papers to find papers. If rate-limited, use your knowledge instead. "
+        ),
+        "tweets": (
+            "You are analyzing X/Twitter (formerly Twitter) content for tech insights. "
+            "Use search_knowledge_base to search the tweets database for relevant discussions. "
+            "Use analyze_trends to identify what topics are trending. "
+            "Use fetch_articles to supplement with recent tech news. "
+            "Synthesize the information to identify: (1) key themes and topics, (2) top voices/authors, "
+            "(3) emerging trends, (4) notable discussions and debates. "
+            "Present findings in a clear, structured format with key insights highlighted. "
         ),
         "document": (
             "IMPORTANT: You must call the appropriate document generation tool (generate_pdf, "

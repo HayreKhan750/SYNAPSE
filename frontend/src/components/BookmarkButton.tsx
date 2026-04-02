@@ -9,7 +9,7 @@ import { cn } from '@/utils/helpers'
 import toast from 'react-hot-toast'
 
 interface BookmarkButtonProps {
-  contentType: 'article' | 'repository' | 'researchpaper'
+  contentType: 'article' | 'repository' | 'researchpaper' | 'tweet'
   objectId: string
   initialBookmarked?: boolean
   className?: string

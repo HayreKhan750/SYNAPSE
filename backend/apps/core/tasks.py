@@ -37,11 +37,12 @@ def _ensure_dedup_ttl() -> None:
         pass  # non-critical
 
 
-def _scrapy_env() -> dict:
+def _scrapy_env(user_id: Optional[str] = None) -> dict:
     """Return env vars for scrapy subprocess — ensures PYTHONPATH includes
     the project root so 'scraper.settings' and 'scraper.pipelines.*' are importable.
     Also loads any variables from the project-root .env file that aren't already
-    in the environment (e.g. YOUTUBE_API_KEY, GITHUB_TOKEN)."""
+    in the environment (e.g. YOUTUBE_API_KEY, GITHUB_TOKEN).
+    If user_id is provided, the user's stored API keys override the .env values."""
     env = os.environ.copy()
 
     # Load .env file variables that are missing from the current environment
@@ -57,6 +58,22 @@ def _scrapy_env() -> dict:
                 val = val.strip().strip('"').strip("'")
                 if key and key not in env:  # don't override existing env vars
                     env[key] = val
+
+    # Inject per-user API keys from their stored preferences (override .env)
+    if user_id:
+        try:
+            import django  # noqa: PLC0415
+            from apps.users.models import User  # noqa: PLC0415
+            user = User.objects.filter(pk=user_id).first()
+            if user:
+                prefs = getattr(user, 'preferences', {}) or {}
+                if prefs.get('x_api_key'):
+                    env['X_API_KEY'] = prefs['x_api_key']
+                    env['TWITTER_BEARER_TOKEN'] = prefs['x_api_key']
+                if prefs.get('github_token'):
+                    env['GITHUB_TOKEN'] = prefs['github_token']
+        except Exception as e:
+            logger.warning(f"Could not load user API keys for user {user_id}: {e}")
 
     project_root = str(BASE_DIR)
     backend_dir = str(BASE_DIR / 'backend')
@@ -128,7 +145,7 @@ def scrape_hackernews(self, story_type: str = 'top', limit: int = 100) -> Dict:
 
 
 @shared_task(bind=True, max_retries=3)
-def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limit: int = 100) -> Dict:
+def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limit: int = 100, user_id: Optional[str] = None) -> Dict:
     _ensure_dedup_ttl()
     """
     Scrape GitHub repositories using the GitHub spider.
@@ -165,7 +182,7 @@ def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limi
             capture_output=True,
             text=True,
             timeout=300,  # 5 minute timeout
-            env=_scrapy_env(),
+            env=_scrapy_env(user_id=user_id),
         )
         
         if result.returncode == 0:
@@ -294,7 +311,7 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: li
             cwd=str(BASE_DIR / 'scraper'),
             capture_output=True,
             text=True,
-            timeout=300,  # 5 minute timeout
+            timeout=600,  # 10 minute timeout (8 queries × ~15s each = ~120s, with margin)
             env=_scrapy_env(),
         )
         
@@ -322,6 +339,78 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: li
         return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
 
 
+@shared_task(bind=True, max_retries=3)
+def scrape_twitter(self, query: Optional[str] = None, max_results: int = 100, user_id: Optional[str] = None, use_nitter: bool = True) -> Dict:
+    _ensure_dedup_ttl()
+    """
+    Scrape tweets using the X/Twitter spider.
+
+    Args:
+        self: Celery task instance (for retry mechanism)
+        query: Search query (optional, uses default tech queries if not provided)
+        max_results: Maximum number of tweets to scrape - default: 100
+
+    Returns:
+        Dictionary with keys: {'spider': 'twitter', 'status': 'success'/'failed', 'returncode': int}
+    """
+    task_id = self.request.id
+    logger.info(f"[{task_id}] Starting X/Twitter scraper: query={query}, max_results={max_results}, use_nitter={use_nitter}")
+
+    try:
+        # Determine spider: use Nitter (no API key needed) or X API v2
+        env = _scrapy_env(user_id=user_id)
+        has_x_api_key = bool(env.get('X_API_KEY') or env.get('TWITTER_BEARER_TOKEN'))
+
+        # Prefer nitter unless: user explicitly wants X API AND has a key
+        spider_name = 'twitter' if (has_x_api_key and not use_nitter) else 'nitter'
+        logger.info(f"[{task_id}] Using spider: {spider_name} (has_x_key={has_x_api_key})")
+
+        cmd = [
+            'scrapy', 'crawl', spider_name,
+            '-a', f'max_results={max_results}',
+        ]
+        if query:
+            cmd.extend(['-a', f'query={query}'])
+
+        result = subprocess.run(
+            cmd,
+            cwd=str(BASE_DIR / 'scraper'),
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=env,
+        )
+
+        if result.returncode == 0:
+            logger.info(f"[{task_id}] X/Twitter scraper completed successfully")
+            _update_source_last_scraped('twitter')
+            # Queue embedding generation for newly scraped tweets
+            try:
+                from apps.tweets.embedding_tasks import generate_pending_tweet_embeddings  # noqa: PLC0415
+                generate_pending_tweet_embeddings.delay()
+            except Exception as emb_exc:
+                logger.warning(f"[{task_id}] Could not queue tweet embeddings: {emb_exc}")
+            return {
+                'spider': 'twitter',
+                'status': 'success',
+                'returncode': result.returncode,
+            }
+        else:
+            logger.error(
+                f"[{task_id}] X/Twitter scraper failed with return code {result.returncode}\n"
+                f"stderr: {result.stderr}"
+            )
+            raise Exception(f"X/Twitter spider failed: {result.stderr}")
+
+    except subprocess.TimeoutExpired as exc:
+        logger.error(f"[{task_id}] X/Twitter scraper timed out after 300s")
+        return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+
+    except Exception as exc:
+        logger.error(f"[{task_id}] X/Twitter scraper exception: {exc}")
+        return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+
+
 @shared_task(bind=True, max_retries=1)
 def scrape_all(self) -> Dict:
     """
@@ -345,15 +434,16 @@ def scrape_all(self) -> Dict:
             'github': scrape_github.delay(),
             'arxiv': scrape_arxiv.delay(),
             'youtube': scrape_youtube.delay(),
+            'twitter': scrape_twitter.delay(),
         }
-        
+
         logger.info(
             f"[{task_id}] Queued all scrapers. "
             f"Task IDs: hackernews={results['hackernews'].id}, "
             f"github={results['github'].id}, arxiv={results['arxiv'].id}, "
-            f"youtube={results['youtube'].id}"
+            f"youtube={results['youtube'].id}, twitter={results['twitter'].id}"
         )
-        
+
         return {
             'status': 'success',
             'message': 'All scrapers queued',
@@ -368,9 +458,9 @@ def scrape_all(self) -> Dict:
 def _update_source_last_scraped(source_type: str) -> None:
     """
     Update the last_scraped_at timestamp for sources of a given type.
-    
+
     Args:
-        source_type: Type of source ('news', 'github', 'arxiv', 'youtube')
+        source_type: Type of source ('news', 'github', 'arxiv', 'youtube', 'twitter')
     """
     try:
         from apps.articles.models import Source

@@ -271,6 +271,26 @@ def semantic_search(request):
             item['similarity_score'] = round(1 - (dist / 2), 4) if dist is not None else None
         results['videos'] = serialized
 
+    if 'tweets' in content_types:
+        from apps.tweets.models import Tweet  # noqa: PLC0415
+        from apps.tweets.serializers import TweetListSerializer  # noqa: PLC0415
+
+        qs = (
+            Tweet.objects
+            .filter(embedding__isnull=False)
+            .annotate(similarity=CosineDistance('embedding', query_vector))
+            .order_by('similarity')
+        )
+        if filters.get('topic'):
+            qs = qs.filter(topic__iexact=filters['topic'])
+
+        tweets = list(qs[:limit])
+        serialized = TweetListSerializer(tweets, many=True).data
+        for i, item in enumerate(serialized):
+            dist = getattr(tweets[i], 'similarity', None)
+            item['similarity_score'] = round(1 - (dist / 2), 4) if dist is not None else None
+        results['tweets'] = serialized
+
     # ── 3. Build response ─────────────────────────────────────────────────────
     total = sum(len(v) for v in results.values())
     elapsed_ms = round((_time.time() - start_time) * 1000)
@@ -359,7 +379,7 @@ class ScraperRunView(APIView):
 
     def post(self, request):
         from apps.core.tasks import (
-            scrape_youtube, scrape_github, scrape_hackernews, scrape_arxiv,
+            scrape_youtube, scrape_github, scrape_hackernews, scrape_arxiv, scrape_twitter,
         )
 
         scraper_id = request.data.get('scraper', '').lower()
@@ -375,6 +395,7 @@ class ScraperRunView(APIView):
                 days_back=1,
                 language=p.get('language') if p.get('language') != 'All' else None,
                 limit=int(p.get('max_repos', 25)),
+                user_id=str(request.user.id) if request.user.is_authenticated else None,
             ),
             'hackernews': lambda p: scrape_hackernews.delay(
                 story_type=p.get('story_type', 'top'),
@@ -384,6 +405,11 @@ class ScraperRunView(APIView):
                 categories=[c.strip() for c in p.get('categories', '').splitlines() if c.strip()] or None,
                 days_back=int(p.get('days_back', 7)),
                 max_papers=int(p.get('max_papers', 20)),
+            ),
+            'twitter': lambda p: scrape_twitter.delay(
+                query=p.get('query') or None,
+                max_results=int(p.get('max_results', 100)),
+                user_id=str(request.user.id) if request.user.is_authenticated else None,
             ),
         }
 

@@ -1,520 +1,413 @@
-# SYNAPSE — Master Task List & Roadmap
+# 🧠 SYNAPSE — Detailed Implementation Task List
 
-> Track every task from setup to production. Check off each item as you complete it, then commit and push.
->
-> **Legend:** `[ ]` = pending | `[x]` = completed | `[~]` = in progress
-
----
-
-## PHASE 0 — Pre-Development & Documentation
-
-### 0.1 Documentation
-- [x] Create SRS document (01_SRS.tex / PDF)
-- [x] Create Architecture & Design document (02_Architecture_Design.tex / PDF)
-- [x] Create Database Schema document (03_Database_Schema.tex / PDF)
-- [x] Create API Specification document (04_API_Specification.tex / PDF)
-- [x] Create Project Roadmap document (05_Roadmap.tex / PDF)
-- [x] Create Implementation Guide (06_Implementation_Guide.tex / PDF)
-- [x] Create UI/UX Design document (07_UI_UX_Design.tex / PDF)
-- [x] Create DevOps & Deployment document (08_DevOps_Deployment.tex / PDF)
-- [x] Create Security & Compliance document (09_Security_Compliance.tex / PDF)
-- [x] Create Testing Strategy document (10_Testing_Strategy.tex / PDF)
-- [x] Create Business Plan document (11_Business_Plan.tex / PDF)
-- [x] Create Data Pipeline Design document (12_Data_Pipeline.tex / PDF)
-- [x] Create AI Agent Specification document (13_AI_Agent_Spec.tex / PDF)
-- [x] Create API SDK Guide (14_API_SDK_Guide.tex / PDF)
-- [x] Create OSS Stack document (15_OSS_Stack.tex / PDF)
-
-### 0.2 Repository Setup
-- [x] Initialize Git repository
-- [x] Create README.md
-- [x] Create project directory structure
-- [x] Push initial commit to GitHub
-- [x] Create .gitignore (Python, Node, Docker, IDE files)
-- [x] Create LICENSE file (MIT)
-- [~] Set up GitHub branch protection rules (main branch) — requires GitHub token with admin:repo scope — set in GitHub Settings > Branches
-- [x] Create GitHub Issue templates (bug, feature, task)
-- [x] Create GitHub PR template
-- [~] Set up GitHub Projects board for task tracking — create manually at github.com/HayreKhan750/SYNAPSE/projects
-
-### 0.3 Development Environment
-- [x] Install Python 3.11 (Python 3.13.9 installed — compatible)
-- [x] Install Node.js 20 LTS (Node.js 22.22.0 installed — compatible)
-- [x] Install Docker Desktop (Docker 28.2.2 + Compose 2.37.1 installed)
-- [x] Install PostgreSQL 15 locally (or use Docker) (psql 16.11 installed + Docker pgvector/pg15 image)
-- [x] Install Redis 7 locally (or use Docker) (Redis 7 via Docker — synapse_redis container healthy)
-- [x] Install VS Code with extensions (Python, ESLint, Prettier, Docker, GitLens) — install manually
-- [x] Configure pre-commit hooks (black, isort, flake8, eslint)
-- [x] Set up .env.local file with all required environment variables
-- [x] Test Docker Compose local stack starts successfully (postgres + redis healthy, pgvector OK)
+> **How to use this file:**
+> - Check off `- [x]` when a task is complete
+> - Each task includes: what to do, which files to touch, and implementation notes
+> - Tasks are ordered by priority — work top to bottom
+> - Status legend: 🔴 Critical | 🟡 Simplify/Remove | 🟢 Add | 🏗️ Architecture | 🚀 New Feature
 
 ---
 
-## PHASE 1 — Core Platform (Weeks 1–4)
+## 📋 TABLE OF CONTENTS
 
-### 1.1 Backend Foundation (Week 1)
-- [x] Create Django project: `django-admin startproject config backend/`
-- [x] Create Django apps: core, users, articles, repositories, papers, videos
-- [x] Install and configure: djangorestframework, django-cors-headers, djangorestframework-simplejwt
-- [x] Configure PostgreSQL database connection (settings.py)
-- [x] Configure Redis cache backend (django-redis)
-- [x] Set up Django admin customization
-- [x] Create User model (extending AbstractUser, add role/preferences fields)
-- [x] Create Article model (title, content, summary, url, source, topic, tags, keywords, sentiment_score, trending_score, embedding_id)
-- [x] Create Source model (name, url, source_type, scrape_interval, config)
-- [x] Create Repository model (github_id, name, stars, forks, language, topics, is_trending)
-- [x] Create ResearchPaper model (arxiv_id, title, abstract, authors, categories, difficulty_level)
-- [x] Create Video model (youtube_id, title, description, channel, transcript, topics)
-- [x] Run initial migrations: `python manage.py migrate` (all migrations applied successfully)
-- [x] Create superuser: `python manage.py createsuperuser` (use: python manage.py createsuperuser)
-- [x] Set up JWT authentication endpoints (register, login, refresh, logout, me)
-- [x] Create REST API endpoints for articles (list, detail, trending, search)
-- [x] Create REST API endpoints for repositories (list, detail, trending)
-- [x] Create REST API endpoints for research papers (list, detail, trending)
-- [x] Create REST API endpoints for videos (list, detail)
-- [x] Add pagination (page + page_size) to all list endpoints
-- [x] Add filtering (topic, source, date_from, date_to) to article endpoints
-- [x] Write unit tests for all models
-- [x] Write unit tests for JWT auth endpoints
-- [x] **Git commit:** `feat: backend foundation — models, auth, REST APIs` ✓ pushed 669ec3a
-
-### 1.2 Web Scraping System (Week 2)
-- [x] Create Scrapy project: `scrapy startproject synapse_scraper scraper/`
-- [x] Install dependencies: scrapy, beautifulsoup4, playwright, httpx, feedparser, trafilatura
-- [~] Install Playwright browsers: `playwright install chromium` — install manually on server
-- [x] Create HackerNews spider (Firebase API: https://hacker-news.firebaseio.com/v0/)
-- [x] Create GitHub trending spider (GitHub REST API v3, requires GITHUB_TOKEN)
-- [x] Create arXiv spider (arXiv API: http://export.arxiv.org/api/query)
-- [x] Create YouTube spider (YouTube Data API v3, requires YOUTUBE_API_KEY)
-- [~] Create NewsAPI collector (newsapi.org, requires NEWS_API_KEY) — planned for Phase 2
-- [x] Set up Scrapy item pipelines (validation, deduplication, database storage)
-- [x] Implement URL-based deduplication (SHA-256 hash stored in Redis)
-- [~] Implement content deduplication (MinHash LSH via datasketch) — Phase 2 enhancement
-- [x] Configure Scrapy middlewares (retry, user-agent rotation, rate limiting)
-- [x] Install and configure Celery (celery, django-celery-beat, django-celery-results)
-- [x] Create Celery tasks for each scraper (scrape_hackernews, scrape_github, scrape_arxiv, scrape_youtube)
-- [x] Configure Celery Beat schedules (HN every 30min, GitHub every 2hrs, arXiv every 6hrs)
-- [~] Set up Flower monitoring for Celery: `flower --port=5555` — run manually: `celery -A config.celery flower`
-- [x] Test each scraper manually and verify data stored in DB — 55 HN articles, 74 arXiv papers, 35 GitHub repos pulled live
-- [~] Write integration tests for scrapers (mock HTTP responses) — Phase 1.2 follow-up
-- [x] **Git commit:** `feat: web scraping system — spiders, Celery tasks, deduplication` ✓
-
-### 1.3 Frontend Dashboard (Week 3)
-- [x] Create Next.js project: `npx create-next-app@latest frontend --typescript --tailwind --app`
-- [x] Install dependencies: framer-motion, recharts, axios, zustand, @tanstack/react-query, react-hook-form, zod, lucide-react, next-themes, react-hot-toast, react-markdown, date-fns
-- [x] Configure TailwindCSS (custom colors: indigo-500 primary, cyan-500 secondary, violet-500 accent)
-- [x] Configure dark mode (next-themes, class strategy)
-- [x] Create API client (axios instance with JWT interceptor, auto token refresh)
-- [x] Create Zustand auth store (user, tokens, login, logout actions)
-- [x] Create main layout (sidebar + top navbar + content area)
-- [x] Create sidebar component (navigation links, logo, user profile, collapse button)
-- [x] Create top navbar (search bar, notification bell, dark mode toggle, user avatar)
-- [x] Create login page (/auth/login)
-- [x] Create register page (/auth/register)
-- [x] Create main dashboard page (/) — stats row, trend radar, news feed
-- [x] Create Tech Intelligence Feed page (/feed) — article cards, filters, infinite scroll
-- [x] Create GitHub Radar page (/github) — trending repos, language filters
-- [x] Create Research Explorer page (/research) — papers with difficulty badges
-- [x] Create reusable ArticleCard component (title, source, AI summary, tags, bookmark button)
-- [x] Create reusable RepositoryCard component (name, stars, language, description)
-- [x] Create reusable PaperCard component (title, authors, abstract preview, difficulty badge)
-- [x] Create skeleton loading components for all cards
-- [x] Implement infinite scroll for news feed (Load More button pattern)
-- [x] Add @tanstack/react-query for data fetching and caching
-- [~] Write component unit tests (Jest + React Testing Library) — follow-up task
-- [x] **Git commit:** `feat: frontend dashboard — layout, pages, article/repo/paper cards` ✓
-
-### 1.4 Search Engine (Week 4)
-- [x] Add full-text search to articles endpoint (PostgreSQL ILIKE or django-haystack)
-- [x] Add tag-based filtering to articles endpoint
-- [x] Add topic-based filtering
-- [x] Create global search bar component (debounced input, 300ms)
-- [x] Create search results page (/search?q=)
-- [x] Create UserBookmark model (user, content_type, content_id, notes, tags)
-- [x] Create bookmark API endpoints (POST/DELETE /articles/{id}/bookmark, etc.)
-- [x] Create bookmark button component (heart icon, toggle state, optimistic UI)
-- [x] Create Knowledge Library page (/library) — bookmarked items grid
-- [x] Create Collection model (name, description, user, is_public)
-- [x] Create collection API endpoints (CRUD + add/remove items)
-- [x] Create collections UI in Knowledge Library page
-- [x] Add django-axes for login rate limiting (lockout after 5 failed attempts)
-- [x] Write integration tests for search endpoints
-- [ ] Write E2E test for search flow (Playwright) — deferred to Phase 8 (testing strategy)
-- [x] **Git commit:** `feat: search, bookmarks, collections — knowledge library complete`
+1. [🔴 Phase 0 — Critical Fixes (Do First)](#phase-0--critical-fixes)
+2. [🟡 Phase 1 — Remove & Simplify](#phase-1--remove--simplify)
+3. [🟢 Phase 2 — Tier 1: Revenue & Retention](#phase-2--tier-1-revenue--retention)
+4. [🟢 Phase 3 — Tier 2: AI Differentiation](#phase-3--tier-2-ai-differentiation)
+5. [🟢 Phase 4 — Tier 3: UX & Design Overhaul](#phase-4--tier-3-ux--design-overhaul)
+6. [🏗️ Phase 5 — Technical Architecture Upgrades](#phase-5--technical-architecture-upgrades)
+7. [🚀 Phase 6 — New Market Differentiation Features](#phase-6--new-market-differentiation-features)
 
 ---
 
-## PHASE 2 — AI Layer (Weeks 5–8)
+## 🔴 Phase 0 — Critical Fixes
 
-### 2.1 NLP Processing Pipeline (Week 5)
-- [x] Install NLP dependencies: spacy, transformers, sentence-transformers, keybert, langdetect, datasketch
-- [x] Download spaCy model: `python -m spacy download en_core_web_sm`
-- [x] Create NLP processing Celery task (process_article_nlp)
-- [x] Implement text cleaning (BeautifulSoup HTML stripping, whitespace normalization)
-- [x] Implement language detection (langdetect) — skip non-English articles
-- [x] Implement keyword extraction (KeyBERT with all-MiniLM-L6-v2)
-- [x] Implement topic classification (zero-shot with facebook/bart-large-mnli)
-- [x] Implement sentiment analysis (cardiffnlp/twitter-roberta-base-sentiment)
-- [x] Implement named entity recognition (spaCy NER for tech terms)
-- [x] Update Article model fields (keywords, topic, sentiment_score populated by NLP)
-- [x] Chain NLP task after scraping: scrape_article -> process_nlp
-- [x] Add NLP processing metrics to Prometheus (processing_time, articles_per_minute)
-- [x] Write unit tests for each NLP function
-- [x] **Git commit:** `feat: NLP pipeline — keyword extraction, topic classification, sentiment`
-
-### 2.2 Article Summarization (Week 6)
-- [x] Install transformers (already done) + accelerate for GPU support
-- [x] Download/cache facebook/bart-large-cnn model
-- [x] Create summarization Celery task (summarize_article)
-- [x] Implement summarization with BART (max_length=150, min_length=50)
-- [x] Handle long articles (chunk and summarize then combine)
-- [x] Update Article model: populate summary field after summarization
-- [x] Chain tasks: scrape -> nlp -> summarize -> embed
-- [x] Display summaries in ArticleCard component (3-line truncated, expand on click)
-- [x] Add AI summary badge on cards ("AI Summary" chip)
-- [x] Create summarize-on-demand API endpoint (POST /api/v1/ai/summarize)
-- [x] Write unit tests for summarizer (test output length, ROUGE score)
-- [x] **Git commit:** `feat: AI summarization — BART model, auto-summary pipeline`
-
-### 2.3 Vector Search (Week 7)
-- [x] Install pgvector: `pip install pgvector`
-- [x] Install pgvector extension in PostgreSQL: `CREATE EXTENSION vector;`
-- [x] Add embedding column to Article model (VectorField, dimensions=384 for MiniLM)
-- [x] Create embedding generation Celery task (generate_embeddings)
-- [x] Implement embedding generation (sentence-transformers/all-MiniLM-L6-v2 by default; OpenAI optional)
-- [x] Batch process embeddings (process 100 at a time to manage API costs)
-- [x] Create semantic search API endpoint (POST /api/v1/search/semantic)
-- [x] Implement cosine similarity search with pgvector (<=> operator)
-- [x] Apply same embeddings to ResearchPaper and Repository models
-- [x] Create ivfflat index on embedding column for performance
-- [x] Update search results page to use semantic search by default
-- [x] Add similarity score display in search results (API)
-- [x] Write integration tests for semantic search
-- [x] **Git commit:** `feat: vector search  pgvector embeddings, semantic search API`
-
-### 2.4 Recommendation System (Week 8)
-- [x] Create UserActivity model (user, action_type, content_type, content_id, timestamp)
-- [x] Log user interactions (view article, bookmark, search query)
-- [x] Create recommendation engine (content-based: find similar content via embeddings)
-- [x] Implement user interest vector (average of viewed content embeddings)
-- [x] Create recommendation API endpoint (GET /api/v1/recommendations)
-- [x] Create TechnologyTrend model (technology_name, mention_count, trend_score, date) — deferred to Phase 4 trends feature
-- [x] Create trend analysis Celery task (analyze_trends — runs daily) — deferred (implemented minimal trending via UserActivity)
-- [x] Create trend radar API endpoint (GET /api/v1/trends/radar) — deferred (out of scope for minimal path)
-- [x] Create trend timeline API endpoint (GET /api/v1/trends/timeline?tech=) — deferred (out of scope for minimal path)
-- [x] Add Technology Trend Radar chart to main dashboard (Recharts RadarChart) — deferred (Phase 4+ UI)
-- [x] Add "For You" personalized feed tab to Tech Intelligence Feed page
-- [x] Write unit tests for recommendation logic — to be covered in Phase 8 Testing
-- [x] **Git commit:** `feat: recommendations + trends — personalized feed, trend radar`
+> These are blocking issues. Nothing else matters until these are done.
 
 ---
 
-## PHASE 3 — AI Chat Assistant (Weeks 9–10)
+### 🚪 TASK-001 — Onboarding Wizard
 
-### 3.1 LangChain RAG Pipeline (Week 9)
-- [x] Install: langchain, langchain-openai, langchain-community, openai, tiktoken
-- [x] Create FastAPI AI service project (ai_engine/)
-- [x] Set up OpenAI client with API key
-- [x] Create vector store retriever using pgvector + LangChain PGVector
-- [x] Create RecursiveCharacterTextSplitter (chunk_size=1000, overlap=200)
-- [x] Create ConversationalRetrievalChain with retriever + OpenAI LLM
-- [x] Design system prompt (grounded in knowledge base, cite sources)
-- [x] Implement conversation history management (ConversationBufferWindowMemory, last 10 turns)
-- [x] Create Conversation model (user, conversation_id, messages JSONB)
-- [x] Create chat API endpoint (POST /api/v1/ai/chat)
-- [x] Create conversation history endpoint (GET /api/v1/ai/chat/{conversation_id}/history)
-- [x] Implement SSE (Server-Sent Events) for streaming responses
-- [x] Add source citations to chat responses (return retrieved documents)
-- [x] Write integration tests for RAG pipeline (mock OpenAI)
-- [x] **Git commit:** `feat: RAG pipeline — LangChain, pgvector retriever, conversation memory`
+**Priority:** 🔴 Critical | **Effort:** Large | **Impact:** +40–60% Day-1 retention
 
-### 3.2 AI Chat UI (Week 10)
-- [x] Create AI Chat page (/chat)
-- [x] Create conversation list sidebar (past conversations, new chat button)
-- [x] Create ChatMessage component (user message right-aligned, AI response left-aligned)
-- [x] Create AI response component with source citation cards
-- [x] Implement SSE streaming in frontend (EventSource or fetch with ReadableStream)
-- [x] Add streaming text animation (token-by-token display)
-- [x] Add copy button to AI responses
-- [x] Add suggested prompt chips on empty chat state
-- [x] Create AI explain endpoint (POST /api/v1/ai/explain — for papers/repos)
-- [x] Add "Ask AI" button on ArticleCard and PaperCard
-- [x] Add typing indicator while AI generates response
-- [~] Write E2E test for full chat flow (Playwright) — deferred to Phase 8 (testing strategy)
-- [x] **Git commit:** `feat: AI chat UI — streaming responses, source citations, conversation history`
+#### Backend Tasks
+- [ ] **TASK-001-B1:** Create `onboarding` app or add onboarding models to `users` app
+  - File: `backend/apps/users/models.py`
+  - Add `OnboardingProfile` model with fields: `topics[]`, `tech_stack[]`, `sources[]`, `completed_at`, `step`
+  - Migration: `backend/apps/users/migrations/`
 
----
+- [ ] **TASK-001-B2:** Create onboarding API endpoints
+  - File: `backend/apps/users/views.py`
+  - `POST /api/users/onboarding/step/` — save each step's data
+  - `GET /api/users/onboarding/status/` — return current step + completion state
+  - `POST /api/users/onboarding/complete/` — mark onboarding done, trigger first brief generation
 
-## PHASE 4 — Automation System (Weeks 11–12)
+- [ ] **TASK-001-B3:** Create onboarding serializers
+  - File: `backend/apps/users/serializers.py`
+  - Add `OnboardingSerializer` with topic/source/stack validation
 
-### 4.1 Workflow Engine (Week 11)
-- [x] Create AutomationWorkflow model (name, trigger_type, cron_expression, actions JSONB, is_active)
-- [x] Create WorkflowRun model (workflow, status, started_at, completed_at, result, error)
-- [x] Create workflow CRUD API endpoints
-- [x] Create workflow execution engine (Celery task: execute_workflow)
-- [x] Implement action types: collect_news, summarize_content, generate_pdf, send_email, upload_to_drive
-- [x] Set up Celery Beat for cron-based workflow scheduling
-- [x] Handle missed tasks (django-celery-beat reschedule logic — cleanup_stale_runs task)
-- [x] Create workflow builder UI (Automation Center page /automation)
-- [x] Create workflow form (name, description, trigger picker, action builder)
-- [x] Create cron expression picker UI component
-- [x] **Git commit:** `feat: automation workflow engine — Celery Beat, action system, workflow builder`
+- [ ] **TASK-001-B4:** Trigger first personalized brief on onboarding completion
+  - File: `backend/apps/core/tasks.py`
+  - Create Celery task `generate_first_brief(user_id)` that seeds the feed with relevant content
 
-### 4.2 Notifications (Week 12)
-- [x] Create Notification model (user, title, message, notif_type, is_read, metadata)
-- [x] Create notification API endpoints (list, mark read, mark all read, unread-count, delete)
-- [x] Install SendGrid: email_service.py with SMTP + SDK support
-- [x] Create email notification service (SendGrid SMTP + direct SDK fallback)
-- [x] Add email notification on workflow completion (send_email action queues Celery task)
-- [x] Create notification bell component (badge count with 60s polling, dropdown list)
-- [x] Implement real-time notifications via polling (React Query refetchInterval: 60s)
-- [x] Create full Notifications page (/notifications) with mark-read, delete, empty state
-- [x] Create workflow run history (WorkflowRun model + runs API + RunHistoryModal in UI)
-- [x] Add workflow status badges (active, paused, failed) in WorkflowCard
-- [x] Create Celery tasks for async email delivery (send_notification_email_task, send_workflow_completion_email_task)
-- [x] Add Notification type to frontend types/index.ts
-- [x] **Git commit:** `feat: notifications — in-app bell, SendGrid email, notification center`
+- [ ] **TASK-001-B5:** Add onboarding URL routes
+  - File: `backend/apps/users/urls.py`
+  - Register all onboarding endpoints
+
+#### Frontend Tasks
+- [ ] **TASK-001-F1:** Create onboarding wizard route
+  - File: `frontend/src/app/(auth)/onboarding/page.tsx` *(new file)*
+  - Multi-step wizard with progress bar (Steps 1–4)
+
+- [ ] **TASK-001-F2:** Step 1 — Interest selector UI
+  - File: `frontend/src/app/(auth)/onboarding/page.tsx`
+  - Tag-style multi-select for topics: AI, Web Dev, DevOps, Research, Security, etc.
+  - Tech stack selector: Python, TypeScript, Rust, Go, etc.
+
+- [ ] **TASK-001-F3:** Step 2 — Integration connectors UI
+  - Connect GitHub, Google Drive, Notion buttons (OAuth redirects)
+  - Show connected/skip state for each
+
+- [ ] **TASK-001-F4:** Step 3 — "Generating your brief" loading screen
+  - Animated loading state while `generate_first_brief` Celery task runs
+  - Poll `GET /api/users/onboarding/status/` every 2s
+
+- [ ] **TASK-001-F5:** Step 4 — "Your feed is ready" success screen
+  - Celebration animation (Framer Motion)
+  - CTA button → redirect to `/home`
+
+- [ ] **TASK-001-F6:** Add empty state components across all pages
+  - Files to update:
+    - `frontend/src/app/(dashboard)/feed/page.tsx`
+    - `frontend/src/app/(dashboard)/research/page.tsx`
+    - `frontend/src/app/(dashboard)/library/page.tsx`
+  - Show friendly empty state with "Set up your feed →" CTA for new users
+
+- [ ] **TASK-001-F7:** Redirect new users to onboarding after registration
+  - File: `frontend/src/app/(auth)/register/page.tsx`
+  - After successful register, check `onboarding.completed` → redirect to `/onboarding`
 
 ---
 
-## PHASE 5 — Agentic AI (Weeks 13–16)
+### 🔐 TASK-002 — Authentication Completion
 
-### 5.1 Agent Framework (Week 13)
-- [x] Install: langchain, langgraph (for complex workflows)
-- [x] Create LangChain ReAct agent base class (ai_engine/agents/base.py — LangGraph create_react_agent)
-- [x] Register agent tools with LangChain StructuredTool (ai_engine/agents/registry.py)
-- [x] Create tool: search_knowledge_base(query, limit, filters)
-- [x] Create tool: fetch_articles(topic, date_range, limit)
-- [x] Create tool: analyze_trends(technologies, period)
-- [x] Create tool: search_github(query, language, stars_min)
-- [x] Create tool: fetch_arxiv_papers(query, max_results)
-- [x] Create AgentTask model (user, task_type, prompt, status, result, celery_task_id)
-- [x] Create agent task Celery task (execute_agent_task — async execution)
-- [x] Create agent task API endpoints (create, status, cancel, list)
-- [x] Add token usage tracking (tiktoken) and cost logging per task
-- [x] Add safety limits (max 10000 tokens per task, 5min timeout)
-- [x] Write unit tests for each agent tool
-- [x] **Git commit:** `feat: agent framework — ReAct agent, search/fetch/analyze tools`
+**Priority:** 🔴 Critical | **Effort:** Medium | **Impact:** Developer trust + security
 
-### 5.2 Document Generation (Week 14)
-- [x] Install: reportlab, python-pptx, python-docx, lxml, pillow
-- [x] Create tool: generate_pdf(title, sections, content) using ReportLab
-- [x] Implement PDF with: cover page, sections, styled paragraphs, branded footer
-- [x] Create tool: generate_ppt(title, slides) using python-pptx
-- [x] Implement PPT with: branded title slide, content slides with bullets, slide numbers
-- [x] Create tool: generate_word_doc(title, content) using python-docx
-- [x] Implement Word doc with: styles, heading levels, TOC field, page footer
-- [x] Create tool: generate_markdown(title, sections) — .md with auto-TOC
-- [x] Create GeneratedDocument model (user, title, doc_type, file_path, cloud_url, agent_prompt) ✓ existed
-- [x] Store generated files in local media/ folder (then S3 in Phase 6)
-- [x] Create document API endpoints (generate, list, download, delete)
-- [x] Register 4 doc tools in AgentToolRegistry (9 total tools)
-- [x] Create Document Studio page (/documents)
-- [x] Create document generation form (prompt input, type selector, subtitle, author)
-- [x] Create documents library grid (title, type badge, size, date, download + delete buttons)
-- [x] Write unit tests for document generation tools (13 tests all passing)
-- [x] **Git commit:** `feat: document generation — PDF/PPT/Word tools, Document Studio UI`
+#### MFA Recovery Codes
+- [ ] **TASK-002-B1:** Add recovery codes model
+  - File: `backend/apps/users/mfa.py`
+  - Generate 10 single-use recovery codes on MFA enable
+  - Store as hashed values in DB
 
-### 5.3 Project Builder (Week 15)
-- [x] Create tool: create_project(project_type, name, features)
-- [x] Implement Django REST API project template (models, views, serializers, urls, settings, requirements.txt)
-- [x] Implement FastAPI microservice template
-- [x] Implement Next.js app template (pages, components, API client, TailwindCSS config)
-- [x] Implement Python data science notebook template
-- [x] Implement React component library template (TypeScript, Storybook, Rollup, tests)
-- [x] Package generated project as .zip file
-- [x] Store zip in media/ (then S3 in Phase 6)
-- [x] Add project download to Document Studio
-- [x] Create Markdown report generator (structured content to .md)
-- [x] **Git commit:** `feat: project builder — Django/FastAPI/Next.js/DataScience/ReactLib templates, zip download`
+- [ ] **TASK-002-B2:** Add recovery code API endpoints
+  - File: `backend/apps/users/mfa_views.py`
+  - `POST /api/users/mfa/recovery-codes/regenerate/`
+  - `POST /api/users/mfa/verify-recovery/` — use a code to bypass TOTP
 
-### 5.4 Agent UI (Week 16)
-- [x] Create agent command interface in Automation Center (natural language input)
-- [x] Create active agents panel (running tasks with progress bars)
-- [x] Create agent task history list (completed tasks, results, files generated)
-- [x] Add real-time task progress via SSE or WebSocket
-- [x] Add task cancellation button
-- [x] Add cost display per agent task ($X.XX estimated)
-- [x] Write E2E test for full agent task flow
-- [x] **Git commit:** `feat: agent UI — command interface, progress tracking, task history`
+- [ ] **TASK-002-F1:** Show recovery codes UI after MFA setup
+  - File: `frontend/src/app/(dashboard)/settings/MFASection.tsx`
+  - Display codes in a copyable grid
+  - "Download codes" button (saves as `.txt`)
+  - "Regenerate codes" with confirmation modal
+
+#### GitHub OAuth
+- [ ] **TASK-002-B3:** Add GitHub OAuth backend
+  - File: `backend/apps/users/views.py`
+  - Add `GitHubOAuthView` — exchange code for token, fetch user profile
+  - Map GitHub email → existing account or create new
+
+- [ ] **TASK-002-B4:** Add GitHub OAuth URL
+  - File: `backend/apps/users/urls.py`
+  - `GET /api/users/auth/github/`
+  - `GET /api/users/auth/github/callback/`
+
+- [ ] **TASK-002-F2:** Add "Continue with GitHub" button on login/register
+  - Files: `frontend/src/app/(auth)/login/page.tsx`, `frontend/src/app/(auth)/register/page.tsx`
+  - Add GitHub button alongside Google OAuth button
+  - Use GitHub SVG icon
+
+#### Email Verification Flow
+- [ ] **TASK-002-B5:** Improve email verification UX
+  - File: `backend/apps/users/views.py`
+  - Add resend verification email endpoint: `POST /api/users/resend-verification/`
+  - Add expiry check with clear error messages
+
+- [ ] **TASK-002-F3:** Improve verify-email page
+  - File: `frontend/src/app/(auth)/verify-email/page.tsx`
+  - Show clear success/error states
+  - Add "Resend email" button with cooldown timer
 
 ---
 
-## PHASE 6 — Cloud Integration (Weeks 17–18)
+### 💳 TASK-003 — Billing Activation
 
-### 6.1 Google Drive Integration (Week 17)
-- [x] Install: google-api-python-client, google-auth-httplib2, google-auth-oauthlib
-- [x] Set up Google Cloud project and OAuth2 credentials
-- [x] Implement Google Drive OAuth2 flow (user connects their Drive)
-- [x] Create tool: upload_to_drive(file_path, folder_name)
-- [x] Create tool: list_drive_files(folder_name)
-- [x] Create tool: create_drive_folder(folder_name)
-- [x] Add "Upload to Drive" button in Document Studio
-- [x] Store Google Drive tokens securely in DB (encrypted)
-- [x] Add Drive connection status in user profile/settings
-- [x] **Git commit:** `feat: Google Drive integration — OAuth2, upload/list tools`
+**Priority:** 🔴 Critical | **Effort:** Large | **Impact:** Revenue generation
 
-### 6.2 AWS S3 Integration (Week 18)
-- [x] Install: boto3
-- [x] Configure AWS credentials (via environment variables or IAM role)
-- [x] Create S3 service class (upload_file, download_file, get_presigned_url, delete_file)
-- [x] Migrate document storage from local media/ to S3
-- [x] Use presigned URLs for secure file downloads (expire after 1 hour)
-- [x] Configure S3 bucket (versioning enabled, public access blocked)
-- [x] Update GeneratedDocument model (cloud_url points to S3 presigned URL)
-- [x] Create tool: upload_to_s3(file_path, bucket, key)
-- [x] Add S3 storage for scraped media (images, thumbnails)
-- [x] Configure django-storages for Django static/media files on S3
-- [x] **Git commit:** `feat: AWS S3 integration — file storage, presigned URLs, media CDN`
+#### Backend Tasks
+- [ ] **TASK-003-B1:** Complete Stripe subscription plans setup
+  - File: `backend/apps/billing/stripe_service.py`
+  - Create Stripe Products + Prices for Free, Pro ($19/mo), Team ($49/seat/mo)
+  - Add annual pricing variants (20% discount)
 
----
+- [ ] **TASK-003-B2:** Add subscription management endpoints
+  - File: `backend/apps/billing/views.py`
+  - `POST /api/billing/subscribe/` — create Stripe checkout session
+  - `POST /api/billing/cancel/` — cancel subscription
+  - `POST /api/billing/upgrade/` — change plan
+  - `GET /api/billing/portal/` — Stripe customer portal redirect
+  - `POST /api/billing/webhook/` — handle Stripe webhooks (already partial?)
 
-## PHASE 7 — Premium UI/UX (Weeks 19–20)
+- [ ] **TASK-003-B3:** Add usage metering models
+  - File: `backend/apps/billing/models.py`
+  - Add `UsageRecord` model: `user`, `resource_type` (ai_query/agent_run/storage), `count`, `period`
+  - Add `PlanLimit` model: defines limits per plan tier
 
-### 7.1 Design System & Animations (Week 19)
-- [x] Create design tokens (colors, typography, spacing in tailwind.config.ts)
-- [x] Create reusable Button component (primary, secondary, ghost, destructive variants + sm/md/lg sizes)
-- [x] Create reusable Input component (text, search, textarea with label + error state)
-- [x] Create reusable Card component (with hover lift effect via Framer Motion)
-- [x] Create reusable Badge/Tag component
-- [x] Create reusable Modal/Dialog component (Radix UI Dialog)
-- [x] Create reusable Toast notification system (react-hot-toast)
-- [x] Add page transition animations (Framer Motion AnimatePresence)
-- [x] Add card entrance animations (staggered fade-in on list pages)
-- [x] Add skeleton shimmer loading states for all data-fetching components
-- [x] Create Technology Trend Radar chart (Recharts RadarChart)
-- [x] Create star growth sparkline for GitHub repos (Recharts LineChart)
-- [x] Create topic distribution pie chart for dashboard (Recharts PieChart)
-- [x] Create activity heatmap component
-- [x] Implement smooth sidebar collapse animation
-- [x] **Git commit:** `feat: premium UI — design system, Framer Motion animations, data viz`
+- [ ] **TASK-003-B4:** Add usage tracking middleware/decorator
+  - File: `backend/apps/billing/tasks.py` or new `backend/apps/billing/metering.py`
+  - Decorator `@check_usage_limit('ai_query')` for AI views
+  - Celery task to reset daily counters at midnight
 
-### 7.2 Mobile & Performance (Week 20)
-- [x] Make all pages fully responsive (mobile 320px, tablet 768px, desktop 1024px+)
-- [x] Create mobile bottom navigation bar (replaces sidebar on mobile)
-- [x] Implement PWA (next-pwa: service worker, manifest.json, offline page)
-- [x] Optimize images (Next.js Image component, WebP format, lazy loading)
-- [x] Implement code splitting (dynamic imports for heavy components)
-- [x] Add React Suspense boundaries with fallback skeletons
-- [x] Run Lighthouse CI (target: Performance 90+, Accessibility 95+, Best Practices 95+)
-- [x] Fix Core Web Vitals (LCP < 2.5s, FID < 100ms, CLS < 0.1)
-- [x] Add error boundaries (graceful error UI for failed API calls)
-- [x] Add empty state components for all list pages
-- [x] Implement optimistic UI updates for bookmarks
-- [x] **Git commit:** `feat: mobile responsive, PWA, performance optimization`
+- [ ] **TASK-003-B5:** Add plan-based feature gates
+  - File: `backend/apps/billing/` — new `permissions.py`
+  - DRF permission class `HasActivePlan(plan='pro')` 
+  - Apply to: agent views, advanced search, automation views
 
----
+- [ ] **TASK-003-B6:** Trial logic
+  - File: `backend/apps/billing/models.py`
+  - Add `trial_ends_at` field to user/subscription
+  - Celery beat task: send trial expiry warning at 3 days + 1 day before expiry
 
-## PHASE 8 — Deployment & Production (Weeks 21–22)
+#### Frontend Tasks
+- [ ] **TASK-003-F1:** Create pricing page
+  - File: `frontend/src/app/(dashboard)/pricing/page.tsx` *(new file)*
+  - 3-column pricing cards: Free / Pro / Team
+  - Annual/monthly toggle with savings badge
+  - Feature comparison table below cards
+  - CTA: "Start Free", "Upgrade to Pro", "Contact Sales"
 
-### 8.1 Docker & CI/CD (Week 21)
-- [x] Create backend/Dockerfile (multi-stage: builder + production, non-root user)
-- [x] Create ai_engine/Dockerfile (FastAPI service, uvicorn)
-- [x] Create frontend/Dockerfile (multi-stage: deps + builder + runner, Next.js standalone)
-- [x] Create docker-compose.yml (backend, fastapi-ai, frontend, postgres, redis, celery_worker, celery_beat)
-- [x] Create docker-compose.prod.yml (production overrides — resource limits, internal networks, PostgreSQL tuning)
-- [x] Create .dockerignore files for each service
-- [x] Create .github/workflows/ci.yml (lint + test backend + test frontend + Trivy security scan)
-- [x] Create .github/workflows/cd.yml (multi-arch build → GHCR push → EC2 SSH deploy)
-- [x] Configure GitHub Actions secrets (AWS credentials, API keys, deploy SSH key)
-- [x] Set up Docker image registry (GitHub Container Registry — GHCR)
-- [x] Test full Docker Compose stack locally (all services running)
-- [x] Write Nginx production config (reverse proxy, TLS 1.3, gzip, rate limiting, security headers)
-- [x] **Git commit:** `feat: Docker + GitHub Actions CI/CD pipeline`
+- [ ] **TASK-003-F2:** Add upgrade prompts at feature gates
+  - Files to update:
+    - `frontend/src/app/(dashboard)/agents/page.tsx` — gate after 1 run/day
+    - `frontend/src/app/(dashboard)/chat/page.tsx` — gate after 5 queries/day
+    - `frontend/src/app/(dashboard)/automation/page.tsx` — gate after 3 workflows
+  - Show upgrade modal with plan comparison when limit hit
 
-### 8.2 Production Deployment (Week 22)
-- [x] Set up AWS EC2 instance (t3.medium for backend, t3.large for AI service)
-- [x] Set up AWS RDS PostgreSQL 15 (with pgvector extension installed)
-- [x] Set up AWS ElastiCache Redis
-- [x] Configure Nginx as reverse proxy (SSL termination, rate limiting, gzip)
-- [x] Set up SSL/HTTPS with Let's Encrypt + Certbot
-- [x] Configure Route 53 DNS
-- [x] Install Prometheus + Grafana + Loki monitoring stack
-- [x] Set up Grafana dashboards (system + application + business metrics)
-- [x] Integrate Sentry (Django + FastAPI + Next.js error tracking)
-- [x] Configure structured logging (JSON logs, CloudWatch + Loki integration)
-- [x] Set up uptime monitoring (UptimeRobot / CloudWatch alarms)
-- [x] Configure auto-scaling (CloudWatch metrics via node-exporter + cAdvisor)
-- [x] Create deployment runbook (DEPLOYMENT.md — deploy, rollback, troubleshooting)
-- [~] Go live! Share on Product Hunt + Hacker News (Show HN) — pending domain setup
-- [x] **Git commit:** `feat: production deployment — AWS, Nginx, SSL, monitoring`
+- [ ] **TASK-003-F3:** Create billing settings section
+  - File: `frontend/src/app/(dashboard)/settings/page.tsx`
+  - Show current plan, usage meters (queries used, storage)
+  - "Manage Subscription" → Stripe portal link
+  - "Upgrade Plan" CTA
+
+- [ ] **TASK-003-F4:** Create usage meter components
+  - File: `frontend/src/components/ui/UsageMeter.tsx` *(new file)*
+  - Progress bar showing X/Y usage
+  - Color: green → yellow → red as limit approaches
 
 ---
 
-## PHASE 9 — Post-Launch (Ongoing)
+### 🛡️ TASK-004 — AI Guardrails
 
-### 9.1 Security Hardening
-- [x] Run OWASP ZAP scan against production (.github/workflows/security.yml — baseline + full API scan)
-- [x] Run bandit static analysis (CI: bandit + semgrep Django/JWT/secrets rules → GitHub Security tab)
-- [x] Run safety + pip-audit dependency CVE check (daily scheduled scan)
-- [x] Run npm audit: frontend dependency scan (daily scheduled scan)
-- [x] Enable Django CSP headers (nonce-based ContentSecurityPolicyMiddleware)
-- [x] Add SecurityHeadersMiddleware (Permissions-Policy, CORP, COOP, remove Server header)
-- [x] Configure fail2ban on server (EC2 bootstrap — SSH + Nginx jails)
-- [x] Set up AWS GuardDuty (documented in DEPLOYMENT.md)
-- [x] Enable S3 bucket versioning and MFA delete (ec2_bootstrap.sh aws s3api commands)
-- [x] Review and implement RBAC permissions (IsAdminUser, IsPremiumUser, IsOwnerOrAdmin)
-- [x] Implement TOTP MFA for admin accounts (django-otp + QR code + 10 backup codes)
-- [x] Secret scanning: truffleHog OSS (verified secrets, full git history, CI pipeline)
-- [x] Container scanning: Trivy SARIF (CRITICAL+HIGH CVEs → GitHub Security tab)
-- [x] Input sanitisation utilities: sanitise_text(), sanitise_filename()
-- [x] **Git commit:** `feat: security hardening — MFA, CSP, SAST, OWASP ZAP, RBAC`
+**Priority:** 🔴 Critical | **Effort:** Medium | **Impact:** Cost protection + safety
 
-### 9.2 Monitoring & Analytics
-- [x] Create Grafana dashboard: Platform Overview (requests/sec, error rate, latency p95)
-- [x] Create Grafana dashboard: Business Metrics (signups/day, articles scraped, AI queries, docs generated)
-- [x] Create Grafana dashboard: Celery Tasks (queue depth, task success/failure rate)
-- [x] Set up alerting rules (Slack: error rate >1%, P99 latency >2s, DB slow queries >1s, Redis >80%)
-- [x] Track North Star Metric (WAU using AI chat — WAUDropped alert if drops 20%)
-- [x] Implement PostHog analytics (privacy-first, DNT-respecting, no PII in events)
-- [x] Backend: posthog Python SDK + custom Prometheus business metric counters
-- [x] Frontend: PostHog JS lazy-loaded, AnalyticsProvider tracks page views + user identity
-- [x] Business alert rules: SignupRateDrop, DocumentGenerationFailing, SLO breach alerts
-- [x] **Git commit:** `feat: analytics — PostHog, business metrics, Grafana dashboards, SLO alerts`
+- [ ] **TASK-004-B1:** Add per-user AI rate limiting
+  - File: `backend/apps/core/views_chat.py` and `backend/apps/agents/views.py`
+  - Use `django-ratelimit` or Redis counters
+  - Limits: Free=5/day, Pro=unlimited with soft cap, Team=pooled
 
-### 9.3 Growth & Iteration
-- [x] Launch Pro tier billing (Stripe integration — Free/Pro $19/mo/Enterprise $99/mo)
-- [x] Stripe Checkout with 14-day free trial, Customer Portal, webhook processing
-- [x] Stripe webhook: subscription created/updated/deleted, invoice paid/failed (async Celery)
-- [x] Implement referral program (1 month Pro reward — 8-char codes, auto on signup)
-- [x] Collect user feedback (NPS widget — auto-shows after 5min, 30-day cooldown)
-- [x] POST /api/v1/billing/feedback/ endpoint (NPS 0-10, free text, page URL)
-- [~] Launch on Product Hunt — pending go-live
-- [~] Post on Hacker News (Show HN) — pending go-live
-- [~] Write technical blog post — pending
-- [~] Set up Discord server — pending
-- [x] Plan v2.0 features based on user feedback (feedback model in DB + NPS tracking)
-- [x] **Git commit:** `feat: Stripe billing, referral program, NPS feedback widget`
+- [ ] **TASK-004-B2:** Add cost budget caps per user tier
+  - File: `ai_engine/agents/base.py`
+  - Track token usage per request
+  - Reject requests if user's monthly budget exceeded
+  - Store usage in Redis with TTL=end of month
+
+- [ ] **TASK-004-B3:** Add content filtering / jailbreak detection
+  - File: `ai_engine/agents/base.py` or new `ai_engine/guardrails.py`
+  - Add input validation: block prompt injection patterns
+  - Use simple keyword blocklist + regex for obvious attacks
+  - Optionally integrate `guardrails-ai` library
+
+- [ ] **TASK-004-B4:** Add output validation
+  - File: `ai_engine/rag/chain.py`
+  - Validate LLM responses don't contain PII patterns (emails, phone numbers, SSNs)
+  - Add response length limits
+
+- [ ] **TASK-004-B5:** Remove dangerous in-memory Redis fallback
+  - File: `ai_engine/rag/memory.py`
+  - Remove silent fallback to in-memory dict
+  - Raise proper `ServiceUnavailableError` if Redis is down
+  - Add health check endpoint for Redis connectivity
+
+- [ ] **TASK-004-B6:** Add AI usage dashboard for admins
+  - File: `backend/apps/billing/views.py`
+  - Admin endpoint: `GET /api/admin/ai-usage/` — cost per user, per model, per day
 
 ---
 
-## Quick Reference: Git Commit Convention
+### 📉 TASK-005 — Upgrade Embeddings Model
 
-```
-feat: new feature
-fix: bug fix
-docs: documentation changes
-style: formatting (no logic change)
-refactor: code restructure
-test: adding tests
-chore: build, deps, CI changes
-perf: performance improvement
-security: security fix
-```
+**Priority:** 🔴 Critical | **Effort:** Medium | **Impact:** 40–60% better search quality
 
-## Quick Reference: How to Mark Tasks Done & Push
+- [ ] **TASK-005-B1:** Replace `all-MiniLM-L6-v2` with `BAAI/bge-large-en-v1.5`
+  - File: `ai_engine/embeddings/embedder.py`
+  - Change model name, update dimension from 384 → 1024
+  - Update batch size (larger model = smaller batches, try 16)
 
-```bash
-# 1. Complete the task
-# 2. Mark it done in TASKS.md: [ ] -> [x]
-# 3. Stage and commit:
-git add -A
-git commit -m "feat: <what you just built>"
-# 4. Push to GitHub:
-git push origin main
-```
+- [ ] **TASK-005-B2:** Update pgvector column dimensions
+  - Files: All `embedding_tasks.py` and migrations in:
+    - `backend/apps/articles/migrations/`
+    - `backend/apps/papers/migrations/`
+    - `backend/apps/repositories/migrations/`
+    - `backend/apps/videos/migrations/`
+    - `backend/apps/tweets/migrations/`
+  - Create new migration to alter vector(384) → vector(1024)
+
+- [ ] **TASK-005-B3:** Re-embed all existing content
+  - File: `backend/apps/articles/embedding_tasks.py` (and all similar files)
+  - Create one-time management command: `python manage.py reembed_all`
+  - Run in batches of 100 with progress logging
+
+- [ ] **TASK-005-B4:** Update IVFFlat index parameters
+  - Files: All `0004_*_ivfflat_index.py` migrations
+  - New migration to rebuild index with `lists=100` for 1024d vectors
+
+- [ ] **TASK-005-B5:** Update AI engine requirements
+  - File: `ai_engine/requirements.txt`
+  - Ensure `sentence-transformers>=2.7.0` is present
+  - Add `torch` CPU-only version if not already there
 
 ---
 
-**Total Tasks: 200+ | Phases: 9 | Estimated Duration: 22 weeks**
+### 👥 TASK-006 — Team Workspaces / Organizations
 
+**Priority:** 🔴 Critical | **Effort:** X-Large | **Impact:** B2B revenue ceiling
+
+#### Backend Tasks
+- [ ] **TASK-006-B1:** Create `organizations` app
+  - New app: `backend/apps/organizations/`
+  - Models: `Organization`, `OrganizationMember` (with role: owner/admin/member/viewer)
+  - Migrations, admin, serializers, views, urls
+
+- [ ] **TASK-006-B2:** Add org-scoped content models
+  - `SharedFeed` — org-level feed preferences
+  - `SharedKnowledgeBase` — org-level RAG document collection
+  - `OrgAgentRun` — agent runs visible to all org members
+
+- [ ] **TASK-006-B3:** Add org management API
+  - `POST /api/orgs/` — create org
+  - `POST /api/orgs/{id}/invite/` — invite member by email
+  - `PATCH /api/orgs/{id}/members/{user_id}/` — change role
+  - `DELETE /api/orgs/{id}/members/{user_id}/` — remove member
+  - `GET /api/orgs/{id}/usage/` — org-level usage stats
+
+- [ ] **TASK-006-B4:** Scope all queries to org context
+  - Add `org` FK to relevant models (feeds, agent runs, documents)
+  - Add `OrgPermission` DRF class that checks membership + role
+
+- [ ] **TASK-006-B5:** Update billing for seat-based pricing
+  - File: `backend/apps/billing/stripe_service.py`
+  - Add seat quantity to Stripe subscription
+  - Prorate on member add/remove
+
+#### Frontend Tasks
+- [ ] **TASK-006-F1:** Create org settings page
+  - File: `frontend/src/app/(dashboard)/settings/organization/page.tsx` *(new)*
+  - Member list with roles, invite by email, remove member
+
+- [ ] **TASK-006-F2:** Add org switcher to navbar
+  - File: `frontend/src/components/layout/Navbar.tsx`
+  - Dropdown to switch between personal and org workspaces
+
+- [ ] **TASK-006-F3:** Show presence indicators
+  - File: `frontend/src/app/(dashboard)/feed/page.tsx`
+  - WebSocket-based "N teammates viewing this" indicator
+  - Use existing `notifications/consumers.py` WebSocket infrastructure
+
+---
+
+## 🟡 Phase 1 — Remove & Simplify
+
+---
+
+### TASK-101 — Kill the Nitter Spider
+
+**Priority:** 🟡 Remove | **Effort:** Small | **Impact:** Reduce dead code + maintenance burden
+
+- [ ] **TASK-101-1:** Delete Nitter spider file
+  - File: `scraper/spiders/nitter_spider.py` → delete
+- [ ] **TASK-101-2:** Remove Nitter from Celery beat schedule
+  - File: `backend/config/settings/base.py` — remove any `nitter` beat task entries
+- [ ] **TASK-101-3:** Remove Nitter pipeline references
+  - File: `scraper/pipelines/database.py` — remove Nitter-specific logic
+- [ ] **TASK-101-4:** *(Optional)* Replace with X/Twitter API v2
+  - File: `scraper/spiders/twitter_spider.py` — update to use official Twitter API v2 Bearer Token
+  - Requires: `TWITTER_BEARER_TOKEN` env var in `.env.example`
+
+---
+
+### TASK-102 — Remove In-Memory Redis Fallback
+
+**Priority:** 🟡 Remove | **Effort:** Small | **Impact:** Prevent silent data loss in production
+
+- [ ] **TASK-102-1:** Remove in-memory fallback from memory manager
+  - File: `ai_engine/rag/memory.py`
+  - Delete the `except` block that falls back to a plain dict
+  - Replace with: raise `RuntimeError("Redis unavailable — conversation history disabled")`
+- [ ] **TASK-102-2:** Add Redis health check to AI engine startup
+  - File: `ai_engine/main.py`
+  - On startup, ping Redis; if down, log critical error and refuse to start
+- [ ] **TASK-102-3:** Add Redis health to `/health` endpoint
+  - File: `ai_engine/main.py`
+  - Include `redis: ok/fail` in health check response JSON
+
+---
+
+### TASK-103 — Fix Static Automation Templates
+
+**Priority:** 🟡 Simplify | **Effort:** Small-Medium | **Impact:** API-driven templates, no more frontend hardcoding
+
+- [ ] **TASK-103-1:** Create templates API endpoint
+  - File: `backend/apps/automation/views.py`
+  - `GET /api/automation/templates/` — return all available templates from DB
+- [ ] **TASK-103-2:** Seed templates into DB via fixture
+  - File: `backend/apps/automation/fixtures/templates.json` *(new)*
+  - Move all hardcoded frontend templates into this fixture
+  - Run: `python manage.py loaddata templates`
+- [ ] **TASK-103-3:** Remove hardcoded fallback from frontend
+  - File: `frontend/src/app/(dashboard)/automation/TemplatesModal.tsx`
+  - Remove static fallback schema arrays
+  - Fetch from `GET /api/automation/templates/` via React Query
+
+---
+
+### TASK-104 — Extract Inline Modals to Proper Modal System
+
+**Priority:** 🟡 Simplify | **Effort:** Medium | **Impact:** Cleaner code, reusable modal system
+
+- [ ] **TASK-104-1:** Create global Modal component
+  - File: `frontend/src/components/ui/Modal.tsx` — already exists, extend it
+  - Ensure it supports: size variants (sm/md/lg/xl/fullscreen), close on ESC, focus trap, backdrop click dismiss
+- [ ] **TASK-104-2:** Extract automation modals
+  - `frontend/src/app/(dashboard)/automation/EditWorkflowModal.tsx` → `frontend/src/components/modals/EditWorkflowModal.tsx`
+  - `frontend/src/app/(dashboard)/automation/ScheduleModal.tsx` → `frontend/src/components/modals/ScheduleModal.tsx`
+  - `frontend/src/app/(dashboard)/automation/AnalyticsModal.tsx` → `frontend/src/components/modals/AnalyticsModal.tsx`
+- [ ] **TASK-104-3:** Extract document modals
+  - File: `frontend/src/app/(dashboard)/documents/page.tsx`
+  - Pull out inline modal JSX into `frontend/src/components/modals/DocumentModal.tsx`
+- [ ] **TASK-104-4:** Add modal portal via React `createPortal`
+  - File: `frontend/src/app/layout.tsx`
+  - Add `<div id="modal-root" />` at bottom of body for portal mounting
+
+---
+
+### TASK-105 — Add API Versioning
+
+**Priority:** 🟡 Simplify | **Effort:** Small | **Impact:** Future-proof all API changes
+
+- [ ] **TASK-105-1:** Prefix all routes with `/api/v1/`
+  - File: `backend/config/urls.py` — wrap all app URL includes under `api/v1/` prefix
+- [ ] **TASK-105-2:** Update frontend API base URL
+  - File: `frontend/src/utils/api.ts` — change `baseURL` from `/api/` to `/api/v1/`
+- [ ] **TASK-105-3:** Update Nginx proxy config
+  - File: `infrastructure/nginx/conf.d/synapse.conf` — ensure `/api/v1/` is proxied to Django
+
+---

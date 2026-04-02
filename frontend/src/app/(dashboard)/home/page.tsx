@@ -2,10 +2,10 @@
 
 import React, { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, Bookmark, MessageSquare, FileText } from 'lucide-react';
+import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, Bookmark, MessageSquare, FileText, Twitter } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/utils/api';
-import { ArticleCard, RepositoryCard, PaperCard } from '@/components/cards';
+import { ArticleCard, RepositoryCard, PaperCard, TweetCard } from '@/components/cards';
 import { VideoCard } from '@/components/cards/VideoCard';
 import { ArticleSkeleton, RepositorySkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
 
@@ -109,11 +109,13 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['papers', 'count'] });
       queryClient.invalidateQueries({ queryKey: ['repos', 'count'] });
       queryClient.invalidateQueries({ queryKey: ['videos', 'count'] });
+      queryClient.invalidateQueries({ queryKey: ['tweets', 'count'] });
       // Content sections on home
       queryClient.invalidateQueries({ queryKey: ['articles', 'home'] });
       queryClient.invalidateQueries({ queryKey: ['repos', 'home'] });
       queryClient.invalidateQueries({ queryKey: ['papers', 'home'] });
       queryClient.invalidateQueries({ queryKey: ['videos', 'home'] });
+      queryClient.invalidateQueries({ queryKey: ['tweets', 'home'] });
       // GitHub page list
       queryClient.invalidateQueries({ queryKey: ['repos', 'list'] });
     };
@@ -146,29 +148,41 @@ export default function Dashboard() {
   const { data: articles, isLoading: articlesLoading } = useQuery({
     queryKey: ['articles', 'home'],
     queryFn: () => api.get('/articles/', { params: { page_size: 6, ordering: '-scraped_at' } }).then(r => r.data),
-    staleTime: 5 * 60_000, // 5 min — no refetch on tab switch
+    staleTime: 30_000,
     gcTime:   10 * 60_000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: repos, isLoading: reposLoading } = useQuery({
     queryKey: ['repos', 'home'],
     queryFn: () => api.get('/repos/', { params: { page_size: 3, ordering: '-scraped_at' } }).then(r => r.data),
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
     gcTime:   10 * 60_000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: papers, isLoading: papersLoading } = useQuery({
     queryKey: ['papers', 'home'],
     queryFn: () => api.get('/papers/', { params: { page_size: 3, ordering: '-fetched_at' } }).then(r => r.data),
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
     gcTime:   10 * 60_000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: videosData, isLoading: videosLoading } = useQuery({
     queryKey: ['videos', 'home'],
     queryFn: () => api.get('/videos/', { params: { page_size: 4, ordering: '-fetched_at' } }).then(r => r.data),
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
     gcTime:   10 * 60_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: tweetsData, isLoading: tweetsLoading } = useQuery({
+    queryKey: ['tweets', 'home'],
+    queryFn: () => api.get('/tweets/', { params: { page_size: 4, ordering: '-scraped_at' } }).then(r => r.data),
+    staleTime: 30_000,         // 30s — count stays fresh
+    gcTime:   10 * 60_000,
+    refetchOnWindowFocus: true, // re-fetch when user returns to the tab
   });
 
   // Derive counts from content queries — no extra network requests needed
@@ -176,6 +190,7 @@ export default function Dashboard() {
   const paperCount   = papers;
   const repoCount    = repos;
   const videoCount   = videosData;
+  const tweetCount   = tweetsData;
 
   const extractList = (d: any, n: number) =>
     Array.isArray(d?.results) ? d.results.slice(0, n)
@@ -186,6 +201,7 @@ export default function Dashboard() {
   const trendingRepos    = extractList(repos, 3);
   const trendingPapers   = extractList(papers, 3);
   const trendingVideos   = extractList(videosData, 4);
+  const trendingTweets   = extractList(tweetsData, 4);
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -213,11 +229,12 @@ export default function Dashboard() {
         <div className="px-6 space-y-10 mt-6">
 
           {/* ── Stats Row ─────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard icon={BarChart3} label="Articles"      value={articleCount?.meta?.total ?? 0} gradient="bg-gradient-to-br from-indigo-500 to-indigo-700"  href="/feed"     />
             <StatCard icon={BookOpen}  label="Papers"        value={paperCount?.meta?.total ?? 0}   gradient="bg-gradient-to-br from-violet-500 to-violet-700"   href="/research" />
             <StatCard icon={GitBranch} label="Repositories"  value={repoCount?.meta?.total ?? 0}    gradient="bg-gradient-to-br from-emerald-500 to-emerald-700" href="/github"   />
             <StatCard icon={Youtube}   label="Videos"        value={videoCount?.meta?.total ?? 0}   gradient="bg-gradient-to-br from-red-500 to-red-700"         href="/videos"   />
+            <StatCard icon={Twitter}   label="Tweets"        value={tweetCount?.meta?.total ?? 0}   gradient="bg-gradient-to-br from-sky-500 to-sky-700"         href="/tweets"   />
           </div>
 
           {/* ── Latest Articles + GitHub ───────────────────────────── */}
@@ -302,6 +319,26 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
                 <p className="text-slate-500 dark:text-slate-400">No papers yet</p>
+              </div>
+            )}
+          </div>
+
+          {/* ── X/Tweets ───────────────────────────────────────────── */}
+          <div>
+            <SectionHeader title="Latest from X (Twitter)" subtitle="Curated tweets on AI, programming & tech" href="/tweets" />
+            {tweetsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse h-48" />)}
+              </div>
+            ) : trendingTweets.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {trendingTweets.map((tweet: any) => (
+                  <TweetCard key={tweet.id} tweet={tweet} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
+                <p className="text-slate-500 dark:text-slate-400">No tweets yet</p>
               </div>
             )}
           </div>

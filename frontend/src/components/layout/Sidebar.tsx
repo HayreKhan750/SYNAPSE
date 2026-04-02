@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Newspaper, GitBranch, BookOpen,
   MessageSquare, Zap, FileText, Library, LogOut,
-  ChevronLeft, ChevronRight, Bot, Youtube, TrendingUp,
+  ChevronLeft, ChevronRight, Bot, Youtube, TrendingUp, Twitter, CreditCard,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -23,12 +23,14 @@ const NAV_LINKS = [
   { href: '/github',     label: 'GitHub Radar',  icon: GitBranch,       accent: '#22c55e' },
   { href: '/research',   label: 'Research',      icon: BookOpen,        accent: '#8b5cf6' },
   { href: '/videos',     label: 'Videos',        icon: Youtube,         accent: '#ef4444' },
+  { href: '/tweets',     label: 'X Feed',        icon: Twitter,         accent: '#1d9bf0' },
   { href: '/trends',     label: 'Trends',        icon: TrendingUp,      accent: '#f59e0b' },
   { href: '/chat',       label: 'AI Chat',       icon: MessageSquare,   accent: '#0ea5e9' },
   { href: '/automation', label: 'Automation',    icon: Zap,             accent: '#eab308' },
   { href: '/agents',     label: 'AI Agents',     icon: Bot,             accent: '#ec4899' },
   { href: '/documents',  label: 'Documents',     icon: FileText,        accent: '#f97316' },
   { href: '/library',    label: 'Library',       icon: Library,         accent: '#14b8a6' },
+  { href: '/billing',   label: 'Billing',       icon: CreditCard,      accent: '#f59e0b' },
 ]
 
 export const Sidebar = memo(function Sidebar({

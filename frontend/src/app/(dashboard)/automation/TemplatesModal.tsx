@@ -24,6 +24,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
+  scrape_videos: '🎬 Scrape Videos',
+  scrape_tweets: '🐦 Scrape Tweets',
   collect_news: '📰 Collect News',
   summarize_content: '🤖 Summarize',
   generate_pdf: '📄 Generate PDF',

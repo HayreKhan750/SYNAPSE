@@ -114,6 +114,8 @@ class DatabasePipeline:
                 self._save_research_paper(item, spider)
             elif item_type == "VideoItem":
                 self._save_video(item, spider)
+            elif item_type == "TweetItem":
+                self._save_tweet(item, spider)
             else:
                 logger.warning(f"Unknown item type: {item_type}")
                 self.items_failed += 1
@@ -305,6 +307,54 @@ class DatabasePipeline:
                 "published_at": published_at,
                 "transcript": item.get("transcript", ""),
                 "topics": item.get("topics", []),
+            },
+        )
+
+    def _save_tweet(self, item, spider):
+        """
+        Save TweetItem to Tweet model.
+
+        Args:
+            item: TweetItem
+            spider: Spider instance
+        """
+        from apps.tweets.models import Tweet
+
+        posted_at = None
+        if item.get("posted_at"):
+            posted_at = self._parse_datetime(item["posted_at"])
+
+        Tweet.objects.update_or_create(
+            tweet_id=item.get("tweet_id"),
+            defaults={
+                "text": item.get("text", ""),
+                "author_username": item.get("author_username", ""),
+                "author_display_name": item.get("author_display_name", ""),
+                "author_profile_image": item.get("author_profile_image", ""),
+                "author_verified": item.get("author_verified", False),
+                "author_followers": item.get("author_followers", 0),
+                "retweet_count": item.get("retweet_count", 0),
+                "like_count": item.get("like_count", 0),
+                "reply_count": item.get("reply_count", 0),
+                "quote_count": item.get("quote_count", 0),
+                "view_count": item.get("view_count", 0),
+                "bookmark_count": item.get("bookmark_count", 0),
+                "posted_at": posted_at,
+                "hashtags": item.get("hashtags", []),
+                "mentions": item.get("mentions", []),
+                "media_urls": item.get("media_urls", []),
+                "urls": item.get("urls", []),
+                "is_retweet": item.get("is_retweet", False),
+                "is_reply": item.get("is_reply", False),
+                "is_quote": item.get("is_quote", False),
+                "conversation_id": item.get("conversation_id", ""),
+                "in_reply_to_user": item.get("in_reply_to_user", ""),
+                "lang": item.get("lang", ""),
+                "url": item.get("url", ""),
+                "source_label": item.get("source_label", ""),
+                "topic": item.get("topic", ""),
+                "trending_score": item.get("trending_score") or 0.0,
+                "metadata": item.get("metadata", {}),
             },
         )
 

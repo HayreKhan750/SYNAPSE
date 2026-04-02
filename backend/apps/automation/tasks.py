@@ -59,14 +59,69 @@ def _action_scrape_videos(params: dict, workflow=None) -> dict:
         return {'action': 'scrape_videos', 'status': 'error', 'error': str(exc)}
 
 
-def _action_collect_news(params: dict) -> dict:
+def _action_scrape_tweets(params: dict, workflow=None) -> dict:
+    """
+    Scrape X/Twitter tweets via Nitter.
+    Dispatches one task per query (or one default task for all accounts).
+    """
+    try:
+        from apps.core.tasks import scrape_twitter
+
+        raw_queries = params.get('queries', '')
+        if isinstance(raw_queries, str):
+            queries = [q.strip() for q in raw_queries.strip().splitlines() if q.strip()]
+        elif isinstance(raw_queries, list):
+            queries = [q.strip() for q in raw_queries if q.strip()]
+        else:
+            queries = []
+
+        max_results = int(params.get('max_results', 100))
+        user_id = str(workflow.user_id) if workflow else None
+        task_ids = []
+
+        if queries:
+            # Dispatch one Nitter task per query for broader coverage
+            per_query = max(10, max_results // len(queries))
+            for q in queries:
+                t = scrape_twitter.delay(
+                    max_results=per_query,
+                    query=q,
+                    user_id=user_id,
+                    use_nitter=True,
+                )
+                task_ids.append(t.id)
+        else:
+            # No queries — scrape default tech accounts via Nitter
+            t = scrape_twitter.delay(
+                max_results=max_results,
+                query=None,
+                user_id=user_id,
+                use_nitter=True,
+            )
+            task_ids.append(t.id)
+
+        return {
+            'action': 'scrape_tweets',
+            'status': 'queued',
+            'task_ids': task_ids,
+            'tasks_count': len(task_ids),
+            'queries': queries or 'default tech accounts',
+            'max_results': max_results,
+        }
+    except Exception as exc:
+        logger.exception("scrape_tweets action failed: %s", exc)
+        return {'action': 'scrape_tweets', 'status': 'error', 'error': str(exc)}
+
+
+def _action_collect_news(params: dict, workflow=None) -> dict:
     """Trigger scraping tasks for specified sources."""
     from apps.core.tasks import (
-        scrape_hackernews, scrape_github, scrape_arxiv, scrape_youtube,
+        scrape_hackernews, scrape_github, scrape_arxiv, scrape_youtube, scrape_twitter,
     )
 
-    sources = params.get('sources', ['hackernews', 'github', 'arxiv', 'youtube'])
+    sources = params.get('sources', ['hackernews', 'github', 'arxiv', 'youtube', 'twitter'])
     task_ids = {}
+    user_id = str(workflow.user_id) if workflow else None
 
     if 'hackernews' in sources:
         t = scrape_hackernews.delay(
@@ -79,6 +134,7 @@ def _action_collect_news(params: dict) -> dict:
         t = scrape_github.delay(
             days_back=int(params.get('days_back', 7)),
             limit=int(params.get('limit', params.get('items_per_source', 100))),
+            user_id=user_id,
         )
         task_ids['github'] = t.id
 
@@ -105,6 +161,23 @@ def _action_collect_news(params: dict) -> dict:
             queries=yt_queries if yt_queries else None,
         )
         task_ids['youtube'] = t.id
+
+    if 'twitter' in sources:
+        # Parse twitter_queries from params (newline-separated string or list)
+        raw_tw_queries = params.get('twitter_queries', '') or ''
+        if isinstance(raw_tw_queries, str):
+            tw_queries = [q.strip() for q in raw_tw_queries.splitlines() if q.strip()]
+        elif isinstance(raw_tw_queries, list):
+            tw_queries = [q.strip() for q in raw_tw_queries if q.strip()]
+        else:
+            tw_queries = []
+
+        t = scrape_twitter.delay(
+            query=tw_queries[0] if tw_queries else None,
+            max_results=int(params.get('items_per_source', params.get('max_results', 100))),
+            user_id=user_id,
+        )
+        task_ids['twitter'] = t.id
 
     return {'action': 'collect_news', 'status': 'queued', 'task_ids': task_ids}
 
@@ -386,8 +459,10 @@ def _dispatch_action(workflow, action: dict) -> dict:
         return _action_send_email(workflow, params)
     if action_type == 'scrape_videos':
         return _action_scrape_videos(params)
+    if action_type == 'scrape_tweets':
+        return _action_scrape_tweets(params, workflow=workflow)
     if action_type == 'collect_news':
-        return _action_collect_news(params)
+        return _action_collect_news(params, workflow=workflow)
     if action_type == 'summarize_content':
         return _action_summarize_content(params)
     if action_type == 'generate_pdf':
@@ -403,7 +478,7 @@ def _dispatch_action(workflow, action: dict) -> dict:
 
 # ── Main execution task ────────────────────────────────────────────────────────
 
-@shared_task(bind=True, max_retries=2, name='apps.automation.tasks.execute_workflow')
+@shared_task(bind=True, max_retries=2, queue='default', name='apps.automation.tasks.execute_workflow')
 def execute_workflow(self, workflow_id: str, trigger_event: dict | None = None, run_id: str | None = None) -> dict:
     """
     Execute all actions defined in an AutomationWorkflow sequentially.
@@ -530,7 +605,7 @@ def execute_workflow(self, workflow_id: str, trigger_event: dict | None = None, 
 
 # ── Event trigger dispatcher ───────────────────────────────────────────────────
 
-@shared_task(name='apps.automation.tasks.dispatch_event_trigger')
+@shared_task(name='apps.automation.tasks.dispatch_event_trigger', queue='default')
 def dispatch_event_trigger(event_type: str, event_payload: dict) -> dict:
     """
     Called when a system event occurs (new article, trending spike, etc.).
@@ -589,7 +664,7 @@ def dispatch_event_trigger(event_type: str, event_payload: dict) -> dict:
 
 # ── Cleanup task ───────────────────────────────────────────────────────────────
 
-@shared_task(name='apps.automation.tasks.cleanup_stale_runs')
+@shared_task(name='apps.automation.tasks.cleanup_stale_runs', queue='default')
 def cleanup_stale_runs() -> dict:
     """Mark WorkflowRun records stuck in 'running' > 1 hour as failed."""
     from .models import WorkflowRun

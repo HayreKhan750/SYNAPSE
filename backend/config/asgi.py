@@ -2,6 +2,17 @@ import os
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
 
+# ── Langchain compatibility patch ─────────────────────────────────────────────
+try:
+    from langchain_core import exceptions as _lc_exc
+    if not hasattr(_lc_exc, 'ContextOverflowError'):
+        class ContextOverflowError(_lc_exc.LangChainException):
+            """Context window exceeded — compatibility shim."""
+        _lc_exc.ContextOverflowError = ContextOverflowError
+except Exception:
+    pass
+# ─────────────────────────────────────────────────────────────────────────────
+
 from django.core.asgi import get_asgi_application
 
 # Must call get_asgi_application() before importing channels/consumers

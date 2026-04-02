@@ -149,6 +149,17 @@ api.interceptors.response.use(
       }
     }
 
+    // Plan limit exceeded (403 with error_code = plan_limit_exceeded)
+    if (error.response?.status === 403) {
+      const data = error.response.data as Record<string, unknown> | undefined
+      if (data?.error_code === 'plan_limit_exceeded') {
+        // Fire the upgrade modal via a custom DOM event so we don't couple api.ts to React context
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('synapse:plan_limit_exceeded', { detail: data }))
+        }
+      }
+    }
+
     return Promise.reject(error)
   },
 )

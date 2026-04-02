@@ -7,6 +7,27 @@ from .models import AutomationWorkflow, WorkflowRun
 # ── Action parameter schemas (used for UI documentation / validation) ──────────
 
 ACTION_PARAM_SCHEMAS = {
+    'scrape_tweets': {
+        'queries': {
+            'type': 'textarea',
+            'label': 'Search Queries (one per line)',
+            'default': 'AI machine learning\nPython programming\nWeb development trends\nCybersecurity news\nCloud computing\nDevOps automation',
+            'help': 'Each line is a separate X/Twitter search query. Leave blank to use defaults.',
+        },
+        'max_results': {
+            'type': 'number',
+            'label': 'Max Tweets to Fetch',
+            'default': 100,
+            'min': 10,
+            'max': 500,
+        },
+        'topics': {
+            'type': 'multiselect',
+            'label': 'Topic Categories',
+            'default': ['AI', 'Web Dev', 'Security', 'Cloud', 'Research', 'Programming', 'Tech'],
+            'options': ['AI', 'Web Dev', 'Security', 'Cloud', 'Research', 'Programming', 'Tech'],
+        },
+    },
     'scrape_videos': {
         'queries': {
             'type': 'textarea',
@@ -39,8 +60,8 @@ ACTION_PARAM_SCHEMAS = {
         'sources': {
             'type': 'multiselect',
             'label': 'Sources',
-            'options': ['hackernews', 'github', 'arxiv', 'youtube'],
-            'default': ['hackernews', 'github', 'arxiv', 'youtube'],
+            'options': ['hackernews', 'github', 'arxiv', 'youtube', 'twitter'],
+            'default': ['hackernews', 'github', 'arxiv', 'youtube', 'twitter'],
         },
         'items_per_source': {'type': 'number', 'label': 'Items per source (1–500)', 'default': 100, 'min': 1, 'max': 500},
         'days_back': {'type': 'number', 'label': 'Days back (1–30)', 'default': 7, 'min': 1, 'max': 30},
@@ -55,6 +76,12 @@ ACTION_PARAM_SCHEMAS = {
             'label': 'YouTube Search Queries (one per line)',
             'default': '',
             'help': 'Optional — only used when YouTube is selected as a source. Leave blank to use smart defaults (AI, programming, tech topics).',
+        },
+        'twitter_queries': {
+            'type': 'textarea',
+            'label': 'X/Twitter Search Queries (one per line)',
+            'default': '',
+            'help': 'Optional — only used when X/Twitter is selected as a source. Leave blank to use default tech/AI queries.',
         },
     },
     'summarize_content': {

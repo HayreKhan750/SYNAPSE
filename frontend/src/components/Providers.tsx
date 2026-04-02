@@ -16,6 +16,7 @@
 import React, { useState } from 'react'
 import { ThemeProvider } from 'next-themes'
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { UpgradeModalProvider } from '@/components/modals/UpgradeModal'
 import {
   QueryClient,
   QueryClientProvider,
@@ -72,29 +73,31 @@ export function Providers({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange={false}
       >
         <QueryClientProvider client={queryClient}>
-          {children}
+          <UpgradeModalProvider>
+            {children}
 
-          <Toaster
-            position="top-right"
-            gutter={8}
-            toastOptions={{
-              duration: 3500,
-              style: {
-                background:   '#ffffff',
-                color:        '#0f172a',
-                borderRadius: '12px',
-                border:       '1px solid #e2e8f0',
-                fontSize:     '13px',
-                maxWidth:     '380px',
-                boxShadow:    '0 4px 24px rgba(0,0,0,0.08)',
-              },
-              success: { iconTheme: { primary: '#22c55e', secondary: '#ffffff' } },
-              error:   { iconTheme: { primary: '#ef4444', secondary: '#ffffff' }, duration: 5000 },
-            }}
-          />
+            <Toaster
+              position="top-right"
+              gutter={8}
+              toastOptions={{
+                duration: 3500,
+                style: {
+                  background:   '#ffffff',
+                  color:        '#0f172a',
+                  borderRadius: '12px',
+                  border:       '1px solid #e2e8f0',
+                  fontSize:     '13px',
+                  maxWidth:     '380px',
+                  boxShadow:    '0 4px 24px rgba(0,0,0,0.08)',
+                },
+                success: { iconTheme: { primary: '#22c55e', secondary: '#ffffff' } },
+                error:   { iconTheme: { primary: '#ef4444', secondary: '#ffffff' }, duration: 5000 },
+              }}
+            />
 
-          {/* Tree-shaken from production builds automatically */}
-          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+            {/* Tree-shaken from production builds automatically */}
+            <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+          </UpgradeModalProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </GoogleOAuthProvider>

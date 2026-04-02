@@ -1,6 +1,10 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { useQuery } from '@tanstack/react-query';
 import {
   BookOpen, ChevronDown, Search, Sparkles, Brain, X,
@@ -217,9 +221,34 @@ function AISynthesisPanel({ papers }: { papers: any[] }) {
               </div>
               <div
                 ref={resultRef}
-                className="prose prose-sm dark:prose-invert max-w-none text-sm text-gray-700 dark:text-gray-300 leading-relaxed max-h-72 overflow-y-auto rounded-lg bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-700 whitespace-pre-wrap font-mono text-xs"
+                className="prose prose-sm dark:prose-invert max-w-none leading-relaxed max-h-96 overflow-y-auto rounded-xl bg-slate-900 p-5 border border-slate-700/50
+                  prose-headings:text-white prose-headings:font-bold prose-headings:mt-4 prose-headings:mb-2
+                  prose-p:text-slate-300 prose-p:leading-relaxed prose-p:my-2
+                  prose-strong:text-white prose-strong:font-semibold
+                  prose-em:text-slate-300 prose-em:italic
+                  prose-code:text-indigo-300 prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono
+                  prose-pre:bg-slate-800 prose-pre:border prose-pre:border-slate-700 prose-pre:rounded-lg prose-pre:p-4
+                  prose-ul:text-slate-300 prose-ul:my-2 prose-ul:space-y-1
+                  prose-ol:text-slate-300 prose-ol:my-2 prose-ol:space-y-1
+                  prose-li:text-slate-300 prose-li:leading-relaxed
+                  prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-950/30 prose-blockquote:text-slate-300 prose-blockquote:rounded-r-lg prose-blockquote:py-1
+                  prose-hr:border-slate-700
+                  prose-a:text-indigo-400 hover:prose-a:text-indigo-300
+                  prose-table:text-sm prose-th:text-white prose-th:bg-slate-800 prose-td:text-slate-300 prose-td:border-slate-700"
               >
-                {result || 'Generating synthesis…'}
+                {streaming && !result ? (
+                  <div className="flex items-center gap-2 text-slate-400 text-sm">
+                    <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                    Generating synthesis…
+                  </div>
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {result}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           </motion.div>

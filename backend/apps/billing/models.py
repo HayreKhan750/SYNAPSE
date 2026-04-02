@@ -126,6 +126,37 @@ class ReferralUse(models.Model):
         verbose_name = "Referral Use"
 
 
+class Invoice(models.Model):
+    """Tracks Stripe invoices for a user."""
+
+    id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user             = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="invoices"
+    )
+    stripe_invoice_id = models.CharField(max_length=100, unique=True, db_index=True)
+    amount_paid      = models.PositiveIntegerField(default=0, help_text="Amount in cents")
+    currency         = models.CharField(max_length=3, default="usd")
+    status           = models.CharField(max_length=30, default="paid")
+    pdf_url          = models.URLField(max_length=500, blank=True)
+    hosted_url       = models.URLField(max_length=500, blank=True)
+    period_start     = models.DateTimeField(null=True, blank=True)
+    period_end       = models.DateTimeField(null=True, blank=True)
+    created_at       = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table   = "billing_invoices"
+        verbose_name = "Invoice"
+        ordering   = ["-created_at"]
+
+    def __str__(self):
+        return f"Invoice {self.stripe_invoice_id} — {self.user.email}"
+
+    @property
+    def amount_display(self) -> str:
+        """Human-readable amount, e.g. '$19.00'."""
+        return f"${self.amount_paid / 100:.2f}"
+
+
 class UserFeedback(models.Model):
     """In-app NPS feedback and feature requests."""
 

@@ -38,10 +38,11 @@ celery>=5.4,<6.0
 flower>=2.0,<3.0
 
 # ── AI / ML ──────────────────────────────────────────────────
-langchain>=0.2,<0.4
-langchain-community>=0.2,<0.4
-langchain-openai>=0.1,<2.0
-langchain-google-genai>=1.0,<2.0
+langchain==0.3.28
+langchain-community==0.3.31
+langchain-openai==0.2.14
+langchain-google-genai==2.1.12
+langchain-core==0.3.83
 langgraph>=0.1,<0.3
 langsmith>=0.1,<0.3
 spacy>=3.7,<4.0

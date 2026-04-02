@@ -8,7 +8,7 @@ import {
   Zap, Search, GitBranch, Bot, Workflow, BookOpen,
   Star, TrendingUp, FileText, ChevronRight, Check,
   Menu, X, ArrowRight, Sparkles, Shield, Clock,
-  BarChart3, MessageSquare, Brain
+  BarChart3, MessageSquare, Brain, Twitter
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/utils/api'
@@ -72,6 +72,12 @@ function AnimatedNumber({ target, suffix = '' }: { target: number; suffix?: stri
 function LandingNavbar() {
   const scrolled = useScrolled()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  const { isAuthenticated, accessToken } = useAuthStore()
+
+  useEffect(() => { setIsMounted(true) }, [])
+
+  const loggedIn = isMounted && isAuthenticated && !!accessToken
 
   return (
     <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
@@ -103,14 +109,23 @@ function LandingNavbar() {
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/login"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors px-3 py-1.5">
-              Log in
-            </Link>
-            <Link href="/register"
-              className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98]">
-              Get started free <ChevronRight size={14} />
-            </Link>
+            {loggedIn ? (
+              <Link href="/home"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98]">
+                Go to Dashboard <ChevronRight size={14} />
+              </Link>
+            ) : (
+              <>
+                <Link href="/login"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors px-3 py-1.5">
+                  Log in
+                </Link>
+                <Link href="/register"
+                  className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98]">
+                  Get started free <ChevronRight size={14} />
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -130,8 +145,14 @@ function LandingNavbar() {
                 </a>
               ))}
               <div className="flex gap-2 mt-2 px-1">
-                <Link href="/login" className="flex-1 text-center text-sm font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Log in</Link>
-                <Link href="/register" className="flex-1 text-center text-sm font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-2.5 rounded-xl shadow-lg shadow-indigo-500/25">Get started</Link>
+                {loggedIn ? (
+                  <Link href="/home" className="flex-1 text-center text-sm font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-2.5 rounded-xl shadow-lg shadow-indigo-500/25">Go to Dashboard</Link>
+                ) : (
+                  <>
+                    <Link href="/login" className="flex-1 text-center text-sm font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Log in</Link>
+                    <Link href="/register" className="flex-1 text-center text-sm font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-2.5 rounded-xl shadow-lg shadow-indigo-500/25">Get started</Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -149,7 +170,7 @@ const FEATURES = [
     color: 'from-indigo-500 to-violet-600',
     glow: 'shadow-indigo-500/20',
     title: 'Tech Intelligence Feed',
-    desc: 'Real-time aggregation from Hacker News, arXiv, GitHub trending and YouTube. AI-summarized, filtered by topic, personalized to your interests.',
+    desc: 'Real-time aggregation from Hacker News, arXiv, GitHub trending, X/Twitter and YouTube. AI-summarized, filtered by topic, personalized to your interests.',
   },
   {
     icon: MessageSquare,
@@ -164,6 +185,13 @@ const FEATURES = [
     glow: 'shadow-emerald-500/20',
     title: 'GitHub Radar',
     desc: 'Discover trending repositories with star sparklines, language breakdown and topic filters. Bookmark repos and track ecosystem momentum.',
+  },
+  {
+    icon: Twitter,
+    color: 'from-sky-500 to-blue-600',
+    glow: 'shadow-sky-500/20',
+    title: 'X (Twitter) Feed',
+    desc: 'Stay updated with curated tweets on AI, programming, cybersecurity and tech. Filter by topic, sort by engagement, ask AI about any tweet.',
   },
   {
     icon: Bot,
@@ -403,7 +431,7 @@ function PricingSection() {
 // ─── Live Trending ─────────────────────────────────────────────────────────────
 
 function TrendingSection() {
-  const { data } = useQuery({
+  const { data: trendingData } = useQuery({
     queryKey: ['landing-trending'],
     queryFn: async () => {
       const res = await api.get('/api/v1/trending/?limit=8&hours=48')
@@ -413,17 +441,34 @@ function TrendingSection() {
     retry: false,
   })
 
+  const { data: tweetsData } = useQuery({
+    queryKey: ['landing-tweets'],
+    queryFn: async () => {
+      const res = await api.get('/tweets/trending/?limit=4')
+      return res.data?.data || res.data?.results || []
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  })
+
+  const tweets: TrendingItem[] = Array.isArray(tweetsData) ? tweetsData.slice(0, 4).map((t: any) => ({
+    id: t.id,
+    title: t.text?.slice(0, 100) + (t.text?.length > 100 ? '...' : ''),
+    source_type: 'twitter',
+  })) : []
+
   const items: TrendingItem[] = [
-    ...(data?.articles || []).slice(0, 3),
-    ...(data?.repos || []).slice(0, 3),
-    ...(data?.papers || []).slice(0, 2),
+    ...(trendingData?.articles || []).slice(0, 2),
+    ...tweets.slice(0, 2),
+    ...(trendingData?.repos || []).slice(0, 2),
+    ...(trendingData?.papers || []).slice(0, 2),
   ]
 
   const FALLBACK: TrendingItem[] = [
     { id: '1', title: 'GPT-4o mini outperforms larger models on coding benchmarks', source_type: 'hackernews' },
     { id: '2', title: 'microsoft/phi-3-mini · 3.8B model with 128K context', source_type: 'github', stars: 12400 },
     { id: '3', title: 'Attention Is All You Need — Revisited with Flash Attention 3', source_type: 'arxiv' },
-    { id: '4', title: 'Rust overtakes Go in GitHub star growth for second consecutive quarter', source_type: 'hackernews' },
+    { id: '4', title: '🔥 LLMs are now writing 30% of code at major tech companies — the agentic era is here', source_type: 'twitter' },
     { id: '5', title: 'vercel/next.js — Turbopack now default in Next.js 15', source_type: 'github', stars: 118000 },
     { id: '6', title: 'Constitutional AI: Harmlessness from AI Feedback — Anthropic', source_type: 'arxiv' },
   ]
@@ -436,10 +481,11 @@ function TrendingSection() {
       github:     'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
       arxiv:      'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300',
       youtube:    'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+      twitter:    'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300',
     }
     return map[type || ''] || 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
   }
-  const sourceLabel = (type?: string) => ({ hackernews: 'HN', github: 'GitHub', arxiv: 'arXiv', youtube: 'YouTube' }[type || ''] || 'Feed')
+  const sourceLabel = (type?: string) => ({ hackernews: 'HN', github: 'GitHub', arxiv: 'arXiv', youtube: 'YouTube', twitter: 'X' }[type || ''] || 'Feed')
 
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref as React.RefObject<HTMLElement>)
@@ -456,7 +502,7 @@ function TrendingSection() {
           <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-3">
             What's trending in tech right now
           </h2>
-          <p className="text-slate-600 dark:text-slate-400">Updated every 30 minutes from Hacker News, GitHub, arXiv and YouTube.</p>
+          <p className="text-slate-600 dark:text-slate-400">Updated every 30 minutes from Hacker News, GitHub, arXiv, X/Twitter and YouTube.</p>
         </div>
         <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
           {displayItems.slice(0, 6).map((item, i) => (
@@ -589,7 +635,7 @@ function HeroSection() {
 
         {/* Subtext */}
         <p className="max-w-2xl mx-auto text-lg sm:text-xl text-slate-600 dark:text-slate-400 leading-relaxed mb-10">
-          SYNAPSE aggregates articles, research papers, GitHub repos and videos — 
+          SYNAPSE aggregates articles, research papers, GitHub repos, X/Twitter posts and videos — 
           then lets AI agents research, summarize, and automate so you 
           <span className="font-semibold text-slate-800 dark:text-slate-200"> never miss a breakthrough</span>.
         </p>
@@ -660,15 +706,32 @@ function HeroSection() {
 
 export default function LandingPage() {
   const router = useRouter()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, accessToken } = useAuthStore()
+  const [isMounted, setIsMounted] = useState(false)
 
-  // Redirect logged-in users straight to the feed
   useEffect(() => {
-    if (isAuthenticated) router.replace('/home')
-  }, [isAuthenticated, router])
+    setIsMounted(true)
+  }, [])
 
-  // Don't flash the landing page while redirecting
-  if (isAuthenticated) return null
+  // Only redirect to /home if we have BOTH isAuthenticated AND a real token
+  useEffect(() => {
+    if (isMounted && isAuthenticated && accessToken) {
+      router.replace('/home')
+    }
+  }, [isMounted, isAuthenticated, accessToken, router])
+
+  // While auth state is rehydrating AND user appears logged in → show blank screen
+  // to avoid flashing the full landing page before the redirect fires
+  if (!isMounted && isAuthenticated) {
+    return <div className="min-h-screen bg-slate-950" />
+  }
+
+  // Once mounted: if authenticated with token → return null (redirect is in flight)
+  if (isMounted && isAuthenticated && accessToken) {
+    return <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white overflow-x-hidden">

@@ -5,20 +5,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BookMarked, FolderPlus, Trash2, FileText, GitBranch, BookOpen,
   Loader2, Plus, X, ChevronRight, ArrowLeft, FolderOpen, Globe, Lock,
-  Check, FolderCheck, Pencil, Save,
+  Check, FolderCheck, Pencil, Save, Twitter,
 } from 'lucide-react'
 import api from '@/utils/api'
 import { cn } from '@/utils/helpers'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 
-type ContentTab = 'all' | 'article' | 'repository' | 'researchpaper'
+type ContentTab = 'all' | 'article' | 'repository' | 'researchpaper' | 'tweet'
 
 const contentTabs = [
   { id: 'all' as ContentTab, label: 'All', icon: BookMarked },
   { id: 'article' as ContentTab, label: 'Articles', icon: FileText },
   { id: 'repository' as ContentTab, label: 'Repos', icon: GitBranch },
   { id: 'researchpaper' as ContentTab, label: 'Papers', icon: BookOpen },
+  { id: 'tweet' as ContentTab, label: 'Tweets', icon: Twitter },
 ]
 
 // ── InlineNoteEditor ──────────────────────────────────────────────────────────
@@ -256,6 +257,7 @@ function CollectionDetailView({ collection, onBack }: { collection: any; onBack:
     if (type === 'article') return '📰'
     if (type === 'repository') return '🐙'
     if (type === 'researchpaper') return '📄'
+    if (type === 'tweet') return '🐦'
     return '📌'
   }
 
@@ -472,6 +474,7 @@ export default function LibraryPage() {
       case 'article': return <FileText size={14} className="text-indigo-600 dark:text-indigo-400" />
       case 'repository': return <GitBranch size={14} className="text-emerald-600 dark:text-emerald-400" />
       case 'researchpaper': return <BookOpen size={14} className="text-violet-600 dark:text-violet-400" />
+      case 'tweet': return <Twitter size={14} className="text-sky-500 dark:text-sky-400" />
       default: return <BookMarked size={14} className="text-slate-500 dark:text-slate-400" />
     }
   }
@@ -481,10 +484,12 @@ export default function LibraryPage() {
       article: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300',
       repository: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300',
       researchpaper: 'bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300',
+      tweet: 'bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-300',
     }
     const labels: Record<string, string> = {
       article: 'Article',
       repository: 'Repo',
+      tweet: 'Tweet',
       researchpaper: 'Paper',
     }
     return (

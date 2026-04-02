@@ -128,6 +128,42 @@ export interface Video {
   fetched_at: string
 }
 
+// Tweet (X/Twitter)
+export interface Tweet {
+  id: string
+  tweet_id: string
+  text: string
+  author_username: string
+  author_display_name: string
+  author_profile_image: string
+  author_verified: boolean
+  author_followers: number
+  retweet_count: number
+  like_count: number
+  reply_count: number
+  quote_count: number
+  view_count: number
+  bookmark_count: number
+  posted_at: string | null
+  scraped_at: string
+  hashtags: string[]
+  mentions: string[]
+  media_urls: string[]
+  urls: string[]
+  is_retweet: boolean
+  is_reply: boolean
+  is_quote: boolean
+  conversation_id: string
+  in_reply_to_user: string
+  lang: string
+  url: string
+  source_label: string
+  topic: string
+  trending_score: number
+  sentiment_score: number | null
+  metadata: Record<string, unknown>
+}
+
 // Pagination
 export interface PaginatedResponse<T> {
   count: number
@@ -148,7 +184,7 @@ export interface ApiError {
 export interface ChatSource {
   title: string
   url: string
-  content_type: 'article' | 'paper' | 'repository' | 'video' | string
+  content_type: 'article' | 'paper' | 'repository' | 'video' | 'tweet' | string
   snippet: string
 }
 
@@ -197,6 +233,7 @@ export type AgentTaskType =
   | 'trends'
   | 'github'
   | 'arxiv'
+  | 'tweets'
   | 'general'
   | 'document'
   | 'project'

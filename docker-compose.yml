@@ -220,6 +220,10 @@ services:
         condition: service_healthy
     networks:
       - synapse_network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     # concurrency=2 for scraping/agents; NLP/summarization is rate-limited by
     # Gemini free tier (20 RPM), so tasks are staggered via countdown in tasks.py.
     # Running 2 workers with 15s stagger = ~8 RPM, safely under the 20 RPM limit.
@@ -256,6 +260,10 @@ services:
         condition: service_healthy
     networks:
       - synapse_network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     command: ["sh", "-c", "celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler --pidfile=/tmp/celerybeat.pid"]
 
   # ── Flower (Celery Monitoring) ──────────────────────────

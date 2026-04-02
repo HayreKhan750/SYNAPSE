@@ -56,43 +56,16 @@ class YouTubeSpider(scrapy.Spider):
     }
 
     DEFAULT_QUERIES = [
-        # AI / ML
-        'machine learning tutorial 2024',
-        'artificial intelligence explained',
+        # Keep default small (8 queries max) to stay within the 300s task timeout
+        # Each query takes ~15s via yt-dlp → 8 × 15s = 120s total (safe margin)
+        'machine learning tutorial 2025',
         'large language models explained',
-        'deep learning PyTorch',
-        'fine tuning LLMs tutorial',
         'AI agents autonomous LLM',
-        # AI Frameworks & Tools
-        'LangChain tutorial',
-        'RAG retrieval augmented generation',
-        'vector databases explained',
-        'open source AI tools 2024',
-        'Ollama local LLM tutorial',
-        'Hugging Face transformers tutorial',
-        # Backend & APIs
-        'Django REST API tutorial',
-        'FastAPI tutorial Python',
-        'GraphQL tutorial',
-        'microservices architecture tutorial',
-        # Frontend
-        'Next.js tutorial 2024',
-        'React TypeScript tutorial',
-        # Systems & Cloud
-        'system design interview',
-        'Kubernetes tutorial',
-        'DevOps CI CD pipeline',
-        'AWS Lambda tutorial',
-        'Docker tutorial for developers',
-        'Terraform infrastructure as code',
-        # Data & Programming
-        'Python data science',
-        'Rust programming tutorial',
-        'PostgreSQL advanced tutorial',
-        'Redis tutorial caching',
-        # Security & Best Practices
+        'open source AI tools 2025',
+        'Django FastAPI Python tutorial',
+        'Next.js React TypeScript tutorial',
+        'Kubernetes Docker DevOps tutorial',
         'web security best practices',
-        'API security OAuth JWT',
     ]
 
     def __init__(self, queries=None, days_back=30, max_results=60, *args, **kwargs):
@@ -161,7 +134,7 @@ class YouTubeSpider(scrapy.Spider):
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30,  # flat-playlist is fast; 30s is very generous
+                timeout=20,  # flat-playlist is fast; 20s per query × 8 queries = 160s total
             )
 
             raw = (result.stdout or '').strip()

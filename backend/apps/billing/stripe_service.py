@@ -172,20 +172,41 @@ def handle_subscription_deleted(event_data: dict) -> None:
 
 
 def handle_invoice_paid(event_data: dict) -> None:
-    """Handle invoice.payment_succeeded — grant Pro access + referral reward."""
-    from apps.billing.models import Subscription, ReferralUse
+    """Handle invoice.payment_succeeded — grant Pro access + referral reward + create Invoice record."""
+    from apps.billing.models import Subscription, ReferralUse, Invoice
     from apps.billing.referrals import grant_referral_reward
+    import datetime
 
     invoice     = event_data["object"]
     customer_id = invoice.get("customer")
-    subscription_id = invoice.get("subscription")
 
     try:
         sub = Subscription.objects.get(stripe_customer_id=customer_id)
 
-        # Check for first payment (new subscription)
+        # Record Invoice in DB
+        stripe_inv_id = invoice.get("id", "")
+        if stripe_inv_id and not Invoice.objects.filter(stripe_invoice_id=stripe_inv_id).exists():
+            period_start = None
+            period_end   = None
+            if invoice.get("period_start"):
+                period_start = datetime.datetime.fromtimestamp(invoice["period_start"], tz=datetime.timezone.utc)
+            if invoice.get("period_end"):
+                period_end = datetime.datetime.fromtimestamp(invoice["period_end"], tz=datetime.timezone.utc)
+
+            Invoice.objects.create(
+                user             = sub.user,
+                stripe_invoice_id= stripe_inv_id,
+                amount_paid      = invoice.get("amount_paid", 0),
+                currency         = invoice.get("currency", "usd"),
+                status           = invoice.get("status", "paid"),
+                pdf_url          = invoice.get("invoice_pdf", ""),
+                hosted_url       = invoice.get("hosted_invoice_url", ""),
+                period_start     = period_start,
+                period_end       = period_end,
+            )
+
+        # Check for first payment (new subscription) → grant referral reward
         if invoice.get("billing_reason") == "subscription_create":
-            # Grant referral reward if applicable
             try:
                 referral_use = ReferralUse.objects.get(referee=sub.user, reward_given=False)
                 grant_referral_reward(referral_use)

@@ -201,6 +201,90 @@ class WebhookView(APIView):
 
 # ── Referrals ─────────────────────────────────────────────────────────────────
 
+class CancelView(APIView):
+    """POST /api/v1/billing/cancel/ — cancel subscription at period end."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        from apps.billing.models import Subscription
+        try:
+            sub = Subscription.objects.get(user=request.user)
+        except Subscription.DoesNotExist:
+            return Response({"error": "No active subscription found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if sub.plan == "free":
+            return Response({"error": "You are already on the free plan."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            stripe = __import__("apps.billing.stripe_service", fromlist=["_stripe"])
+            import apps.billing.stripe_service as svc
+            s = svc._stripe()
+            if sub.stripe_subscription_id:
+                s.Subscription.modify(
+                    sub.stripe_subscription_id,
+                    cancel_at_period_end=True,
+                )
+            sub.cancel_at_period_end = True
+            sub.save(update_fields=["cancel_at_period_end", "updated_at"])
+            logger.info("subscription_cancel_requested", user=request.user.email)
+            return Response({
+                "success": True,
+                "message": "Your subscription will cancel at the end of the current billing period.",
+                "cancel_at_period_end": True,
+                "current_period_end": sub.current_period_end,
+            })
+        except Exception as exc:
+            logger.error("subscription_cancel_failed", error=str(exc))
+            return Response({"error": "Could not cancel subscription. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class InvoiceListView(APIView):
+    """GET /api/v1/billing/invoices/ — list user's past invoices."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        from apps.billing.models import Invoice
+        invoices = Invoice.objects.filter(user=request.user).order_by("-created_at")[:24]
+        data = [
+            {
+                "id":               str(inv.id),
+                "stripe_invoice_id": inv.stripe_invoice_id,
+                "amount":           inv.amount_paid,
+                "amount_display":   inv.amount_display,
+                "currency":         inv.currency,
+                "status":           inv.status,
+                "pdf_url":          inv.pdf_url,
+                "hosted_url":       inv.hosted_url,
+                "period_start":     inv.period_start,
+                "period_end":       inv.period_end,
+                "created_at":       inv.created_at,
+            }
+            for inv in invoices
+        ]
+        return Response({"invoices": data})
+
+
+class UsageView(APIView):
+    """GET /api/v1/billing/usage/ — current user's plan usage stats."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        from apps.billing.limits import get_user_plan, get_plan_limit, _count_usage, PLAN_LIMITS
+        plan      = get_user_plan(request.user)
+        resources = list(PLAN_LIMITS.get(plan, PLAN_LIMITS["free"]).keys())
+        usage_data = {}
+        for resource in resources:
+            limit   = get_plan_limit(plan, resource)
+            current = _count_usage(request.user, resource)
+            usage_data[resource] = {
+                "used":      current,
+                "limit":     limit,
+                "unlimited": limit == -1,
+                "percent":   0 if limit == -1 else round(min(current / limit * 100, 100), 1),
+            }
+        return Response({"plan": plan, "usage": usage_data})
+
+
 class ReferralView(APIView):
     """GET /api/v1/billing/referral/ — get or create referral code."""
     permission_classes = [IsAuthenticated]

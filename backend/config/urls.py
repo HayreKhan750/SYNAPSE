@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/v1/repos/', include('apps.repositories.urls')),
     path('api/v1/papers/', include('apps.papers.urls')),
     path('api/v1/videos/', include('apps.videos.urls')),
+    path('api/v1/tweets/', include('apps.tweets.urls')),
     path('api/v1/automation/', include('apps.automation.urls')),
     path('api/v1/agents/', include('apps.agents.urls')),
     path('api/v1/documents/', include('apps.documents.urls')),

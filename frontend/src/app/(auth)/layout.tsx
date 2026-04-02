@@ -2,11 +2,12 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Zap, Brain, TrendingUp, Shield } from 'lucide-react'
+import { Zap, Brain, TrendingUp, Shield, Twitter } from 'lucide-react'
 
 const features = [
   { icon: Brain,      title: 'AI-Powered Insights',   desc: 'Intelligent summaries from thousands of tech sources daily' },
-  { icon: TrendingUp, title: 'Real-time Trends',       desc: 'Stay ahead with live signals from GitHub, arXiv & HN' },
+  { icon: TrendingUp, title: 'Real-time Trends',       desc: 'Stay ahead with live signals from GitHub, arXiv, X & HN' },
+  { icon: Twitter,    title: 'X (Twitter) Feed',       desc: 'Curated tweets on AI, programming, security and tech' },
   { icon: Zap,        title: 'Workflow Automation',    desc: 'Build AI agents that research and report automatically' },
   { icon: Shield,     title: 'Enterprise Ready',       desc: 'SOC2 compliant with SSO, audit logs and team controls' },
 ]
@@ -62,7 +63,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </span>
           </h2>
           <p className="text-slate-600 dark:text-slate-400 text-lg max-w-md leading-relaxed">
-            AI agents that scan, summarise and surface what matters across GitHub, arXiv, HackerNews and more — so you never miss a breakthrough.
+            AI agents that scan, summarise and surface what matters across GitHub, arXiv, X/Twitter, HackerNews and more — so you never miss a breakthrough.
           </p>
 
           {/* Feature list */}

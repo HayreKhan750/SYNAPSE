@@ -83,26 +83,41 @@ def _score_technology(tech: str, since: date) -> Dict:
 
     repo_count = Repository.objects.filter(tech_q_repo, scraped_at__date__gte=since).count()
 
-    mention_count = article_count + repo_count
+    # Also count tweet mentions for richer signal
+    try:
+        from apps.tweets.models import Tweet  # noqa: PLC0415
+        tech_q_tweet = (
+            Q(text__icontains=tech)
+            | Q(hashtags__icontains=tech)
+            | Q(topic__icontains=tech)
+        )
+        tweet_count = Tweet.objects.filter(tech_q_tweet, scraped_at__date__gte=since).count()
+    except Exception:
+        tweet_count = 0
+
+    mention_count = article_count + repo_count + tweet_count
     trend_score = (
         article_count * _ARTICLE_WEIGHT
         + repo_count * _REPO_WEIGHT
+        + tweet_count * 0.5  # tweets are lighter signal but high volume
         + (_SENTIMENT_BONUS if avg_sentiment > 0.1 else 0.0)
     )
 
     return {
         "mention_count": mention_count,
         "trend_score": round(trend_score, 2),
-        "sources": _build_source_list(article_count, repo_count),
+        "sources": _build_source_list(article_count, repo_count, tweet_count),
     }
 
 
-def _build_source_list(article_count: int, repo_count: int) -> List[str]:
+def _build_source_list(article_count: int, repo_count: int, tweet_count: int = 0) -> List[str]:
     sources = []
     if article_count > 0:
         sources.append("articles")
     if repo_count > 0:
         sources.append("repositories")
+    if tweet_count > 0:
+        sources.append("tweets")
     return sources
 
 

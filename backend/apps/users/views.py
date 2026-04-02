@@ -16,7 +16,7 @@ import requests as http_requests
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer,
     UserPreferencesSerializer, PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer, send_verification_email,
+    PasswordResetConfirmSerializer,
 )
 from .models import User
 
@@ -46,20 +46,16 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Send verification email
-        send_verification_email(user)
-
         refresh = RefreshToken.for_user(user)
         return Response({
             'success': True,
-            'email_verification_required': True,
-            'message': 'Account created! Please check your email to verify your address.',
+            'message': 'Account created! Welcome to SYNAPSE.',
             'user': {
                 'id': str(user.id),
                 'email': user.email,
                 'username': user.username,
                 'first_name': user.first_name,
-                'email_verified': user.email_verified,
+                'email_verified': True,
             },
             'tokens': {
                 'access': str(refresh.access_token),
@@ -124,15 +120,19 @@ def ai_keys_view(request):
     """
     GET  /api/v1/users/ai-keys/ — check which keys are configured for this user
     POST /api/v1/users/ai-keys/ — save encrypted keys to user preferences
-    Keys are stored in user.preferences JSON field and used by the AI engine.
+    Keys are stored in user.preferences JSON field and used by the AI engine and scrapers.
     """
     if request.method == 'GET':
         prefs = getattr(request.user, 'preferences', {}) or {}
         gemini_ok     = bool(prefs.get('gemini_api_key'))
         openrouter_ok = bool(prefs.get('openrouter_api_key'))
+        github_ok     = bool(prefs.get('github_token'))
+        x_api_ok      = bool(prefs.get('x_api_key'))
         return Response({
             'gemini_configured':     gemini_ok,
             'openrouter_configured': openrouter_ok,
+            'github_configured':     github_ok,
+            'x_api_configured':      x_api_ok,
             'any_configured':        gemini_ok or openrouter_ok,
         })
 
@@ -143,23 +143,37 @@ def ai_keys_view(request):
 
     gemini_key     = request.data.get('gemini_api_key', '').strip()
     openrouter_key = request.data.get('openrouter_api_key', '').strip()
+    github_token   = request.data.get('github_token', '').strip()
+    x_api_key      = request.data.get('x_api_key', '').strip()
 
     # Basic format validation — reject obviously invalid keys
     if gemini_key:
         if len(gemini_key) < 10 or len(gemini_key) > 512:
             return Response({'success': False, 'error': 'Invalid Gemini API key format.'}, status=400)
         prefs['gemini_api_key'] = gemini_key
-        # SECURITY: do NOT set os.environ — that leaks keys process-wide to all users
     if openrouter_key:
         if len(openrouter_key) < 10 or len(openrouter_key) > 512:
             return Response({'success': False, 'error': 'Invalid OpenRouter API key format.'}, status=400)
         prefs['openrouter_api_key'] = openrouter_key
-        # SECURITY: do NOT set os.environ — per-user keys are read from prefs at request time
+    if github_token:
+        if len(github_token) < 10 or len(github_token) > 512:
+            return Response({'success': False, 'error': 'Invalid GitHub token format.'}, status=400)
+        prefs['github_token'] = github_token
+    if x_api_key:
+        if len(x_api_key) < 10 or len(x_api_key) > 512:
+            return Response({'success': False, 'error': 'Invalid X/Twitter API key format.'}, status=400)
+        prefs['x_api_key'] = x_api_key
 
     request.user.preferences = prefs
     request.user.save(update_fields=['preferences'])
 
-    return Response({'success': True, 'gemini_configured': bool(prefs.get('gemini_api_key')), 'openrouter_configured': bool(prefs.get('openrouter_api_key'))})
+    return Response({
+        'success': True,
+        'gemini_configured':     bool(prefs.get('gemini_api_key')),
+        'openrouter_configured': bool(prefs.get('openrouter_api_key')),
+        'github_configured':     bool(prefs.get('github_token')),
+        'x_api_configured':      bool(prefs.get('x_api_key')),
+    })
 
 
 # ── Password Reset ─────────────────────────────────────────────────────────────
@@ -238,66 +252,6 @@ def password_reset_confirm(request):
 
 
 # ── Email Verification ─────────────────────────────────────────────────────────
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def verify_email(request):
-    """
-    GET /api/v1/auth/verify-email/?token=<uuid>
-    Verifies the user's email address using the token sent in the registration email.
-    """
-    token = request.query_params.get('token')
-    if not token:
-        return Response({'error': 'Verification token is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        token_uuid = uuid.UUID(str(token))
-        user = User.objects.get(email_verification_token=token_uuid, email_verified=False)
-    except (User.DoesNotExist, ValueError):
-        return Response({'error': 'Invalid or expired verification link.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    user.email_verified = True
-    user.email_verification_token = None  # Invalidate token after use
-    user.save(update_fields=['email_verified', 'email_verification_token'])
-
-    # Return fresh JWT tokens so user is automatically logged in
-    refresh = RefreshToken.for_user(user)
-    return Response({
-        'success': True,
-        'message': 'Email verified successfully! Welcome to SYNAPSE.',
-        'user': {
-            'id': str(user.id),
-            'email': user.email,
-            'username': user.username,
-            'first_name': user.first_name,
-            'email_verified': True,
-        },
-        'tokens': {
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-        }
-    })
-
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def resend_verification_email(request):
-    """
-    POST /api/v1/auth/verify-email/resend/
-    Resend verification email.
-    """
-    email = request.data.get('email')
-    if not email:
-        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
-    try:
-        user = User.objects.get(email=email, email_verified=False)
-        # Generate a fresh token
-        user.email_verification_token = uuid.uuid4()
-        user.save(update_fields=['email_verification_token'])
-        send_verification_email(user)
-    except User.DoesNotExist:
-        pass  # Don't leak info
-    return Response({'success': True, 'message': 'If your email is registered and unverified, a new link has been sent.'})
 
 
 # ── Google OAuth ───────────────────────────────────────────────────────────────
