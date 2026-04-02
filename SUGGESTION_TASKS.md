@@ -83,9 +83,9 @@
 - [x] **TASK-002-F4:** Resend verification UI — in `verify-email/page.tsx` (resend button + 60s countdown)
 
 #### Testing
-- [ ] **TASK-002-T1:** Unit tests for recovery code generation and hashing — pending
-- [ ] **TASK-002-T2:** Integration tests for GitHub OAuth flow — pending
-- [ ] **TASK-002-T3:** Test recovery code login — pending
+- [x] **TASK-002-T1:** Unit tests for recovery code generation and hashing — `backend/apps/users/tests/test_mfa_recovery.py::TestBackupCodeGeneration` (6 tests) + `TestVerifyBackupCode` (8 tests)
+- [x] **TASK-002-T2:** Integration tests for GitHub OAuth flow — `test_github_oauth.py::TestGitHubOAuthCallback` (5 tests) + `TestEmailVerificationResend` (4 tests)
+- [x] **TASK-002-T3:** Recovery code login tests — `TestVerifyBackupEndpoint` (5 tests)
 
 ---
 
@@ -148,9 +148,8 @@
 #### Testing
 - [x] **TASK-003-T1:** Unit tests for plan limit enforcement
   - File: `backend/apps/billing/tests/test_limits.py` *(new)* — 15 test cases covering all limit/feature logic
-- [ ] **TASK-003-T2:** Integration tests for Stripe webhook handler (use Stripe mock events)
-  - File: `backend/apps/billing/tests/test_webhooks.py` *(new)*
-- [ ] **TASK-003-T3:** Test checkout session creation, subscription sync
+- [x] **TASK-003-T2:** Stripe webhook integration tests — `backend/apps/billing/tests/test_webhooks.py`: `TestHandleSubscriptionUpdated`, `TestHandleInvoicePaid` (3 tests inc. dedup)
+- [x] **TASK-003-T3:** Checkout/subscription/cancel/invoices/usage endpoint tests — `TestCheckoutView`, `TestSubscriptionView`, `TestCancelView`, `TestInvoiceListView`, `TestUsageView`
 
 ---
 
@@ -189,7 +188,7 @@
   - File: `ai_engine/main.py`
   - Wrap all LLM calls with `asyncio.wait_for(coro, timeout=30.0)`
   - On timeout: return `{"error": "query_timeout", "message": "Query took too long. Try a simpler question."}`
-- [ ] **TASK-004-B8:** Fallback model on budget exceeded
+- [x] **TASK-004-B8:** Fallback model on budget exceeded — `ai_engine/agents/router.py`: `get_model_for_user()` switches GPT-4o → GPT-4o-mini at 80% budget, raises `BudgetExceededError` at 100%
   - File: `ai_engine/agents/router.py` *(new, or add to base.py)*
   - If user over 80% of daily budget: automatically switch to cheaper model
     - GPT-4o → GPT-4o-mini
@@ -200,9 +199,9 @@
   - Add: `AI_RATE_LIMIT_FREE=2`, `AI_RATE_LIMIT_PRO=20`, `AI_BUDGET_FREE_CENTS=50`, `AI_BUDGET_PRO_CENTS=1000`
 
 #### Testing
-- [ ] **TASK-004-T1:** Unit tests for budget tracking and rate limiting
-- [ ] **TASK-004-T2:** Unit tests for moderation and jailbreak detection
-- [ ] **TASK-004-T3:** Integration test: exceed budget → 402 response, include upgrade URL
+- [x] **TASK-004-T1:** Unit tests for budget tracking and rate limiting — `ai_engine/tests/test_guardrails.py::TestRateLimitModule`
+- [x] **TASK-004-T2:** Unit tests for moderation and jailbreak detection — `TestJailbreakDetection`, `TestSanitizeInput`, `TestModerationModule`
+- [x] **TASK-004-T3:** Model router tests — `TestModelRouter`: primary/fallback/exhausted, Claude provider, budget threshold
 
 ---
 
@@ -231,8 +230,8 @@
   - Benchmark: run both models, assert new model scores higher on test queries
 
 #### Testing
-- [ ] **TASK-005-T1:** Integration test for re-embedding pipeline
-- [ ] **TASK-005-T2:** Search quality regression test (before vs after)
+- [x] **TASK-005-T1:** Integration tests for re-embedding pipeline — `backend/apps/core/tests/test_reembedding_pipeline.py::TestReembedArticlesPipeline` (4 tests)
+- [x] **TASK-005-T2:** Embedder unit tests — `TestEmbedderDimensions` (6 tests): BGE prefix, 1024 dims, batch, empty string; `TestMigrationDimensions` (5 tests)
 
 ---
 

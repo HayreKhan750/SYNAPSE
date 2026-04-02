@@ -11,6 +11,8 @@ TASK-005-B3
 from __future__ import annotations
 
 import logging
+import os
+import httpx
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
@@ -27,8 +29,6 @@ def reembed_all_articles(self, batch_size: int = 32) -> dict:
     Returns: dict with total, embedded, skipped counts.
     """
     from apps.articles.models import Article
-    import httpx
-    import os
 
     AI_ENGINE_URL = os.environ.get("AI_ENGINE_URL", "http://localhost:8001")
 

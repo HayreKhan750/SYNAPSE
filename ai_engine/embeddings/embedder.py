@@ -93,8 +93,9 @@ class SynapseEmbedder:
         if not query or not query.strip():
             return [0.0] * self.dimensions
 
-        # Apply BGE query prefix for BGE models
-        if "bge" in _MODEL_NAME.lower():
+        # Apply BGE query prefix for BGE models (use instance model_name, not module constant)
+        model_name = getattr(self, "_model_name", _MODEL_NAME)
+        if "bge" in model_name.lower():
             prefixed = f"{_BGE_QUERY_PREFIX}{query}"
         else:
             prefixed = query
