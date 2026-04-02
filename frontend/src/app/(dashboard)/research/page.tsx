@@ -536,12 +536,32 @@ export default function ResearchPage() {
             )}
           </>
         ) : (
-          <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
-            <BookOpen className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-            <p className="text-gray-500 dark:text-gray-400 text-sm">No papers found</p>
-            <button onClick={clearFilters} className="mt-2 text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-              Clear filters
-            </button>
+          <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col items-center gap-3 px-6">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+              <BookOpen className="w-7 h-7 text-indigo-400" />
+            </div>
+            <div>
+              <p className="text-gray-800 dark:text-gray-200 font-semibold text-lg">No papers found</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 max-w-xs mx-auto">
+                {searchQuery
+                  ? `No research papers matched "${searchQuery}". Try a different search term.`
+                  : 'No papers match the current filters. Try clearing them or explore a different category.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 justify-center">
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              >
+                Clear filters
+              </button>
+              <a
+                href="/onboarding/wizard"
+                className="px-4 py-2 rounded-xl text-sm font-semibold border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+              >
+                ✨ Personalise research
+              </a>
+            </div>
           </div>
         )}
       </div>

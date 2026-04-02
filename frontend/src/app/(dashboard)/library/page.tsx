@@ -643,12 +643,34 @@ export default function LibraryPage() {
         {bookmarksLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" /></div>
         ) : bookmarks.length === 0 ? (
-          <div className="text-center py-16 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
-            <BookMarked size={40} className="mx-auto text-slate-600 mb-3" />
-            <p className="text-slate-500 dark:text-slate-400">No bookmarks yet</p>
-            <p className="text-slate-500 text-sm mt-1">
-              Click the ♡ on any article, repo, or paper to save it here
-            </p>
+          <div className="text-center py-16 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 flex flex-col items-center gap-3 px-6">
+            <div className="w-16 h-16 rounded-2xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+              <BookMarked size={28} className="text-rose-400" />
+            </div>
+            <div>
+              <p className="text-slate-800 dark:text-slate-200 font-semibold text-lg">
+                {activeTab === 'all' ? 'No bookmarks yet' : `No ${activeTab} bookmarks`}
+              </p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 max-w-xs mx-auto">
+                {activeTab === 'all'
+                  ? 'Click the bookmark icon ♡ on any article, paper, repo, or tweet to save it here.'
+                  : `No ${activeTab}s saved yet. Browse and bookmark ${activeTab}s to see them here.`}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 justify-center">
+              <a
+                href="/feed"
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              >
+                Browse articles
+              </a>
+              <a
+                href="/onboarding/wizard"
+                className="px-4 py-2 rounded-xl text-sm font-semibold border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+              >
+                ✨ Personalise your feed
+              </a>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

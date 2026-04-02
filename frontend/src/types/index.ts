@@ -13,6 +13,14 @@ export interface User {
   last_login?: string | null
   // legacy aliases kept for backward compat
   date_joined?: string
+  // Onboarding — TASK-001
+  is_onboarded: boolean
+  onboarded_at?: string | null
+  // GitHub OAuth — TASK-002
+  github_id?: string | null
+  github_username?: string | null
+  // Billing plan — TASK-003
+  plan?: 'free' | 'pro' | 'enterprise'
 }
 
 export interface AuthTokens {

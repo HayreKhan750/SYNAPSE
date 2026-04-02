@@ -295,12 +295,34 @@ export default function FeedPage() {
               )}
             </>
           ) : (
-            <div className="text-center py-16 bg-white dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
-              <Search size={48} className="mx-auto text-slate-600 dark:text-slate-300 dark:text-slate-600 mb-3" />
-              <p className="text-slate-600 dark:text-slate-400 font-medium">No articles found</p>
-              <button onClick={() => { setSelectedTopic('All'); setPage(1); }} className="mt-3 text-sm text-indigo-500 hover:text-indigo-600 font-medium">
-                Clear filters
-              </button>
+            <div className="text-center py-16 bg-white dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60 flex flex-col items-center gap-3 px-6">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                <Search size={28} className="text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-slate-800 dark:text-slate-200 font-semibold text-lg">No articles found</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 max-w-xs mx-auto">
+                  {selectedTopic !== 'All'
+                    ? `No articles found for topic "${selectedTopic}". Try a different topic or clear the filter.`
+                    : 'Your feed is empty. Complete onboarding to personalise it, or wait for new articles to be scraped.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 justify-center">
+                {selectedTopic !== 'All' && (
+                  <button
+                    onClick={() => { setSelectedTopic('All'); setPage(1); }}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                  >
+                    Clear filter
+                  </button>
+                )}
+                <a
+                  href="/onboarding/wizard"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                >
+                  ✨ Personalise feed
+                </a>
+              </div>
             </div>
           )}
         </>

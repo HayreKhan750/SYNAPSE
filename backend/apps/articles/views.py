@@ -44,6 +44,31 @@ class ArticleListView(ListAPIView):
                 Q(author__icontains=q) |
                 Q(topic__icontains=q)
             )
+        # Interest-based filtering (TASK-001-B3)
+        # Applied when for_you=1 is passed and user is authenticated with onboarding prefs
+        for_you = self.request.GET.get('for_you') == '1'
+        if for_you and self.request.user and self.request.user.is_authenticated:
+            try:
+                from apps.users.models import OnboardingPreferences
+                prefs = OnboardingPreferences.objects.get(user=self.request.user, completed=True)
+                interests = prefs.interests  # list of topic strings e.g. ["AI", "Security"]
+                if interests:
+                    # Build OR query: any article whose topic or tags matches any interest
+                    interest_q = Q()
+                    for interest in interests:
+                        interest_q |= Q(topic__icontains=interest)
+                        interest_q |= Q(tags__icontains=interest.lower())
+                    personalized = qs.filter(interest_q)
+                    # Only apply filter if it returns results — otherwise fall back to all
+                    if personalized.exists():
+                        qs = personalized
+                    logger.info(
+                        "interest_feed_filtered: user=%s interests=%s count=%s",
+                        self.request.user.email, interests, qs.count(),
+                    )
+            except Exception:
+                # Any error (no prefs, not completed, etc.) → just return unfiltered feed
+                pass
         return qs
 
 

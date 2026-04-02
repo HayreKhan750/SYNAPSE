@@ -14,6 +14,7 @@ interface AuthStore {
   register: (data: RegisterData) => Promise<void>
   logout: () => Promise<void>
   fetchUser: () => Promise<void>
+  refreshUser: () => Promise<void>   // TASK-001: re-fetch user after onboarding
   setTokens: (access: string, refresh: string) => void
   googleAuth: (accessToken: string) => Promise<void>
 }
@@ -132,6 +133,16 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           set({ isLoading: false })
           throw error
+        }
+      },
+
+      // TASK-001: Refresh user data silently (e.g. after onboarding completion)
+      refreshUser: async () => {
+        try {
+          const response = await api.get('/auth/me/')
+          set({ user: response.data })
+        } catch {
+          // Silently fail — user remains logged in
         }
       },
 

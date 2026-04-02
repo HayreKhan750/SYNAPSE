@@ -49,21 +49,22 @@
 #### Backend
 - [x] **TASK-001-B1:** Create onboarding models — `OnboardingPreferences` model, `is_onboarded` / `onboarded_at` fields on User, migration `0003_onboarding_github.py`
 - [x] **TASK-001-B2:** Create onboarding API endpoints — status, start, steps/<step>/complete, finish — all registered in urls.py
-- [x] **TASK-001-B3:** Auto-populate feed based on preferences — interest-based filtering implemented in feed views
+- [x] **TASK-001-B3:** Auto-populate feed based on preferences — `ArticleListView.get_queryset()` now accepts `?for_you=1`; builds OR query from `OnboardingPreferences.interests`; gracefully falls back to full feed if no prefs, incomplete onboarding, empty interests, or zero matches
 - [x] **TASK-001-B4:** Welcome email — `send_welcome_email(user)` in `email_service.py`, triggered on finish
 
 #### Frontend
 - [x] **TASK-001-F1:** Onboarding route & layout — `(onboarding)/layout.tsx` + `wizard/page.tsx`
+- [x] **TASK-001-FX:** Frontend types + authStore — `User` interface in `types/index.ts` now includes `is_onboarded`, `onboarded_at`, `github_id`, `github_username`, `plan`; `authStore.ts` now has `refreshUser()` method (silent re-fetch after onboarding)
 - [x] **TASK-001-F2:** 5-step animated wizard — Welcome → Interests → Use-case → Try It → Done
 - [x] **TASK-001-F3:** ProgressBar component — `frontend/src/components/onboarding/ProgressBar.tsx`
 - [x] **TASK-001-F4:** useOnboarding hook — `frontend/src/hooks/useOnboarding.ts`
-- [x] **TASK-001-F5:** EmptyState on all content pages (feed, research, library)
+- [x] **TASK-001-F5:** EmptyState on all content pages — feed (topic-aware message + "Personalise feed" CTA), research (query-aware message + "Personalise research" CTA), library (tab-aware message + "Browse articles" + "Personalise your feed" CTAs)
 - [x] **TASK-001-F6:** Register page redirects to `/onboarding/wizard` after signup
 
 #### Testing
 - [x] **TASK-001-T1:** Onboarding model tests in `test_models.py`
 - [x] **TASK-001-T2:** Onboarding endpoint integration tests in `test_views.py`
-- [ ] **TASK-001-T3:** Feed filtering by interests — pending
+- [x] **TASK-001-T3:** Feed filtering by interests — `backend/apps/articles/tests/test_interest_feed.py` (11 tests): single interest, multiple interests, exclusion, fallback on no prefs/incomplete/empty/no-match, combined topic+interest filter
 
 ---
 
