@@ -37,11 +37,26 @@ async def lifespan(app: FastAPI):
     """
     logger.info("SYNAPSE AI Engine starting up…")
 
+    # ── Redis health check (TASK-004-B9) ─────────────────────────────────────
+    try:
+        import redis as _redis
+        _r = _redis.Redis(
+            host=os.environ.get("REDIS_HOST", "localhost"),
+            port=int(os.environ.get("REDIS_PORT", "6379")),
+            db=int(os.environ.get("REDIS_RL_DB", "4")),
+            socket_connect_timeout=2,
+        )
+        _r.ping()
+        logger.info("redis_ready", host=os.environ.get("REDIS_HOST", "localhost"))
+    except Exception as exc:
+        logger.critical("redis_unavailable", error=str(exc),
+                        message="Rate limiting and budget tracking will be disabled.")
+
     # Warm up embedder
     try:
         from ai_engine.embeddings import get_embedder
         embedder = get_embedder()
-        logger.info("embedder_ready", model="all-MiniLM-L6-v2", dims=embedder.dimensions)
+        logger.info("embedder_ready", model=os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2"), dims=embedder.dimensions)
     except Exception as exc:
         logger.warning("embedder_warmup_failed", error=str(exc))
 
@@ -145,7 +160,21 @@ class HealthResponse(BaseModel):
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health() -> Dict[str, Any]:
-    return {"status": "ok"}
+    # Check Redis status
+    redis_status = "unavailable"
+    try:
+        import redis as _redis
+        _r = _redis.Redis(
+            host=os.environ.get("REDIS_HOST", "localhost"),
+            port=int(os.environ.get("REDIS_PORT", "6379")),
+            db=int(os.environ.get("REDIS_RL_DB", "4")),
+            socket_connect_timeout=1,
+        )
+        _r.ping()
+        redis_status = "ok"
+    except Exception:
+        pass
+    return {"status": "ok", "redis": redis_status}
 
 
 @app.get("/health/rag", response_model=HealthResponse, tags=["System"])

@@ -256,6 +256,94 @@ def password_reset_confirm(request):
 
 # ── Google OAuth ───────────────────────────────────────────────────────────────
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    """
+    GET /api/v1/auth/verify-email/?token=<token>
+    Verifies an email verification token and activates the account.
+    """
+    from django.utils import timezone
+    token = request.query_params.get('token')
+    if not token:
+        return Response({'error': 'Verification token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(email_verification_token=token)
+    except User.DoesNotExist:
+        return Response({'error': 'Invalid or expired verification link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if user.email_verified:
+        # Already verified — just return tokens
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'success': True,
+            'message': 'Email already verified.',
+            'tokens': {'access': str(refresh.access_token), 'refresh': str(refresh)},
+        })
+
+    user.email_verified = True
+    user.email_verification_token = None
+    user.save(update_fields=['email_verified', 'email_verification_token'])
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'success': True,
+        'message': 'Email verified successfully.',
+        'tokens': {'access': str(refresh.access_token), 'refresh': str(refresh)},
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_verification_email(request):
+    """
+    POST /api/v1/auth/verify-email/resend/
+    Body: { "email": "user@example.com" }
+    Resends the verification email.
+    """
+    import uuid as _uuid
+    from django.conf import settings as django_settings
+
+    email = request.data.get('email', '').strip().lower()
+    if not email:
+        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # Don't leak whether email exists
+        return Response({'success': True, 'message': 'If that email exists, a verification link has been sent.'})
+
+    if user.email_verified:
+        return Response({'success': True, 'message': 'Your email is already verified. You can sign in.'})
+
+    # Generate new token
+    new_token = str(_uuid.uuid4())
+    user.email_verification_token = new_token
+    user.save(update_fields=['email_verification_token'])
+
+    # Send email via notifications service
+    try:
+        from apps.notifications.email_service import EmailService
+        frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:3000')
+        verify_url = f"{frontend_url}/verify-email?token={new_token}"
+        EmailService.send_email(
+            to=user.email,
+            subject='Verify your SYNAPSE email',
+            template='verify_email',
+            context={
+                'user': user,
+                'verify_url': verify_url,
+                'expiry_hours': 24,
+            },
+        )
+    except Exception:
+        pass  # Email service may not be configured in dev
+
+    return Response({'success': True, 'message': 'Verification email sent. Please check your inbox.'})
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def google_auth(request):

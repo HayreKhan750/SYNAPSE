@@ -18,6 +18,10 @@ urlpatterns = [
     path('password-reset/',          views.password_reset_request, name='password-reset-request'),
     path('password-reset/confirm/',  views.password_reset_confirm, name='password-reset-confirm'),
 
+    # ── Email Verification ──────────────────────────────────────────────────────
+    path('verify-email/',            views.verify_email,                    name='verify-email'),
+    path('verify-email/resend/',     views.resend_verification_email,       name='verify-email-resend'),
+
     # ── Google OAuth ────────────────────────────────────────────────────────────
     path('google/',                  views.google_auth,               name='google-auth'),
 

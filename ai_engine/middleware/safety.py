@@ -69,6 +69,69 @@ def check_jailbreak(text: str, user_id: Optional[str] = None) -> None:
             raise JailbreakDetectedError(pattern=pattern.pattern, hard_block=False)
 
 
+def check_pii(text: str, user_id: Optional[str] = None) -> dict:
+    """
+    Detect PII in user input using Microsoft Presidio.
+    Returns a dict with detected entities.
+    Logs any PII detected (for abuse review) but does NOT raise — caller decides.
+
+    Requires: pip install presidio-analyzer presidio-anonymizer
+
+    TASK-004-B6
+    """
+    try:
+        from presidio_analyzer import AnalyzerEngine  # type: ignore
+        analyzer = AnalyzerEngine()
+        results = analyzer.analyze(text=text, language="en")
+        if results:
+            entities = [
+                {
+                    "type":  r.entity_type,
+                    "start": r.start,
+                    "end":   r.end,
+                    "score": round(r.score, 3),
+                }
+                for r in results if r.score >= 0.7
+            ]
+            if entities:
+                logger.warning(
+                    "PII_DETECTED: user=%s entities=%s input_excerpt='%.60s'",
+                    user_id,
+                    [e["type"] for e in entities],
+                    text,
+                )
+                return {"pii_detected": True, "entities": entities}
+        return {"pii_detected": False, "entities": []}
+    except ImportError:
+        # presidio not installed — skip silently
+        return {"pii_detected": False, "entities": []}
+    except Exception as exc:
+        logger.debug("PII check error (skipping): %s", exc)
+        return {"pii_detected": False, "entities": []}
+
+
+def redact_pii(text: str) -> str:
+    """
+    Redact PII from text using Presidio Anonymizer.
+    Returns redacted text, or original text if Presidio not available.
+
+    TASK-004-B6
+    """
+    try:
+        from presidio_analyzer import AnalyzerEngine   # type: ignore
+        from presidio_anonymizer import AnonymizerEngine  # type: ignore
+        analyzer   = AnalyzerEngine()
+        anonymizer = AnonymizerEngine()
+        results    = analyzer.analyze(text=text, language="en")
+        if results:
+            return anonymizer.anonymize(text=text, analyzer_results=results).text
+        return text
+    except ImportError:
+        return text
+    except Exception:
+        return text
+
+
 def sanitize_input(text: str, max_length: int = 8192) -> str:
     """
     Basic input sanitisation:

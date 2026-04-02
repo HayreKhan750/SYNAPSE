@@ -131,34 +131,156 @@ class SynapseAgentExecutor:
     # Public API
     # ------------------------------------------------------------------
 
+    def _estimate_tokens(self, text: str) -> int:
+        """
+        Estimate token count for a text string using tiktoken.
+        Falls back to character/4 heuristic if tiktoken not installed.
+
+        TASK-004-B3
+        """
+        try:
+            import tiktoken  # type: ignore
+            enc = tiktoken.get_encoding("cl100k_base")
+            return len(enc.encode(text))
+        except ImportError:
+            return max(1, len(text) // 4)
+        except Exception:
+            return max(1, len(text) // 4)
+
+    def _estimate_cost_usd(self, tokens: int) -> float:
+        """Estimate cost in USD at $0.003/1K tokens (blended GPT-4o rate)."""
+        return (tokens / 1000) * 0.003
+
+    def check_budget_before_run(
+        self,
+        task: str,
+        user_id: Optional[str] = None,
+        role: str = "user",
+    ) -> Dict[str, Any]:
+        """
+        Estimate token cost and check against daily budget before running.
+        Returns dict with estimated_tokens, estimated_cost_usd, can_run, budget_status.
+
+        TASK-004-B3
+        """
+        estimated_tokens   = self._estimate_tokens(task)
+        estimated_cost_usd = self._estimate_cost_usd(estimated_tokens)
+
+        budget_status: Dict[str, Any] = {}
+        can_run = True
+
+        if user_id:
+            try:
+                from ai_engine.middleware.rate_limit import check_budget, get_budget_status
+                check_budget(user_id, role)  # raises BudgetExceededError if over limit
+                budget_status = get_budget_status(user_id, role)
+            except Exception as exc:
+                from ai_engine.middleware.rate_limit import BudgetExceededError
+                if isinstance(exc, BudgetExceededError):
+                    can_run = False
+                    budget_status = {
+                        "error": str(exc),
+                        "reset_at": exc.reset_at,
+                    }
+
+        return {
+            "estimated_tokens":   estimated_tokens,
+            "estimated_cost_usd": estimated_cost_usd,
+            "can_run":            can_run,
+            "budget_status":      budget_status,
+        }
+
     def run(
         self,
         task: str,
         tool_names: Optional[List[str]] = None,
         extra_context: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
+        role: str = "user",
+        timeout_seconds: int = 60,
     ) -> Dict[str, Any]:
         """
-        Execute a task synchronously.
+        Execute a task synchronously with budget check and timeout.
 
         Args:
-            task:         Natural-language task description.
-            tool_names:   Optional list of tool names to restrict the agent to.
-                          If None, all registered tools are available.
-            extra_context: Additional key-value pairs injected into the agent prompt.
+            task:            Natural-language task description.
+            tool_names:      Optional list of tool names to restrict the agent to.
+            extra_context:   Additional key-value pairs injected into the agent prompt.
+            user_id:         Optional user ID for budget tracking.
+            role:            User plan role for budget/rate limits.
+            timeout_seconds: Hard timeout for agent execution (default 60s).
 
         Returns:
             Dict with keys: answer, intermediate_steps, tokens_used,
-                            cost_usd, execution_time_s, success, error.
+                            cost_usd, execution_time_s, success, error,
+                            estimated_tokens, estimated_cost_usd.
         """
+        import concurrent.futures
+        import functools
+
+        # Pre-run token estimation
+        estimated_tokens   = self._estimate_tokens(task)
+        estimated_cost_usd = self._estimate_cost_usd(estimated_tokens)
+
         agent = self._make_agent(tool_names)
-        logger.info("Running agent task (tools=%s): %s", tool_names or "all", task[:120])
-        result = agent.run(task, extra_context=extra_context)
+        logger.info(
+            "Running agent task (tools=%s, est_tokens=%d, est_cost=$%.4f): %s",
+            tool_names or "all", estimated_tokens, estimated_cost_usd, task[:120],
+        )
+
+        # Execute with timeout using a thread (executor.run is sync)
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(
+                    functools.partial(agent.run, task, extra_context=extra_context)
+                )
+                try:
+                    result = future.result(timeout=timeout_seconds)
+                except concurrent.futures.TimeoutError:
+                    logger.error(
+                        "agent_task_timeout user=%s timeout=%ds task='%.80s'",
+                        user_id, timeout_seconds, task,
+                    )
+                    return {
+                        "success":            False,
+                        "error":              f"Query took too long (>{timeout_seconds}s). Try a simpler question.",
+                        "answer":             "",
+                        "tokens_used":        0,
+                        "cost_usd":           0.0,
+                        "execution_time_s":   timeout_seconds,
+                        "estimated_tokens":   estimated_tokens,
+                        "estimated_cost_usd": estimated_cost_usd,
+                    }
+        except Exception as exc:
+            logger.error("agent_run_exception: %s", exc)
+            return {
+                "success":            False,
+                "error":              str(exc),
+                "answer":             "",
+                "tokens_used":        0,
+                "cost_usd":           0.0,
+                "execution_time_s":   0.0,
+                "estimated_tokens":   estimated_tokens,
+                "estimated_cost_usd": estimated_cost_usd,
+            }
+
+        # Record actual token usage for budget tracking
+        if user_id and result.get("tokens_used"):
+            try:
+                from ai_engine.middleware.rate_limit import record_token_usage
+                record_token_usage(user_id, result["tokens_used"])
+            except Exception:
+                pass
+
+        result["estimated_tokens"]   = estimated_tokens
+        result["estimated_cost_usd"] = estimated_cost_usd
+
         logger.info(
             "Agent task complete — success=%s tokens=%d cost=$%.6f time=%.2fs",
             result["success"],
-            result["tokens_used"],
-            result["cost_usd"],
-            result["execution_time_s"],
+            result.get("tokens_used", 0),
+            result.get("cost_usd", 0.0),
+            result.get("execution_time_s", 0.0),
         )
         return result
 

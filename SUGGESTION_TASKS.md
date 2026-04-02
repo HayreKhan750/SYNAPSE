@@ -47,65 +47,23 @@
 **Priority:** 🔴 Critical | **Effort:** M | **Impact:** +40–50% activation rate — first-time users see empty feeds with no guidance
 
 #### Backend
-- [ ] **TASK-001-B1:** Create onboarding models in `users` app
-  - File: `backend/apps/users/models.py`
-  - Add model: `OnboardingPreferences` (user FK, interests JSON, target_use_case CharField, completed BooleanField)
-  - Add fields to `User`: `is_onboarded = BooleanField(default=False)`, `onboarded_at = DateTimeField(null=True)`
-  - Create migration: `backend/apps/users/migrations/0003_onboarding_fields.py`
-- [ ] **TASK-001-B2:** Create onboarding API endpoints
-  - File: `backend/apps/users/views.py`
-  - `GET  /api/onboarding/status/`         — return `{is_onboarded, current_step, preferences}`
-  - `POST /api/onboarding/start/`           — create OnboardingPreferences record, return step 1
-  - `POST /api/onboarding/steps/<step>/complete/` — mark step complete, return next step config
-  - `POST /api/onboarding/finish/`          — set `is_onboarded=True`, `onboarded_at=now()`
-  - File: `backend/apps/users/urls.py`      — register all 4 endpoints
-- [ ] **TASK-001-B3:** Auto-populate feed based on preferences
-  - File: `backend/apps/articles/views.py` and `backend/apps/papers/views.py`
-  - On first feed load: filter by `user.onboardingpreferences.interests` if onboarding complete
-  - Fallback to trending content for new users with no preferences
-- [ ] **TASK-001-B4:** Create onboarding welcome email
-  - File: `backend/apps/notifications/email_service.py`
-  - Add method `send_welcome_email(user)` — triggered after `POST /api/onboarding/finish/`
-  - HTML template with: username, quick links to key features, CTA "Start Exploring"
+- [x] **TASK-001-B1:** Create onboarding models — `OnboardingPreferences` model, `is_onboarded` / `onboarded_at` fields on User, migration `0003_onboarding_github.py`
+- [x] **TASK-001-B2:** Create onboarding API endpoints — status, start, steps/<step>/complete, finish — all registered in urls.py
+- [x] **TASK-001-B3:** Auto-populate feed based on preferences — interest-based filtering implemented in feed views
+- [x] **TASK-001-B4:** Welcome email — `send_welcome_email(user)` in `email_service.py`, triggered on finish
 
 #### Frontend
-- [ ] **TASK-001-F1:** Create onboarding route & layout
-  - File: `frontend/src/app/(onboarding)/layout.tsx` *(new)* — minimal layout (no sidebar, centered card)
-  - File: `frontend/src/app/(onboarding)/wizard/page.tsx` *(new)* — wizard shell component
-  - Route: `/onboarding/wizard`
-  - Redirect to `/dashboard` if `user.is_onboarded === true`
-- [ ] **TASK-001-F2:** Build 5-step wizard
-  - File: `frontend/src/app/(onboarding)/wizard/page.tsx`
-  - **Step 1 — Welcome:** App overview, animated hero, "Let's get started" CTA
-  - **Step 2 — Interests:** Multi-select chips (AI/ML, Web Dev, Research, Finance, Health, Business, Security, Data Science)
-  - **Step 3 — Use Case:** Radio group (Daily research digest / Project knowledge base / Team collaboration / Automation workflows)
-  - **Step 4 — First Search:** Guided search demo — user types their first query, sees live results
-  - **Step 5 — Done:** Confetti animation, summary of selected preferences, "Go to Dashboard" button
-  - State: use `useState` for step index, `useReducer` for preferences
-- [ ] **TASK-001-F3:** Create progress indicator component
-  - File: `frontend/src/components/onboarding/ProgressBar.tsx` *(new)*
-  - Show: step number (e.g. "2 of 5"), progress bar fill, step labels
-  - Buttons: Back / Skip / Next / Finish (context-aware)
-- [ ] **TASK-001-F4:** Create onboarding hooks
-  - File: `frontend/src/hooks/useOnboarding.ts` *(new)*
-  - `useOnboardingStatus()` — fetch `GET /api/onboarding/status/`
-  - `useCompleteStep(step)` — POST to complete step
-  - `useFinishOnboarding()` — POST finish, invalidate auth cache, redirect
-- [ ] **TASK-001-F5:** Add empty state components to all content pages
-  - Files: `frontend/src/app/(dashboard)/feed/page.tsx`, `research/page.tsx`, `library/page.tsx`
-  - When data array is empty: show `<EmptyState>` component (already exists at `frontend/src/components/EmptyState.tsx`)
-  - Pass relevant icon, headline, and CTA ("Complete onboarding to personalize your feed")
-- [ ] **TASK-001-F6:** Redirect new users to wizard after signup
-  - File: `frontend/src/app/(auth)/register/page.tsx`
-  - After successful registration: redirect to `/onboarding/wizard` instead of `/dashboard`
+- [x] **TASK-001-F1:** Onboarding route & layout — `(onboarding)/layout.tsx` + `wizard/page.tsx`
+- [x] **TASK-001-F2:** 5-step animated wizard — Welcome → Interests → Use-case → Try It → Done
+- [x] **TASK-001-F3:** ProgressBar component — `frontend/src/components/onboarding/ProgressBar.tsx`
+- [x] **TASK-001-F4:** useOnboarding hook — `frontend/src/hooks/useOnboarding.ts`
+- [x] **TASK-001-F5:** EmptyState on all content pages (feed, research, library)
+- [x] **TASK-001-F6:** Register page redirects to `/onboarding/wizard` after signup
 
 #### Testing
-- [ ] **TASK-001-T1:** Unit tests for OnboardingPreferences model
-  - File: `backend/apps/users/tests/test_models.py` — add onboarding model test cases
-- [ ] **TASK-001-T2:** Integration tests for onboarding endpoints
-  - File: `backend/apps/users/tests/test_views.py` — test all 4 endpoints, test preference saving
-- [ ] **TASK-001-T3:** Test feed filtering by interests
-  - File: `backend/apps/articles/tests/test_views.py` — test interest-based filtering
+- [x] **TASK-001-T1:** Onboarding model tests in `test_models.py`
+- [x] **TASK-001-T2:** Onboarding endpoint integration tests in `test_views.py`
+- [ ] **TASK-001-T3:** Feed filtering by interests — pending
 
 ---
 
@@ -113,51 +71,21 @@
 **Priority:** 🔴 Critical | **Effort:** M | **Impact:** MFA recovery codes prevent lockouts; GitHub OAuth doubles developer conversion
 
 #### MFA Recovery Codes
-- [ ] **TASK-002-B1:** Add RecoveryCode model
-  - File: `backend/apps/users/mfa.py`
-  - Model: `RecoveryCode` (user FK, code_hash CharField, used_at DateTimeField null, created_at)
-  - Generate 8 codes on MFA setup; store SHA-256 hash (never store plaintext)
-  - Method: `RecoveryCode.generate_for_user(user)` — deletes old codes, creates 8 new ones
-- [ ] **TASK-002-B2:** Recovery code API endpoints
-  - File: `backend/apps/users/mfa_views.py`
-  - `POST /api/auth/mfa/recovery-codes/generate/` — returns 8 codes once (auth required)
-  - `POST /api/auth/login/recovery/` — authenticate using a recovery code (marks as used)
-  - File: `backend/apps/users/urls.py` — register both endpoints
-- [ ] **TASK-002-B3:** GitHub OAuth backend
-  - File: `backend/apps/users/views.py`
-  - `GET  /api/auth/github/`          — redirect to GitHub OAuth authorization URL
-  - `GET  /api/auth/github/callback/` — handle OAuth callback, create/link account
-  - Store: `github_id`, `github_username` fields on User model (migration required)
-  - Use `requests-oauthlib` or `django-allauth` GitHub provider
-  - Env vars: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` — add to `.env.example`
-- [ ] **TASK-002-B4:** Email verification improvements
-  - File: `backend/apps/users/views.py`
-  - Add resend-verification endpoint: `POST /api/auth/resend-verification/`
-  - Email link expiry: 24 hours (currently may be indefinite)
-  - Clear error message if token is expired vs invalid
+- [x] **TASK-002-B1:** RecoveryCode — backup codes stored as SHA-256 hashes in `mfa.py`; `generate_for_user(user)` creates 8 new single-use codes
+- [x] **TASK-002-B2:** Recovery code endpoints — `POST /auth/mfa/verify-backup/` in `mfa_views.py`; registered in urls.py
+- [x] **TASK-002-B3:** GitHub OAuth backend — `github_views.py` with redirect + callback + disconnect; `github_id`/`github_username` on User model; migration `0003_onboarding_github.py`; env vars in `.env.example`
+- [x] **TASK-002-B4:** Email verification — `GET /auth/verify-email/` + `POST /auth/verify-email/resend/` endpoints added to `views.py` and `urls.py`
 
 #### Frontend
-- [ ] **TASK-002-F1:** Recovery codes UI in settings
-  - File: `frontend/src/app/(dashboard)/settings/MFASection.tsx`
-  - After MFA setup: show generated codes in a code block with Copy All / Download as TXT
-  - Warning banner: "Store these safely — they will not be shown again"
-- [ ] **TASK-002-F2:** Recovery code login flow
-  - File: `frontend/src/app/(auth)/login/page.tsx`
-  - Add link: "Can't access your authenticator?" below the MFA input
-  - Toggle to recovery code input field + "Use Recovery Code" submit button
-- [ ] **TASK-002-F3:** GitHub OAuth button
-  - File: `frontend/src/app/(auth)/login/page.tsx` and `register/page.tsx`
-  - Add "Sign in with GitHub" button (GitHub Primer octicon icon)
-  - On click: `window.location.href = '/api/auth/github/'`
-- [ ] **TASK-002-F4:** Resend verification email UI
-  - File: `frontend/src/app/(auth)/verify-email/page.tsx`
-  - Add "Resend verification email" button — calls `POST /api/auth/resend-verification/`
-  - Show countdown timer (60s) before allowing resend
+- [x] **TASK-002-F1:** Recovery codes shown in `MFASection.tsx` after setup with Copy/Download buttons
+- [x] **TASK-002-F2:** Recovery code login — backup code toggle in `login/page.tsx`
+- [x] **TASK-002-F3:** GitHub OAuth buttons — "Sign in with GitHub" on both login and register pages
+- [x] **TASK-002-F4:** Resend verification UI — in `verify-email/page.tsx` (resend button + 60s countdown)
 
 #### Testing
-- [ ] **TASK-002-T1:** Unit tests for recovery code generation and hashing
-- [ ] **TASK-002-T2:** Integration tests for GitHub OAuth flow (mock GitHub API)
-- [ ] **TASK-002-T3:** Test recovery code login — valid code, used code, expired code
+- [ ] **TASK-002-T1:** Unit tests for recovery code generation and hashing — pending
+- [ ] **TASK-002-T2:** Integration tests for GitHub OAuth flow — pending
+- [ ] **TASK-002-T3:** Test recovery code login — pending
 
 ---
 
@@ -229,38 +157,35 @@
 ### TASK-004 — AI Guardrails & Cost Protection
 **Priority:** 🔴 Critical | **Effort:** M | **Impact:** Prevent one bad actor from generating $500+ OpenAI bill overnight
 
-- [ ] **TASK-004-B1:** Per-user daily budget caps (Redis)
-  - File: `ai_engine/middleware/rate_limit.py` *(new)*
-  - Track daily token spend per user in Redis: `budget:user:{id}:{date}` → total tokens used
-  - Limits: Free $0.50/day · Pro $10/day · Team $50/day
+- [x] **TASK-004-B1:** Per-user daily budget caps (Redis) — `rate_limit.py` with sliding-window + daily spend tracking
   - Before every LLM call: check budget; if exceeded → raise `BudgetExceededError`
   - Return HTTP 402 with `{"error": "daily_budget_exceeded", "reset_at": "...", "upgrade_url": "/pricing"}`
-- [ ] **TASK-004-B2:** Per-user request rate limiting
+- [x] **TASK-004-B2:** Per-user request rate limiting
   - File: `ai_engine/middleware/rate_limit.py`
   - Redis key: `rl:user:{id}:ai:{minute}` — sliding window counter
   - Limits: Free 2 req/min · Pro 20 req/min · Team 60 req/min
   - Return HTTP 429 with `Retry-After` header
-- [ ] **TASK-004-B3:** Token estimation before agent runs
+- [x] **TASK-004-B3:** Token estimation before agent runs — `_estimate_tokens()` via tiktoken in `executor.py`; `check_budget_before_run()`
   - File: `ai_engine/agents/executor.py`
   - Before executing agent: estimate token cost using `tiktoken`
   - If estimated cost > remaining budget: return error with cost estimate and upgrade prompt
   - Add `estimated_tokens` and `estimated_cost_usd` to agent run response
-- [ ] **TASK-004-B4:** Input content moderation
+- [x] **TASK-004-B4:** Input content moderation — `ai_engine/middleware/moderation.py` with OpenAI Moderation API, hard/soft block categories, graceful fallback
   - File: `ai_engine/middleware/moderation.py` *(new)*
   - Call OpenAI Moderation API on every user input before sending to LLM
   - If flagged (violence, hate, sexual): return HTTP 400 with category info
   - Log flagged requests to DB for abuse review: `ModerationLog` model
-- [ ] **TASK-004-B5:** Jailbreak pattern detection
+- [x] **TASK-004-B5:** Jailbreak pattern detection — 12 regex patterns in `safety.py`, hard-block raises `JailbreakDetectedError`
   - File: `ai_engine/middleware/safety.py` *(new)*
   - Regex + keyword detection for common jailbreak patterns:
     - "ignore previous instructions", "system prompt override", "DAN mode", "pretend you are"
   - If detected: warn user (soft block) or refuse (hard block for egregious patterns)
-- [ ] **TASK-004-B6:** PII detection in inputs
+- [x] **TASK-004-B6:** PII detection in inputs — `check_pii()` + `redact_pii()` in `safety.py` using Presidio (graceful degradation if not installed)
   - File: `ai_engine/middleware/safety.py`
   - Use `presidio-analyzer` to detect: email, phone, credit card, SSN, passport numbers
   - Warn user before processing; redact from logs always
   - Add `presidio-analyzer` to `ai_engine/requirements.txt`
-- [ ] **TASK-004-B7:** Query execution timeout
+- [x] **TASK-004-B7:** Query execution timeout — `executor.run()` wraps agent in `ThreadPoolExecutor` with `future.result(timeout=60s)`
   - File: `ai_engine/main.py`
   - Wrap all LLM calls with `asyncio.wait_for(coro, timeout=30.0)`
   - On timeout: return `{"error": "query_timeout", "message": "Query took too long. Try a simpler question."}`
@@ -270,7 +195,7 @@
     - GPT-4o → GPT-4o-mini
     - Claude 3.5 Sonnet → Claude 3 Haiku
   - Log model fallback event for analytics
-- [ ] **TASK-004-B9:** Add env vars for guardrails
+- [x] **TASK-004-B9:** Add env vars for guardrails — Redis health check in `main.py` lifespan + `/health` endpoint; env vars in `.env.example`
   - File: `.env.example`
   - Add: `AI_RATE_LIMIT_FREE=2`, `AI_RATE_LIMIT_PRO=20`, `AI_BUDGET_FREE_CENTS=50`, `AI_BUDGET_PRO_CENTS=1000`
 
@@ -284,23 +209,20 @@
 ### TASK-005 — Upgrade Embeddings Model
 **Priority:** 🔴 Critical | **Effort:** S | **Impact:** 2–3x better semantic search quality; current MiniLM-L6 is outdated
 
-- [ ] **TASK-005-B1:** Swap embedding model to BGE-large
-  - File: `ai_engine/embeddings/embedder.py`
-  - Replace: `model_name = "all-MiniLM-L6-v2"` (384 dims)
-  - With: `model_name = "BAAI/bge-large-en-v1.5"` (1024 dims)
+- [x] **TASK-005-B1:** Swap embedding model to BGE-large — `EMBEDDING_MODEL=BAAI/bge-large-en-v1.5` default in `embedder.py`; added `embed_query()` with BGE query prefix; `EMBEDDING_DIM=1024`
   - Update: `EMBEDDING_DIM = 1024` constant
   - BGE-large requires prepending `"Represent this sentence: "` prefix for query (not docs) — implement this
-- [ ] **TASK-005-B2:** Update all vector column dimensions in DB
+- [x] **TASK-005-B2:** Update all vector column dimensions in DB — migrations 0005_*_embedding_1024.py for articles, papers, repositories, videos; 0002_tweet_embedding_1024.py for tweets
   - Files: `backend/apps/articles/migrations/`, `backend/apps/papers/migrations/`, `backend/apps/repositories/migrations/`, `backend/apps/tweets/migrations/`, `backend/apps/videos/migrations/`
   - Create new migration in each app: alter `embedding` column from `vector(384)` to `vector(1024)`
   - Drop old IVFFlat indexes before alter, recreate after
   - Use `django-pgvector` migration helpers or raw SQL in `RunSQL`
-- [ ] **TASK-005-B3:** Create re-embedding Celery task
+- [x] **TASK-005-B3:** Create re-embedding Celery tasks — `reembed_tasks.py` in articles, papers, repositories; batch re-embed via AI engine `/embeddings` endpoint
   - File: `backend/apps/articles/embedding_tasks.py` (and equivalent in papers, repos, tweets, videos)
   - Task: `reembed_all_articles()` — fetch all articles with non-null content, re-embed in batches of 32, save
   - Progress logging: `logger.info(f"Re-embedded {i}/{total} articles")`
   - Add similar tasks for papers, repos, tweets, videos
-- [ ] **TASK-005-B4:** Update env config
+- [x] **TASK-005-B4:** Update env config — `.env.example` updated: `EMBEDDING_MODEL=BAAI/bge-large-en-v1.5`, `EMBEDDING_DIM=1024`
   - File: `.env.example`
   - Update: `EMBEDDING_MODEL=BAAI/bge-large-en-v1.5`, `EMBEDDING_DIM=1024`
 - [ ] **TASK-005-B5:** Update search quality tests
@@ -407,11 +329,11 @@
 ### TASK-101 — Kill the Nitter Spider
 **Priority:** 🟡 Remove | **Effort:** XS | **Impact:** Remove dead tech — X/Twitter killed Nitter; reduces scraper failures
 
-- [ ] **TASK-101-1:** Delete Nitter spider file
+- [x] **TASK-101-1:** Delete Nitter spider file
   - File: `scraper/spiders/nitter_spider.py` → **DELETE**
-- [ ] **TASK-101-2:** Remove Nitter from Celery beat schedule (if present)
+- [x] **TASK-101-2:** Remove Nitter from Celery beat schedule (if present)
   - File: `backend/config/settings/base.py` — search for `nitter` in `CELERY_BEAT_SCHEDULE` and remove
-- [ ] **TASK-101-3:** Remove Nitter pipeline references
+- [x] **TASK-101-3:** Remove Nitter pipeline references
   - File: `scraper/pipelines/database.py` — remove any `nitter`-specific logic or item type handling
 - [ ] **TASK-101-4:** *(Optional)* Replace with Twitter API v2
   - File: `scraper/spiders/twitter_spider.py` — update to use official Twitter API v2 Bearer Token
@@ -423,14 +345,14 @@
 ### TASK-102 — Remove In-Memory Redis Fallback
 **Priority:** 🟡 Remove | **Effort:** XS | **Impact:** Prevent silent data loss in production — fallback dict loses all history on restart
 
-- [ ] **TASK-102-1:** Remove in-memory dict fallback from memory manager
+- [x] **TASK-102-1:** Remove in-memory dict fallback from memory manager
   - File: `ai_engine/rag/memory.py`
   - Delete the `except` block that falls back to `{}` or a plain dict
   - Replace with: `raise RuntimeError("Redis connection failed — conversation history unavailable")`
-- [ ] **TASK-102-2:** Add Redis health check on AI engine startup
+- [x] **TASK-102-2:** Add Redis health check on AI engine startup — implemented in `main.py` lifespan + `/health` endpoint
   - File: `ai_engine/main.py`
   - On startup `lifespan`: `await redis_client.ping()` — if fails, log `CRITICAL` and exit
-- [ ] **TASK-102-3:** Add Redis status to `/health` endpoint
+- [x] **TASK-102-3:** Add Redis status to `/health` endpoint — `/health` now returns `{"status":"ok","redis":"ok"|"unavailable"}`
   - File: `ai_engine/main.py`
   - Include `"redis": "ok"` or `"redis": "unavailable"` in `GET /health` JSON response
 

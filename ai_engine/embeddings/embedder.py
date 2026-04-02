@@ -1,15 +1,20 @@
 """
 ai_engine.embeddings.embedder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Embedding generation using sentence-transformers (all-MiniLM-L6-v2).
+Embedding generation using sentence-transformers.
 
-Model choice:
-  - Primary (and only): sentence-transformers/all-MiniLM-L6-v2 (384 dims, local, free)
-  - No OpenAI or external embedding API is used — EMBEDDING_PROVIDER=local always.
+Model choice (TASK-005):
+  - Default: BAAI/bge-large-en-v1.5 (1024 dims) — state-of-the-art retrieval quality
+  - Fallback: all-MiniLM-L6-v2 (384 dims) — faster, lower quality
+  - Configurable via EMBEDDING_MODEL env var.
+
+BGE-large query prefix:
+  Queries (not documents) should be prefixed with "Represent this sentence for searching relevant passages: "
+  for best retrieval performance. The embedder applies this automatically when embed_query() is called.
 
 Batch processing defaults: 32 items per batch (configurable via env).
 
-Phase 2.3 — Vector embeddings & semantic search (pgvector)
+TASK-005 — Upgrade Embeddings to BAAI/bge-large-en-v1.5
 """
 from __future__ import annotations
 
@@ -21,8 +26,15 @@ from typing import List, Optional
 logger = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
-_MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+# Default to BAAI/bge-large-en-v1.5 (1024 dims) — TASK-005
+_MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
 _BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE", "32"))
+_EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", "1024"))
+
+# BGE query prefix (required for best retrieval performance with BGE models)
+# Only applied when embed_query() is called, NOT when embed() / embed_batch() are called.
+_BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+
 # EMBEDDING_PROVIDER is always "local" — sentence-transformers, no API key needed.
 
 # Singleton instance (loaded lazily)
@@ -37,7 +49,8 @@ class SynapseEmbedder:
 
     def __init__(self) -> None:
         self._model = None
-        self.dimensions: int = 384
+        self.dimensions: int = _EMBEDDING_DIM
+        self._model_name: str = _MODEL_NAME
         self._load_model()
 
     # ── Model Loading ──────────────────────────────────────────────────────────
@@ -64,6 +77,29 @@ class SynapseEmbedder:
             raise
 
     # ── Public API ─────────────────────────────────────────────────────────────
+
+    def embed_query(self, query: str) -> List[float]:
+        """
+        Generate an embedding for a search QUERY string.
+
+        For BGE models, automatically prepends the required query prefix:
+          "Represent this sentence for searching relevant passages: "
+
+        This prefix significantly improves retrieval quality for BGE models.
+        Do NOT use this prefix for documents — only for queries.
+
+        TASK-005
+        """
+        if not query or not query.strip():
+            return [0.0] * self.dimensions
+
+        # Apply BGE query prefix for BGE models
+        if "bge" in _MODEL_NAME.lower():
+            prefixed = f"{_BGE_QUERY_PREFIX}{query}"
+        else:
+            prefixed = query
+
+        return self._embed_local([_truncate_text(prefixed)])[0]
 
     def embed(self, text: str) -> List[float]:
         """
