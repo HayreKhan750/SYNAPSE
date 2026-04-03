@@ -11,6 +11,33 @@ const config: Config = {
         'xs': '480px',
       },
       colors: {
+        // ── TASK-401-1: Brand design tokens ──────────────────────────────────
+        // Primary brand colour — Indigo (replaces ad-hoc indigo-* classes)
+        brand: {
+          50:  '#eef2ff',
+          100: '#e0e7ff',
+          200: '#c7d2fe',
+          300: '#a5b4fc',
+          400: '#818cf8',
+          500: '#6366f1',   // ← canonical brand colour
+          600: '#4f46e5',
+          700: '#4338ca',
+          800: '#3730a3',
+          900: '#312e81',
+          950: '#1e1b4b',
+        },
+        // Surface tokens — semantic background layers
+        surface: {
+          base:    'var(--surface-base)',    // page background
+          raised:  'var(--surface-raised)',  // cards, panels
+          overlay: 'var(--surface-overlay)', // modals, popovers
+        },
+        // Semantic text tokens
+        'text-brand': {
+          primary:   'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted:     'var(--text-muted)',
+        },
         primary: {
           50: '#eef2ff',
           100: '#e0e7ff',

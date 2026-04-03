@@ -67,11 +67,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
+      {/* TASK-401-2: ThemeProvider — respect OS prefers-color-scheme on first visit,
+           store preference in localStorage via next-themes built-in mechanism */}
       <ThemeProvider
         attribute="class"
-        defaultTheme="light"
-        enableSystem={false}
+        defaultTheme="system"
+        enableSystem={true}
         disableTransitionOnChange={false}
+        storageKey="synapse-theme"
       >
         <QueryClientProvider client={queryClient}>
           <UpgradeModalProvider>

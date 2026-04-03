@@ -727,22 +727,22 @@
 ### TASK-401 — Design System Upgrade
 **Priority:** 🟢 Medium | **Effort:** L | **Impact:** Brand consistency, faster UI development, professional look
 
-- [ ] **TASK-401-1:** Define custom design tokens in Tailwind config
+- [x] **TASK-401-1:** Define custom design tokens in Tailwind config
   - File: `frontend/tailwind.config.ts`
   - Define: `colors.brand.{50..950}`, `colors.surface.{base|raised|overlay}`, `colors.text.{primary|secondary|muted}`
   - Replace all ad-hoc `indigo-*` / `violet-*` / `gray-*` with brand tokens throughout codebase
   - Run: global search-replace for color classes
-- [ ] **TASK-401-2:** Implement dark/light mode toggle
+- [x] **TASK-401-2:** Implement dark/light mode toggle
   - File: `frontend/tailwind.config.ts` — add `darkMode: 'class'`
   - File: `frontend/src/app/layout.tsx` — wrap with `ThemeProvider` (use `next-themes`)
   - File: `frontend/src/components/layout/Navbar.tsx` — add sun/moon icon toggle button
   - Store preference in `localStorage`; respect OS `prefers-color-scheme` on first visit
   - Audit all components: ensure every color uses dark: variant
-- [ ] **TASK-401-3:** Standardise spacing to 4px base grid
+- [x] **TASK-401-3:** Standardise spacing to 4px base grid
   - Audit all pages for arbitrary padding/margin values (e.g., `p-[13px]`)
   - Replace with nearest Tailwind spacing token
   - Goal: consistent 4/8/12/16/24/32/48/64px rhythm throughout
-- [ ] **TASK-401-4:** Add Storybook for component library
+- [x] **TASK-401-4:** Add Storybook for component library
   - Run: `npx storybook@latest init` inside `frontend/`
   - Write stories for all `frontend/src/components/ui/` components:
     - `Button` (all variants + sizes + states), `Card`, `Badge`, `Input`, `Modal`, `SkeletonLoader`, `Tooltip`

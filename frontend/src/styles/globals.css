@@ -60,6 +60,14 @@ input:-webkit-autofill:active {
     --warning:    #f59e0b;
     --error:      #ef4444;
 
+    /* ── TASK-401-1: Semantic surface tokens (Tailwind surface-* / text-brand-*) */
+    --surface-base:    #f8fafc;   /* slate-50  — page bg  */
+    --surface-raised:  #ffffff;   /* white     — cards     */
+    --surface-overlay: #ffffff;   /* white     — modals    */
+    --text-primary:   #0f172a;   /* slate-900 */
+    --text-secondary: #475569;   /* slate-600 */
+    --text-muted:     #94a3b8;   /* slate-400 */
+
     /* Surfaces */
     --bg-base:    #f8fafc;   /* slate-50  — page background */
     --bg-card:    #ffffff;   /* pure white cards */
@@ -85,6 +93,14 @@ input:-webkit-autofill:active {
   }
 
   .dark {
+    /* ── TASK-401-1: Dark mode surface tokens */
+    --surface-base:    #0f172a;
+    --surface-raised:  #1e293b;
+    --surface-overlay: #1e293b;
+    --text-primary:   #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted:     #64748b;
+
     --bg-base:    #0f172a;
     --bg-card:    #1e293b;
     --bg-raised:  #1e293b;
