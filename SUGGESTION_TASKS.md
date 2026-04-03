@@ -690,11 +690,11 @@
 **Priority:** 🟢 Medium | **Effort:** M | **Impact:** User stickiness + community-driven growth
 
 #### Backend
-- [ ] **TASK-306-B1:** Create PromptTemplate model
+- [x] **TASK-306-B1:** Create PromptTemplate model
   - File: `backend/apps/agents/models.py`
   - Fields: `title, description, content (TextField), category (CharField), author (FK User), is_public (bool), use_count (int), upvotes (int), created_at`
   - Categories: Research / Coding / Writing / Analysis / Business / Creative
-- [ ] **TASK-306-B2:** Prompt library API endpoints
+- [x] **TASK-306-B2:** Prompt library API endpoints
   - File: `backend/apps/agents/views.py`
   - `GET  /api/prompts/`         — list public prompts (filter by `?category=`, `?sort=popular|newest`)
   - `POST /api/prompts/`         — create prompt (authenticated)
@@ -704,13 +704,13 @@
   - `GET  /api/prompts/my/`     — list user's own prompts
 
 #### Frontend
-- [ ] **TASK-306-F1:** Prompt Library page
+- [x] **TASK-306-F1:** Prompt Library page
   - File: `frontend/src/app/(dashboard)/prompts/page.tsx` *(new)*
   - Category filter tabs: All / Research / Coding / Writing / Analysis
   - Sort: Popular / Newest / My Prompts
   - Prompt card: title, description, author, use count, upvote button
   - "Use Prompt" → opens agent runner or chat with prompt pre-filled
-- [ ] **TASK-306-F2:** Prompt picker in agent/chat UI
+- [x] **TASK-306-F2:** Prompt picker in agent/chat UI
   - File: `frontend/src/app/(dashboard)/agents/page.tsx` and `chat/page.tsx`
   - "📚 Browse Prompts" button → opens prompt picker modal
   - Search prompts inline, click to insert into input field

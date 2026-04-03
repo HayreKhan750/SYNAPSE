@@ -24,6 +24,7 @@ import {
   MicOff,
   Volume2,
   VolumeX,
+  BookOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -1082,6 +1083,15 @@ export default function ChatPage() {
                 >
                   <Paperclip size={18} />
                 </button>
+
+                {/* TASK-306-F2: Browse Prompts button */}
+                <Link
+                  href="/prompts"
+                  title="Browse Prompt Library"
+                  className="flex-shrink-0 p-2 rounded-full text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <BookOpen size={18} />
+                </Link>
 
                 {/* TASK-304-F1: Mic button — click to start/stop recording */}
                 <button

@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
-from apps.users.models import User
+from django.conf import settings
+
 
 class AgentTask(models.Model):
     class TaskStatus(models.TextChoices):
@@ -10,7 +11,7 @@ class AgentTask(models.Model):
         FAILED     = 'failed',     'Failed'
 
     id             = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user           = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_tasks')
+    user           = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='agent_tasks')
     task_type      = models.CharField(max_length=200)
     prompt         = models.TextField()
     status         = models.CharField(max_length=20, choices=TaskStatus.choices, default=TaskStatus.PENDING)
@@ -28,3 +29,56 @@ class AgentTask(models.Model):
 
     def __str__(self):
         return f"{self.task_type} — {self.status}"
+
+
+# ── TASK-306-B1: Prompt Library ───────────────────────────────────────────────
+
+class PromptTemplate(models.Model):
+    """Community-shared prompt templates for the Prompt Library (TASK-306)."""
+
+    class Category(models.TextChoices):
+        RESEARCH  = 'research',  'Research'
+        CODING    = 'coding',    'Coding'
+        WRITING   = 'writing',   'Writing'
+        ANALYSIS  = 'analysis',  'Analysis'
+        BUSINESS  = 'business',  'Business'
+        CREATIVE  = 'creative',  'Creative'
+
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title       = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    content     = models.TextField()   # the actual prompt text
+    category    = models.CharField(max_length=50, choices=Category.choices, default=Category.RESEARCH)
+    author      = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='prompt_templates',
+    )
+    is_public   = models.BooleanField(default=True)
+    use_count   = models.PositiveIntegerField(default=0)
+    upvotes     = models.PositiveIntegerField(default=0)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'prompt_templates'
+        ordering = ['-upvotes', '-use_count', '-created_at']
+        indexes  = [
+            models.Index(fields=['category', '-upvotes'], name='pt_cat_upvotes_idx'),
+            models.Index(fields=['author', '-created_at'], name='pt_author_created_idx'),
+            models.Index(fields=['is_public', '-created_at'], name='pt_public_created_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({self.category})"
+
+
+class PromptUpvote(models.Model):
+    """One upvote per user per prompt (toggle model)."""
+    user   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='prompt_upvotes')
+    prompt = models.ForeignKey(PromptTemplate, on_delete=models.CASCADE, related_name='upvote_records')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table        = 'prompt_upvotes'
+        unique_together = [('user', 'prompt')]

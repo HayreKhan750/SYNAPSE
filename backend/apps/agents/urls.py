@@ -24,4 +24,11 @@ urlpatterns = [
 
     # Health
     path("health/", views.agent_health, name="agent-health"),
+
+    # ── TASK-306-B2: Prompt Library ──────────────────────────────────────────
+    path("prompts/",                          views.PromptListCreateView.as_view(), name="prompt-list-create"),
+    path("prompts/my/",                       views.MyPromptsView.as_view(),        name="prompt-my"),
+    path("prompts/<uuid:pk>/",                views.PromptDetailView.as_view(),     name="prompt-detail"),
+    path("prompts/<uuid:pk>/use/",            views.PromptUseView.as_view(),        name="prompt-use"),
+    path("prompts/<uuid:pk>/upvote/",         views.PromptUpvoteView.as_view(),     name="prompt-upvote"),
 ]

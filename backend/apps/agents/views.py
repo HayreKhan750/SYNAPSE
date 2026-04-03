@@ -38,7 +38,7 @@ if _PROJECT_ROOT not in sys.path:
 
 from apps.core.pagination import StandardPagination
 
-from .models import AgentTask
+from .models import AgentTask, PromptTemplate, PromptUpvote
 from .serializers import (
     AgentTaskCreateSerializer,
     AgentTaskListSerializer,
@@ -331,3 +331,120 @@ def agent_health(request: Request) -> Response:
             {"status": "error", "error": str(exc)},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+
+# ── TASK-306-B2: Prompt Library endpoints ────────────────────────────────────
+
+from .serializers import (  # noqa: E402 — local import after models
+    PromptTemplateSerializer,
+    PromptTemplateListSerializer,
+    PromptTemplateCreateSerializer,
+)
+
+
+class PromptListCreateView(APIView):
+    """
+    GET  /api/v1/agents/prompts/  — list public prompts
+    POST /api/v1/agents/prompts/  — create a new prompt (auth required)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        category = request.query_params.get('category', '').strip().lower()
+        sort     = request.query_params.get('sort', 'popular')  # popular | newest
+
+        qs = PromptTemplate.objects.filter(is_public=True).select_related('author')
+        if category and category != 'all':
+            qs = qs.filter(category=category)
+        if sort == 'newest':
+            qs = qs.order_by('-created_at')
+        else:
+            qs = qs.order_by('-upvotes', '-use_count', '-created_at')
+
+        paginator = StandardPagination()
+        page      = paginator.paginate_queryset(qs, request)
+        serializer = PromptTemplateListSerializer(
+            page if page is not None else qs,
+            many=True,
+            context={'request': request},
+        )
+        if page is not None:
+            return paginator.get_paginated_response(serializer.data)
+        return Response({'success': True, 'data': serializer.data})
+
+    def post(self, request: Request) -> Response:
+        serializer = PromptTemplateCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        prompt = serializer.save(author=request.user)
+        return Response(
+            {'success': True, 'data': PromptTemplateSerializer(prompt, context={'request': request}).data},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PromptDetailView(APIView):
+    """GET /api/v1/agents/prompts/{id}/ — get single prompt."""
+    permission_classes = [IsAuthenticated]
+
+    def _get_prompt(self, pk, user):
+        try:
+            p = PromptTemplate.objects.select_related('author').get(pk=pk)
+        except PromptTemplate.DoesNotExist:
+            return None
+        if not p.is_public and p.author != user:
+            return None
+        return p
+
+    def get(self, request: Request, pk) -> Response:
+        prompt = self._get_prompt(pk, request.user)
+        if not prompt:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+        return Response({'success': True, 'data': PromptTemplateSerializer(prompt, context={'request': request}).data})
+
+
+class PromptUseView(APIView):
+    """POST /api/v1/agents/prompts/{id}/use/ — increment use_count, return content."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, pk) -> Response:
+        try:
+            prompt = PromptTemplate.objects.get(pk=pk)
+        except PromptTemplate.DoesNotExist:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+        if not prompt.is_public and prompt.author != request.user:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+        PromptTemplate.objects.filter(pk=pk).update(use_count=prompt.use_count + 1)
+        return Response({'success': True, 'data': {'content': prompt.content, 'title': prompt.title}})
+
+
+class PromptUpvoteView(APIView):
+    """POST /api/v1/agents/prompts/{id}/upvote/ — toggle upvote."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, pk) -> Response:
+        try:
+            prompt = PromptTemplate.objects.get(pk=pk)
+        except PromptTemplate.DoesNotExist:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+        existing = PromptUpvote.objects.filter(user=request.user, prompt=prompt).first()
+        if existing:
+            existing.delete()
+            PromptTemplate.objects.filter(pk=pk).update(upvotes=max(0, prompt.upvotes - 1))
+            upvoted = False
+        else:
+            PromptUpvote.objects.create(user=request.user, prompt=prompt)
+            PromptTemplate.objects.filter(pk=pk).update(upvotes=prompt.upvotes + 1)
+            upvoted = True
+        prompt.refresh_from_db()
+        return Response({'success': True, 'data': {'upvoted': upvoted, 'upvotes': prompt.upvotes}})
+
+
+class MyPromptsView(APIView):
+    """GET /api/v1/agents/prompts/my/ — list user's own prompts."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        qs = PromptTemplate.objects.filter(author=request.user).select_related('author')
+        serializer = PromptTemplateSerializer(qs, many=True, context={'request': request})
+        return Response({'success': True, 'data': serializer.data})
