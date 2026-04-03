@@ -3,6 +3,9 @@ from . import views
 
 urlpatterns = [
     path('health/', views.health_check, name='health-check'),
+    # ── TASK-305-B3: Daily Briefing ──────────────────────────────────────────
+    path('briefing/today/', views.TodayBriefingView.as_view(), name='briefing-today'),
+    path('briefing/history/', views.BriefingHistoryView.as_view(), name='briefing-history'),
     path('search/', views.global_search, name='global-search'),
     path('search/bm25/', views.bm25_search_view, name='bm25-search'),
     path('search/hybrid/', views.hybrid_search_view, name='hybrid-search'),

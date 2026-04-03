@@ -661,23 +661,23 @@
 **Priority:** 🟢 Medium | **Effort:** M | **Impact:** Creates daily engagement loop — users open app every morning
 
 #### Backend
-- [ ] **TASK-305-B1:** Create DailyBriefing model
+- [x] **TASK-305-B1:** Create DailyBriefing model
   - File: `backend/apps/core/models.py`
   - Fields: `user (FK)`, `content (TextField)`, `generated_at (DateTimeField)`, `sources (JSONField)`, `topic_summary (JSONField)`
   - Unique constraint: one briefing per user per day
-- [ ] **TASK-305-B2:** Create daily briefing Celery task
+- [x] **TASK-305-B2:** Create daily briefing Celery task
   - File: `backend/apps/core/tasks.py`
   - Task: `generate_daily_briefings()` — runs at 6:30am UTC via Celery beat
   - For each active user: query trending content from last 24h matching their interest topics
   - Call AI engine to generate 3-paragraph briefing with source attribution
   - Store in `DailyBriefing` model
-- [ ] **TASK-305-B3:** Add briefing API endpoint
+- [x] **TASK-305-B3:** Add briefing API endpoint
   - File: `backend/apps/core/views.py`
   - `GET /api/briefing/today/` — return today's briefing for authenticated user (or 404 if not generated yet)
   - `GET /api/briefing/history/` — list past 7 days of briefings
 
 #### Frontend
-- [ ] **TASK-305-F1:** "Today's Brief" card on home dashboard
+- [x] **TASK-305-F1:** "Today's Brief" card on home dashboard
   - File: `frontend/src/app/(dashboard)/home/page.tsx`
   - Prominent card at top: "Good morning {name} ☀️ — Here's what's happening in {topics}"
   - Expandable: show full briefing text

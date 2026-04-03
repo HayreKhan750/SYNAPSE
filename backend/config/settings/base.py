@@ -253,6 +253,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=8, minute=0),   # 08:00 UTC every day
         'options':  {'queue': 'default'},
     },
+    # TASK-305-B2: Daily AI Briefing — runs at 06:30 UTC every day
+    'daily-briefing-generation': {
+        'task':     'apps.core.tasks.generate_daily_briefings',
+        'schedule': crontab(hour=6, minute=30),  # 06:30 UTC every day
+        'options':  {'queue': 'default'},
+    },
 }
 # Track when a task transitions to STARTED (enables "processing" status in DB)
 CELERY_TASK_TRACK_STARTED = True
@@ -289,6 +295,7 @@ CELERY_TASK_ROUTES = {
     'apps.core.tasks.scrape_youtube':    {'queue': 'slow_scraping'},  # long-running — isolated
     'apps.core.tasks.scrape_twitter':    {'queue': 'scraping'},
     'apps.core.tasks.scrape_all':        {'queue': 'scraping'},
+    'apps.core.tasks.generate_daily_briefings': {'queue': 'default'},
     # Legacy prefixed names (older beat entries)
     'backend.apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_github':     {'queue': 'scraping'},

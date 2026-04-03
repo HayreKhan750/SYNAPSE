@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, Bookmark, MessageSquare, FileText, Twitter } from 'lucide-react';
+import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, Bookmark, MessageSquare, FileText, Twitter, Sun, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/utils/api';
 import { ArticleCard, RepositoryCard, PaperCard, TweetCard } from '@/components/cards';
@@ -81,6 +81,141 @@ function TrendStrip() {
       </div>
     </div>
   )
+}
+
+// ── TASK-305-F1: Today's Brief card ──────────────────────────────────────────
+function TodayBriefCard() {
+  const [expanded, setExpanded] = useState(false);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['briefing', 'today'],
+    queryFn: () => api.get('/briefing/today/').then(r => r.data?.data),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 p-6 animate-pulse">
+        <div className="h-5 w-48 bg-amber-200/60 dark:bg-amber-700/40 rounded mb-3" />
+        <div className="h-4 w-full bg-amber-100/80 dark:bg-amber-800/30 rounded mb-2" />
+        <div className="h-4 w-3/4 bg-amber-100/80 dark:bg-amber-800/30 rounded" />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-6 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+          <Sun size={20} className="text-amber-500" />
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">{greeting}! Your daily brief isn't ready yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Briefings are generated at 06:30 UTC. Check back soon.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const sources: any[] = Array.isArray(data.sources) ? data.sources : [];
+  const topics: string[] = data.topic_summary?.topics ?? [];
+  const paragraphs: string[] = data.content
+    ? data.content.split(/\n+/).filter(Boolean)
+    : [];
+  const preview = paragraphs[0] ?? '';
+  const rest    = paragraphs.slice(1);
+
+  return (
+    <div className="rounded-2xl border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-yellow-950/10 overflow-hidden">
+      {/* Header */}
+      <div className="px-6 pt-5 pb-3 flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm flex-shrink-0">
+            <Sun size={20} className="text-white" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              Today's Brief · {new Date(data.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+            <p className="text-base font-bold text-slate-800 dark:text-slate-100 mt-0.5">
+              {greeting}! Here's what's happening in tech
+              {topics.length > 0 ? ` — ${topics.slice(0, 3).join(', ')}` : ''}.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition-colors mt-1"
+        >
+          {expanded ? <><ChevronUp size={14} /> Collapse</> : <><ChevronDown size={14} /> Expand</>}
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="px-6 pb-4">
+        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{preview}</p>
+
+        {expanded && rest.length > 0 && (
+          <div className="mt-3 space-y-3 border-t border-amber-200/60 dark:border-amber-800/30 pt-3">
+            {rest.map((para, i) => (
+              <p key={i} className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{para}</p>
+            ))}
+          </div>
+        )}
+
+        {/* Sources */}
+        {sources.length > 0 && expanded && (
+          <div className="mt-4 pt-3 border-t border-amber-200/60 dark:border-amber-800/30">
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2">Sources</p>
+            <ol className="space-y-1">
+              {sources.slice(0, 10).map((src: any, i: number) => (
+                <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
+                  <span className="font-bold text-amber-500 flex-shrink-0">[{i + 1}]</span>
+                  {src.url ? (
+                    <a
+                      href={src.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-amber-600 dark:hover:text-amber-300 transition-colors flex items-center gap-1 underline underline-offset-2"
+                    >
+                      {src.title || src.url}
+                      <ExternalLink size={10} />
+                    </a>
+                  ) : (
+                    <span>{src.title}</span>
+                  )}
+                  <span className="text-slate-400 dark:text-slate-600 ml-auto flex-shrink-0 capitalize">{src.type}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {/* Footer actions */}
+        <div className="mt-4 flex items-center gap-3">
+          <Link
+            href={`/chat?brief=${data.date}`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-800/50 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <MessageSquare size={12} />
+            Ask follow-up
+          </Link>
+          {!expanded && sources.length > 0 && (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              {sources.length} source{sources.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const SectionHeader = ({ title, subtitle, href }: { title: string; subtitle?: string; href?: string }) => (
@@ -227,6 +362,9 @@ export default function Dashboard() {
         </div>
 
         <div className="px-6 space-y-10 mt-6">
+
+          {/* ── TASK-305-F1: Today's Brief ────────────────────────── */}
+          <TodayBriefCard />
 
           {/* ── Stats Row ─────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

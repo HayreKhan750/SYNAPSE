@@ -15,7 +15,8 @@ from apps.repositories.models import Repository
 from apps.repositories.serializers import RepositorySerializer
 from apps.papers.models import ResearchPaper
 from apps.papers.serializers import ResearchPaperSerializer
-from .models import UserBookmark, Collection, UserActivity
+from django.utils import timezone
+from .models import UserBookmark, Collection, UserActivity, DailyBriefing
 from .serializers import BookmarkSerializer, CollectionSerializer, CollectionListSerializer
 from .recommendations import recommend_for_user
 from .trending import get_trending
@@ -838,3 +839,51 @@ class CollectionBookmarkView(APIView):
             return Response({'success': False, 'error': {'message': 'Bookmark not found'}}, status=404)
         collection.bookmarks.remove(bookmark)
         return Response({'success': True, 'data': {'message': 'Bookmark removed from collection'}})
+
+
+# ── TASK-305-B3: Daily Briefing endpoints ────────────────────────────────────
+
+class TodayBriefingView(APIView):
+    """GET /api/briefing/today/ — return today's briefing or 404."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+        try:
+            briefing = DailyBriefing.objects.get(user=request.user, date=today)
+        except DailyBriefing.DoesNotExist:
+            return Response(
+                {'success': False, 'error': {'message': 'No briefing generated yet for today. Check back after 06:30 UTC.'}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({
+            'success': True,
+            'data': {
+                'id':            str(briefing.id),
+                'date':          briefing.date.isoformat(),
+                'content':       briefing.content,
+                'sources':       briefing.sources,
+                'topic_summary': briefing.topic_summary,
+                'generated_at':  briefing.generated_at.isoformat(),
+            }
+        })
+
+
+class BriefingHistoryView(APIView):
+    """GET /api/briefing/history/ — last 7 days of briefings."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        briefings = DailyBriefing.objects.filter(user=request.user).order_by('-date')[:7]
+        data = [
+            {
+                'id':            str(b.id),
+                'date':          b.date.isoformat(),
+                'content':       b.content,
+                'sources':       b.sources,
+                'topic_summary': b.topic_summary,
+                'generated_at':  b.generated_at.isoformat(),
+            }
+            for b in briefings
+        ]
+        return Response({'success': True, 'data': data})

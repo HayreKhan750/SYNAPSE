@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
+from django.utils import timezone
 
 
 class UserBookmark(models.Model):
@@ -141,3 +142,30 @@ class Conversation(models.Model):
             if msg.get('role') == 'human':
                 return msg['content'][:100]
         return f'Conversation {self.conversation_id[:8]}'
+
+
+class DailyBriefing(models.Model):
+    """AI-generated daily briefing personalised per user."""
+
+    id            = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user          = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='daily_briefings',
+    )
+    date          = models.DateField(default=timezone.localdate)
+    content       = models.TextField()          # 3-paragraph briefing text
+    sources       = models.JSONField(default=list)   # [{"title": ..., "url": ..., "type": ...}]
+    topic_summary = models.JSONField(default=dict)   # {"topics": [...], "sentiment": "..."}
+    generated_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table       = 'daily_briefings'
+        unique_together = [('user', 'date')]
+        ordering        = ['-date']
+        indexes = [
+            models.Index(fields=['user', '-date'], name='db_user_date_idx'),
+        ]
+
+    def __str__(self):
+        return f"Briefing for {self.user_id} on {self.date}"

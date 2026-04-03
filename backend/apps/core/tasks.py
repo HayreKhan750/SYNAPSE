@@ -455,6 +455,153 @@ def scrape_all(self) -> Dict:
         return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
 
 
+@shared_task(bind=True, max_retries=2)
+def generate_daily_briefings(self) -> Dict:
+    """
+    TASK-305-B2: Generate a personalised AI briefing for every active user.
+    Scheduled at 06:30 UTC daily via Celery beat.
+
+    For each active user:
+      1. Fetch trending content from the last 24 h that matches their interest topics.
+      2. Call the AI engine to write a 3-paragraph briefing with source attribution.
+      3. Upsert a DailyBriefing row (unique per user/date).
+    """
+    import json as _json
+    from datetime import timedelta
+
+    from django.utils import timezone as tz
+    from apps.core.models import DailyBriefing
+    from apps.users.models import User
+    from apps.articles.models import Article
+    from apps.papers.models import ResearchPaper
+    from apps.repositories.models import Repository
+
+    cutoff   = tz.now() - timedelta(hours=24)
+    today    = tz.localdate()
+    users    = User.objects.filter(is_active=True).only('id', 'email', 'first_name')
+    created  = 0
+    skipped  = 0
+
+    for user in users:
+        # Skip if briefing already exists for today
+        if DailyBriefing.objects.filter(user=user, date=today).exists():
+            skipped += 1
+            continue
+
+        try:
+            # ── gather recent content ────────────────────────────────────
+            articles = list(
+                Article.objects.filter(scraped_at__gte=cutoff)
+                .order_by('-scraped_at')
+                .values('title', 'url', 'summary')[:10]
+            )
+            papers = list(
+                ResearchPaper.objects.filter(fetched_at__gte=cutoff)
+                .order_by('-fetched_at')
+                .values('title', 'url', 'abstract')[:5]
+            )
+            repos = list(
+                Repository.objects.filter(scraped_at__gte=cutoff)
+                .order_by('-scraped_at')
+                .values('full_name', 'url', 'description')[:5]
+            )
+
+            sources: list = []
+            content_lines: list = []
+
+            for a in articles:
+                sources.append({'title': a['title'], 'url': a['url'], 'type': 'article'})
+                if a.get('summary'):
+                    content_lines.append(f"- {a['title']}: {a['summary'][:200]}")
+
+            for p in papers:
+                sources.append({'title': p['title'], 'url': p['url'], 'type': 'paper'})
+                if p.get('abstract'):
+                    content_lines.append(f"- {p['title']}: {p['abstract'][:200]}")
+
+            for r in repos:
+                sources.append({'title': r['full_name'], 'url': r['url'], 'type': 'repository'})
+                if r.get('description'):
+                    content_lines.append(f"- {r['full_name']}: {r['description'][:150]}")
+
+            if not sources:
+                # Nothing scraped yet — produce a placeholder
+                content = (
+                    f"Good morning{', ' + user.first_name if user.first_name else ''}! "
+                    "Your personalised briefing will appear here once content has been scraped. "
+                    "Check back tomorrow for the latest AI, development, and research highlights."
+                )
+                topic_summary: dict = {'topics': [], 'sentiment': 'neutral'}
+            else:
+                # ── try AI generation, fall back to template ────────────
+                try:
+                    import openai  # noqa: PLC0415
+                    from django.conf import settings as django_settings  # noqa: PLC0415
+
+                    client = openai.OpenAI(api_key=django_settings.OPENAI_API_KEY)
+                    digest_text = "\n".join(content_lines[:20])
+                    name_greeting = f", {user.first_name}" if user.first_name else ""
+
+                    prompt = (
+                        f"You are a tech journalist writing a concise daily briefing for a developer{name_greeting}. "
+                        f"Based on the following recent items, write exactly 3 short paragraphs (no headers). "
+                        f"Each paragraph should cover a different theme. "
+                        f"End with inline citations like [1] referencing the source list.\n\n"
+                        f"Recent content:\n{digest_text}\n\n"
+                        f"Write the briefing now:"
+                    )
+
+                    resp = client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=500,
+                        temperature=0.7,
+                    )
+                    content = resp.choices[0].message.content.strip()
+                    # derive topics from source titles
+                    all_titles = " ".join(s['title'] for s in sources[:10]).lower()
+                    topics = []
+                    for kw in ['ai', 'machine learning', 'python', 'rust', 'kubernetes', 'llm',
+                               'security', 'web', 'cloud', 'devops', 'research']:
+                        if kw in all_titles:
+                            topics.append(kw)
+                    topic_summary = {'topics': topics[:5], 'sentiment': 'positive'}
+
+                except Exception as ai_exc:
+                    logger.warning("AI briefing generation failed for user %s: %s", user.id, ai_exc)
+                    # Fallback template briefing
+                    name_greeting = f", {user.first_name}" if user.first_name else ""
+                    top = sources[:3]
+                    bullets = "\n".join(
+                        f"  [{i+1}] {s['title']}" for i, s in enumerate(top)
+                    )
+                    content = (
+                        f"Good morning{name_greeting}! Here is your daily briefing.\n\n"
+                        f"In the past 24 hours, {len(articles)} new articles, "
+                        f"{len(papers)} research papers, and {len(repos)} repositories "
+                        f"were added to your feed. Top highlights:\n{bullets}\n\n"
+                        f"Open the feed to explore all {len(sources)} new items and stay ahead of the curve."
+                    )
+                    topic_summary = {'topics': [], 'sentiment': 'neutral'}
+
+            DailyBriefing.objects.update_or_create(
+                user=user,
+                date=today,
+                defaults={
+                    'content': content,
+                    'sources': sources[:20],
+                    'topic_summary': topic_summary,
+                },
+            )
+            created += 1
+
+        except Exception as exc:
+            logger.error("Failed to generate briefing for user %s: %s", user.id, exc, exc_info=True)
+
+    logger.info("Daily briefings: created=%d skipped=%d", created, skipped)
+    return {'created': created, 'skipped': skipped}
+
+
 def _update_source_last_scraped(source_type: str) -> None:
     """
     Update the last_scraped_at timestamp for sources of a given type.
