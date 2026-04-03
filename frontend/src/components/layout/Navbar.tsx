@@ -4,7 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2, CreditCard, Zap } from 'lucide-react'
+import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2, CreditCard, Zap, Command } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/utils/api'
@@ -45,6 +45,7 @@ function PlanBadge() {
 interface NavbarProps {
   onMenuClick?: () => void
   onMobileMenuClick: () => void
+  onSearchClick?: () => void   // TASK-402-4: trigger command palette
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -280,7 +281,7 @@ const NotificationDropdown = React.memo(function NotificationDropdown({ onClose 
 
 // ── Main Navbar ───────────────────────────────────────────────────────────────
 
-export const Navbar = React.memo(function Navbar({ onMobileMenuClick }: NavbarProps) {
+export const Navbar = React.memo(function Navbar({ onMobileMenuClick, onSearchClick }: NavbarProps) {
   // Real-time WebSocket notifications — connects once per session
   useNotificationSocket()
 
@@ -388,19 +389,19 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick }: NavbarPr
           <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{getPageTitle()}</h1>
         </div>
 
-        {/* Center: Search */}
+        {/* Center: Search — TASK-402-4: pill triggers ⌘K command palette */}
         <div className="hidden md:flex flex-1 max-w-md mx-8">
-          <div className="w-full relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearch}
-              placeholder="Search articles, papers, repos..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          <button
+            onClick={onSearchClick}
+            className="w-full flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 dark:text-slate-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-white dark:hover:bg-slate-700/60 transition-colors text-sm"
+            aria-label="Open search (⌘K)"
+          >
+            <Search size={16} className="flex-shrink-0" />
+            <span className="flex-1 text-left">Search articles, papers, repos…</span>
+            <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-[11px] font-mono text-slate-400 dark:text-slate-500 flex-shrink-0">
+              <Command size={10} />K
+            </kbd>
+          </button>
         </div>
 
         {/* Right: Org Switcher, Theme, Bell, User */}

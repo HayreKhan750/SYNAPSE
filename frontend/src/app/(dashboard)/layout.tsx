@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Sidebar } from '@/components/layout/Sidebar'
+import { Sidebar, MobileBottomNav } from '@/components/layout/Sidebar'
 import { Navbar } from '@/components/layout/Navbar'
 import { useAuthStore } from '@/store/authStore'
 import { OrganizationProvider } from '@/contexts/OrganizationContext'
+import { CommandPalette } from '@/components/ui/CommandPalette'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -14,6 +15,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isCollapsed, setIsCollapsed] = useState(false)   // desktop: collapsed/expanded
   const [mobileOpen, setMobileOpen] = useState(false)     // mobile: sidebar open/closed
   const [isMounted, setIsMounted] = useState(false)
+  // TASK-402: Command palette state
+  const [cmdOpen, setCmdOpen] = useState(false)
+
+  // Global ⌘K / Ctrl+K listener
+  const handleGlobalKey = useCallback((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault()
+      setCmdOpen(prev => !prev)
+    }
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleGlobalKey)
+    return () => window.removeEventListener('keydown', handleGlobalKey)
+  }, [handleGlobalKey])
 
   useEffect(() => {
     setIsMounted(true)
@@ -75,14 +91,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Navbar
             onMenuClick={() => setIsCollapsed(!isCollapsed)}
             onMobileMenuClick={() => setMobileOpen(true)}
+            onSearchClick={() => setCmdOpen(true)}
           />
 
           {/* Page Content */}
-          <main className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
+          <main id="main-content" className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
             {children}
           </main>
         </div>
       </div>
+
+      {/* TASK-402-4: CommandPalette — global ⌘K portal */}
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
+
+      {/* TASK-404-1: Mobile bottom navigation bar */}
+      <MobileBottomNav />
     </OrganizationProvider>
   )
 }

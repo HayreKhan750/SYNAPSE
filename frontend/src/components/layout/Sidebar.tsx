@@ -182,3 +182,57 @@ export const Sidebar = memo(function Sidebar({
     </aside>
   )
 })
+
+// ── TASK-404-1: Mobile Bottom Navigation Bar ──────────────────────────────────
+// Shown only on < md screens; replaces sidebar for mobile users.
+
+const BOTTOM_NAV = [
+  { href: '/',      label: 'Home',    icon: LayoutDashboard },
+  { href: '/feed',  label: 'Feed',    icon: Newspaper       },
+  { href: '/search',label: 'Search',  icon: MessageSquare   }, // reuse as search shortcut
+  { href: '/chat',  label: 'Chat',    icon: MessageSquare   },
+  { href: '/agents',label: 'Agents',  icon: Bot             },
+]
+
+export function MobileBottomNav() {
+  const pathname = usePathname()
+  // Show only on mobile (Tailwind md:hidden applied below)
+  const tabs = [
+    { href: '/',      label: 'Home',   icon: LayoutDashboard, accent: '#6366f1' },
+    { href: '/feed',  label: 'Feed',   icon: Newspaper,       accent: '#06b6d4' },
+    { href: '/chat',  label: 'Chat',   icon: MessageSquare,   accent: '#0ea5e9' },
+    { href: '/agents',label: 'Agents', icon: Bot,             accent: '#ec4899' },
+    { href: '/profile',label: 'Profile',icon: LayoutDashboard,accent: '#8b5cf6' },
+  ]
+
+  return (
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 safe-bottom"
+      aria-label="Mobile navigation"
+    >
+      <div className="flex items-center justify-around h-16 px-2">
+        {tabs.map(({ href, label, icon: Icon, accent }) => {
+          const active = pathname === href || (href !== '/' && pathname?.startsWith(href))
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors ${
+                active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              <Icon
+                size={20}
+                style={{ color: active ? accent : undefined }}
+                className={active ? 'drop-shadow-sm' : ''}
+              />
+              <span className={`text-[10px] font-medium ${active ? 'font-semibold' : ''}`}>
+                {label}
+              </span>
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}

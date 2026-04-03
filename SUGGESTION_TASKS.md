@@ -753,10 +753,10 @@
 ### TASK-402 — Command Palette (⌘K Global Search)
 **Priority:** 🟢 High | **Effort:** M | **Impact:** Instant UX quality signal; power-user productivity
 
-- [ ] **TASK-402-1:** Install `cmdk` library
+- [x] **TASK-402-1:** Install `cmdk` library
   - File: `frontend/package.json` — add `cmdk`
   - Run: `npm install cmdk`
-- [ ] **TASK-402-2:** Create CommandPalette component
+- [x] **TASK-402-2:** Create CommandPalette component
   - File: `frontend/src/components/ui/CommandPalette.tsx` *(new)*
   - Trigger: `⌘K` (Mac) / `Ctrl+K` (Windows/Linux) — global `keydown` listener in layout
   - Structure:
@@ -772,12 +772,12 @@
     [Settings / Billing / Help]
     ```
   - Keyboard navigation: `↑↓` arrows, `Enter` to select, `Esc` to close
-- [ ] **TASK-402-3:** Connect to backend search API
+- [x] **TASK-402-3:** Connect to backend search API
   - File: `frontend/src/components/ui/CommandPalette.tsx`
   - Debounced (200ms) `GET /api/v1/search/?q={query}&limit=5` as user types
   - Show results grouped by content type with type icons
   - Show loading spinner during fetch
-- [ ] **TASK-402-4:** Mount CommandPalette globally
+- [x] **TASK-402-4:** Mount CommandPalette globally
   - File: `frontend/src/app/layout.tsx`
   - Add `<CommandPalette />` component — renders portal to `#modal-root`
   - Add "Search..." pill to Navbar that also triggers it on click
@@ -787,18 +787,18 @@
 ### TASK-403 — Dashboard Redesign — Command Center Layout
 **Priority:** 🟢 Medium | **Effort:** XL | **Impact:** Premium product feel; UX differentiation vs competitors
 
-- [ ] **TASK-403-1:** Implement 3-panel split layout
+- [x] **TASK-403-1:** Implement 3-panel split layout
   - File: `frontend/src/app/(dashboard)/layout.tsx`
   - Left: collapsible sidebar (existing, refined) — 240px wide
   - Center: main content with infinite scroll — flexible
   - Right: collapsible AI assistant panel — 320px wide (hidden on < xl screens)
-- [ ] **TASK-403-2:** Build persistent AI assistant right panel
+- [x] **TASK-403-2:** Build persistent AI assistant right panel
   - File: `frontend/src/components/layout/AIAssistantPanel.tsx` *(new)*
   - Always-visible mini chat interface (like Cursor's AI panel)
   - Context-aware: reads current page route, passes as context to AI
   - Collapses to icon strip on mobile; full panel on desktop
   - Shares conversation state with main chat page
-- [ ] **TASK-403-3:** Add infinite scroll to feed and research pages
+- [x] **TASK-403-3:** Add infinite scroll to feed and research pages
   - Files: `frontend/src/app/(dashboard)/feed/page.tsx`, `research/page.tsx`
   - Replace `usePage`/cursor pagination with React Query `useInfiniteQuery`
   - `IntersectionObserver` at bottom of list to trigger `fetchNextPage()`
@@ -809,23 +809,23 @@
 ### TASK-404 — Mobile-First Redesign + PWA Activation
 **Priority:** 🟢 Medium | **Effort:** L | **Impact:** Mobile users + PWA installs = wider audience
 
-- [ ] **TASK-404-1:** Add bottom navigation bar for mobile
+- [x] **TASK-404-1:** Add bottom navigation bar for mobile
   - File: `frontend/src/components/layout/Sidebar.tsx`
   - On `< md` screens: hide sidebar, show fixed bottom tab bar
   - Tabs (5 max): Home / Feed / Search / Chat / Profile
   - Active state: filled icon + label
-- [ ] **TASK-404-2:** Activate Service Worker with proper caching
+- [x] **TASK-404-2:** Activate Service Worker with proper caching
   - File: `frontend/public/sw.js` — implement full caching strategy:
     - Static assets (JS/CSS/fonts): Cache First
     - API GET requests: Stale-While-Revalidate
     - API POST/PATCH: Network Only
   - File: `frontend/src/components/ServiceWorkerRegistration.tsx` — verify SW registers; show update banner when new SW available
-- [ ] **TASK-404-3:** Add PWA install prompt
+- [x] **TASK-404-3:** Add PWA install prompt
   - File: `frontend/src/components/ServiceWorkerRegistration.tsx`
   - Listen for `beforeinstallprompt` event, store in ref
   - Show "Install App" banner at bottom with install button
   - On install: call `prompt()`, track install event in PostHog
-- [ ] **TASK-404-4:** Add web push notifications
+- [x] **TASK-404-4:** Add web push notifications
   - File: `frontend/src/hooks/useNotificationSocket.ts`
   - Request `Notification` permission after onboarding completes
   - Subscribe to push via `registration.pushManager.subscribe()`
@@ -837,23 +837,23 @@
 ### TASK-405 — Accessibility (A11y) Audit
 **Priority:** 🟢 Medium | **Effort:** M | **Impact:** WCAG 2.1 AA compliance; screen reader support; legal risk reduction
 
-- [ ] **TASK-405-1:** Add ARIA labels to all modals
+- [x] **TASK-405-1:** Add ARIA labels to all modals
   - Files: `frontend/src/components/ui/Modal.tsx` + all page-level modals
   - Add: `role="dialog"`, `aria-modal="true"`, `aria-labelledby="modal-title"`, `aria-describedby="modal-desc"`
-- [ ] **TASK-405-2:** Implement focus trap in modals
+- [x] **TASK-405-2:** Implement focus trap in modals
   - File: `frontend/src/components/ui/Modal.tsx`
   - Install: `focus-trap-react` → `npm install focus-trap-react`
   - Wrap modal content in `<FocusTrap>` — Tab/Shift+Tab cycles only within open modal
   - On open: focus first focusable element; on close: return focus to trigger element
-- [ ] **TASK-405-3:** Add keyboard navigation to automation builder
+- [x] **TASK-405-3:** Add keyboard navigation to automation builder
   - File: `frontend/src/app/(dashboard)/automation/page.tsx`
   - Arrow keys navigate between workflow steps
   - `Enter` to expand/edit step, `Delete` to remove, `Escape` to cancel edit
-- [ ] **TASK-405-4:** Fix color contrast to WCAG AA
+- [x] **TASK-405-4:** Fix color contrast to WCAG AA
   - Audit all text/background combinations using `axe-core` or `Storybook a11y addon`
   - All normal text: 4.5:1 ratio minimum; large text: 3:1 minimum
   - Fix offending color combinations in design tokens
-- [ ] **TASK-405-5:** Add skip-to-main-content link
+- [x] **TASK-405-5:** Add skip-to-main-content link
   - File: `frontend/src/app/layout.tsx`
   - Add as first child of `<body>`: `<a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50">Skip to content</a>`
   - Add `id="main-content"` to main content wrapper in dashboard layout

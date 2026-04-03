@@ -39,6 +39,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
       <body className={`${inter.variable} h-full bg-slate-50 dark:bg-slate-900 transition-colors duration-300`}>
+        {/* TASK-405-5: Skip-to-main-content link for keyboard/screen-reader users */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-[200] focus:px-4 focus:py-2 focus:bg-indigo-600 focus:text-white focus:rounded-lg focus:font-medium focus:text-sm focus:shadow-lg"
+        >
+          Skip to content
+        </a>
         <ServiceWorkerRegistration />
         <Providers>{children}</Providers>
         {/* TASK-104-3: Portal root for React modal portals */}

@@ -97,6 +97,7 @@ export function Modal({
               </DialogPrimitive.Overlay>
 
               {/* Dialog */}
+              {/* TASK-405-1: role, aria-modal, aria-labelledby, aria-describedby */}
               <DialogPrimitive.Content asChild forceMount>
                 <motion.div
                   key="dialog"
@@ -105,6 +106,10 @@ export function Modal({
                   animate="visible"
                   exit="exit"
                   transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby={title ? 'modal-title' : undefined}
+                  aria-describedby={description ? 'modal-desc' : undefined}
                   className={clsx(
                     'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
                     'w-full mx-auto',
@@ -120,12 +125,12 @@ export function Modal({
                     <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
                       <div>
                         {title && (
-                          <DialogPrimitive.Title className="text-lg font-semibold text-slate-900 dark:text-white leading-tight">
+                          <DialogPrimitive.Title id="modal-title" className="text-lg font-semibold text-slate-900 dark:text-white leading-tight">
                             {title}
                           </DialogPrimitive.Title>
                         )}
                         {description && (
-                          <DialogPrimitive.Description className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          <DialogPrimitive.Description id="modal-desc" className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                             {description}
                           </DialogPrimitive.Description>
                         )}
