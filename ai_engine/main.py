@@ -26,6 +26,28 @@ from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 
+# ── Sentry — error tracking (TASK-204) ───────────────────────────────────────
+_SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if _SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        integrations=[
+            StarletteIntegration(transaction_style="url"),
+            FastApiIntegration(transaction_style="url"),
+            LoggingIntegration(level=None, event_level="ERROR"),
+        ],
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
+        profiles_sample_rate=float(os.environ.get("SENTRY_PROFILES_RATE", "0.05")),
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+        send_default_pii=False,
+    )
+    logger.info("sentry_initialised", dsn_set=True)
+
 # ── Lifespan — warm up singletons at startup ──────────────────────────────────
 
 @asynccontextmanager
@@ -144,6 +166,11 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str]  = None
     content_types:   Optional[List[str]] = None
     stream:          bool           = False
+    # TASK-302: per-request model/provider override
+    provider:        Optional[str]  = Field(None, description="LLM provider: auto|openai|anthropic|ollama|gemini")
+    model:           Optional[str]  = Field(None, description="Model name override, e.g. claude-3-5-sonnet-20241022")
+    user_id:         Optional[str]  = None   # passed from Django backend for budget routing
+    role:            Optional[str]  = "user" # user plan role for model gating
 
 
 class EmbedRequest(BaseModel):
@@ -227,12 +254,59 @@ async def run_agent(request: AgentRunRequest) -> Any:
 
 # ── Chat / RAG ─────────────────────────────────────────────────────────────────
 
+@app.get("/models", tags=["Models"])
+async def list_models(role: str = "user") -> Dict[str, Any]:
+    """
+    GET /models?role=<plan>
+
+    TASK-302: Returns the catalogue of available LLM models filtered by the
+    user's plan role. The frontend uses this to populate the model selector.
+
+    Query params:
+        role: Plan role — "user" (free) | "pro" | "enterprise" | "staff"
+
+    Response:
+        { "models": [...], "default_provider": "...", "default_model": "..." }
+    """
+    try:
+        from ai_engine.agents.router import get_available_models
+        models = get_available_models(role=role)
+        return {
+            "models":           models,
+            "default_provider": os.environ.get("DEFAULT_PROVIDER", "auto"),
+            "default_model":    os.environ.get("OPENROUTER_MODEL", "gpt-4o"),
+        }
+    except Exception as exc:
+        logger.exception("list_models_failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @app.post("/chat", tags=["Chat"])
 async def chat(request: ChatRequest) -> Any:
+    """
+    POST /chat
+
+    TASK-302: Now supports per-request provider/model selection with plan
+    gating and budget-aware fallback via resolve_provider_model().
+    """
     import uuid as _uuid
     from ai_engine.rag import get_rag_pipeline
+    from ai_engine.agents.router import resolve_provider_model
+
     pipeline = get_rag_pipeline()
     conv_id  = request.conversation_id or str(_uuid.uuid4())
+
+    # Resolve provider + model (plan gating + budget routing)
+    try:
+        provider, model = resolve_provider_model(
+            requested_provider=request.provider,
+            requested_model=request.model,
+            user_id=request.user_id,
+            role=request.role or "user",
+        )
+    except Exception as exc:
+        # BudgetExceededError or misconfiguration
+        raise HTTPException(status_code=429, detail=str(exc))
 
     if request.stream:
         def _stream() -> Iterator[str]:
@@ -242,6 +316,8 @@ async def chat(request: ChatRequest) -> Any:
                     question=request.question,
                     conversation_id=conv_id,
                     content_types=request.content_types,
+                    provider=provider,
+                    model=model,
                 )
             except Exception as exc:
                 logger.exception("rag_stream_failed")
@@ -254,6 +330,8 @@ async def chat(request: ChatRequest) -> Any:
             question=request.question,
             conversation_id=conv_id,
             content_types=request.content_types,
+            provider=provider,
+            model=model,
         )
     except Exception as exc:
         logger.exception("rag_chat_failed")

@@ -2,6 +2,7 @@ import uuid
 from django.db import models
 from apps.users.models import User
 
+
 class GeneratedDocument(models.Model):
     class DocType(models.TextChoices):
         PDF      = 'pdf',      'PDF'
@@ -26,6 +27,14 @@ class GeneratedDocument(models.Model):
         'self', null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name='versions',
+    )
+    # TASK-006-B4: scope documents to an organization workspace
+    organization    = models.ForeignKey(
+        'organizations.Organization',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='documents',
+        help_text='If set, this document belongs to an org workspace.',
     )
 
     class Meta:

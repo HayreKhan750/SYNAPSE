@@ -491,3 +491,348 @@ def make_fetch_arxiv_papers_tool() -> StructuredTool:
         args_schema=FetchArxivPapersInput,
         return_direct=False,
     )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# TASK-303-B1 — Tavily Web Search
+# ════════════════════════════════════════════════════════════════════════════
+
+class WebSearchInput(BaseModel):
+    query: str = Field(..., description="Web search query")
+    max_results: int = Field(
+        default=5,
+        description="Number of results to return (1–10)",
+        ge=1,
+        le=10,
+    )
+    search_depth: str = Field(
+        default="basic",
+        description="Search depth: 'basic' (fast) or 'advanced' (thorough)",
+    )
+    include_domains: Optional[list[str]] = Field(
+        default=None,
+        description="Optional domains to restrict search to, e.g. ['arxiv.org']",
+    )
+
+
+def _web_search(
+    query: str,
+    max_results: int = 5,
+    search_depth: str = "basic",
+    include_domains: Optional[list[str]] = None,
+) -> list[dict]:
+    """Live web search via Tavily API."""
+    import os
+    tavily_key = os.environ.get("TAVILY_API_KEY", "")
+    if not tavily_key:
+        return [{"error": "TAVILY_API_KEY not configured. Set it in .env to enable live web search."}]
+
+    try:
+        from tavily import TavilyClient  # type: ignore
+        client = TavilyClient(api_key=tavily_key)
+        kwargs: dict = {"query": query, "max_results": max_results, "search_depth": search_depth}
+        if include_domains:
+            kwargs["include_domains"] = include_domains
+        response = client.search(**kwargs)
+        return [
+            {
+                "title":   r.get("title", ""),
+                "url":     r.get("url", ""),
+                "snippet": (r.get("content", "") or "")[:400],
+                "score":   r.get("score", 0.0),
+            }
+            for r in response.get("results", [])
+        ]
+    except ImportError:
+        return [{"error": "tavily-python not installed. Run: pip install tavily-python"}]
+    except Exception as exc:
+        logger.error("web_search error: %s", exc)
+        return [{"error": str(exc)}]
+
+
+def make_web_search_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_web_search,
+        name="web_search",
+        description=(
+            "Search the live web for current information, news, documentation, or any topic "
+            "not in the SYNAPSE knowledge base. Returns titles, URLs, and snippets. "
+            "Use this for up-to-date information beyond the training cutoff."
+        ),
+        args_schema=WebSearchInput,
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# TASK-303-B2 — Python Code Execution Sandbox
+# ════════════════════════════════════════════════════════════════════════════
+
+class RunPythonInput(BaseModel):
+    code: str = Field(
+        ...,
+        description="Python code to execute. Available: math, statistics, json, datetime, re, collections, itertools. No internet or filesystem.",
+    )
+    timeout_seconds: int = Field(default=10, ge=1, le=30)
+
+
+_SAFE_BUILTINS_KEYS = {
+    "None", "True", "False", "int", "float", "str", "bool",
+    "list", "dict", "set", "tuple", "bytes", "len", "range",
+    "enumerate", "zip", "map", "filter", "sorted", "reversed",
+    "min", "max", "sum", "abs", "round", "print", "repr",
+    "type", "isinstance", "issubclass", "hasattr", "getattr",
+    "callable", "iter", "next", "any", "all", "hash", "id",
+    "chr", "ord", "hex", "oct", "bin", "pow", "divmod",
+}
+
+_SAFE_MODULES = {
+    "math", "statistics", "json", "datetime", "re",
+    "collections", "itertools", "functools", "string",
+    "decimal", "fractions", "random",
+}
+
+_BLOCKED_PATTERNS = [
+    "__import__", "importlib", "subprocess", "os.system",
+    "open(", "socket", "requests", "urllib", "shutil",
+    "pathlib", "builtins",
+]
+
+
+def _run_python_code(code: str, timeout_seconds: int = 10) -> dict:
+    """Execute Python code in a restricted sandbox."""
+    import io, sys, threading, traceback
+
+    for pattern in _BLOCKED_PATTERNS:
+        if pattern in code:
+            return {
+                "success": False, "stdout": "",
+                "stderr": f"SecurityError: '{pattern}' is not allowed in the sandbox.",
+                "result": None,
+            }
+
+    stdout_buf = io.StringIO()
+    err_container: dict = {}
+
+    def _execute():
+        def _safe_import(name, *a, **kw):
+            if name in _SAFE_MODULES:
+                import importlib
+                return importlib.import_module(name)
+            raise ImportError(f"Module '{name}' is not allowed in the sandbox.")
+
+        builtins = {k: __builtins__[k] for k in _SAFE_BUILTINS_KEYS if k in __builtins__} \
+            if isinstance(__builtins__, dict) \
+            else {k: getattr(__builtins__, k) for k in _SAFE_BUILTINS_KEYS if hasattr(__builtins__, k)}
+        builtins["__import__"] = _safe_import
+
+        g = {"__builtins__": builtins}
+        old = sys.stdout
+        sys.stdout = stdout_buf
+        try:
+            exec(compile(code, "<sandbox>", "exec"), g)  # noqa: S102
+        except Exception:
+            err_container["error"] = traceback.format_exc()
+        finally:
+            sys.stdout = old
+
+    t = threading.Thread(target=_execute, daemon=True)
+    t.start()
+    t.join(timeout=timeout_seconds)
+
+    if t.is_alive():
+        return {"success": False, "stdout": stdout_buf.getvalue(),
+                "stderr": f"TimeoutError: exceeded {timeout_seconds}s.", "result": None}
+
+    error = err_container.get("error")
+    return {
+        "success": error is None,
+        "stdout":  stdout_buf.getvalue()[:4000],
+        "stderr":  (error or "")[:2000],
+        "result":  None,
+    }
+
+
+def make_run_python_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_python_code,
+        name="run_python_code",
+        description=(
+            "Execute Python code in a safe sandbox for calculations, data analysis, "
+            "string manipulation, statistics, JSON processing, and date arithmetic. "
+            "Available modules: math, statistics, json, datetime, re, collections, itertools. "
+            "No internet or file system access. Returns stdout and any errors."
+        ),
+        args_schema=RunPythonInput,
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# TASK-303-B3 — PDF / Document Reader
+# ════════════════════════════════════════════════════════════════════════════
+
+class ReadDocumentInput(BaseModel):
+    url: str = Field(..., description="Public URL of a PDF or plain-text document.")
+    max_chars: int = Field(default=8000, ge=1000, le=20000)
+
+
+def _read_document(url: str, max_chars: int = 8000) -> dict:
+    """Download and extract text from a public PDF or document URL."""
+    import os, re, tempfile
+
+    if not url.startswith(("http://", "https://")):
+        return {"error": "Only http:// and https:// URLs are supported."}
+
+    try:
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+            resp = client.get(url, headers={"User-Agent": "SYNAPSE-Agent/1.0"})
+            resp.raise_for_status()
+            content_type = resp.headers.get("content-type", "").lower()
+            raw_bytes = resp.content
+    except Exception as exc:
+        return {"error": f"Failed to fetch document: {exc}"}
+
+    if "pdf" in content_type or url.lower().endswith(".pdf"):
+        try:
+            import fitz  # type: ignore
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp.write(raw_bytes)
+                tmp_path = tmp.name
+            doc = fitz.open(tmp_path)
+            pages = [p.get_text() for p in doc]
+            doc.close()
+            os.unlink(tmp_path)
+            text = "\n".join(pages)
+            doc_type, page_count = "pdf", len(pages)
+        except ImportError:
+            return {"error": "pymupdf not installed. Run: pip install pymupdf"}
+        except Exception as exc:
+            return {"error": f"PDF extraction failed: {exc}"}
+    else:
+        text = raw_bytes.decode("utf-8", errors="replace")
+        doc_type = "html" if "html" in content_type else "text"
+        page_count = None
+        if "html" in content_type:
+            text = re.sub(r"<[^>]+>", " ", text)
+            text = re.sub(r"\s+", " ", text).strip()
+
+    truncated = len(text) > max_chars
+    return {
+        "url": url, "doc_type": doc_type, "page_count": page_count,
+        "char_count": len(text), "truncated": truncated,
+        "text": text[:max_chars],
+    }
+
+
+def make_read_document_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_read_document,
+        name="read_document",
+        description=(
+            "Download and extract text from a public PDF or document URL. "
+            "Use for reading research papers, reports, or documentation. "
+            "Returns extracted text with page count and metadata."
+        ),
+        args_schema=ReadDocumentInput,
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# TASK-303-B4 — Chart / Visualization Generator
+# ════════════════════════════════════════════════════════════════════════════
+
+class GenerateChartInput(BaseModel):
+    chart_type: str = Field(..., description="Chart type: 'bar', 'line', 'pie', 'scatter', 'histogram'")
+    title: str = Field(default="", description="Chart title")
+    labels: list[str] = Field(..., description="X-axis or pie slice labels")
+    values: list[float] = Field(..., description="Corresponding numeric values")
+    x_label: str = Field(default="", description="X-axis label")
+    y_label: str = Field(default="", description="Y-axis label")
+    color: str = Field(default="#6366f1", description="Primary color as hex string")
+
+
+def _generate_chart(
+    chart_type: str, labels: list[str], values: list[float],
+    title: str = "", x_label: str = "", y_label: str = "", color: str = "#6366f1",
+) -> dict:
+    """Generate a chart as base64-encoded PNG."""
+    import base64, io
+
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        return {"error": "matplotlib not installed. Run: pip install matplotlib"}
+
+    if not labels:
+        return {"error": "labels must be non-empty."}
+    if chart_type != "histogram" and len(labels) != len(values):
+        return {"error": "labels and values must have the same length."}
+
+    plt.rcParams.update({
+        "figure.facecolor": "#0f172a", "axes.facecolor": "#1e293b",
+        "axes.edgecolor": "#334155", "axes.labelcolor": "#94a3b8",
+        "xtick.color": "#94a3b8", "ytick.color": "#94a3b8",
+        "text.color": "#e2e8f0", "grid.color": "#334155", "grid.alpha": 0.5,
+    })
+
+    fig, ax = plt.subplots(figsize=(8, 4.5), dpi=120)
+    ct = chart_type.lower().strip()
+
+    try:
+        if ct == "bar":
+            bars = ax.bar(labels, values, color=color, edgecolor="#334155", linewidth=0.5)
+            ax.bar_label(bars, fmt="%.1f", color="#94a3b8", fontsize=8, padding=3)
+            ax.grid(axis="y", linestyle="--")
+        elif ct == "line":
+            ax.plot(labels, values, color=color, marker="o", linewidth=2, markersize=5)
+            ax.fill_between(range(len(labels)), values, alpha=0.15, color=color)
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels, rotation=30 if len(labels) > 6 else 0, ha="right")
+            ax.grid(axis="y", linestyle="--")
+        elif ct == "pie":
+            palette = ["#6366f1","#06b6d4","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#14b8a6"]
+            ax.pie(values, labels=labels, colors=palette[:len(labels)],
+                   autopct="%1.1f%%", startangle=90,
+                   wedgeprops={"edgecolor": "#0f172a", "linewidth": 1.5})
+        elif ct == "scatter":
+            ax.scatter(labels, values, color=color, s=80, alpha=0.8, edgecolors="#334155")
+            ax.grid(linestyle="--")
+        elif ct == "histogram":
+            ax.hist(values, bins=min(len(values), 20), color=color, edgecolor="#334155")
+            ax.grid(axis="y", linestyle="--")
+        else:
+            return {"error": f"Unknown chart_type '{ct}'. Use: bar, line, pie, scatter, histogram."}
+
+        if title:
+            ax.set_title(title, color="#e2e8f0", fontsize=13, fontweight="bold", pad=12)
+        if x_label and ct != "pie":
+            ax.set_xlabel(x_label, color="#94a3b8", fontsize=10)
+        if y_label and ct != "pie":
+            ax.set_ylabel(y_label, color="#94a3b8", fontsize=10)
+
+        plt.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
+        plt.close(fig)
+        buf.seek(0)
+        b64 = base64.b64encode(buf.read()).decode("utf-8")
+        return {"success": True, "chart_type": ct, "title": title,
+                "base64_png": b64, "data_uri": f"data:image/png;base64,{b64}"}
+    except Exception as exc:
+        plt.close("all")
+        return {"error": str(exc)}
+
+
+def make_generate_chart_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_generate_chart,
+        name="generate_chart",
+        description=(
+            "Generate a chart/visualization from data as a base64-encoded PNG. "
+            "Types: bar, line, pie, scatter, histogram. "
+            "Use for visualizing data, comparing values, showing trends, or plotting distributions. "
+            "The returned data_uri can be embedded directly in HTML as <img src='...'/>."
+        ),
+        args_schema=GenerateChartInput,
+    )

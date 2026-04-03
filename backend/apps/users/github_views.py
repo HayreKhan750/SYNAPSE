@@ -210,6 +210,9 @@ def github_callback(request):
         user.save()
         logger.info("Created new user via GitHub OAuth: %s", user.email)
 
+    # ── Sync GitHub starred repos to knowledge base (TASK-202-1) ─────────
+    _sync_github_starred_repos.delay(gh_username, github_access_token)
+
     # ── Return JWT tokens via frontend redirect ───────────────────────────
     tokens = _get_tokens_for_user(user)
     redirect_url = (
@@ -220,6 +223,111 @@ def github_callback(request):
     )
     from django.shortcuts import redirect as django_redirect
     return django_redirect(redirect_url)
+
+
+from celery import shared_task
+
+
+@shared_task(
+    name='apps.users.github_views.sync_github_starred_repos',
+    max_retries=2,
+    ignore_result=True,
+)
+def _sync_github_starred_repos(gh_username: str, github_access_token: str) -> None:
+    """
+    TASK-202-1: Sync a GitHub user's starred repositories into the SYNAPSE
+    knowledge base.
+
+    Fetches up to 100 starred repos (1 paginated API call) and upserts each
+    one as a Repository record, then queues embedding generation for any
+    newly-created repos.
+
+    Args:
+        gh_username:         GitHub login name (used for logging only).
+        github_access_token: Short-lived GitHub OAuth access token.
+    """
+    from apps.repositories.models import Repository
+    from apps.repositories.embedding_tasks import generate_repo_embedding
+
+    headers = {
+        'Authorization': f'Bearer {github_access_token}',
+        'Accept':        'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+    }
+
+    import requests as _requests_lib  # local alias so mock patching doesn't break exception catching
+
+    starred_repos = []
+    # Fetch up to 2 pages (100 repos per page = 200 starred at most)
+    for page in range(1, 3):
+        try:
+            resp = requests.get(
+                'https://api.github.com/user/starred',
+                headers=headers,
+                params={'per_page': 100, 'page': page},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            page_data = resp.json()
+            starred_repos.extend(page_data)
+            if len(page_data) < 100:
+                break  # last page
+        except _requests_lib.RequestException as exc:
+            logger.warning(
+                "GitHub starred repos fetch failed for %s (page %d): %s",
+                gh_username, page, exc,
+            )
+            break
+
+    if not starred_repos:
+        logger.info("No starred repos found for GitHub user %s", gh_username)
+        return
+
+    created_count = 0
+    updated_count = 0
+
+    for repo_data in starred_repos:
+        gh_repo_id = repo_data.get('id')
+        if not gh_repo_id:
+            continue
+
+        defaults = {
+            'name':        repo_data.get('name', ''),
+            'full_name':   repo_data.get('full_name', ''),
+            'description': repo_data.get('description', '') or '',
+            'url':         repo_data.get('html_url', ''),
+            'clone_url':   repo_data.get('clone_url', '') or '',
+            'stars':       repo_data.get('stargazers_count', 0),
+            'forks':       repo_data.get('forks_count', 0),
+            'watchers':    repo_data.get('watchers_count', 0),
+            'open_issues': repo_data.get('open_issues_count', 0),
+            'language':    repo_data.get('language', '') or '',
+            'topics':      repo_data.get('topics', []),
+            'owner':       (repo_data.get('owner') or {}).get('login', ''),
+        }
+
+        try:
+            repo, created = Repository.objects.update_or_create(
+                github_id=gh_repo_id,
+                defaults=defaults,
+            )
+            if created:
+                created_count += 1
+                # Queue embedding for newly discovered repos
+                generate_repo_embedding.delay(str(repo.id))
+            else:
+                updated_count += 1
+        except Exception as exc:
+            logger.warning(
+                "Failed to upsert repo %s: %s",
+                repo_data.get('full_name', gh_repo_id), exc,
+            )
+            continue
+
+    logger.info(
+        "GitHub starred repos sync for %s: %d created, %d updated",
+        gh_username, created_count, updated_count,
+    )
 
 
 @api_view(['DELETE'])

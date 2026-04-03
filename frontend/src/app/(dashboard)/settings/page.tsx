@@ -14,6 +14,9 @@ import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { GoogleDriveSection } from './GoogleDriveSection'
 import { MFASection } from './MFASection'
+import { DigestSection } from './DigestSection'
+import { GitHubSection } from './GitHubSection'
+import { optOut, optIn } from '@/utils/analytics'
 import {
   Settings,
   Bell,
@@ -31,6 +34,8 @@ import {
   EyeOff,
   LogOut,
   Cpu,
+  Mail,
+  Github,
 } from 'lucide-react'
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -351,13 +356,29 @@ export default function SettingsPage() {
   const { logout } = useAuthStore()
   const router = useRouter()
 
-  // Notification prefs (stored locally for MVP — can be persisted via API)
+  // Notification prefs (stored locally — workflow/agent email prefs)
   const [notifPrefs, setNotifPrefs] = useState({
     email_on_workflow_complete: true,
     email_on_agent_complete: true,
     in_app_notifications: true,
-    weekly_digest: false,
   })
+
+  // TASK-203: Analytics opt-out (read from localStorage, persisted client-side)
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('analytics_optout') !== 'true'
+  })
+
+  const handleAnalyticsToggle = (enabled: boolean) => {
+    setAnalyticsEnabled(enabled)
+    if (enabled) {
+      optIn()
+      toast.success('Analytics enabled. Thank you! 🙏')
+    } else {
+      optOut()
+      toast.success('Analytics disabled. Your data stays private.')
+    }
+  }
 
   // API key visibility
   const [showKey, setShowKey] = useState(false)
@@ -413,6 +434,11 @@ export default function SettingsPage() {
           <GoogleDriveSection />
         </Section>
 
+        {/* GitHub OAuth — TASK-202 */}
+        <Section title="GitHub" icon={<Github size={16} />}>
+          <GitHubSection />
+        </Section>
+
         {/* Appearance */}
         <Section title="Appearance" icon={<Palette size={16} />}>
           <div>
@@ -461,21 +487,29 @@ export default function SettingsPage() {
                 onChange={v => setNotifPrefs(p => ({ ...p, in_app_notifications: v }))}
               />
             </div>
-            <div className="pt-4">
-              <Toggle
-                label="Weekly digest"
-                description="Get a weekly summary of top tech trends in your inbox"
-                checked={notifPrefs.weekly_digest}
-                onChange={v => setNotifPrefs(p => ({ ...p, weekly_digest: v }))}
-              />
-            </div>
           </div>
-          <button
-            onClick={() => toast.success('Notification preferences saved!')}
-            className="mt-2 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors font-medium"
-          >
-            <Save size={14} /> Save Preferences
-          </button>
+        </Section>
+
+        {/* Weekly AI Digest — TASK-201 */}
+        <Section title="Weekly AI Digest" icon={<Mail size={16} />}>
+          <DigestSection />
+        </Section>
+
+        {/* Analytics & Privacy — TASK-203 */}
+        <Section title="Analytics & Privacy" icon={<Cpu size={16} />}>
+          <Toggle
+            label="Product analytics"
+            description="Help us improve SYNAPSE by sharing anonymous usage data. No PII is ever sent. Respects your browser's Do Not Track setting."
+            checked={analyticsEnabled}
+            onChange={handleAnalyticsToggle}
+          />
+          <p className="text-xs text-slate-500 mt-3 leading-relaxed">
+            SYNAPSE uses{' '}
+            <a href="https://posthog.com" target="_blank" rel="noopener noreferrer"
+               className="text-indigo-500 hover:underline">PostHog</a>{' '}
+            for privacy-first product analytics. No data is sold to third parties.
+            Autocapture and session recording are disabled.
+          </p>
         </Section>
 
         {/* Security */}

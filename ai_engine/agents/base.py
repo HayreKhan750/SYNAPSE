@@ -47,6 +47,22 @@ except ImportError:
     _create_react_agent = None  # type: ignore
     _LANGGRAPH_AVAILABLE = False
 
+# TASK-302: Anthropic Claude
+try:
+    from langchain_anthropic import ChatAnthropic as _ChatAnthropic  # type: ignore
+    _ANTHROPIC_AVAILABLE = True
+except ImportError:
+    _ChatAnthropic = None  # type: ignore
+    _ANTHROPIC_AVAILABLE = False
+
+# TASK-302: Ollama local LLMs
+try:
+    from langchain_ollama import ChatOllama as _ChatOllama  # type: ignore
+    _OLLAMA_AVAILABLE = True
+except ImportError:
+    _ChatOllama = None  # type: ignore
+    _OLLAMA_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -105,6 +121,10 @@ class SynapseAgent:
         verbose: bool = True,
         openrouter_api_key: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
+        # TASK-302: multi-provider support
+        provider: str = "auto",              # "auto"|"openai"|"anthropic"|"ollama"|"gemini"
+        anthropic_api_key: Optional[str] = None,
+        ollama_base_url: Optional[str] = None,
     ) -> None:
         self.tools = tools
         self.model_name = model_name
@@ -113,9 +133,12 @@ class SynapseAgent:
         self.max_iterations = max_iterations
         self.max_execution_time = max_execution_time
         self.verbose = verbose
+        self.provider = provider
         # Per-user API key overrides (take priority over env vars)
         self._openrouter_api_key = openrouter_api_key
         self._gemini_api_key = gemini_api_key
+        self._anthropic_api_key = anthropic_api_key
+        self._ollama_base_url = ollama_base_url
 
         self._llm = self._build_llm()
         self._graph = None  # LangGraph compiled graph — built lazily
@@ -125,18 +148,89 @@ class SynapseAgent:
     # ------------------------------------------------------------------
 
     def _build_llm(self):
-        """Instantiate the LLM used by the agent.
-        Priority: per-user key override → env var fallback.
-        Tries OpenRouter first, then Google Gemini.
         """
-        openrouter_base = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-        openrouter_model = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+        Instantiate the LLM used by the agent.
 
-        # Per-user key takes priority over env var
-        openrouter_key = self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
-        gemini_key = self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+        Provider selection order (TASK-302):
+          1. provider="anthropic"  → Claude (ANTHROPIC_API_KEY required)
+          2. provider="ollama"     → local Ollama LLM (OLLAMA_BASE_URL, no API key)
+          3. provider="gemini"     → Google Gemini (GEMINI_API_KEY required)
+          4. provider="openai"     → OpenRouter-compatible endpoint
+          5. provider="auto"       → tries OpenRouter → Gemini → raises
+
+        Per-user key overrides always take priority over env vars.
+        """
+        # ── Anthropic Claude ──────────────────────────────────────────────────
+        if self.provider == "anthropic":
+            anthropic_key = self._anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+            if not anthropic_key:
+                raise ValueError("ANTHROPIC_API_KEY is required for provider='anthropic'.")
+            if not _ANTHROPIC_AVAILABLE or _ChatAnthropic is None:
+                raise ImportError(
+                    "langchain-anthropic is not installed. "
+                    "Install it with: pip install langchain-anthropic"
+                )
+            model = self.model_name if self.model_name.startswith("claude-") \
+                else os.environ.get("CLAUDE_MODEL_PRIMARY", "claude-3-5-sonnet-20241022")
+            logger.info("llm_provider=anthropic model=%s", model)
+            return _ChatAnthropic(
+                model=model,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                anthropic_api_key=anthropic_key,
+            )
+
+        # ── Ollama (local) ────────────────────────────────────────────────────
+        if self.provider == "ollama":
+            if not _OLLAMA_AVAILABLE or _ChatOllama is None:
+                raise ImportError(
+                    "langchain-ollama is not installed. "
+                    "Install it with: pip install langchain-ollama"
+                )
+            base_url = (
+                self._ollama_base_url
+                or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+            )
+            model = self.model_name if self.model_name not in ("gemini-1.5-flash-latest",) \
+                else os.environ.get("OLLAMA_MODEL", "llama3.2")
+            logger.info("llm_provider=ollama model=%s base_url=%s", model, base_url)
+            return _ChatOllama(
+                model=model,
+                base_url=base_url,
+                temperature=self.temperature,
+                num_predict=self.max_tokens,
+            )
+
+        # ── Google Gemini (explicit) ──────────────────────────────────────────
+        if self.provider == "gemini":
+            gemini_key = self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+            if not gemini_key:
+                raise ValueError("GEMINI_API_KEY is required for provider='gemini'.")
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                model = os.environ.get("GEMINI_MODEL", self.model_name)
+                logger.info("llm_provider=gemini model=%s", model)
+                return ChatGoogleGenerativeAI(
+                    model=model,
+                    temperature=self.temperature,
+                    max_output_tokens=self.max_tokens,
+                    google_api_key=gemini_key,
+                    convert_system_message_to_human=True,
+                )
+            except ImportError as exc:
+                raise ImportError(
+                    "langchain-google-genai is not installed. "
+                    "Install it with: pip install langchain-google-genai"
+                ) from exc
+
+        # ── OpenAI / OpenRouter (explicit or auto) ────────────────────────────
+        openrouter_base  = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        openrouter_model = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+        openrouter_key   = self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        gemini_key       = self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
 
         if openrouter_key and _OPENAI_AVAILABLE and _ChatOpenAI is not None:
+            logger.info("llm_provider=openrouter model=%s", openrouter_model)
             return _ChatOpenAI(
                 model=openrouter_model,
                 temperature=self.temperature,
@@ -148,12 +242,15 @@ class SynapseAgent:
                     "X-Title": "SYNAPSE Agent",
                 },
             )
-        # Fallback to Google Gemini if configured
+
+        # Auto fallback → Google Gemini
         if gemini_key:
             try:
                 from langchain_google_genai import ChatGoogleGenerativeAI
+                model = os.environ.get("GEMINI_MODEL", self.model_name)
+                logger.info("llm_provider=gemini_auto model=%s", model)
                 return ChatGoogleGenerativeAI(
-                    model=os.environ.get("GEMINI_MODEL", self.model_name),
+                    model=model,
                     temperature=self.temperature,
                     max_output_tokens=self.max_tokens,
                     google_api_key=gemini_key,
@@ -161,8 +258,10 @@ class SynapseAgent:
                 )
             except ImportError:
                 pass
+
         raise ValueError(
-            "No LLM configured. Set OPENROUTER_API_KEY (recommended) or GEMINI_API_KEY."
+            "No LLM configured. Set one of: OPENROUTER_API_KEY, ANTHROPIC_API_KEY, "
+            "GEMINI_API_KEY, or use provider='ollama' with OLLAMA_BASE_URL."
         )
 
     @property

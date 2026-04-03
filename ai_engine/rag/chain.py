@@ -138,11 +138,73 @@ class SynapseRAGChain:
         self._llm = self._build_llm(temperature=temperature, max_tokens=max_tokens, streaming=streaming)
 
     @staticmethod
-    def _build_llm(temperature: float = 0.2, max_tokens: int = 1024, streaming: bool = False):
-        """Build the LLM — uses OpenRouter if OPENROUTER_API_KEY is set, else Gemini."""
-        openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
-        openrouter_base = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-        openrouter_model = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+    def _build_llm(
+        temperature: float = 0.2,
+        max_tokens:  int   = 1024,
+        streaming:   bool  = False,
+        provider:    str   = "auto",
+        model:       str   = "",
+    ):
+        """
+        Build the RAG chain LLM — TASK-302: supports OpenRouter, Anthropic, Ollama, Gemini.
+
+        Provider resolution order (when provider='auto'):
+          OpenRouter → Gemini → raise
+
+        Explicit provider bypasses auto-detection.
+        """
+        # ── Anthropic Claude ──────────────────────────────────────────────────
+        if provider == "anthropic":
+            anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if not anthropic_key:
+                raise ValueError("ANTHROPIC_API_KEY required for provider='anthropic'.")
+            try:
+                from langchain_anthropic import ChatAnthropic
+                resolved_model = model or os.environ.get("CLAUDE_MODEL_PRIMARY", "claude-3-5-sonnet-20241022")
+                return ChatAnthropic(
+                    model=resolved_model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    anthropic_api_key=anthropic_key,
+                    streaming=streaming,
+                )
+            except ImportError as exc:
+                raise ImportError("Install langchain-anthropic: pip install langchain-anthropic") from exc
+
+        # ── Ollama (local) ────────────────────────────────────────────────────
+        if provider == "ollama":
+            try:
+                from langchain_ollama import ChatOllama
+                base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+                resolved_model = model or os.environ.get("OLLAMA_MODEL", "llama3.2")
+                return ChatOllama(
+                    model=resolved_model,
+                    base_url=base_url,
+                    temperature=temperature,
+                    num_predict=max_tokens,
+                )
+            except ImportError as exc:
+                raise ImportError("Install langchain-ollama: pip install langchain-ollama") from exc
+
+        # ── Google Gemini (explicit) ──────────────────────────────────────────
+        if provider == "gemini":
+            gemini_key = os.environ.get("GEMINI_API_KEY", "")
+            if not gemini_key:
+                raise ValueError("GEMINI_API_KEY required for provider='gemini'.")
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            return ChatGoogleGenerativeAI(
+                model=model or os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                google_api_key=gemini_key,
+                streaming=streaming,
+                convert_system_message_to_human=True,
+            )
+
+        # ── OpenRouter / OpenAI (auto or explicit) ────────────────────────────
+        openrouter_key   = os.environ.get("OPENROUTER_API_KEY", "")
+        openrouter_base  = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        openrouter_model = model or os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
         if openrouter_key:
             return ChatOpenAI(
                 model=openrouter_model,
@@ -156,13 +218,14 @@ class SynapseRAGChain:
                     "X-Title": "SYNAPSE RAG",
                 },
             )
-        # Fallback to Google Gemini
+
+        # ── Gemini auto-fallback ──────────────────────────────────────────────
         gemini_key = os.environ.get("GEMINI_API_KEY", "")
         if gemini_key:
             try:
                 from langchain_google_genai import ChatGoogleGenerativeAI
                 return ChatGoogleGenerativeAI(
-                    model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
+                    model=model or os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
                     temperature=temperature,
                     max_output_tokens=max_tokens,
                     google_api_key=gemini_key,
@@ -171,8 +234,10 @@ class SynapseRAGChain:
                 )
             except ImportError:
                 pass
+
         raise ValueError(
-            "No LLM configured. Set OPENROUTER_API_KEY (recommended) or GEMINI_API_KEY."
+            "No LLM configured. Set one of: OPENROUTER_API_KEY, ANTHROPIC_API_KEY, "
+            "GEMINI_API_KEY, or use provider='ollama'."
         )
 
     # ------------------------------------------------------------------
@@ -200,6 +265,8 @@ class SynapseRAGChain:
         question: str,
         conversation_id: str,
         content_types: Optional[List[str]] = None,
+        provider: str = "auto",
+        model: str = "",
     ) -> Dict[str, Any]:
         """
         Alternative: manually retrieve docs, build prompt, and call LLM directly.
@@ -229,8 +296,14 @@ class SynapseRAGChain:
         from langchain_core.messages import HumanMessage
         messages.append(HumanMessage(content=condensed_question))
 
-        # Step 4: Call LLM
-        response = self._llm.invoke(messages)
+        # Step 4: Call LLM — use per-request provider/model if different from default
+        llm = self._build_llm(
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            provider=provider,
+            model=model,
+        ) if (provider and provider != "auto") or model else self._llm
+        response = llm.invoke(messages)
         answer = _extract_text(response.content) if hasattr(response, "content") else str(response)
 
         # Persist
@@ -247,6 +320,8 @@ class SynapseRAGChain:
         question: str,
         conversation_id: str,
         content_types: Optional[List[str]] = None,
+        provider: str = "auto",
+        model: str = "",
     ) -> Iterator[str]:
         """
         Stream chat response token-by-token via Gemini.
@@ -274,7 +349,13 @@ class SynapseRAGChain:
         messages.extend(chat_history)
         messages.append(HumanMessage(content=condensed_question))
 
-        streaming_llm = self._build_llm(temperature=self.temperature, max_tokens=self.max_tokens, streaming=True)
+        streaming_llm = self._build_llm(
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            streaming=True,
+            provider=provider,
+            model=model,
+        )
 
         full_answer = []
         for chunk in streaming_llm.stream(messages):

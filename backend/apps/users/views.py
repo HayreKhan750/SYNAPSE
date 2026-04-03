@@ -35,6 +35,21 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """POST /api/v1/auth/login/ — returns {access, refresh, user}."""
     serializer_class = CustomTokenObtainPairSerializer
 
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            # TASK-203: PostHog server-side login event
+            try:
+                from apps.core.analytics import track_login
+                from .models import User
+                email = request.data.get('email', '')
+                user = User.objects.filter(email=email).first()
+                if user:
+                    track_login(user)
+            except Exception:
+                pass  # Analytics must never block login
+        return response
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -45,6 +60,13 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        # TASK-203: PostHog server-side signup event
+        try:
+            from apps.core.analytics import track_signup
+            track_signup(user)
+        except Exception:
+            pass  # Analytics must never block registration
 
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -103,6 +125,64 @@ class MeView(generics.RetrieveUpdateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'success': True, 'data': serializer.data})
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def digest_preferences(request):
+    """
+    GET  /api/v1/auth/digest/   — return current digest_enabled + digest_day
+    PATCH /api/v1/auth/digest/  — update digest_enabled and/or digest_day
+
+    TASK-201: Weekly AI digest preference management.
+    """
+    from rest_framework.response import Response
+    from rest_framework import status as drf_status
+
+    user = request.user
+
+    if request.method == 'GET':
+        return Response({
+            'digest_enabled': user.digest_enabled,
+            'digest_day':     user.digest_day,
+        })
+
+    # PATCH — partial update
+    data = request.data
+    updated = {}
+
+    if 'digest_enabled' in data:
+        enabled = data['digest_enabled']
+        if not isinstance(enabled, bool):
+            return Response(
+                {'error': 'digest_enabled must be a boolean.'},
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+        user.digest_enabled = enabled
+        updated['digest_enabled'] = enabled
+
+    if 'digest_day' in data:
+        valid_days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        day = str(data['digest_day']).lower()
+        if day not in valid_days:
+            return Response(
+                {'error': f"digest_day must be one of: {', '.join(valid_days)}."},
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+        user.digest_day = day
+        updated['digest_day'] = day
+
+    if not updated:
+        return Response(
+            {'error': 'Provide digest_enabled and/or digest_day.'},
+            status=drf_status.HTTP_400_BAD_REQUEST,
+        )
+
+    user.save(update_fields=list(updated.keys()))
+    return Response({
+        'digest_enabled': user.digest_enabled,
+        'digest_day':     user.digest_day,
+    })
 
 
 @api_view(['PUT'])

@@ -220,7 +220,138 @@ function AgentMarkdown({ content }: { content: string }) {
   )
 }
 
-/** Tool-call trace accordion */
+// ── Tool-specific output renderers (TASK-303-F1) ─────────────────────────────
+
+/** Render web_search results as a list of links with snippets */
+function WebSearchOutput({ output }: { output: unknown }) {
+  let results: Array<{ title?: string; url?: string; snippet?: string; score?: number }> = []
+  try {
+    results = typeof output === 'string' ? JSON.parse(output) : (output as typeof results)
+  } catch { return <RawOutput output={output} /> }
+  if (!Array.isArray(results) || results[0]?.hasOwnProperty('error')) return <RawOutput output={output} />
+  return (
+    <div className="space-y-2">
+      {results.map((r, i) => (
+        <div key={i} className="rounded-lg bg-slate-100 dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700">
+          <a href={r.url} target="_blank" rel="noopener noreferrer"
+             className="text-indigo-600 dark:text-indigo-400 font-medium text-xs hover:underline truncate block">
+            {r.title || r.url}
+          </a>
+          {r.url && <p className="text-[10px] text-slate-400 truncate">{r.url}</p>}
+          {r.snippet && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{r.snippet}</p>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Render run_python_code with stdout + error */
+function PythonOutput({ output }: { output: unknown }) {
+  let result: { success?: boolean; stdout?: string; stderr?: string } = {}
+  try {
+    result = typeof output === 'string' ? JSON.parse(output) : (output as typeof result)
+  } catch { return <RawOutput output={output} /> }
+  return (
+    <div className="space-y-2">
+      {result.stdout && (
+        <div>
+          <span className="text-[10px] text-green-500 font-semibold uppercase tracking-wider">stdout</span>
+          <pre className="mt-1 text-xs font-mono text-green-400 bg-slate-950 rounded-lg p-2 border border-slate-700 max-h-36 overflow-y-auto whitespace-pre-wrap">
+            {result.stdout}
+          </pre>
+        </div>
+      )}
+      {result.stderr && (
+        <div>
+          <span className="text-[10px] text-red-400 font-semibold uppercase tracking-wider">stderr</span>
+          <pre className="mt-1 text-xs font-mono text-red-400 bg-slate-950 rounded-lg p-2 border border-red-900/30 max-h-24 overflow-y-auto whitespace-pre-wrap">
+            {result.stderr}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Render generate_chart as an inline image */
+function ChartOutput({ output }: { output: unknown }) {
+  let result: { data_uri?: string; title?: string; chart_type?: string; error?: string } = {}
+  try {
+    result = typeof output === 'string' ? JSON.parse(output) : (output as typeof result)
+  } catch { return <RawOutput output={output} /> }
+  if (result.error) return <RawOutput output={output} />
+  if (!result.data_uri) return <RawOutput output={output} />
+  return (
+    <div className="space-y-2">
+      {result.title && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {result.chart_type} chart: <span className="font-medium text-slate-700 dark:text-slate-300">{result.title}</span>
+        </p>
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={result.data_uri} alt={result.title || 'chart'} className="rounded-lg w-full border border-slate-700 max-h-64 object-contain" />
+    </div>
+  )
+}
+
+/** Render read_document output with metadata */
+function DocumentOutput({ output }: { output: unknown }) {
+  let result: { url?: string; doc_type?: string; page_count?: number; char_count?: number; truncated?: boolean; text?: string; error?: string } = {}
+  try {
+    result = typeof output === 'string' ? JSON.parse(output) : (output as typeof result)
+  } catch { return <RawOutput output={output} /> }
+  if (result.error) return <RawOutput output={output} />
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap text-[10px] text-slate-400">
+        {result.doc_type && <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 uppercase font-mono">{result.doc_type}</span>}
+        {result.page_count && <span>{result.page_count} pages</span>}
+        {result.char_count && <span>{result.char_count.toLocaleString()} chars</span>}
+        {result.truncated && <span className="text-amber-400">⚠ truncated</span>}
+      </div>
+      {result.text && (
+        <pre className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900/70 rounded-lg p-2 border border-slate-200 dark:border-slate-700 max-h-36 overflow-y-auto whitespace-pre-wrap">
+          {result.text.slice(0, 800)}{(result.text.length ?? 0) > 800 ? '\n…' : ''}
+        </pre>
+      )}
+    </div>
+  )
+}
+
+/** Fallback: raw pre output */
+function RawOutput({ output }: { output: unknown }) {
+  return (
+    <pre className="text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-700 max-h-40 overflow-y-auto text-xs">
+      {String(output).slice(0, 600)}{String(output).length > 600 ? '\n…(truncated)' : ''}
+    </pre>
+  )
+}
+
+/** Route tool output to the correct rich renderer */
+function ToolOutput({ toolName, output }: { toolName: string; output: unknown }) {
+  if (toolName === 'web_search')      return <WebSearchOutput output={output} />
+  if (toolName === 'run_python_code') return <PythonOutput output={output} />
+  if (toolName === 'generate_chart')  return <ChartOutput output={output} />
+  if (toolName === 'read_document')   return <DocumentOutput output={output} />
+  return <RawOutput output={output} />
+}
+
+const TOOL_ICONS: Record<string, string> = {
+  web_search:            '🌐',
+  run_python_code:       '🐍',
+  generate_chart:        '📊',
+  read_document:         '📄',
+  search_knowledge_base: '🔍',
+  fetch_articles:        '📰',
+  analyze_trends:        '📈',
+  search_github:         '💻',
+  fetch_arxiv_papers:    '🔬',
+  generate_pdf:          '📋',
+  generate_ppt:          '🖥️',
+  create_project:        '🏗️',
+}
+
+/** Tool-call trace accordion — TASK-303-F1 enhanced */
 function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
   const [open, setOpen] = useState(false)
   if (!steps?.length) return null
@@ -234,7 +365,7 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
           {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </div>
         <Cpu size={11} className="text-indigo-600 dark:text-indigo-400" />
-        <span>{steps.length} tool call{steps.length !== 1 ? 's' : ''}</span>
+        <span>Reasoning trace · {steps.length} tool call{steps.length !== 1 ? 's' : ''}</span>
       </button>
       <AnimatePresence>
         {open && (
@@ -245,30 +376,45 @@ function StepTrace({ steps }: { steps: AgentIntermediateStep[] }) {
             className="overflow-hidden"
           >
             <div className="mt-3 space-y-2">
-              {steps.map((step, i) => (
-                <div key={i} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                    <div className="w-5 h-5 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
-                      <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400">{i + 1}</span>
+              {steps.map((step, i) => {
+                const emoji = TOOL_ICONS[step.tool] ?? '🔧'
+                return (
+                  <div key={i} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                      <div className="w-5 h-5 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400">{i + 1}</span>
+                      </div>
+                      <span className="text-sm">{emoji}</span>
+                      <span className="font-mono text-xs text-indigo-600 dark:text-indigo-300 font-semibold">{step.tool}</span>
                     </div>
-                    <span className="font-mono text-xs text-indigo-600 dark:text-indigo-300 font-semibold">{step.tool}</span>
+                    {/* Body */}
+                    <div className="p-3 space-y-2 text-xs">
+                      {/* Input */}
+                      <div>
+                        <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Input</span>
+                        {/* Render code input with syntax hint for Python tool */}
+                        {step.tool === 'run_python_code' ? (
+                          <pre className="mt-1 text-xs font-mono text-emerald-400 bg-slate-950 rounded-lg p-2 border border-slate-700 max-h-36 overflow-y-auto whitespace-pre-wrap">
+                            {typeof step.input === 'string' ? step.input : (step.input as { code?: string })?.code ?? JSON.stringify(step.input, null, 2)}
+                          </pre>
+                        ) : (
+                          <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-700 text-xs">
+                            {typeof step.input === 'string' ? step.input : JSON.stringify(step.input, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                      {/* Output — routed to rich renderer */}
+                      <div>
+                        <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Output</span>
+                        <div className="mt-1">
+                          <ToolOutput toolName={step.tool} output={step.output} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-3 space-y-2 text-xs">
-                    <div>
-                      <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Input</span>
-                      <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-700">
-                        {typeof step.input === 'string' ? step.input : JSON.stringify(step.input, null, 2)}
-                      </pre>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Output</span>
-                      <pre className="mt-1 text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words bg-slate-100 dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-700 max-h-40 overflow-y-auto">
-                        {String(step.output).slice(0, 600)}{String(step.output).length > 600 ? '\n…(truncated)' : ''}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </motion.div>
         )}

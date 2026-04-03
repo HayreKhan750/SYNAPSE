@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Analytics } from '@/utils/analytics';
 import { useSearchParams } from 'next/navigation';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Send,
@@ -17,6 +20,10 @@ import {
   X,
   Zap,
   AlertCircle,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -52,9 +59,15 @@ const GEMINI_MODELS = [
   // ── OpenAI (paid) ─────────────────────────────────────────────────────────
   { id: 'openai/gpt-4o-mini',                    label: 'GPT-4o Mini',                   badge: '💳 Paid' },
   { id: 'openai/gpt-4o',                         label: 'GPT-4o',                        badge: '💳 Paid' },
-  // ── Anthropic Claude (paid) ───────────────────────────────────────────────
-  { id: 'anthropic/claude-3.5-haiku',            label: 'Claude 3.5 Haiku',              badge: '💳 Paid' },
-  { id: 'anthropic/claude-3.5-sonnet',           label: 'Claude 3.5 Sonnet',             badge: '💳 Paid' },
+  // ── Anthropic Claude (paid, Pro/Enterprise plans) ────────────────────────
+  { id: 'anthropic/claude-3.5-haiku',            label: 'Claude 3.5 Haiku',              badge: '💳 Pro', provider: 'anthropic' },
+  { id: 'anthropic/claude-3.5-sonnet',           label: 'Claude 3.5 Sonnet',             badge: '💳 Pro', provider: 'anthropic' },
+  { id: 'anthropic/claude-3-haiku',              label: 'Claude 3 Haiku',                badge: '💳 Pro', provider: 'anthropic' },
+  // ── Ollama (local, free — requires Ollama running locally) ───────────────
+  { id: 'llama3.2',    label: 'Llama 3.2 (Local)',    badge: '🏠 Local', provider: 'ollama' },
+  { id: 'mistral',     label: 'Mistral (Local)',       badge: '🏠 Local', provider: 'ollama' },
+  { id: 'codellama',   label: 'CodeLlama (Local)',     badge: '🏠 Local', provider: 'ollama' },
+  { id: 'deepseek-r1', label: 'DeepSeek R1 (Local)',   badge: '🏠 Local', provider: 'ollama' },
 ];
 const DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
 
@@ -265,6 +278,19 @@ export default function ChatPage() {
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
 
+  // TASK-304-F1: Microphone / voice input
+  const { isRecording, isTranscribing, startRecording, stopRecording, error: voiceError } = useVoiceInput({
+    onTranscript: (text) => setInputValue((prev) => prev ? `${prev} ${text}` : text),
+  })
+
+  // TASK-304-F2: Text-to-speech
+  const { isSpeaking, isSupported: ttsSupported, speak: speakText, stop: stopSpeech } = useTextToSpeech()
+
+  // Show voice errors as toasts
+  useEffect(() => {
+    if (voiceError) toast.error(voiceError, { duration: 4000 })
+  }, [voiceError])
+
   const searchParams = useSearchParams();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -437,6 +463,9 @@ export default function ChatPage() {
       // creates a new Conversation record, not appending to an old one.
       const conversationId = activeConversationId || nanoid();
       if (!activeConversationId) setActiveConversationId(conversationId);
+
+      // TASK-203: PostHog — track AI chat message sent
+      Analytics.aiChat(question.trim().length);
 
       // Snapshot attachments and clear them immediately
       const currentAttachments = [...attachedFiles];
@@ -932,6 +961,24 @@ export default function ChatPage() {
                       onEdit={msg.role === 'human' ? editMessage : undefined}
                       onDelete={msg.role === 'human' ? deleteMessagePair : undefined}
                     />
+                    {/* TASK-304-F2: TTS "Read Aloud" button for AI messages */}
+                    {msg.role === 'ai' && !msg.isStreaming && msg.content && ttsSupported && (
+                      <div className="flex justify-start pl-11 -mt-4 mb-1">
+                        <button
+                          onClick={() => isSpeaking ? stopSpeech() : speakText(msg.content)}
+                          title={isSpeaking ? 'Stop reading' : 'Read aloud'}
+                          className={cn(
+                            'flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all',
+                            isSpeaking
+                              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30'
+                              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700'
+                          )}
+                        >
+                          {isSpeaking ? <VolumeX size={11} /> : <Volume2 size={11} />}
+                          {isSpeaking ? 'Stop' : 'Read aloud'}
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -1034,6 +1081,28 @@ export default function ChatPage() {
                   className="flex-shrink-0 p-2 rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
                 >
                   <Paperclip size={18} />
+                </button>
+
+                {/* TASK-304-F1: Mic button — click to start/stop recording */}
+                <button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isGenerating || isTranscribing}
+                  title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing…' : 'Voice input'}
+                  className={cn(
+                    'flex-shrink-0 p-2 rounded-full transition-all',
+                    isRecording
+                      ? 'text-red-500 bg-red-500/15 border border-red-500/40 animate-pulse'
+                      : isTranscribing
+                        ? 'text-indigo-400 bg-indigo-500/10 cursor-wait'
+                        : 'text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 dark:hover:bg-slate-700 disabled:opacity-40'
+                  )}
+                >
+                  {isTranscribing
+                    ? <Loader2 size={18} className="animate-spin" />
+                    : isRecording
+                      ? <MicOff size={18} />
+                      : <Mic size={18} />
+                  }
                 </button>
 
                 <textarea

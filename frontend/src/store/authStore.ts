@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { User, LoginCredentials, RegisterData } from '@/types'
 import api, { authApi } from '@/utils/api'
 import axios from 'axios'
+import { track, identifyUser, resetUser } from '@/utils/analytics'
 
 interface AuthStore {
   user: User | null
@@ -45,6 +46,12 @@ export const useAuthStore = create<AuthStore>()(
           // Store tokens in localStorage for the axios interceptor
           localStorage.setItem('synapse_access_token', access)
           localStorage.setItem('synapse_refresh_token', refresh)
+
+          // TASK-203: PostHog — track login + identify user
+          if (user?.id) {
+            identifyUser(user.id, { plan: user.role ?? 'user', role: user.role ?? 'user' })
+          }
+          track('login_completed', { method: 'email' })
         } catch (error: unknown) {
           set({ isLoading: false })
           // Extract a human-readable message from the API error response
@@ -66,6 +73,9 @@ export const useAuthStore = create<AuthStore>()(
       register: async (data: RegisterData) => {
         set({ isLoading: true })
         try {
+          // TASK-203: track signup intent before API call
+          track('signup_started', { method: 'email' })
+
           await authApi.post('/auth/register/', data)
 
           // Auto-login after successful registration
@@ -74,6 +84,9 @@ export const useAuthStore = create<AuthStore>()(
             password: data.password,
           }
           await get().login(loginCredentials)
+
+          // Override the login_completed event method for new signups
+          track('login_completed', { method: 'email_signup' })
         } catch (error: unknown) {
           set({ isLoading: false })
           if (axios.isAxiosError(error)) {
@@ -119,6 +132,9 @@ export const useAuthStore = create<AuthStore>()(
 
           localStorage.removeItem('synapse_access_token')
           localStorage.removeItem('synapse_refresh_token')
+
+          // TASK-203: PostHog — reset identity on logout
+          resetUser()
         } catch (error) {
           set({ isLoading: false })
           throw error
@@ -173,6 +189,12 @@ export const useAuthStore = create<AuthStore>()(
 
           localStorage.setItem('synapse_access_token', tokens.access)
           localStorage.setItem('synapse_refresh_token', tokens.refresh)
+
+          // TASK-203: PostHog — track login + identify user
+          if (user?.id) {
+            identifyUser(user.id, { plan: user.role ?? 'user', role: user.role ?? 'user' })
+          }
+          track('login_completed', { method: 'google' })
         } catch (error: unknown) {
           set({ isLoading: false })
           if (axios.isAxiosError(error)) {

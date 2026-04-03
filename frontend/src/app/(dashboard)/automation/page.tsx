@@ -5,10 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import api from '@/utils/api';
-import { EditWorkflowModal } from './EditWorkflowModal';
-import { TemplatesModal } from './TemplatesModal';
-import { ScheduleModal } from './ScheduleModal';
-import { AnalyticsModal } from './AnalyticsModal';
+// TASK-104-2: Modals moved to global /components/modals/ for reusability
+import { EditWorkflowModal } from '@/components/modals/EditWorkflowModal';
+import { TemplatesModal } from '@/components/modals/TemplatesModal';
+import { ScheduleModal } from '@/components/modals/ScheduleModal';
+import { AnalyticsModal } from '@/components/modals/AnalyticsModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

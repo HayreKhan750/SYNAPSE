@@ -56,6 +56,11 @@ class AgentToolRegistry:
             make_analyze_trends_tool,
             make_search_github_tool,
             make_fetch_arxiv_papers_tool,
+            # TASK-303: new expanded tools
+            make_web_search_tool,
+            make_run_python_tool,
+            make_read_document_tool,
+            make_generate_chart_tool,
         )
         from ai_engine.agents.doc_tools import (
             make_generate_pdf_tool,
@@ -72,6 +77,11 @@ class AgentToolRegistry:
             make_analyze_trends_tool,
             make_search_github_tool,
             make_fetch_arxiv_papers_tool,
+            # TASK-303 — expanded tools
+            make_web_search_tool,       # live web search via Tavily
+            make_run_python_tool,       # Python code execution sandbox
+            make_read_document_tool,    # PDF/document reader
+            make_generate_chart_tool,   # chart generator (bar, line, pie, scatter)
             # Phase 5.2 — document generation tools
             make_generate_pdf_tool,
             make_generate_ppt_tool,

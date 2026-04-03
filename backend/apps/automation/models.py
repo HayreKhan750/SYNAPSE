@@ -21,6 +21,14 @@ class AutomationWorkflow(models.Model):
 
     id              = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user            = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workflows')
+    # TASK-006-B4: scope workflows to an organization workspace
+    organization    = models.ForeignKey(
+        'organizations.Organization',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='workflows',
+        help_text='If set, this workflow belongs to an org workspace.',
+    )
     name            = models.CharField(max_length=300)
     description     = models.TextField(blank=True)
     trigger_type    = models.CharField(max_length=20, choices=TriggerType.choices, default=TriggerType.SCHEDULE)

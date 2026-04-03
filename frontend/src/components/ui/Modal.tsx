@@ -28,6 +28,11 @@ interface ModalProps {
   hideClose?:   boolean
   /** Footer content (e.g. action buttons) */
   footer?:      React.ReactNode
+  /**
+   * TASK-104-1: Close the modal when the backdrop overlay is clicked.
+   * Defaults to true. Set to false for modals with unsaved-changes guards.
+   */
+  closeOnBackdrop?: boolean
 }
 
 // ── Size map ───────────────────────────────────────────────────────────────────
@@ -60,14 +65,20 @@ export function Modal({
   onClose,
   title,
   description,
-  size      = 'md',
+  size             = 'md',
   children,
   className,
-  hideClose = false,
+  hideClose        = false,
   footer,
+  closeOnBackdrop  = true,
 }: ModalProps) {
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()}>
+    <DialogPrimitive.Root
+      open={open}
+      onOpenChange={(v) => {
+        if (!v && closeOnBackdrop) onClose()
+      }}
+    >
       <DialogPrimitive.Portal forceMount>
         <AnimatePresence>
           {open && (

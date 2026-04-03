@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Newspaper, GitBranch, BookOpen,
   MessageSquare, Zap, FileText, Library, LogOut,
-  ChevronLeft, ChevronRight, Bot, Youtube, TrendingUp, Twitter, CreditCard,
+  ChevronLeft, ChevronRight, Bot, Youtube, TrendingUp, Twitter, CreditCard, Building2,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -30,7 +30,8 @@ const NAV_LINKS = [
   { href: '/agents',     label: 'AI Agents',     icon: Bot,             accent: '#ec4899' },
   { href: '/documents',  label: 'Documents',     icon: FileText,        accent: '#f97316' },
   { href: '/library',    label: 'Library',       icon: Library,         accent: '#14b8a6' },
-  { href: '/billing',   label: 'Billing',       icon: CreditCard,      accent: '#f59e0b' },
+  { href: '/billing',        label: 'Billing',        icon: CreditCard,  accent: '#f59e0b' },
+  { href: '/organizations',  label: 'Organizations',  icon: Building2,   accent: '#8b5cf6' },
 ]
 
 export const Sidebar = memo(function Sidebar({

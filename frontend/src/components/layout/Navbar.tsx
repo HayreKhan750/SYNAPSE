@@ -8,6 +8,7 @@ import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2, C
 import { useAuthStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/utils/api'
+import { OrgSwitcher } from '@/components/layout/OrgSwitcher'
 import { useNotificationSocket } from '@/hooks/useNotificationSocket'
 import { Tooltip } from '@/components/ui/Tooltip'
 
@@ -402,8 +403,11 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick }: NavbarPr
           </div>
         </div>
 
-        {/* Right: Theme, Bell, User */}
+        {/* Right: Org Switcher, Theme, Bell, User */}
         <div className="flex items-center gap-2">
+
+          {/* Organization Switcher — TASK-006-F1 */}
+          <OrgSwitcher />
 
           {/* Dark mode toggle */}
           <button

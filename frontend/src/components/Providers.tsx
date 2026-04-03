@@ -27,6 +27,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Toaster } from 'react-hot-toast'
 import toast from 'react-hot-toast'
 import { normaliseApiError } from '@/utils/api'
+import { AnalyticsProvider } from '@/components/AnalyticsProvider'
 
 function makeQueryClient() {
   return new QueryClient({
@@ -74,6 +75,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <QueryClientProvider client={queryClient}>
           <UpgradeModalProvider>
+            {/* TASK-203: PostHog analytics — page view tracking & user identification */}
+            <AnalyticsProvider />
+
             {children}
 
             <Toaster

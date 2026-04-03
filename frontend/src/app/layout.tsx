@@ -41,6 +41,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} h-full bg-slate-50 dark:bg-slate-900 transition-colors duration-300`}>
         <ServiceWorkerRegistration />
         <Providers>{children}</Providers>
+        {/* TASK-104-3: Portal root for React modal portals */}
+        <div id="modal-root" />
       </body>
     </html>
   )

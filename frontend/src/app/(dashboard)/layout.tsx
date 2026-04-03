@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Navbar } from '@/components/layout/Navbar'
 import { useAuthStore } from '@/store/authStore'
+import { OrganizationProvider } from '@/contexts/OrganizationContext'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -45,42 +46,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <OrganizationProvider>
+      <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+        {/* Mobile backdrop — click to close */}
+        {mobileOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
 
-      {/* Mobile backdrop — click to close */}
-      {mobileOpen && (
+        {/* Sidebar */}
+        <Sidebar
+          isCollapsed={isCollapsed}
+          onToggle={() => setIsCollapsed(!isCollapsed)}
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
+        />
+
+        {/* Main Content Area */}
+        {/* On desktop: offset by sidebar width. On mobile: no margin (sidebar overlays) */}
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+          className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
+            isCollapsed ? 'md:ml-[72px]' : 'md:ml-64'
+          }`}
+        >
+          {/* Navbar */}
+          <Navbar
+            onMenuClick={() => setIsCollapsed(!isCollapsed)}
+            onMobileMenuClick={() => setMobileOpen(true)}
+          />
 
-      {/* Sidebar */}
-      <Sidebar
-        isCollapsed={isCollapsed}
-        onToggle={() => setIsCollapsed(!isCollapsed)}
-        mobileOpen={mobileOpen}
-        onMobileClose={() => setMobileOpen(false)}
-      />
-
-      {/* Main Content Area */}
-      {/* On desktop: offset by sidebar width. On mobile: no margin (sidebar overlays) */}
-      <div
-        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
-          isCollapsed ? 'md:ml-[72px]' : 'md:ml-64'
-        }`}
-      >
-        {/* Navbar */}
-        <Navbar
-          onMenuClick={() => setIsCollapsed(!isCollapsed)}
-          onMobileMenuClick={() => setMobileOpen(true)}
-        />
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
-          {children}
-        </main>
+          {/* Page Content */}
+          <main className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </OrganizationProvider>
   )
 }

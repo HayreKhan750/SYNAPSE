@@ -66,6 +66,8 @@ class RAGPipeline:
         question: str,
         conversation_id: str,
         content_types: Optional[List[str]] = None,
+        provider: str = "auto",
+        model: str = "",
     ) -> Dict[str, Any]:
         """
         Send a question through the RAG pipeline and return a structured response.
@@ -84,11 +86,16 @@ class RAGPipeline:
                 "conversation_id": "...",
             }
         """
-        logger.debug("RAG chat — conv=%s question=%r", conversation_id, question[:80])
+        logger.debug(
+            "RAG chat — conv=%s question=%r provider=%s model=%s",
+            conversation_id, question[:80], provider, model,
+        )
         return self.chain.chat_with_context(
             question=question,
             conversation_id=conversation_id,
             content_types=content_types,
+            provider=provider,
+            model=model,
         )
 
     def stream_chat(
@@ -96,15 +103,20 @@ class RAGPipeline:
         question: str,
         conversation_id: str,
         content_types: Optional[List[str]] = None,
+        provider: str = "auto",
+        model: str = "",
     ) -> Iterator[str]:
         """
         Streaming version of chat — yields token strings.
         The final item is prefixed with ``__SOURCES__:`` and contains JSON metadata.
+        TASK-302: provider/model forwarded to the RAG chain.
         """
         yield from self.chain.stream_chat(
             question=question,
             conversation_id=conversation_id,
             content_types=content_types,
+            provider=provider,
+            model=model,
         )
 
     # ------------------------------------------------------------------

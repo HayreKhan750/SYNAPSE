@@ -6,25 +6,67 @@ import api from '@/utils/api';
 import { ArticleCard, PaperCard } from '@/components/cards';
 import { ArticleSkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
 
+// TASK-001-T3: ForYouTab fetches from two sources and merges them:
+//   1. Interest-filtered articles  — GET /articles/?for_you=1  (topic/tag matching)
+//   2. Vector-based recommendations — GET /recommendations/    (embedding similarity)
+// Results are deduplicated by id and displayed together.
+
+interface Article {
+  id: string;
+  [key: string]: any;
+}
+
+interface Paper {
+  id: string;
+  [key: string]: any;
+}
+
+interface InterestFeedResponse {
+  results?: Article[];
+  data?: Article[];
+}
+
 interface RecoResponse {
-  data?: { articles?: any[]; papers?: any[] };
-  articles?: any[];
-  papers?: any[];
+  data?: { articles?: Article[]; papers?: Paper[] };
+  articles?: Article[];
+  papers?: Paper[];
 }
 
 export default function ForYouTab() {
   const [offset, setOffset] = useState(0);
   const limit = 12;
 
-  const { data, isLoading, isFetching } = useQuery<RecoResponse>({
+  // 1. Interest-filtered articles (TASK-001-T3)
+  const { data: interestData, isLoading: interestLoading } = useQuery<InterestFeedResponse>({
+    queryKey: ['for-you-interest', offset],
+    queryFn: () =>
+      api
+        .get('/articles/', { params: { for_you: 1, limit, offset } })
+        .then(r => r.data)
+        .catch(() => ({ results: [] })),
+    placeholderData: keepPreviousData,
+  });
+
+  // 2. Vector-based recommendations (existing)
+  const { data: recoData, isLoading: recoLoading, isFetching } = useQuery<RecoResponse>({
     queryKey: ['recommendations', offset],
     queryFn: () => api.get('/recommendations/', { params: { limit, offset } }).then(r => r.data),
     placeholderData: keepPreviousData,
   });
 
-  const articles = data?.data?.articles ?? data?.articles ?? [];
-  const papers = data?.data?.papers ?? data?.papers ?? [];
-  const hasMore = (articles.length + papers.length) >= limit; // naive hasMore for minimal path
+  const isLoading = interestLoading || recoLoading;
+
+  // Merge & deduplicate articles from both sources (interest-filtered first = higher priority)
+  const interestArticles: Article[] = interestData?.results ?? interestData?.data ?? [];
+  const recoArticles: Article[] = recoData?.data?.articles ?? recoData?.articles ?? [];
+  const seenIds = new Set<string>(interestArticles.map(a => a.id));
+  const mergedArticles: Article[] = [
+    ...interestArticles,
+    ...recoArticles.filter(a => !seenIds.has(a.id)),
+  ];
+
+  const papers: Paper[] = recoData?.data?.papers ?? recoData?.papers ?? [];
+  const hasMore = (mergedArticles.length + papers.length) >= limit;
 
   const loadMore = () => {
     setOffset((o) => o + limit);
@@ -43,9 +85,9 @@ export default function ForYouTab() {
         </div>
       ) : (
         <>
-          {articles.length > 0 && (
+          {mergedArticles.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {articles.map((a: any) => (
+              {mergedArticles.map((a: Article) => (
                 <ArticleCard key={a.id} article={a} />
               ))}
             </div>
@@ -53,7 +95,7 @@ export default function ForYouTab() {
 
           {papers.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {papers.map((p: any) => (
+              {papers.map((p: Paper) => (
                 <PaperCard key={p.id} paper={p} />
               ))}
             </div>

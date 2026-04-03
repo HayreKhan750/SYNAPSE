@@ -761,6 +761,124 @@ class ConversationListView(APIView):
         return Response({'conversations': data})
 
 
+class TranscribeView(APIView):
+    """
+    POST /api/v1/ai/chat/transcribe/
+
+    TASK-304-B1: Accept an audio file (webm/ogg/mp4/wav/m4a) and transcribe
+    it using OpenAI Whisper API or a local whisper fallback.
+
+    Request (multipart/form-data):
+        audio     — audio file, max 25 MB
+        language  — optional ISO-639-1 code, e.g. "en" (default: auto-detect)
+
+    Response 200:
+        { "text": "...", "language": "en", "duration": 4.2 }
+    Errors:
+        400 — no file, oversized, unsupported format
+        503 — Whisper not configured
+    """
+    permission_classes = [IsAuthenticated]
+
+    MAX_AUDIO_BYTES = 25 * 1024 * 1024   # 25 MB — OpenAI hard limit
+    SUPPORTED_FORMATS = {
+        "audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg",
+        "audio/wav", "audio/x-wav", "audio/m4a", "audio/x-m4a",
+        "video/webm",  # Chrome MediaRecorder outputs video/webm for audio-only recordings
+    }
+    SUPPORTED_EXTENSIONS = {".webm", ".ogg", ".mp4", ".mp3", ".wav", ".m4a", ".flac"}
+
+    def post(self, request: Request) -> Response:
+        import os
+
+        audio_file = request.FILES.get("audio")
+        if not audio_file:
+            return Response(
+                {"error": "No audio file provided. Send 'audio' as multipart/form-data."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if audio_file.size > self.MAX_AUDIO_BYTES:
+            return Response(
+                {"error": f"Audio file too large ({audio_file.size / (1024*1024):.1f} MB). Maximum is 25 MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        content_type = audio_file.content_type or ""
+        file_name    = audio_file.name or "audio.webm"
+        ext = ("." + file_name.rsplit(".", 1)[-1].lower()) if "." in file_name else ".webm"
+
+        if content_type not in self.SUPPORTED_FORMATS and ext not in self.SUPPORTED_EXTENSIONS:
+            return Response(
+                {"error": f"Unsupported format '{content_type}'. Use: webm, ogg, mp4, mp3, wav, m4a"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        language = request.data.get("language") or None
+
+        # ── OpenAI Whisper API (preferred) ────────────────────────────────────
+        openai_key = os.environ.get("OPENAI_API_KEY", "")
+        if openai_key:
+            try:
+                import openai as _openai
+                client = _openai.OpenAI(api_key=openai_key)
+                audio_file.seek(0)
+                audio_bytes = audio_file.read()
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=(file_name, audio_bytes, content_type or "audio/webm"),
+                    language=language,
+                    response_format="verbose_json",
+                )
+                return Response({
+                    "text":     transcript.text.strip(),
+                    "language": getattr(transcript, "language", language or "en"),
+                    "duration": getattr(transcript, "duration", None),
+                })
+            except ImportError:
+                logger.warning("openai package not installed — cannot use Whisper API")
+            except Exception as exc:
+                logger.error("Whisper API error: %s", exc)
+                return Response(
+                    {"error": f"Transcription failed: {exc}"},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+        # ── Local openai-whisper fallback ─────────────────────────────────────
+        try:
+            import whisper as _whisper  # type: ignore
+            import tempfile, os as _os
+
+            audio_file.seek(0)
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                tmp.write(audio_file.read())
+                tmp_path = tmp.name
+            try:
+                model_size = _os.environ.get("WHISPER_LOCAL_MODEL", "base")
+                wmodel = _whisper.load_model(model_size)
+                result  = wmodel.transcribe(tmp_path, language=language)
+                return Response({
+                    "text":     result["text"].strip(),
+                    "language": result.get("language", language or "en"),
+                    "duration": None,
+                })
+            finally:
+                _os.unlink(tmp_path)
+        except ImportError:
+            pass
+        except Exception as exc:
+            logger.error("Local whisper error: %s", exc)
+            return Response(
+                {"error": f"Local transcription failed: {exc}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response(
+            {"error": "Transcription not configured. Set OPENAI_API_KEY or install openai-whisper."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
 class ConversationDeleteView(APIView):
     """
     DELETE /api/v1/ai/chat/{conversation_id}

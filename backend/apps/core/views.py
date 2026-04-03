@@ -111,6 +111,215 @@ def global_search(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+def bm25_search_view(request):
+    """
+    POST /api/v1/search/bm25/
+
+    Full-text BM25 search via PostgreSQL tsvector / tsquery + SearchRank.
+    Best for exact keyword matches, acronyms, and rare terms.
+
+    Request body (JSON):
+        query        (str, required)
+        limit        (int, optional)    default 10, max 50
+        content_types (list, optional)  default all
+        filters      (dict, optional)
+
+    Response (200):
+        { "success": true, "data": { "articles": [...], ... },
+          "meta": { "query": "...", "mode": "bm25", ... } }
+    """
+    import time as _time
+    from apps.core.search import bm25_search
+    from apps.articles.serializers import ArticleListSerializer
+    from apps.papers.serializers import ResearchPaperSerializer
+    from apps.repositories.serializers import RepositorySerializer
+
+    query = request.data.get('query', '').strip()
+    if not query:
+        return Response({'success': False, 'error': {'message': 'Field "query" is required.'}}, status=422)
+
+    limit         = min(int(request.data.get('limit', 10)), 50)
+    content_types = request.data.get('content_types', ['articles', 'papers', 'repos', 'videos'])
+    filters       = request.data.get('filters', {})
+    start         = _time.time()
+
+    raw = bm25_search(query, content_types, limit, filters)
+
+    data = {}
+    serializer_map = {
+        'articles': ArticleListSerializer,
+        'papers':   ResearchPaperSerializer,
+        'repos':    RepositorySerializer,
+    }
+    for ct, results in raw.items():
+        Ser = serializer_map.get(ct)
+        if Ser:
+            serialized = Ser([r.obj for r in results], many=True).data
+            for i, item in enumerate(serialized):
+                item['bm25_rank'] = results[i].bm25_rank
+            data[ct] = serialized
+        else:
+            # videos — inline serialization
+            data[ct] = [
+                {'id': str(r.obj.pk), 'title': r.obj.title, 'bm25_rank': r.bm25_rank}
+                for r in results
+            ]
+
+    total = sum(len(v) for v in data.values())
+    elapsed_ms = round((_time.time() - start) * 1000)
+
+    # Log search activity
+    try:
+        if request.user and request.user.is_authenticated:
+            UserActivity.objects.create(
+                user=request.user,
+                interaction_type='search',
+                metadata={'query': query, 'mode': 'bm25'}
+            )
+    except Exception:
+        pass
+
+    return Response({
+        'success': True,
+        'data':    data,
+        'meta':    {
+            'query':              query,
+            'mode':               'bm25',
+            'limit':              limit,
+            'total':              total,
+            'content_types':      content_types,
+            'execution_time_ms':  elapsed_ms,
+        },
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def hybrid_search_view(request):
+    """
+    POST /api/v1/search/hybrid/
+
+    Hybrid search: BM25 + semantic merged via Reciprocal Rank Fusion, with
+    optional cross-encoder reranking. Recommended default for best quality.
+
+    Request body (JSON):
+        query         (str, required)
+        limit         (int, optional)     default 10, max 50
+        content_types (list, optional)    default all
+        filters       (dict, optional)
+        use_reranker  (bool, optional)    default true
+
+    Response (200):
+        { "success": true, "data": { "articles": [...], ... },
+          "meta": { "query": "...", "mode": "hybrid", "reranked": true, ... } }
+    """
+    import time as _time
+    import os
+    import sys
+    from apps.core.search import hybrid_search
+    from apps.articles.serializers import ArticleListSerializer
+    from apps.papers.serializers import ResearchPaperSerializer
+    from apps.repositories.serializers import RepositorySerializer
+
+    query = request.data.get('query', '').strip()
+    if not query:
+        return Response({'success': False, 'error': {'message': 'Field "query" is required.'}}, status=422)
+
+    limit         = min(int(request.data.get('limit', 10)), 50)
+    content_types = request.data.get('content_types', ['articles', 'papers', 'repos', 'videos'])
+    filters       = request.data.get('filters', {})
+    use_reranker  = bool(request.data.get('use_reranker', True))
+    start         = _time.time()
+
+    # ── Generate query embedding ──────────────────────────────────────────────
+    try:
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        from ai_engine.embeddings import embed_text
+        query_vector = embed_text(query)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error("Embedding generation failed: %s", exc)
+        return Response(
+            {'success': False, 'error': {'message': 'Embedding service unavailable.', 'detail': str(exc)}},
+            status=503,
+        )
+
+    raw = hybrid_search(
+        query=query,
+        query_vector=query_vector,
+        content_types=content_types,
+        limit=limit,
+        filters=filters,
+        use_reranker=use_reranker,
+    )
+
+    data = {}
+    serializer_map = {
+        'articles': ArticleListSerializer,
+        'papers':   ResearchPaperSerializer,
+        'repos':    RepositorySerializer,
+    }
+    for ct, results in raw.items():
+        Ser = serializer_map.get(ct)
+        if Ser:
+            serialized = Ser([r.obj for r in results], many=True).data
+            for i, item in enumerate(serialized):
+                item['similarity_score']  = results[i].similarity_score
+                item['bm25_rank']         = results[i].bm25_rank
+                item['semantic_rank']     = results[i].semantic_rank
+                item['rrf_score']         = round(results[i].rrf_score, 6)
+                item['rerank_score']      = results[i].rerank_score
+            data[ct] = serialized
+        else:
+            data[ct] = [
+                {
+                    'id':              str(r.obj.pk),
+                    'title':           r.obj.title,
+                    'similarity_score': r.similarity_score,
+                    'rrf_score':       round(r.rrf_score, 6),
+                    'rerank_score':    r.rerank_score,
+                }
+                for r in results
+            ]
+
+    total      = sum(len(v) for v in data.values())
+    elapsed_ms = round((_time.time() - start) * 1000)
+    reranked   = use_reranker and any(
+        r.rerank_score is not None
+        for results in raw.values()
+        for r in results
+    )
+
+    # Log search activity
+    try:
+        if request.user and request.user.is_authenticated:
+            UserActivity.objects.create(
+                user=request.user,
+                interaction_type='search',
+                metadata={'query': query, 'mode': 'hybrid', 'reranked': reranked}
+            )
+    except Exception:
+        pass
+
+    return Response({
+        'success': True,
+        'data':    data,
+        'meta':    {
+            'query':             query,
+            'mode':              'hybrid',
+            'reranked':          reranked,
+            'limit':             limit,
+            'total':             total,
+            'content_types':     content_types,
+            'execution_time_ms': elapsed_ms,
+        },
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def semantic_search(request):
     """
     POST /api/v1/search/semantic

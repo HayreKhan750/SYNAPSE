@@ -4,6 +4,8 @@ from . import views
 urlpatterns = [
     path('health/', views.health_check, name='health-check'),
     path('search/', views.global_search, name='global-search'),
+    path('search/bm25/', views.bm25_search_view, name='bm25-search'),
+    path('search/hybrid/', views.hybrid_search_view, name='hybrid-search'),
     path('search/semantic/', views.semantic_search, name='semantic-search'),
     path('scraper/run/', views.ScraperRunView.as_view(), name='scraper-run'),
     path('bookmarks/', views.BookmarkListView.as_view(), name='bookmark-list'),

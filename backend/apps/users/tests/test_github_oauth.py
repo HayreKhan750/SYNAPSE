@@ -228,6 +228,45 @@ class TestEmailVerificationResend(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertTrue(resp.data["success"])
 
+    def test_github_disconnect_no_password_returns_400(self):
+        """Disconnect returns 400 when user has no usable password."""
+        from django.contrib.auth import get_user_model
+        import uuid
+        User = get_user_model()
+        user = User.objects.create_user(
+            username=f"nopw_{uuid.uuid4().hex[:6]}",
+            email=f"nopw_{uuid.uuid4().hex[:6]}@test.com",
+            password='temppass',
+        )
+        user.set_unusable_password()
+        user.save()
+
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        response = self.client.delete('/api/v1/auth/github/disconnect/')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('password', response.data['error'].lower())
+
+    def test_github_disconnect_not_connected_returns_400(self):
+        """Disconnect returns 400 when GitHub is not linked to the user."""
+        from django.contrib.auth import get_user_model
+        import uuid
+        User = get_user_model()
+        user = User.objects.create_user(
+            username=f"nogh_{uuid.uuid4().hex[:6]}",
+            email=f"nogh_{uuid.uuid4().hex[:6]}@test.com",
+            password='testpass123',
+        )
+        # github_id is None by default
+
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        response = self.client.delete('/api/v1/auth/github/disconnect/')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('not connected', response.data['error'].lower())
+
     def test_resend_missing_email_returns_400(self):
         """Missing email body should return 400."""
         resp = self.client.post(
@@ -236,3 +275,112 @@ class TestEmailVerificationResend(TestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ── _sync_github_starred_repos (TASK-202-1) ───────────────────────────────────
+
+def _repo_payload(gh_id=600001, name='test-repo', full_name='owner/test-repo', stars=100):
+    return {
+        'id': gh_id,
+        'name': name,
+        'full_name': full_name,
+        'description': 'Test repository',
+        'html_url': f'https://github.com/{full_name}',
+        'clone_url': f'https://github.com/{full_name}.git',
+        'stargazers_count': stars,
+        'forks_count': 5,
+        'watchers_count': stars,
+        'open_issues_count': 1,
+        'language': 'Python',
+        'topics': ['ai', 'ml'],
+        'owner': {'login': 'owner'},
+    }
+
+
+class SyncGithubStarredReposTest(TestCase):
+
+    @patch('apps.repositories.embedding_tasks.generate_repo_embedding')
+    @patch('apps.users.github_views.requests')
+    def test_creates_new_repos_and_queues_embeddings(self, mock_req, mock_embed):
+        """Sync creates Repository records and queues embedding for new ones."""
+        from apps.users.github_views import _sync_github_starred_repos
+        from apps.repositories.models import Repository
+
+        mock_embed.delay = MagicMock()
+        resp = MagicMock()
+        resp.json.return_value = [_repo_payload(gh_id=600001)]
+        resp.raise_for_status = MagicMock()
+        mock_req.get.return_value = resp
+
+        _sync_github_starred_repos('testuser', 'gho_tok')
+
+        repo = Repository.objects.get(github_id=600001)
+        self.assertEqual(repo.name, 'test-repo')
+        self.assertEqual(repo.stars, 100)
+        mock_embed.delay.assert_called_once_with(str(repo.id))
+
+    @patch('apps.repositories.embedding_tasks.generate_repo_embedding')
+    @patch('apps.users.github_views.requests')
+    def test_updates_existing_repos_without_requeing_embed(self, mock_req, mock_embed):
+        """Sync updates existing Repository records without re-queuing embedding."""
+        from apps.users.github_views import _sync_github_starred_repos
+        from apps.repositories.models import Repository
+
+        mock_embed.delay = MagicMock()
+
+        # Pre-create the repo
+        Repository.objects.create(
+            github_id=600002, name='old-name', full_name='owner/old-name',
+            url='https://github.com/owner/old-name', stars=10,
+        )
+
+        resp = MagicMock()
+        resp.json.return_value = [_repo_payload(gh_id=600002, name='new-name',
+                                                 full_name='owner/new-name', stars=999)]
+        resp.raise_for_status = MagicMock()
+        mock_req.get.return_value = resp
+
+        _sync_github_starred_repos('testuser', 'gho_tok')
+
+        repo = Repository.objects.get(github_id=600002)
+        self.assertEqual(repo.name, 'new-name')
+        self.assertEqual(repo.stars, 999)
+        mock_embed.delay.assert_not_called()  # no embedding for updated repo
+
+    @patch('apps.users.github_views.requests')
+    def test_handles_empty_starred_list(self, mock_req):
+        """Sync handles empty starred list without error."""
+        from apps.users.github_views import _sync_github_starred_repos
+
+        resp = MagicMock()
+        resp.json.return_value = []
+        resp.raise_for_status = MagicMock()
+        mock_req.get.return_value = resp
+
+        # Should not raise
+        _sync_github_starred_repos('testuser', 'gho_tok')
+
+    @patch('apps.users.github_views.requests')
+    def test_handles_github_api_failure_gracefully(self, mock_req):
+        """Sync handles GitHub API errors without raising."""
+        from apps.users.github_views import _sync_github_starred_repos
+        import requests as req_lib
+
+        mock_req.get.side_effect = req_lib.RequestException('Network error')
+        # Should not raise
+        _sync_github_starred_repos('testuser', 'gho_tok')
+
+    @patch('apps.repositories.embedding_tasks.generate_repo_embedding')
+    @patch('apps.users.github_views.requests')
+    def test_skips_entry_with_no_github_id(self, mock_req, mock_embed):
+        """Sync skips malformed entries that have no 'id' field."""
+        from apps.users.github_views import _sync_github_starred_repos
+
+        mock_embed.delay = MagicMock()
+        resp = MagicMock()
+        resp.json.return_value = [{'name': 'broken-repo-no-id'}]  # no 'id'
+        resp.raise_for_status = MagicMock()
+        mock_req.get.return_value = resp
+
+        _sync_github_starred_repos('testuser', 'gho_tok')
+        mock_embed.delay.assert_not_called()

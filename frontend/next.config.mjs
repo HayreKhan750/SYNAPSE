@@ -1,3 +1,8 @@
+// TASK-204: Sentry error monitoring — wrap Next.js config with Sentry webpack plugin.
+// withSentryConfig injects the Sentry source-map upload plugin and auto-instruments
+// Server Components, Route Handlers, and API routes.
+import { withSentryConfig } from '@sentry/nextjs'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
@@ -103,4 +108,23 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  // Sentry organisation and project (set in CI via env vars)
+  org:     process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Auth token for source-map upload (set in CI, never in client bundle)
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Only upload source maps in CI / production builds
+  silent: true,
+
+  // Disable source-map upload when DSN is not set (local dev)
+  disableServerWebpackPlugin: !process.env.NEXT_PUBLIC_SENTRY_DSN,
+  disableClientWebpackPlugin: !process.env.NEXT_PUBLIC_SENTRY_DSN,
+
+  // Tree-shake Sentry debug code from production bundles
+  hideSourceMaps: true,
+  widenClientFileUpload: true,
+  automaticVercelMonitors: false,
+})

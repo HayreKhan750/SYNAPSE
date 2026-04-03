@@ -52,12 +52,14 @@ LOCAL_APPS = [
     'apps.notifications',
     'apps.integrations',  # Phase 6 — Cloud Integration (Google Drive + AWS S3)
     'apps.billing',       # Phase 9.3 — Stripe billing, referrals, feedback
+    'apps.organizations', # TASK-006 — Team Workspaces & Organizations
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # ── Middleware ────────────────────────────────────────────────
 MIDDLEWARE = [
+    'apps.core.middleware.APIVersionHeaderMiddleware',  # TASK-105-4: X-API-Version header
     # 'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -240,6 +242,18 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_ENABLE_UTC = True
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# ── Celery Beat static schedule (TASK-201: weekly digest fan-out) ─────────────
+# Runs daily at 08:00 UTC; the task itself filters users by their digest_day
+# preference so each user receives mail only on their chosen weekday.
+from celery.schedules import crontab  # noqa: E402
+CELERY_BEAT_SCHEDULE = {
+    'weekly-digest-daily-fanout': {
+        'task':     'apps.notifications.tasks.send_weekly_digest_to_all',
+        'schedule': crontab(hour=8, minute=0),   # 08:00 UTC every day
+        'options':  {'queue': 'default'},
+    },
+}
 # Track when a task transitions to STARTED (enables "processing" status in DB)
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60       # 30 min hard limit
