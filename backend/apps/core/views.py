@@ -18,6 +18,7 @@ from apps.papers.serializers import ResearchPaperSerializer
 from django.db.models import Q
 from django.utils import timezone
 from .models import UserBookmark, Collection, UserActivity, DailyBriefing, KnowledgeNode, KnowledgeEdge
+from .audit import AuditLog
 from .serializers import BookmarkSerializer, CollectionSerializer, CollectionListSerializer
 from .recommendations import recommend_for_user
 from .trending import get_trending
@@ -1001,6 +1002,39 @@ class KnowledgeGraphSearchView(APIView):
             'success': True,
             'data': [_serialize_node(n) for n in nodes],
         })
+
+
+class AuditLogListView(APIView):
+    """
+    TASK-505-B3: GET /api/audit-log/ — list audit log entries.
+    Admins see all users; regular users see only their own.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = (
+            AuditLog.objects.all().select_related('user')
+            if request.user.is_staff
+            else AuditLog.objects.filter(user=request.user)
+        )
+        action_filter = request.query_params.get('action', '')
+        if action_filter:
+            qs = qs.filter(action=action_filter)
+        qs = qs.order_by('-created_at')[:100]
+        data = [
+            {
+                'id':          str(entry.id),
+                'action':      entry.action,
+                'user':        entry.user.email if entry.user else 'anonymous',
+                'target_id':   entry.target_id,
+                'target_type': entry.target_type,
+                'ip_address':  entry.ip_address,
+                'metadata':    entry.metadata,
+                'created_at':  entry.created_at.isoformat(),
+            }
+            for entry in qs
+        ]
+        return Response({'success': True, 'data': data})
 
 
 class KnowledgeNodeDetailView(APIView):

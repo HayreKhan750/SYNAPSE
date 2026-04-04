@@ -512,7 +512,7 @@ class S3PresignedUrlView(APIView):
 
 class NotionConnectView(APIView):
     """GET /api/v1/integrations/notion/connect/ — redirect to Notion OAuth."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         from apps.integrations.notion import get_authorization_url  # noqa
@@ -525,7 +525,7 @@ class NotionConnectView(APIView):
 
 class NotionCallbackView(APIView):
     """POST /api/v1/integrations/notion/callback/ — exchange code for token."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         from apps.integrations.notion import exchange_code_for_token  # noqa
@@ -549,7 +549,7 @@ class NotionCallbackView(APIView):
 
 class NotionStatusView(APIView):
     """GET /api/v1/integrations/notion/status/ — connection status."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         from django.core.cache import cache
@@ -559,7 +559,7 @@ class NotionStatusView(APIView):
 
 class NotionDisconnectView(APIView):
     """POST /api/v1/integrations/notion/disconnect/ — revoke token."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         from django.core.cache import cache
@@ -569,7 +569,7 @@ class NotionDisconnectView(APIView):
 
 class SlackConnectView(APIView):
     """GET /api/v1/integrations/slack/connect/ — redirect to Slack OAuth."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         from apps.integrations.slack import get_authorization_url  # noqa
@@ -579,7 +579,7 @@ class SlackConnectView(APIView):
 
 class SlackStatusView(APIView):
     """GET /api/v1/integrations/slack/status/ — connection status."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         from django.core.cache import cache
@@ -589,7 +589,7 @@ class SlackStatusView(APIView):
 
 class SlackDisconnectView(APIView):
     """POST /api/v1/integrations/slack/disconnect/ — revoke."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         from django.core.cache import cache
@@ -599,7 +599,7 @@ class SlackDisconnectView(APIView):
 
 class SlackSlashCommandView(APIView):
     """POST /api/v1/integrations/slack/slash/ — handle /synapse slash command."""
-    permission_classes = [permissions.AllowAny]  # Slack calls this without JWT
+    permission_classes = [AllowAny]  # Slack calls this without JWT
 
     def post(self, request):
         from apps.integrations.slack import verify_slack_signature, handle_slash_command  # noqa
@@ -618,8 +618,9 @@ class SlackSlashCommandView(APIView):
 
 class ObsidianImportView(APIView):
     """POST /api/v1/integrations/obsidian/import/ — upload and parse vault files."""
-    permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [parsers.MultiPartParser]
+    permission_classes = [IsAuthenticated]
+    from rest_framework.parsers import MultiPartParser
+    parser_classes = [MultiPartParser]
 
     def post(self, request):
         from apps.integrations.obsidian import parse_markdown_file, import_vault_notes  # noqa
@@ -642,7 +643,7 @@ class ObsidianImportView(APIView):
 
 class ZoteroConnectView(APIView):
     """POST /api/v1/integrations/zotero/connect/ — validate + store API key."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         from apps.integrations.zotero import ZoteroClient, import_library  # noqa
@@ -671,7 +672,7 @@ class ZoteroConnectView(APIView):
 
 class ZoteroStatusView(APIView):
     """GET /api/v1/integrations/zotero/status/ — connection status."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         from django.core.cache import cache
@@ -681,7 +682,7 @@ class ZoteroStatusView(APIView):
 
 class ZoteroDisconnectView(APIView):
     """POST /api/v1/integrations/zotero/disconnect/ — remove config."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         from django.core.cache import cache

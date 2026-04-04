@@ -10,6 +10,8 @@ urlpatterns = [
     path('knowledge-graph/', views.KnowledgeGraphView.as_view(), name='knowledge-graph'),
     path('knowledge-graph/search/', views.KnowledgeGraphSearchView.as_view(), name='knowledge-graph-search'),
     path('knowledge-graph/nodes/<uuid:pk>/', views.KnowledgeNodeDetailView.as_view(), name='knowledge-node-detail'),
+    # ── TASK-505-B3: Audit log ────────────────────────────────────────────────
+    path('audit-log/', views.AuditLogListView.as_view(), name='audit-log'),
     path('search/', views.global_search, name='global-search'),
     path('search/bm25/', views.bm25_search_view, name='bm25-search'),
     path('search/hybrid/', views.hybrid_search_view, name='hybrid-search'),

@@ -588,7 +588,7 @@
   - Dropdown showing available models with cost indicator: 🟢 Free · 🟡 $ · 🔴 $$
   - Show: model name, provider logo, brief description
   - Persist selection to user preferences via `PATCH /api/users/me/`
-- [ ] **TASK-302-F2:** Model selector in agent UI
+- [x] **TASK-302-F2:** Model selector in agent UI
   - File: `frontend/src/app/(dashboard)/agents/page.tsx`
   - Same model picker component (reuse from chat)
   - Show estimated cost before running expensive models
@@ -954,16 +954,16 @@
 ### TASK-505 — Audit Log System
 **Priority:** 🏗️ Medium | **Effort:** M | **Impact:** Enterprise compliance (SOC2 prep); security forensics
 
-- [ ] **TASK-505-B1:** Create AuditLog model
+- [x] **TASK-505-B1:** Create AuditLog model
   - File: `backend/apps/core/models.py`
   - Fields: `user (FK, null)`, `action (CharField)`, `resource_type (CharField)`, `resource_id (CharField)`, `metadata (JSONField)`, `ip_address (GenericIPAddressField)`, `user_agent (TextField)`, `created_at (DateTimeField, db_index=True)`
   - Indexed on: `user`, `created_at`, `action`, composite `(user, action, created_at)`
-- [ ] **TASK-505-B2:** Create audit log decorator/middleware
+- [x] **TASK-505-B2:** Create audit log decorator/middleware
   - File: `backend/apps/core/audit.py` *(new)*
   - Decorator: `@audit_log(action='agent.run', resource_type='agent')`
   - Auto-captures: `request.user`, `request.META['REMOTE_ADDR']`, `request.META.get('HTTP_USER_AGENT')`
   - Apply to key views: login, logout, plan changes, agent runs, document generation, API key create/revoke, org changes
-- [ ] **TASK-505-B3:** Audit log API for admins and org owners
+- [x] **TASK-505-B3:** Audit log API for admins and org owners
   - File: `backend/apps/core/views.py`
   - `GET /api/admin/audit-logs/` — filterable by `?user=`, `?action=`, `?from=`, `?to=`
   - Paginated (100 per page); CSV export option
