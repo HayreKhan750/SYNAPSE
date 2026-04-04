@@ -15,8 +15,9 @@ from apps.repositories.models import Repository
 from apps.repositories.serializers import RepositorySerializer
 from apps.papers.models import ResearchPaper
 from apps.papers.serializers import ResearchPaperSerializer
+from django.db.models import Q
 from django.utils import timezone
-from .models import UserBookmark, Collection, UserActivity, DailyBriefing
+from .models import UserBookmark, Collection, UserActivity, DailyBriefing, KnowledgeNode, KnowledgeEdge
 from .serializers import BookmarkSerializer, CollectionSerializer, CollectionListSerializer
 from .recommendations import recommend_for_user
 from .trending import get_trending
@@ -887,3 +888,146 @@ class BriefingHistoryView(APIView):
             for b in briefings
         ]
         return Response({'success': True, 'data': data})
+
+
+# ── TASK-603-B3: Knowledge Graph API ─────────────────────────────────────────
+
+def _serialize_node(node: KnowledgeNode) -> dict:
+    return {
+        'id':            str(node.id),
+        'name':          node.name,
+        'entity_type':   node.entity_type,
+        'description':   node.description,
+        'mention_count': node.mention_count,
+        'metadata':      node.metadata,
+    }
+
+
+def _serialize_edge(edge: KnowledgeEdge) -> dict:
+    return {
+        'id':            str(edge.id),
+        'source':        str(edge.source_id),
+        'target':        str(edge.target_id),
+        'relation_type': edge.relation_type,
+        'weight':        edge.weight,
+    }
+
+
+class KnowledgeGraphView(APIView):
+    """
+    GET /api/knowledge-graph/?center={node_id}&depth=2
+    Return a subgraph (nodes + edges) centred on a node up to `depth` hops.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        center_id = request.query_params.get('center')
+        depth     = min(int(request.query_params.get('depth', 2)), 3)
+        limit     = min(int(request.query_params.get('limit', 50)), 200)
+        entity_type = request.query_params.get('type', '')
+
+        if center_id:
+            try:
+                center = KnowledgeNode.objects.get(pk=center_id)
+            except KnowledgeNode.DoesNotExist:
+                return Response({'success': False, 'error': 'Node not found'}, status=404)
+
+            # BFS expansion up to `depth` hops
+            visited_ids = {str(center.id)}
+            frontier    = [center]
+            all_nodes   = [center]
+            all_edges   = []
+
+            for _ in range(depth):
+                if not frontier:
+                    break
+                ids = [n.id for n in frontier]
+                edges = list(
+                    KnowledgeEdge.objects.filter(
+                        Q(source_id__in=ids) | Q(target_id__in=ids)
+                    ).select_related('source', 'target')[:limit]
+                )
+                all_edges.extend(edges)
+                new_frontier = []
+                for edge in edges:
+                    for node in (edge.source, edge.target):
+                        nid = str(node.id)
+                        if nid not in visited_ids:
+                            visited_ids.add(nid)
+                            all_nodes.append(node)
+                            new_frontier.append(node)
+                frontier = new_frontier
+
+        else:
+            # No center: return top nodes by mention count
+            qs = KnowledgeNode.objects.all().order_by('-mention_count')
+            if entity_type:
+                qs = qs.filter(entity_type=entity_type)
+            all_nodes = list(qs[:limit])
+            ids       = [n.id for n in all_nodes]
+            all_edges = list(
+                KnowledgeEdge.objects.filter(
+                    source_id__in=ids, target_id__in=ids
+                ).order_by('-weight')[:limit * 2]
+            )
+
+        return Response({
+            'success': True,
+            'data': {
+                'nodes': [_serialize_node(n) for n in all_nodes],
+                'edges': [_serialize_edge(e) for e in all_edges],
+            },
+        })
+
+
+class KnowledgeGraphSearchView(APIView):
+    """GET /api/knowledge-graph/search/?q={query} — find nodes by name."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        q           = request.query_params.get('q', '').strip()
+        entity_type = request.query_params.get('type', '')
+        limit       = min(int(request.query_params.get('limit', 20)), 100)
+
+        if not q:
+            return Response({'success': False, 'error': 'q is required'}, status=400)
+
+        qs = KnowledgeNode.objects.filter(name__icontains=q).order_by('-mention_count')
+        if entity_type:
+            qs = qs.filter(entity_type=entity_type)
+        nodes = qs[:limit]
+
+        return Response({
+            'success': True,
+            'data': [_serialize_node(n) for n in nodes],
+        })
+
+
+class KnowledgeNodeDetailView(APIView):
+    """GET /api/knowledge-graph/nodes/{id}/ — node detail with connected nodes."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            node = KnowledgeNode.objects.get(pk=pk)
+        except KnowledgeNode.DoesNotExist:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+
+        outgoing = list(KnowledgeEdge.objects.filter(source=node).select_related('target')[:20])
+        incoming = list(KnowledgeEdge.objects.filter(target=node).select_related('source')[:20])
+
+        return Response({
+            'success': True,
+            'data': {
+                **_serialize_node(node),
+                'source_ids': node.source_ids[:10],
+                'outgoing_edges': [
+                    {**_serialize_edge(e), 'target_name': e.target.name, 'target_type': e.target.entity_type}
+                    for e in outgoing
+                ],
+                'incoming_edges': [
+                    {**_serialize_edge(e), 'source_name': e.source.name, 'source_type': e.source.entity_type}
+                    for e in incoming
+                ],
+            },
+        })

@@ -144,6 +144,71 @@ class Conversation(models.Model):
         return f'Conversation {self.conversation_id[:8]}'
 
 
+# ── TASK-603-B1: AI Knowledge Graph ──────────────────────────────────────────
+
+class KnowledgeNode(models.Model):
+    """A named entity in the knowledge graph (concept, paper, repo, author, tool, org)."""
+
+    class EntityType(models.TextChoices):
+        CONCEPT      = 'concept',      'Concept'
+        PAPER        = 'paper',        'Paper'
+        REPOSITORY   = 'repository',   'Repository'
+        AUTHOR       = 'author',       'Author'
+        TOOL         = 'tool',         'Tool'
+        ORGANIZATION = 'organization', 'Organization'
+
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name        = models.CharField(max_length=300, db_index=True)
+    entity_type = models.CharField(max_length=20, choices=EntityType.choices, db_index=True)
+    description = models.TextField(blank=True)
+    source_ids  = models.JSONField(default=list)  # IDs of articles/papers that mention this node
+    metadata    = models.JSONField(default=dict)  # type-specific data (e.g. paper URL, repo stars)
+    mention_count = models.PositiveIntegerField(default=1, db_index=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table        = 'knowledge_nodes'
+        unique_together = [('name', 'entity_type')]
+        ordering        = ['-mention_count']
+        indexes         = [
+            models.Index(fields=['entity_type', '-mention_count'], name='kn_type_mentions_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.entity_type}:{self.name}"
+
+
+class KnowledgeEdge(models.Model):
+    """A directed relationship between two KnowledgeNodes."""
+
+    class RelationType(models.TextChoices):
+        CITES       = 'cites',       'Cites'
+        USES        = 'uses',        'Uses'
+        AUTHORED_BY = 'authored_by', 'Authored By'
+        RELATED_TO  = 'related_to',  'Related To'
+        BUILT_WITH  = 'built_with',  'Built With'
+
+    id            = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source        = models.ForeignKey(KnowledgeNode, on_delete=models.CASCADE, related_name='outgoing_edges')
+    target        = models.ForeignKey(KnowledgeNode, on_delete=models.CASCADE, related_name='incoming_edges')
+    relation_type = models.CharField(max_length=20, choices=RelationType.choices, db_index=True)
+    weight        = models.FloatField(default=1.0)   # co-occurrence / citation count
+    evidence      = models.JSONField(default=list)   # [{"source_id": ..., "text": "..."}]
+    created_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table        = 'knowledge_edges'
+        unique_together = [('source', 'target', 'relation_type')]
+        indexes         = [
+            models.Index(fields=['source', 'relation_type'], name='ke_source_rel_idx'),
+            models.Index(fields=['target', 'relation_type'], name='ke_target_rel_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.source.name} --[{self.relation_type}]--> {self.target.name}"
+
+
 class DailyBriefing(models.Model):
     """AI-generated daily briefing personalised per user."""
 

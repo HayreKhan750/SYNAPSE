@@ -6,6 +6,10 @@ urlpatterns = [
     # ── TASK-305-B3: Daily Briefing ──────────────────────────────────────────
     path('briefing/today/', views.TodayBriefingView.as_view(), name='briefing-today'),
     path('briefing/history/', views.BriefingHistoryView.as_view(), name='briefing-history'),
+    # ── TASK-603-B3: Knowledge Graph ──────────────────────────────────────────
+    path('knowledge-graph/', views.KnowledgeGraphView.as_view(), name='knowledge-graph'),
+    path('knowledge-graph/search/', views.KnowledgeGraphSearchView.as_view(), name='knowledge-graph-search'),
+    path('knowledge-graph/nodes/<uuid:pk>/', views.KnowledgeNodeDetailView.as_view(), name='knowledge-node-detail'),
     path('search/', views.global_search, name='global-search'),
     path('search/bm25/', views.bm25_search_view, name='bm25-search'),
     path('search/hybrid/', views.hybrid_search_view, name='hybrid-search'),

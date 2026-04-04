@@ -1082,20 +1082,20 @@
 ### TASK-603 — AI Knowledge Graph
 **Priority:** 🚀 Medium | **Effort:** XL | **Impact:** Unique visual differentiator; premium enterprise feature
 
-- [ ] **TASK-603-B1:** Design knowledge graph data models
+- [x] **TASK-603-B1:** Design knowledge graph data models
   - File: `backend/apps/core/models.py`
   - `KnowledgeNode`: `entity_type [concept|paper|repo|author|tool|organization]`, `name`, `description`, `source_ids (JSONField)`, `embedding (VectorField)`
   - `KnowledgeEdge`: `source (FK KnowledgeNode)`, `target (FK KnowledgeNode)`, `relation_type [cites|uses|authored_by|related_to|built_with]`, `weight (float)`, `evidence (JSONField)`
-- [ ] **TASK-603-B2:** Build graph construction pipeline
+- [x] **TASK-603-B2:** Build graph construction pipeline
   - File: `backend/apps/core/tasks.py` — new `build_knowledge_graph()` Celery task
   - Use NER results from `ai_engine/nlp/ner.py` to extract entities from all content
   - Link: papers citing same concepts, repos using same libraries, authors across papers
   - Run incrementally: process only new content since last run
-- [ ] **TASK-603-B3:** Knowledge graph API
+- [x] **TASK-603-B3:** Knowledge graph API
   - `GET /api/knowledge-graph/?center={node_id}&depth=2` — return nodes + edges JSON for visualization
   - `GET /api/knowledge-graph/search/?q={query}` — find node by name/concept
   - `GET /api/knowledge-graph/nodes/{id}/` — node detail with related content
-- [ ] **TASK-603-F1:** Interactive knowledge graph UI
+- [x] **TASK-603-F1:** Interactive knowledge graph UI
   - File: `frontend/src/app/(dashboard)/knowledge-graph/page.tsx` *(new)*
   - Use `react-force-graph-2d` for force-directed graph visualization
   - Node click: open detail panel showing related content

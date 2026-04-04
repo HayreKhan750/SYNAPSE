@@ -602,6 +602,153 @@ def generate_daily_briefings(self) -> Dict:
     return {'created': created, 'skipped': skipped}
 
 
+@shared_task(bind=True, max_retries=2)
+def build_knowledge_graph(self) -> Dict:
+    """
+    TASK-603-B2: Incrementally build the AI knowledge graph from all content.
+
+    Pipeline:
+     1. Query articles/papers since last_run (stored in cache).
+     2. Run NER on each piece of content → extract entities.
+     3. Upsert KnowledgeNode for each entity (merge by name+type).
+     4. Create KnowledgeEdge edges for co-occurring entities.
+     5. Link paper authors, repo tools, concept co-citations.
+    """
+    from django.core.cache import cache
+    from django.utils import timezone as dj_tz
+    from apps.core.models import KnowledgeNode, KnowledgeEdge
+    from apps.articles.models import Article
+    from apps.papers.models import ResearchPaper
+
+    CACHE_KEY = 'knowledge_graph_last_run'
+    last_run  = cache.get(CACHE_KEY)
+    now       = dj_tz.now()
+
+    # Query new content since last run
+    article_qs = Article.objects.all().values('id', 'title', 'summary', 'url')
+    paper_qs   = ResearchPaper.objects.all().values('id', 'title', 'abstract', 'url', 'authors')
+
+    if last_run:
+        article_qs = article_qs.filter(scraped_at__gte=last_run)
+        paper_qs   = paper_qs.filter(fetched_at__gte=last_run)
+
+    # Try to use NER pipeline; fall back to simple keyword extraction
+    try:
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../ai_engine'))
+        from ai_engine.nlp.ner import NERExtractor
+        ner = NERExtractor()
+        use_ner = True
+    except Exception:
+        use_ner = False
+        ner     = None
+
+    nodes_created = 0
+    edges_created = 0
+
+    def extract_entities(text: str) -> list[dict]:
+        """Return list of {name, entity_type} dicts."""
+        if not text:
+            return []
+        if use_ner and ner:
+            try:
+                results = ner.extract(text[:2000])
+                return [
+                    {'name': r.get('text', r.get('entity', '')).strip(), 'entity_type': r.get('label', 'concept').lower()}
+                    for r in results
+                    if r.get('text') or r.get('entity')
+                ]
+            except Exception:
+                pass
+        # Fallback: naive noun-phrase extraction via simple heuristic
+        import re
+        tokens = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text[:1000])
+        return [{'name': t, 'entity_type': 'concept'} for t in set(tokens) if len(t) > 3]
+
+    def upsert_node(name: str, entity_type: str, source_id: str, extra_meta: dict | None = None) -> KnowledgeNode | None:
+        """Create or update a KnowledgeNode; returns the node."""
+        name = name.strip()[:300]
+        if not name or len(name) < 2:
+            return None
+        # Normalise entity_type to valid choices
+        valid_types = {'concept', 'paper', 'repository', 'author', 'tool', 'organization'}
+        et = entity_type.lower() if entity_type.lower() in valid_types else 'concept'
+        node, created = KnowledgeNode.objects.get_or_create(
+            name=name, entity_type=et,
+            defaults={'source_ids': [source_id], 'metadata': extra_meta or {}},
+        )
+        if not created:
+            if source_id not in node.source_ids:
+                node.source_ids.append(source_id)
+                node.mention_count += 1
+                node.save(update_fields=['source_ids', 'mention_count', 'updated_at'])
+        return node
+
+    def upsert_edge(src: KnowledgeNode, tgt: KnowledgeNode, rel: str, evidence_text: str = '') -> None:
+        """Create or strengthen a KnowledgeEdge between two nodes."""
+        nonlocal edges_created
+        valid_rels = {'cites', 'uses', 'authored_by', 'related_to', 'built_with'}
+        rel = rel if rel in valid_rels else 'related_to'
+        edge, created = KnowledgeEdge.objects.get_or_create(
+            source=src, target=tgt, relation_type=rel,
+            defaults={'weight': 1.0, 'evidence': [{'text': evidence_text[:200]}]},
+        )
+        if not created:
+            edge.weight += 0.5
+            if len(edge.evidence) < 10 and evidence_text:
+                edge.evidence.append({'text': evidence_text[:200]})
+            edge.save(update_fields=['weight', 'evidence'])
+        else:
+            edges_created += 1
+
+    # ── Process articles ─────────────────────────────────────────────────────
+    for article in article_qs[:200]:
+        text  = f"{article['title']} {article.get('summary', '')}"
+        src_id = str(article['id'])
+        entities = extract_entities(text)
+        nodes = []
+        for ent in entities[:15]:
+            node = upsert_node(ent['name'], ent['entity_type'], src_id)
+            if node:
+                nodes.append(node)
+                nodes_created += 1
+
+        # Link co-occurring entities
+        for i, n1 in enumerate(nodes[:8]):
+            for n2 in nodes[i+1:8]:
+                if n1.pk != n2.pk:
+                    upsert_edge(n1, n2, 'related_to', f"Co-occur in: {article['title'][:100]}")
+
+    # ── Process papers ───────────────────────────────────────────────────────
+    for paper in paper_qs[:200]:
+        text   = f"{paper['title']} {paper.get('abstract', '')}"
+        src_id = str(paper['id'])
+        entities = extract_entities(text)
+        paper_node = upsert_node(paper['title'][:300], 'paper', src_id, {'url': paper.get('url', '')})
+        if paper_node:
+            nodes_created += 1
+
+        # Add authors
+        for author in (paper.get('authors') or [])[:5]:
+            author_name = author if isinstance(author, str) else str(author)
+            author_node = upsert_node(author_name, 'author', src_id)
+            if author_node and paper_node:
+                upsert_edge(paper_node, author_node, 'authored_by', paper['title'][:100])
+
+        concept_nodes = []
+        for ent in entities[:10]:
+            node = upsert_node(ent['name'], ent['entity_type'], src_id)
+            if node:
+                concept_nodes.append(node)
+                nodes_created += 1
+                if paper_node:
+                    upsert_edge(paper_node, node, 'cites', paper['title'][:100])
+
+    cache.set(CACHE_KEY, now, timeout=None)
+    logger.info("TASK-603-B2: knowledge graph built — nodes=%d edges=%d", nodes_created, edges_created)
+    return {'nodes_touched': nodes_created, 'edges_created': edges_created}
+
+
 @shared_task(bind=True, max_retries=1)
 def backup_database(self) -> Dict:
     """

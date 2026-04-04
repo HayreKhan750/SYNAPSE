@@ -267,6 +267,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=2, minute=0),
         'options':  {'queue': 'default'},
     },
+    # TASK-603-B2: Knowledge graph build — runs at 05:00 UTC daily
+    'daily-knowledge-graph': {
+        'task':     'apps.core.tasks.build_knowledge_graph',
+        'schedule': crontab(hour=5, minute=0),
+        'options':  {'queue': 'default'},
+    },
     # TASK-602-B2: Daily star velocity computation — runs at 04:00 UTC
     'daily-star-velocity': {
         'task':     'apps.repositories.analytics.compute_star_velocity',
