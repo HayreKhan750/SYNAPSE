@@ -1172,22 +1172,22 @@
 ### TASK-606 — Browser Extension
 **Priority:** 🚀 Low | **Effort:** L | **Impact:** Acquisition channel; creates daily habit loop; +50% retention
 
-- [ ] **TASK-606-1:** Create Chrome extension project
+- [x] **TASK-606-1:** Create Chrome extension project
   - New directory: `browser-extension/`
   - Files: `manifest.json` (Manifest V3), `background.js` (service worker), `content.js` (page script), `popup.html` + `popup.js`
   - Permissions: `storage`, `tabs`, `contextMenus`, `notifications`
-- [ ] **TASK-606-2:** "Save to Synapse" page action
+- [x] **TASK-606-2:** "Save to Synapse" page action
   - `content.js`: inject floating "Save" button on supported pages (ArXiv, GitHub, HN, blog posts)
   - On click: collect `{url, title, selected_text, page_meta}` → `POST /api/v1/content/save/` with API key
   - Show success notification: "Saved to Synapse ✓"
-- [ ] **TASK-606-3:** "Explain with Synapse AI" context menu
+- [x] **TASK-606-3:** "Explain with Synapse AI" context menu
   - `background.js`: register context menu item on text selection
   - On click: send selected text to `POST /api/v1/ai/query/` → show response in popup
-- [ ] **TASK-606-4:** Popup dashboard
+- [x] **TASK-606-4:** Popup dashboard
   - `popup.html`: mini dashboard showing today's briefing + quick search input
   - Quick search: type query → show top 3 results from Synapse knowledge base
   - Link to full app for detailed view
-- [ ] **TASK-606-5:** Firefox extension
+- [x] **TASK-606-5:** Firefox extension
   - Adapt Manifest V3 to also support Firefox (WebExtensions API compatible)
   - Submit to Firefox Add-ons store
 

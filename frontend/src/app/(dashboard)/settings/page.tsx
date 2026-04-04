@@ -36,7 +36,15 @@ import {
   Cpu,
   Mail,
   Github,
+  Plus,
+  X,
+  Copy,
+  Check,
+  Code,
+  ExternalLink,
 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
 
@@ -275,6 +283,195 @@ function AiKeysForm() {
       </button>
     </div>
   );
+}
+
+// ── TASK-605-F1: API Keys section ─────────────────────────────────────────────
+
+function ApiKeysSection() {
+  const queryClient = useQueryClient()
+  const [showCreate, setShowCreate] = React.useState(false)
+  const [newKeyName, setNewKeyName] = React.useState('')
+  const [newKeyScopes, setNewKeyScopes] = React.useState<string[]>(['read:content'])
+  const [revealedKey, setRevealedKey] = React.useState<{ key: string; name: string } | null>(null)
+  const [copiedKey, setCopiedKey] = React.useState(false)
+
+  const { data: keysData, isLoading } = useQuery({
+    queryKey: ['api-keys'],
+    queryFn:  () => api.get('/users/keys/').then(r => r.data?.data ?? []),
+    staleTime: 30_000,
+  })
+  const keys: any[] = keysData ?? []
+
+  const createMutation = useMutation({
+    mutationFn: () => api.post('/users/keys/', { name: newKeyName, scopes: newKeyScopes }),
+    onSuccess:  (resp) => {
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] })
+      const raw = resp.data?.data?.key
+      if (raw) setRevealedKey({ key: raw, name: newKeyName })
+      setNewKeyName('')
+      setShowCreate(false)
+    },
+    onError: () => toast.error('Failed to create API key'),
+  })
+
+  const revokeMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/keys/${id}/`),
+    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: ['api-keys'] }); toast.success('Key revoked') },
+    onError:    () => toast.error('Failed to revoke key'),
+  })
+
+  const SCOPES = [
+    { value: 'read:content', label: 'Read Content' },
+    { value: 'write:ai',     label: 'AI Queries'   },
+    { value: 'read:trends',  label: 'Trends'        },
+    { value: 'write:saves',  label: 'Save Pages'    },
+  ]
+
+  const copyKey = (key: string) => {
+    navigator.clipboard.writeText(key).then(() => {
+      setCopiedKey(true)
+      setTimeout(() => setCopiedKey(false), 2000)
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Revealed key — shown once */}
+      {revealedKey && (
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/60 rounded-xl">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2">
+            ⚠️ Copy your API key now — it will not be shown again!
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 dark:text-slate-100 break-all">
+              {revealedKey.key}
+            </code>
+            <button
+              onClick={() => copyKey(revealedKey.key)}
+              className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${
+                copiedKey
+                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200'
+              }`}
+            >
+              {copiedKey ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+            </button>
+          </div>
+          <button onClick={() => setRevealedKey(null)} className="mt-2 text-xs text-amber-600 dark:text-amber-500 hover:underline">
+            I've copied it — dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Keys table */}
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <Loader2 size={14} className="animate-spin" /> Loading API keys…
+        </div>
+      ) : keys.length === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          No API keys yet. Create one to access the Synapse API programmatically.
+        </p>
+      ) : (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Name</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Key</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Last Used</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {keys.map((k: any) => (
+                <tr key={k.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{k.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
+                    {k.key_prefix}…
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-400">
+                    {k.last_used ? new Date(k.last_used).toLocaleDateString() : 'Never'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => { if (confirm(`Revoke "${k.name}"?`)) revokeMutation.mutate(k.id) }}
+                      className="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+                    >
+                      Revoke
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Create key form */}
+      {showCreate ? (
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Key Name *</label>
+            <input
+              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="e.g. My App, Python Script, Browser Extension"
+              value={newKeyName}
+              onChange={e => setNewKeyName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Scopes</label>
+            <div className="flex flex-wrap gap-2">
+              {SCOPES.map(s => (
+                <label key={s.value} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newKeyScopes.includes(s.value)}
+                    onChange={e => setNewKeyScopes(prev =>
+                      e.target.checked ? [...prev, s.value] : prev.filter(x => x !== s.value)
+                    )}
+                    className="rounded border-slate-300 text-indigo-500"
+                  />
+                  <span className="text-xs text-slate-600 dark:text-slate-300">{s.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending || !newKeyName}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              {createMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+              Create Key
+            </button>
+            <button
+              onClick={() => setShowCreate(false)}
+              className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Plus size={14} /> Create API Key
+          </button>
+          <Link href="/developers" className="flex items-center gap-1 text-xs text-indigo-500 hover:underline">
+            <Code size={12} /> Developer Portal
+            <ExternalLink size={10} />
+          </Link>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Change Password form ──────────────────────────────────────────────────────
@@ -570,6 +767,11 @@ export default function SettingsPage() {
           >
             <LogOut size={14} /> Sign Out
           </button>
+        </Section>
+
+        {/* TASK-605-F1: API Keys */}
+        <Section title="API Keys" icon={<Key size={16} />}>
+          <ApiKeysSection />
         </Section>
 
         {/* Danger zone */}
