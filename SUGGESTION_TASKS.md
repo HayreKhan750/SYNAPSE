@@ -1116,7 +1116,7 @@
   - `POST /api/marketplace/workflows/{id}/install/` — clone template to user's workspace
   - `POST /api/marketplace/workflows/{id}/publish/` — submit user's workflow for review
   - `POST /api/marketplace/workflows/{id}/upvote/`
-- [ ] **TASK-604-F1:** Marketplace page
+- [x] **TASK-604-F1:** Marketplace page
   - File: `frontend/src/app/(dashboard)/marketplace/page.tsx` *(new)*
   - Hero: "Community Workflows" — featured templates
   - Filter sidebar: category, free/paid, popularity, rating
