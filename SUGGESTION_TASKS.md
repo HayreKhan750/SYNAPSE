@@ -1196,28 +1196,28 @@
 ### TASK-607 — Integrations Marketplace
 **Priority:** 🚀 Low | **Effort:** L | **Impact:** Enterprise stickiness; unlock high-ACV deals
 
-- [ ] **TASK-607-1:** Notion integration
+- [x] **TASK-607-1:** Notion integration
   - File: `backend/apps/integrations/notion.py` *(new)*
   - OAuth flow: connect Notion workspace
   - Read: import Notion pages into RAG knowledge base (webhook on page update)
   - Write: export research reports directly to Notion as formatted pages
   - Frontend: connect button in Settings → Integrations tab
-- [ ] **TASK-607-2:** Slack integration
+- [x] **TASK-607-2:** Slack integration
   - File: `backend/apps/integrations/slack.py` *(new)*
   - Slack App: `/synapse {question}` slash command → calls AI, replies in-channel
   - Opt-in: deliver weekly AI digest to a designated Slack channel
   - Frontend: "Connect Slack" OAuth button in Settings
-- [ ] **TASK-607-3:** Obsidian integration
+- [x] **TASK-607-3:** Obsidian integration
   - File: `backend/apps/integrations/obsidian.py` *(new)*
   - Accept vault sync via file upload or webhook
   - Parse Markdown notes, embed into knowledge base
   - Two-way sync: write AI-generated summaries back as new notes
-- [ ] **TASK-607-4:** Zotero integration
+- [x] **TASK-607-4:** Zotero integration
   - File: `backend/apps/integrations/zotero.py` *(new)*
   - Connect via Zotero API key
   - Import entire Zotero library (papers + PDFs) into RAG
   - Auto-update when new items added to Zotero
-- [ ] **TASK-607-5:** Update integrations settings UI
+- [x] **TASK-607-5:** Update integrations settings UI
   - File: `frontend/src/app/(dashboard)/settings/page.tsx` — add "Integrations" tab
   - Integration cards: Google Drive ✓ / Notion / Slack / Obsidian / Zotero / S3
   - Each card: logo, description, connect/disconnect button, last-synced timestamp

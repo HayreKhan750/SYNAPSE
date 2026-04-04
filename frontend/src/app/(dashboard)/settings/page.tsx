@@ -474,6 +474,172 @@ function ApiKeysSection() {
   )
 }
 
+// ── TASK-607-5: Integrations section ─────────────────────────────────────────
+
+interface IntegrationDef {
+  id:           string;
+  name:         string;
+  description:  string;
+  emoji:        string;
+  statusUrl:    string;
+  connectUrl?:  string;
+  disconnectUrl?: string;
+  connectType:  'oauth' | 'upload' | 'apikey';
+  connectLabel?: string;
+}
+
+const INTEGRATIONS: IntegrationDef[] = [
+  {
+    id: 'google-drive', name: 'Google Drive', emoji: '📁',
+    description: 'Export documents and research reports directly to your Drive.',
+    statusUrl: '/integrations/drive/status/', connectUrl: '/integrations/drive/connect/',
+    disconnectUrl: '/integrations/drive/disconnect/', connectType: 'oauth',
+  },
+  {
+    id: 'notion', name: 'Notion', emoji: '📝',
+    description: 'Import Notion pages into your knowledge base and export reports.',
+    statusUrl: '/integrations/notion/status/', connectUrl: '/integrations/notion/connect/',
+    disconnectUrl: '/integrations/notion/disconnect/', connectType: 'oauth',
+  },
+  {
+    id: 'slack', name: 'Slack', emoji: '💬',
+    description: 'Use /synapse in Slack to ask AI questions. Receive weekly digests.',
+    statusUrl: '/integrations/slack/status/', connectUrl: '/integrations/slack/connect/',
+    disconnectUrl: '/integrations/slack/disconnect/', connectType: 'oauth',
+  },
+  {
+    id: 'obsidian', name: 'Obsidian', emoji: '🔮',
+    description: 'Upload your vault to import notes into Synapse knowledge graph.',
+    statusUrl: '', connectType: 'upload',
+    connectLabel: 'Upload Vault',
+  },
+  {
+    id: 'zotero', name: 'Zotero', emoji: '📚',
+    description: 'Import your entire Zotero library (papers + PDFs) into RAG.',
+    statusUrl: '/integrations/zotero/status/', disconnectUrl: '/integrations/zotero/disconnect/',
+    connectType: 'apikey', connectLabel: 'Connect Zotero',
+  },
+]
+
+function IntegrationCard({ integration }: { integration: IntegrationDef }) {
+  const queryClient = useQueryClient()
+  const [loading, setLoading] = React.useState(false)
+  const [zoteroKey, setZoteroKey] = React.useState('')
+  const [zoteroUserId, setZoteroUserId] = React.useState('')
+  const [showZoteroForm, setShowZoteroForm] = React.useState(false)
+
+  const { data: statusData } = useQuery({
+    queryKey: ['integration-status', integration.id],
+    queryFn:  () => integration.statusUrl
+      ? api.get(integration.statusUrl).then(r => r.data?.data)
+      : Promise.resolve({ connected: false }),
+    staleTime: 60_000,
+    enabled: Boolean(integration.statusUrl),
+  })
+  const connected = statusData?.connected ?? false
+
+  const handleConnect = async () => {
+    if (integration.connectType === 'apikey') {
+      setShowZoteroForm(true)
+      return
+    }
+    setLoading(true)
+    try {
+      if (integration.connectUrl) {
+        const resp = await api.get(integration.connectUrl)
+        const url  = resp.data?.data?.url
+        if (url) window.location.href = url
+      }
+    } catch { toast.error(`Failed to connect ${integration.name}`) }
+    finally { setLoading(false) }
+  }
+
+  const handleDisconnect = async () => {
+    if (!confirm(`Disconnect ${integration.name}?`)) return
+    setLoading(true)
+    try {
+      if (integration.disconnectUrl) await api.post(integration.disconnectUrl)
+      queryClient.invalidateQueries({ queryKey: ['integration-status', integration.id] })
+      toast.success(`${integration.name} disconnected`)
+    } catch { toast.error('Disconnect failed') }
+    finally { setLoading(false) }
+  }
+
+  const handleZoteroConnect = async () => {
+    setLoading(true)
+    try {
+      await api.post('/integrations/zotero/connect/', { api_key: zoteroKey, user_id: zoteroUserId })
+      queryClient.invalidateQueries({ queryKey: ['integration-status', 'zotero'] })
+      setShowZoteroForm(false)
+      toast.success('Zotero connected! Importing library in background…')
+    } catch { toast.error('Invalid Zotero credentials') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
+      <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xl flex-shrink-0">
+        {integration.emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{integration.name}</span>
+          {connected && (
+            <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
+              <Check size={9} /> Connected
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{integration.description}</p>
+
+        {/* Zotero API key form */}
+        {showZoteroForm && (
+          <div className="mt-3 space-y-2">
+            <input className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Zotero API Key" value={zoteroKey} onChange={e => setZoteroKey(e.target.value)} />
+            <input className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Zotero User ID" value={zoteroUserId} onChange={e => setZoteroUserId(e.target.value)} />
+            <div className="flex gap-2">
+              <button onClick={handleZoteroConnect} disabled={loading || !zoteroKey || !zoteroUserId}
+                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors">
+                {loading ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Connect
+              </button>
+              <button onClick={() => setShowZoteroForm(false)} className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+      {!showZoteroForm && (
+        <button
+          onClick={connected ? handleDisconnect : handleConnect}
+          disabled={loading}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            connected
+              ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100'
+              : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+          }`}
+        >
+          {loading ? <Loader2 size={12} className="animate-spin" /> : connected ? <X size={12} /> : <Plus size={12} />}
+          {connected ? 'Disconnect' : (integration.connectLabel ?? 'Connect')}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function IntegrationsSection() {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        Connect external services to expand your knowledge base and automate workflows.
+      </p>
+      {INTEGRATIONS.map(integration => (
+        <IntegrationCard key={integration.id} integration={integration} />
+      ))}
+    </div>
+  )
+}
+
 // ── Change Password form ──────────────────────────────────────────────────────
 
 function ChangePasswordForm() {
@@ -772,6 +938,11 @@ export default function SettingsPage() {
         {/* TASK-605-F1: API Keys */}
         <Section title="API Keys" icon={<Key size={16} />}>
           <ApiKeysSection />
+        </Section>
+
+        {/* TASK-607-5: Integrations */}
+        <Section title="Integrations" icon={<Code size={16} />}>
+          <IntegrationsSection />
         </Section>
 
         {/* Danger zone */}

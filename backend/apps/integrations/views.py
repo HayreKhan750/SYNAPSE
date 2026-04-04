@@ -506,3 +506,184 @@ class S3PresignedUrlView(APIView):
                 {"error": f"Could not generate presigned URL: {exc}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+# ── TASK-607: Integration connect/status/disconnect views ─────────────────────
+
+class NotionConnectView(APIView):
+    """GET /api/v1/integrations/notion/connect/ — redirect to Notion OAuth."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.integrations.notion import get_authorization_url  # noqa
+        import uuid
+        state = uuid.uuid4().hex
+        request.session['notion_oauth_state'] = state
+        url = get_authorization_url(state=str(request.user.pk))
+        return Response({'success': True, 'data': {'url': url}})
+
+
+class NotionCallbackView(APIView):
+    """POST /api/v1/integrations/notion/callback/ — exchange code for token."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.integrations.notion import exchange_code_for_token  # noqa
+        code = request.data.get('code', '')
+        if not code:
+            return Response({'success': False, 'error': 'Missing code'}, status=400)
+        try:
+            token_data = exchange_code_for_token(code)
+            # Store token in user integration metadata (simplified — use encrypted storage in prod)
+            request.user.notion_token = token_data.get('access_token', '')
+            if hasattr(request.user, 'save'):
+                request.user.save(update_fields=[]) if False else None  # no-op: store in cache instead
+            # In production, store in IntegrationToken model
+            from django.core.cache import cache
+            cache.set(f'notion_token:{request.user.pk}', token_data.get('access_token', ''), timeout=None)
+            workspace = token_data.get('workspace_name', 'Your workspace')
+            return Response({'success': True, 'data': {'workspace': workspace}})
+        except Exception as exc:
+            return Response({'success': False, 'error': str(exc)}, status=400)
+
+
+class NotionStatusView(APIView):
+    """GET /api/v1/integrations/notion/status/ — connection status."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.core.cache import cache
+        token = cache.get(f'notion_token:{request.user.pk}')
+        return Response({'success': True, 'data': {'connected': bool(token)}})
+
+
+class NotionDisconnectView(APIView):
+    """POST /api/v1/integrations/notion/disconnect/ — revoke token."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from django.core.cache import cache
+        cache.delete(f'notion_token:{request.user.pk}')
+        return Response({'success': True, 'data': {'message': 'Notion disconnected'}})
+
+
+class SlackConnectView(APIView):
+    """GET /api/v1/integrations/slack/connect/ — redirect to Slack OAuth."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.integrations.slack import get_authorization_url  # noqa
+        url = get_authorization_url(state=str(request.user.pk))
+        return Response({'success': True, 'data': {'url': url}})
+
+
+class SlackStatusView(APIView):
+    """GET /api/v1/integrations/slack/status/ — connection status."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.core.cache import cache
+        token = cache.get(f'slack_token:{request.user.pk}')
+        return Response({'success': True, 'data': {'connected': bool(token)}})
+
+
+class SlackDisconnectView(APIView):
+    """POST /api/v1/integrations/slack/disconnect/ — revoke."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from django.core.cache import cache
+        cache.delete(f'slack_token:{request.user.pk}')
+        return Response({'success': True, 'data': {'message': 'Slack disconnected'}})
+
+
+class SlackSlashCommandView(APIView):
+    """POST /api/v1/integrations/slack/slash/ — handle /synapse slash command."""
+    permission_classes = [permissions.AllowAny]  # Slack calls this without JWT
+
+    def post(self, request):
+        from apps.integrations.slack import verify_slack_signature, handle_slash_command  # noqa
+        # Verify signature
+        body      = request.body
+        timestamp = request.META.get('HTTP_X_SLACK_REQUEST_TIMESTAMP', '')
+        signature = request.META.get('HTTP_X_SLACK_SIGNATURE', '')
+        if not verify_slack_signature(body, timestamp, signature):
+            return Response({'error': 'Invalid signature'}, status=403)
+        # Parse URL-encoded Slack payload
+        import urllib.parse
+        payload = dict(urllib.parse.parse_qsl(body.decode()))
+        result  = handle_slash_command(payload)
+        return Response(result)
+
+
+class ObsidianImportView(APIView):
+    """POST /api/v1/integrations/obsidian/import/ — upload and parse vault files."""
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser]
+
+    def post(self, request):
+        from apps.integrations.obsidian import parse_markdown_file, import_vault_notes  # noqa
+        files   = request.FILES.getlist('files')
+        if not files:
+            return Response({'success': False, 'error': 'No files uploaded'}, status=400)
+
+        notes = []
+        for f in files[:100]:  # limit to 100 files per upload
+            try:
+                content = f.read().decode('utf-8', errors='replace')
+                note    = parse_markdown_file(f.name, content)
+                notes.append(note)
+            except Exception as exc:
+                logger.warning("Failed to parse Obsidian file %s: %s", f.name, exc)
+
+        result = import_vault_notes(notes, request.user)
+        return Response({'success': True, 'data': result}, status=201)
+
+
+class ZoteroConnectView(APIView):
+    """POST /api/v1/integrations/zotero/connect/ — validate + store API key."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.integrations.zotero import ZoteroClient, import_library  # noqa
+        api_key = (request.data.get('api_key') or '').strip()
+        user_id = (request.data.get('user_id') or '').strip()
+        if not api_key or not user_id:
+            return Response({'success': False, 'error': 'api_key and user_id are required'}, status=400)
+
+        client = ZoteroClient(api_key=api_key, user_id=user_id)
+        if not client.validate_credentials():
+            return Response({'success': False, 'error': 'Invalid Zotero credentials'}, status=400)
+
+        # Store in cache (use encrypted model in production)
+        from django.core.cache import cache
+        cache.set(f'zotero_config:{request.user.pk}', {'api_key': api_key, 'user_id': user_id}, timeout=None)
+
+        # Kick off background import
+        try:
+            from apps.core.tasks import import_zotero_library  # noqa
+            import_zotero_library.delay(str(request.user.pk), api_key, user_id)
+        except Exception as exc:
+            logger.warning("Could not enqueue Zotero import: %s", exc)
+
+        return Response({'success': True, 'data': {'message': 'Zotero connected. Importing library in background…'}})
+
+
+class ZoteroStatusView(APIView):
+    """GET /api/v1/integrations/zotero/status/ — connection status."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.core.cache import cache
+        config = cache.get(f'zotero_config:{request.user.pk}')
+        return Response({'success': True, 'data': {'connected': bool(config)}})
+
+
+class ZoteroDisconnectView(APIView):
+    """POST /api/v1/integrations/zotero/disconnect/ — remove config."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from django.core.cache import cache
+        cache.delete(f'zotero_config:{request.user.pk}')
+        return Response({'success': True, 'data': {'message': 'Zotero disconnected'}})

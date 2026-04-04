@@ -36,3 +36,23 @@ urlpatterns = [
     # Generate / refresh a presigned download URL
     path("s3/presigned-url/",    views.S3PresignedUrlView.as_view(),    name="s3-presigned-url"),
 ]
+
+# ── TASK-607: New Integrations ────────────────────────────────────────────────
+urlpatterns += [
+    # Notion
+    path("notion/connect/",    views.NotionConnectView.as_view(),    name="notion-connect"),
+    path("notion/callback/",   views.NotionCallbackView.as_view(),   name="notion-callback"),
+    path("notion/status/",     views.NotionStatusView.as_view(),     name="notion-status"),
+    path("notion/disconnect/", views.NotionDisconnectView.as_view(), name="notion-disconnect"),
+    # Slack
+    path("slack/connect/",     views.SlackConnectView.as_view(),     name="slack-connect"),
+    path("slack/status/",      views.SlackStatusView.as_view(),      name="slack-status"),
+    path("slack/disconnect/",  views.SlackDisconnectView.as_view(),  name="slack-disconnect"),
+    path("slack/slash/",       views.SlackSlashCommandView.as_view(),name="slack-slash"),
+    # Obsidian
+    path("obsidian/import/",   views.ObsidianImportView.as_view(),   name="obsidian-import"),
+    # Zotero
+    path("zotero/connect/",    views.ZoteroConnectView.as_view(),    name="zotero-connect"),
+    path("zotero/status/",     views.ZoteroStatusView.as_view(),     name="zotero-status"),
+    path("zotero/disconnect/", views.ZoteroDisconnectView.as_view(), name="zotero-disconnect"),
+]
