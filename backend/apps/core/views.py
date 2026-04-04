@@ -1091,8 +1091,13 @@ class KnowledgeGraphSearchView(APIView):
 
 class AuditLogListView(APIView):
     """
-    TASK-505-B3: GET /api/audit-log/ — list audit log entries.
+    TASK-505-B3: GET /api/audit-log/ — list audit log entries (paginated).
     Admins see all users; regular users see only their own.
+
+    Query params:
+        ?action=login|api_key_created|...   filter by action type
+        ?limit=50                            items per page (default 50, max 200)
+        ?offset=0                            pagination offset
     """
     permission_classes = [IsAuthenticated]
 
@@ -1105,7 +1110,13 @@ class AuditLogListView(APIView):
         action_filter = request.query_params.get('action', '')
         if action_filter:
             qs = qs.filter(action=action_filter)
-        qs = qs.order_by('-created_at')[:100]
+
+        # Pagination — default 50, max 200
+        limit  = min(int(request.query_params.get('limit',  50)), 200)
+        offset = int(request.query_params.get('offset', 0))
+        total  = qs.count()
+        qs     = qs.order_by('-created_at')[offset:offset + limit]
+
         data = [
             {
                 'id':          str(entry.id),
@@ -1119,7 +1130,12 @@ class AuditLogListView(APIView):
             }
             for entry in qs
         ]
-        return Response({'success': True, 'data': data})
+        return Response({
+            'success': True,
+            'count':   total,
+            'next':    offset + limit < total,
+            'data':    data,
+        })
 
 
 class KnowledgeNodeDetailView(APIView):

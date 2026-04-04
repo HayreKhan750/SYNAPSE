@@ -14,12 +14,10 @@ Decorator `@audit_action(action)` logs any view/function call.
 from __future__ import annotations
 
 import functools
-import json
 import logging
 
 from django.conf import settings
 from django.db import models
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +134,10 @@ def audit_action(action: str, target_type: str = '', get_target_id=None):
     """
     TASK-505-B2: Decorator for DRF views / Django views.
 
+    Extracts request from kwargs first (DRF passes it as a kwarg in some cases),
+    then falls back to positional arg inspection using isinstance checks rather
+    than fragile index assumptions.
+
     Usage:
         @audit_action('api_key_created', target_type='APIKey')
         def post(self, request):
@@ -144,12 +146,18 @@ def audit_action(action: str, target_type: str = '', get_target_id=None):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Extract request — works for class-based (self, request) and function views
-            request = None
-            user    = None
-            if len(args) >= 2:
-                request = args[1] if hasattr(args[1], 'user') else None
-                user    = getattr(request, 'user', None) if request else None
+            from rest_framework.request import Request as DRFRequest  # noqa: PLC0415
+            from django.http import HttpRequest  # noqa: PLC0415
+
+            # Robust request extraction: check kwargs first, then all positional args
+            request = kwargs.get('request', None)
+            if request is None:
+                for arg in args:
+                    if isinstance(arg, (DRFRequest, HttpRequest)):
+                        request = arg
+                        break
+
+            user = getattr(request, 'user', None)
 
             result = func(*args, **kwargs)
 
