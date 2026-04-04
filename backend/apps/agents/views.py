@@ -450,3 +450,84 @@ class MyPromptsView(APIView):
         qs = PromptTemplate.objects.filter(author=request.user).select_related('author')
         serializer = PromptTemplateSerializer(qs, many=True, context={'request': request})
         return Response({'success': True, 'data': serializer.data})
+
+
+# ── TASK-601-B3: Research Session endpoints ───────────────────────────────────
+
+from .models import ResearchSession  # noqa: E402
+
+
+class ResearchSessionListCreateView(APIView):
+    """
+    GET  /api/v1/agents/research/  — list user's research sessions
+    POST /api/v1/agents/research/  — start a new research session
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        qs = ResearchSession.objects.filter(user=request.user).order_by('-created_at')[:20]
+        data = [
+            {
+                'id':           str(s.id),
+                'query':        s.query,
+                'status':       s.status,
+                'sub_questions': s.sub_questions,
+                'created_at':   s.created_at.isoformat(),
+                'completed_at': s.completed_at.isoformat() if s.completed_at else None,
+            }
+            for s in qs
+        ]
+        return Response({'success': True, 'data': data})
+
+    def post(self, request: Request) -> Response:
+        query = (request.data.get('query') or '').strip()
+        if not query:
+            return Response({'success': False, 'error': 'query is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(query) > 2000:
+            return Response({'success': False, 'error': 'query too long (max 2000 chars)'}, status=status.HTTP_400_BAD_REQUEST)
+
+        session = ResearchSession.objects.create(user=request.user, query=query)
+
+        # Enqueue background research task (best-effort — no blocking)
+        try:
+            from apps.core.tasks import run_research_session  # noqa: PLC0415
+            run_research_session.delay(str(session.id))
+        except Exception as exc:
+            logger.warning("Could not enqueue research task: %s", exc)
+
+        return Response(
+            {
+                'success': True,
+                'data': {
+                    'id':     str(session.id),
+                    'query':  session.query,
+                    'status': session.status,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ResearchSessionDetailView(APIView):
+    """GET /api/v1/agents/research/{id}/ — get session status + report."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, pk) -> Response:
+        try:
+            session = ResearchSession.objects.get(pk=pk, user=request.user)
+        except ResearchSession.DoesNotExist:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+
+        return Response({
+            'success': True,
+            'data': {
+                'id':            str(session.id),
+                'query':         session.query,
+                'status':        session.status,
+                'report':        session.report,
+                'sources':       session.sources,
+                'sub_questions': session.sub_questions,
+                'created_at':    session.created_at.isoformat(),
+                'completed_at':  session.completed_at.isoformat() if session.completed_at else None,
+            },
+        })

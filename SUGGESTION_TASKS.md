@@ -912,19 +912,19 @@
 ### TASK-503 — Form Validation (React Hook Form + Zod)
 **Priority:** 🏗️ Medium | **Effort:** M | **Impact:** Type-safe forms; better UX; eliminate runtime validation bugs
 
-- [ ] **TASK-503-1:** Install dependencies
+- [x] **TASK-503-1:** Install dependencies
   - File: `frontend/package.json` — add `react-hook-form`, `zod`, `@hookform/resolvers`
   - Run: `npm install react-hook-form zod @hookform/resolvers`
-- [ ] **TASK-503-2:** Add Zod schemas for auth forms
+- [x] **TASK-503-2:** Add Zod schemas for auth forms
   - File: `frontend/src/app/(auth)/login/page.tsx` — schema: email (valid email), password (min 8 chars)
   - File: `frontend/src/app/(auth)/register/page.tsx` — schema: name, email, password, confirmPassword (must match)
   - File: `frontend/src/app/(auth)/forgot-password/page.tsx` — schema: email
   - File: `frontend/src/app/(auth)/reset-password/page.tsx` — schema: password + confirm (match, min 8, 1 number, 1 uppercase)
-- [ ] **TASK-503-3:** Add validation to settings forms
+- [x] **TASK-503-3:** Add validation to settings forms
   - File: `frontend/src/app/(dashboard)/settings/page.tsx`
   - Profile form: display_name (min 2), bio (max 160), website (valid URL or empty)
   - Password change: current_password, new_password (strength validation), confirm
-- [ ] **TASK-503-4:** Add validation to automation workflow builder
+- [x] **TASK-503-4:** Add validation to automation workflow builder
   - File: `frontend/src/app/(dashboard)/automation/page.tsx`
   - Workflow name: required, min 3 chars, max 80
   - Trigger config: required fields per trigger type
@@ -1015,7 +1015,7 @@
 **Priority:** 🚀 High | **Effort:** XL | **Impact:** Core product differentiator; $10–20/month premium feature
 
 #### Backend
-- [ ] **TASK-601-B1:** Create ResearchSession model
+- [x] **TASK-601-B1:** Create ResearchSession model
   - File: `backend/apps/agents/models.py`
   - Fields: `user (FK)`, `query (TextField)`, `status [queued|running|complete|failed]`, `report (TextField)`, `sources (JSONField)`, `sub_questions (JSONField)`, `created_at`, `completed_at`
 - [ ] **TASK-601-B2:** Build Plan-and-Execute research agent
@@ -1027,7 +1027,7 @@
     4. **Report:** LLM generates final structured report (intro, sections per sub-question, conclusion)
     5. **Format:** Add inline citations `[1]`, `[2]` linked to sources
   - Stream progress events via WebSocket: `{step: "plan", data: sub_questions}`
-- [ ] **TASK-601-B3:** Research API endpoints
+- [x] **TASK-601-B3:** Research API endpoints
   - `POST /api/research/`         — start research session (returns `session_id`)
   - `GET  /api/research/{id}/`    — get session status + report (poll-based)
   - `WS   /ws/research/{id}/`     — stream progress events (WebSocket)
@@ -1038,7 +1038,7 @@
   - Template: academic literature review format with references section
 
 #### Frontend
-- [ ] **TASK-601-F1:** Research Mode landing UI
+- [x] **TASK-601-F1:** Research Mode landing UI
   - File: `frontend/src/app/(dashboard)/research/page.tsx` — overhaul existing page
   - Large centered search bar (Perplexity-style)
   - Toggle: "Quick Search" vs "Deep Research Mode" 
@@ -1107,10 +1107,10 @@
 ### TASK-604 — Automation Marketplace
 **Priority:** 🚀 Medium | **Effort:** L | **Impact:** Community-driven growth + 30% platform revenue from paid templates
 
-- [ ] **TASK-604-B1:** Add marketplace fields to Workflow model
+- [x] **TASK-604-B1:** Add marketplace fields to Workflow model
   - File: `backend/apps/automation/models.py`
   - Add: `is_published (bool)`, `marketplace_title (str)`, `marketplace_description (text)`, `download_count (int)`, `upvotes (int)`, `price_cents (int, default=0)`, `author_revenue_share (float, default=0.7)`
-- [ ] **TASK-604-B2:** Marketplace API endpoints
+- [x] **TASK-604-B2:** Marketplace API endpoints
   - `GET  /api/marketplace/workflows/`             — list published templates (filter: `?category=`, `?free=`, `?sort=popular`)
   - `GET  /api/marketplace/workflows/{id}/`        — template detail + preview
   - `POST /api/marketplace/workflows/{id}/install/` — clone template to user's workspace
@@ -1130,7 +1130,7 @@
 **Priority:** 🚀 Medium | **Effort:** L | **Impact:** PLG motion; $5K–$50K/month from API consumers
 
 #### Backend
-- [ ] **TASK-605-B1:** Create APIKey model
+- [x] **TASK-605-B1:** Create APIKey model
   - File: `backend/apps/users/models.py`
   - Model: `APIKey` (user FK, key_prefix CharField, key_hash CharField, name, scopes JSONField, last_used DateTimeField null, created_at, is_active bool, expires_at null)
   - Key format: `sk-syn-{32 random chars}` — store only hash (SHA-256), show full key once on creation
@@ -1148,7 +1148,7 @@
   - `GET  /api/v1/trends/`           — current trending content
   - `POST /api/v1/content/save/`     — save URL to knowledge base (for browser extension)
   - All endpoints: require valid API key, enforce plan rate limits
-- [ ] **TASK-605-B4:** API key management endpoints
+- [x] **TASK-605-B4:** API key management endpoints
   - `GET    /api/keys/`     — list user's API keys (without showing full key)
   - `POST   /api/keys/`     — create new key (returns full key ONCE)
   - `DELETE /api/keys/{id}/` — revoke key (set is_active=False)

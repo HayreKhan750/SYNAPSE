@@ -44,6 +44,15 @@ class AutomationWorkflow(models.Model):
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)
 
+    # ── TASK-604-B1: Automation Marketplace fields ──────────────────────────
+    is_published          = models.BooleanField(default=False)
+    marketplace_title     = models.CharField(max_length=200, blank=True)
+    marketplace_description = models.TextField(blank=True)
+    download_count        = models.PositiveIntegerField(default=0)
+    upvotes               = models.PositiveIntegerField(default=0)
+    price_cents           = models.PositiveIntegerField(default=0)   # 0 = free
+    author_revenue_share  = models.FloatField(default=0.7)           # 70%
+
     class Meta:
         db_table = 'automation_workflows'
         ordering = ['-created_at']

@@ -11,6 +11,7 @@ URL configuration for the Automation app.
   POST       /api/v1/automation/events/trigger/     ← event dispatch
 """
 from django.urls import path
+from . import views
 from .views import (
     WorkflowListCreateView,
     WorkflowRetrieveUpdateDestroyView,
@@ -60,4 +61,11 @@ urlpatterns = [
 
     # Analytics
     path('analytics/', workflow_analytics_view, name='workflow-analytics'),
+
+    # TASK-604-B2: Automation Marketplace
+    path('marketplace/',                              views.MarketplaceListView.as_view(),    name='marketplace-list'),
+    path('marketplace/<uuid:pk>/',                    views.MarketplaceDetailView.as_view(),  name='marketplace-detail'),
+    path('marketplace/<uuid:pk>/install/',             views.MarketplaceInstallView.as_view(), name='marketplace-install'),
+    path('marketplace/<uuid:pk>/publish/',             views.MarketplacePublishView.as_view(), name='marketplace-publish'),
+    path('marketplace/<uuid:pk>/upvote/',              views.MarketplaceUpvoteView.as_view(),  name='marketplace-upvote'),
 ]

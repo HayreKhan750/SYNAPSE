@@ -5,7 +5,12 @@ from . import mfa_views
 from . import onboarding_views
 from . import github_views
 
+from .api_key_views import APIKeyListCreateView, APIKeyRevokeView
+
 urlpatterns = [
+    # TASK-605-B4: API Key management
+    path('keys/',        APIKeyListCreateView.as_view(), name='apikey-list-create'),
+    path('keys/<uuid:pk>/', APIKeyRevokeView.as_view(),  name='apikey-revoke'),
     path('register/',        views.RegisterView.as_view(),              name='auth-register'),
     path('login/',           views.CustomTokenObtainPairView.as_view(), name='auth-login'),
     path('logout/',          views.logout_view,                         name='auth-logout'),

@@ -621,3 +621,111 @@ def workflow_analytics_view(request):
         'action_distribution': action_distribution,
         'top_workflows': top_workflows,
     })
+
+
+# ── TASK-604-B2: Automation Marketplace views ─────────────────────────────────
+
+class MarketplaceListView(APIView):
+    """GET /api/v1/automation/marketplace/ — list published workflow templates."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        qs = AutomationWorkflow.objects.filter(is_published=True).select_related('user').order_by('-upvotes', '-download_count')
+        category = request.query_params.get('category', '')
+        free = request.query_params.get('free', '')
+        if free == 'true':
+            qs = qs.filter(price_cents=0)
+        data = [
+            {
+                'id':            str(w.id),
+                'title':         w.marketplace_title or w.name,
+                'description':   w.marketplace_description or w.description,
+                'author':        w.user.get_full_name() or w.user.email,
+                'download_count':w.download_count,
+                'upvotes':       w.upvotes,
+                'price_cents':   w.price_cents,
+                'trigger_type':  w.trigger_type,
+                'created_at':    w.created_at.isoformat(),
+            }
+            for w in qs[:50]
+        ]
+        return Response({'success': True, 'data': data})
+
+
+class MarketplaceDetailView(APIView):
+    """GET /api/v1/automation/marketplace/{id}/ — template detail + preview."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            w = AutomationWorkflow.objects.select_related('user').get(pk=pk, is_published=True)
+        except AutomationWorkflow.DoesNotExist:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+        return Response({'success': True, 'data': {
+            'id':          str(w.id),
+            'title':       w.marketplace_title or w.name,
+            'description': w.marketplace_description or w.description,
+            'author':      w.user.get_full_name() or w.user.email,
+            'actions':     w.actions,
+            'trigger_type':w.trigger_type,
+            'download_count':w.download_count,
+            'upvotes':     w.upvotes,
+            'price_cents': w.price_cents,
+        }})
+
+
+class MarketplaceInstallView(APIView):
+    """POST /api/v1/automation/marketplace/{id}/install/ — clone to user's workspace."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            source = AutomationWorkflow.objects.get(pk=pk, is_published=True)
+        except AutomationWorkflow.DoesNotExist:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+        clone = AutomationWorkflow.objects.create(
+            user=request.user,
+            name=f"{source.marketplace_title or source.name} (copy)",
+            description=source.marketplace_description or source.description,
+            trigger_type=source.trigger_type,
+            cron_expression=source.cron_expression,
+            event_config=source.event_config,
+            actions=source.actions,
+            is_published=False,
+        )
+        AutomationWorkflow.objects.filter(pk=pk).update(download_count=source.download_count + 1)
+        return Response({'success': True, 'data': {'id': str(clone.id), 'name': clone.name}}, status=201)
+
+
+class MarketplacePublishView(APIView):
+    """POST /api/v1/automation/marketplace/{id}/publish/ — publish user's workflow."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            w = AutomationWorkflow.objects.get(pk=pk, user=request.user)
+        except AutomationWorkflow.DoesNotExist:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+        title = (request.data.get('title') or w.name).strip()
+        desc  = (request.data.get('description') or '').strip()
+        if not title:
+            return Response({'success': False, 'error': 'title is required'}, status=400)
+        w.marketplace_title = title
+        w.marketplace_description = desc
+        w.is_published = True
+        w.save(update_fields=['marketplace_title', 'marketplace_description', 'is_published'])
+        return Response({'success': True, 'data': {'id': str(w.id), 'is_published': True}})
+
+
+class MarketplaceUpvoteView(APIView):
+    """POST /api/v1/automation/marketplace/{id}/upvote/ — increment upvote count."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            w = AutomationWorkflow.objects.get(pk=pk, is_published=True)
+        except AutomationWorkflow.DoesNotExist:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+        AutomationWorkflow.objects.filter(pk=pk).update(upvotes=w.upvotes + 1)
+        w.refresh_from_db()
+        return Response({'success': True, 'data': {'upvotes': w.upvotes}})

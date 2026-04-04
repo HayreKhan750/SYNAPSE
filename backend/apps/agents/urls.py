@@ -31,4 +31,8 @@ urlpatterns = [
     path("prompts/<uuid:pk>/",                views.PromptDetailView.as_view(),     name="prompt-detail"),
     path("prompts/<uuid:pk>/use/",            views.PromptUseView.as_view(),        name="prompt-use"),
     path("prompts/<uuid:pk>/upvote/",         views.PromptUpvoteView.as_view(),     name="prompt-upvote"),
+
+    # ── TASK-601-B3: Research session endpoints ───────────────────────────────
+    path("research/",             views.ResearchSessionListCreateView.as_view(), name="research-list-create"),
+    path("research/<uuid:pk>/",   views.ResearchSessionDetailView.as_view(),    name="research-detail"),
 ]

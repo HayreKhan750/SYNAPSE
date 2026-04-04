@@ -1,6 +1,76 @@
 import uuid
 from django.contrib.auth.models import AbstractUser
+import hashlib
+import secrets
+import uuid as _uuid
 from django.db import models
+
+
+def _generate_api_key() -> str:
+    return f"sk-syn-{secrets.token_urlsafe(24)}"
+
+
+class APIKey(models.Model):
+    """
+    TASK-605-B1: Public API Key for developer access.
+    Key format: sk-syn-{32 chars}
+    Only the SHA-256 hash is stored; full key shown once on creation.
+    """
+    id          = models.UUIDField(primary_key=True, default=_uuid.uuid4, editable=False)
+    user        = models.ForeignKey(
+        'User',
+        on_delete=models.CASCADE,
+        related_name='api_keys',
+    )
+    name        = models.CharField(max_length=100)
+    key_prefix  = models.CharField(max_length=16)   # first 12 chars for display
+    key_hash    = models.CharField(max_length=64, unique=True)  # SHA-256 of full key
+    scopes      = models.JSONField(default=list)    # e.g. ["read:content", "write:ai"]
+    last_used   = models.DateTimeField(null=True, blank=True)
+    is_active   = models.BooleanField(default=True)
+    expires_at  = models.DateTimeField(null=True, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'api_keys'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.key_prefix}…)"
+
+    @classmethod
+    def create_key(cls, user, name: str, scopes: list | None = None) -> tuple['APIKey', str]:
+        """
+        Generate a new API key. Returns (APIKey instance, raw_key).
+        The raw_key is shown once — only the hash is stored.
+        """
+        raw_key    = _generate_api_key()
+        key_hash   = hashlib.sha256(raw_key.encode()).hexdigest()
+        key_prefix = raw_key[:12]
+        instance   = cls.objects.create(
+            user=user,
+            name=name,
+            key_prefix=key_prefix,
+            key_hash=key_hash,
+            scopes=scopes or [],
+        )
+        return instance, raw_key
+
+    @classmethod
+    def authenticate(cls, raw_key: str) -> 'APIKey | None':
+        """Look up an APIKey by raw value. Updates last_used on success."""
+        from django.utils import timezone
+        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+        try:
+            api_key = cls.objects.select_related('user').get(
+                key_hash=key_hash, is_active=True
+            )
+            if api_key.expires_at and api_key.expires_at < timezone.now():
+                return None
+            cls.objects.filter(pk=api_key.pk).update(last_used=timezone.now())
+            return api_key
+        except cls.DoesNotExist:
+            return None
 
 
 class User(AbstractUser):
