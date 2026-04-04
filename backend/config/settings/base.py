@@ -427,3 +427,56 @@ LOGGING = {
         'celery': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
     },
 }
+
+# ── TASK-504-B1: OpenTelemetry Django auto-instrumentation ─────────────────────
+# Enable with OTEL_ENABLED=true in environment.
+# Install: pip install opentelemetry-distro opentelemetry-exporter-otlp-proto-grpc
+#          opentelemetry-instrumentation-django opentelemetry-instrumentation-celery
+#          opentelemetry-instrumentation-psycopg2 opentelemetry-instrumentation-redis
+OTEL_ENABLED = os.environ.get('OTEL_ENABLED', '').lower() == 'true'
+if OTEL_ENABLED:
+    try:
+        from opentelemetry import trace                                            # noqa
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter  # noqa
+        from opentelemetry.sdk.resources import Resource                          # noqa
+        from opentelemetry.sdk.trace import TracerProvider                        # noqa
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor             # noqa
+        from opentelemetry.instrumentation.django import DjangoInstrumentor       # noqa
+        from opentelemetry.instrumentation.celery import CeleryInstrumentor       # noqa
+        from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor  # noqa
+        from opentelemetry.instrumentation.redis import RedisInstrumentor         # noqa
+
+        _otel_resource = Resource.create({
+            'service.name':         os.environ.get('OTEL_SERVICE_NAME', 'synapse-backend'),
+            'service.namespace':    'synapse',
+            'deployment.environment': os.environ.get('DJANGO_ENV', 'production'),
+        })
+        _otel_exporter = OTLPSpanExporter(
+            endpoint=os.environ.get('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+            insecure=True,
+        )
+        _otel_provider = TracerProvider(resource=_otel_resource)
+        _otel_provider.add_span_processor(BatchSpanProcessor(_otel_exporter))
+        trace.set_tracer_provider(_otel_provider)
+
+        DjangoInstrumentor().instrument()
+        CeleryInstrumentor().instrument()
+        Psycopg2Instrumentor().instrument()
+        RedisInstrumentor().instrument()
+    except ImportError:
+        pass  # OTel packages not installed — skip instrumentation silently
+
+# ── TASK-506-2/3: pgBouncer connection pooling compatibility ───────────────────
+# When PGBOUNCER=true, Django must use CONN_MAX_AGE=0 (no persistent connections)
+# because pgBouncer transaction mode assigns connections per-transaction, not
+# per-session. pgBouncer handles pooling; Django gets a fresh connection each time.
+#
+# To enable pgBouncer:
+#   1. Set PGBOUNCER=true in environment
+#   2. Set DB_HOST=pgbouncer, DB_PORT=6432 (pgBouncer listen port)
+if os.environ.get('PGBOUNCER', '').lower() == 'true':
+    DATABASES['default']['CONN_MAX_AGE'] = 0  # TASK-506-3: required for transaction mode
+
+# ── TASK-507-2: Cache headers (managed by Nginx cdn_cache.conf) ────────────────
+# Static files use whitenoise for local dev; Nginx CDN config handles production caching.
+# Next.js _next/static/ assets get immutable 1yr headers via infrastructure/nginx/conf.d/cdn_cache.conf

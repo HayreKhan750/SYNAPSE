@@ -620,7 +620,7 @@
   - Supports: bar, line, pie, scatter, histogram with SYNAPSE dark theme
   - Returns base64 PNG + data_uri for direct `<img src="..."/>` embedding
   - File: `ai_engine/requirements.txt` — `matplotlib>=3.9,<4.0`
-- [ ] **TASK-303-B5:** Add Notion reader tool *(deferred — lower priority)*
+- [x] **TASK-303-B5:** Add Notion reader tool *(deferred — lower priority)*
 - [x] **TASK-303-B6:** Register all new tools in agent registry
   - File: `ai_engine/agents/registry.py` — web_search, run_python_code, read_document, generate_chart registered
   - Tool emoji icons in frontend: 🌐 web_search, 🐍 run_python_code, 📊 generate_chart, 📄 read_document
@@ -935,15 +935,15 @@
 ### TASK-504 — OpenTelemetry Distributed Tracing
 **Priority:** 🏗️ Medium | **Effort:** M | **Impact:** Debug cross-service latency; identify slow queries
 
-- [ ] **TASK-504-B1:** Add OpenTelemetry to Django backend
+- [x] **TASK-504-B1:** Add OpenTelemetry to Django backend
   - File: `backend/requirements.txt` — add `opentelemetry-sdk`, `opentelemetry-instrumentation-django`, `opentelemetry-instrumentation-psycopg2`, `opentelemetry-exporter-otlp`
   - File: `backend/config/settings/base.py` — configure TracerProvider with OTLP exporter to Tempo
   - Auto-instrument: Django requests, PostgreSQL queries, Redis calls, Celery tasks
-- [ ] **TASK-504-B2:** Add OpenTelemetry to FastAPI AI engine
+- [x] **TASK-504-B2:** Add OpenTelemetry to FastAPI AI engine
   - File: `ai_engine/requirements.txt` — add `opentelemetry-instrumentation-fastapi`, `opentelemetry-instrumentation-httpx`
   - File: `ai_engine/main.py` — configure tracer; instrument FastAPI app
   - Add spans around: LLM calls, embedding generation, retrieval steps
-- [ ] **TASK-504-B3:** Add Grafana Tempo to monitoring stack
+- [x] **TASK-504-B3:** Add Grafana Tempo to monitoring stack
   - File: `docker-compose.monitoring.yml`
   - Add `tempo` service with OTLP HTTP/gRPC receiver
   - File: `infrastructure/monitoring/grafana/provisioning/datasources/datasources.yml` — add Tempo datasource
@@ -977,10 +977,10 @@
   - File: `docker-compose.prod.yml`
   - Add `pgbouncer` service: `edoburu/pgbouncer:latest`
   - Config: pool_mode = transaction, max_client_conn = 1000, default_pool_size = 20
-- [ ] **TASK-506-2:** Update DATABASE_URL to point to pgBouncer
+- [x] **TASK-506-2:** Update DATABASE_URL to point to pgBouncer
   - File: `.env.example` — note: `DATABASE_URL` should point to pgBouncer port (5432 → 6432)
   - Update `docker-compose.prod.yml` Django service env
-- [ ] **TASK-506-3:** Disable Django persistent connections (incompatible with pgBouncer transaction mode)
+- [x] **TASK-506-3:** Disable Django persistent connections (incompatible with pgBouncer transaction mode)
   - File: `backend/config/settings/production.py`
   - Set: `CONN_MAX_AGE = 0` (disable persistent connections)
 
@@ -993,11 +993,11 @@
   - File: `frontend/next.config.mjs`
   - Add: `assetPrefix: process.env.CDN_URL || ''`
   - File: `.env.example` — add `CDN_URL=https://cdn.yoursynapse.com`
-- [ ] **TASK-507-2:** Configure Nginx to set cache headers
+- [x] **TASK-507-2:** Configure Nginx to set cache headers
   - File: `infrastructure/nginx/conf.d/synapse.conf`
   - Static assets: `Cache-Control: public, max-age=31536000, immutable`
   - API responses: `Cache-Control: no-store`
-- [ ] **TASK-507-3:** Set up Cloudflare CDN
+- [x] **TASK-507-3:** Set up Cloudflare CDN
   - Point domain to Cloudflare
   - Enable: Brotli compression, HTTP/2, TLS 1.3
   - Cache rules: cache `/_next/static/` · bypass cache for `/api/`
@@ -1294,16 +1294,16 @@
 
 ### 🔐 Security & Compliance Checklist
 
-- [ ] MFA recovery codes (TASK-002-B1)
+- [x] MFA recovery codes (TASK-002-B1)
 - [ ] AI input moderation / jailbreak detection (TASK-004-B4, TASK-004-B5)
 - [ ] PII detection and redaction from logs (TASK-004-B6)
 - [ ] Per-user budget caps to prevent bill explosion (TASK-004-B1)
-- [ ] API key hashing — never store plaintext (TASK-605-B1)
-- [ ] Audit log for all sensitive actions (TASK-505)
-- [ ] Database automated backups (TASK-502)
-- [ ] RBAC for organization access (TASK-006-B3)
+- [x] API key hashing — never store plaintext (TASK-605-B1)
+- [x] Audit log for all sensitive actions (TASK-505)
+- [x] Database automated backups (TASK-502)
+- [x] RBAC for organization access (TASK-006-B3)
 - [ ] Stripe webhook signature verification (TASK-003-B3)
-- [ ] Rate limiting on all AI endpoints (TASK-501, TASK-004-B2)
+- [x] Rate limiting on all AI endpoints (TASK-501, TASK-004-B2)
 - [ ] HTTPS everywhere — Nginx TLS config (existing, verify)
 - [ ] CORS properly configured for production domain (verify in `settings/production.py`)
 - [ ] `DEBUG=False` enforced in production (verify)

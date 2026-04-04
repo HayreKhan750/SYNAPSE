@@ -107,3 +107,14 @@ gunicorn>=22.0,<23.0
 isodate>=0.6,<1.0
 python-dateutil>=2.9,<3.0
 yt-dlp>=2024.1.1
+
+# TASK-504-B1: OpenTelemetry (optional — only loaded if OTEL_ENABLED=true)
+# opentelemetry-distro>=0.44b0
+# opentelemetry-exporter-otlp-proto-grpc>=1.23.0
+# opentelemetry-instrumentation-django>=0.44b0
+# opentelemetry-instrumentation-celery>=0.44b0
+# opentelemetry-instrumentation-psycopg2>=0.44b0
+# opentelemetry-instrumentation-redis>=0.44b0
+
+# TASK-601-B4: PDF export
+reportlab>=4.1.0
