@@ -5,6 +5,8 @@ urlpatterns = [
     path('health/', views.health_check, name='health-check'),
     # ── TASK-305-B3: Daily Briefing ──────────────────────────────────────────
     path('briefing/today/', views.TodayBriefingView.as_view(), name='briefing-today'),
+    # TASK-601-B4: PDF export for research reports
+    path('research/<uuid:pk>/export-pdf/', views.ResearchReportPDFView.as_view(), name='research-export-pdf'),
     path('briefing/history/', views.BriefingHistoryView.as_view(), name='briefing-history'),
     # ── TASK-603-B3: Knowledge Graph ──────────────────────────────────────────
     path('knowledge-graph/', views.KnowledgeGraphView.as_view(), name='knowledge-graph'),

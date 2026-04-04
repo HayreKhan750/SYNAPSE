@@ -871,6 +871,91 @@ class TodayBriefingView(APIView):
         })
 
 
+class ResearchReportPDFView(APIView):
+    """
+    TASK-601-B4: GET /api/briefing/research/{id}/export-pdf/
+    Export a ResearchSession report as a downloadable PDF.
+    Uses reportlab for PDF generation.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            from apps.agents.models import ResearchSession  # noqa: PLC0415
+            session = ResearchSession.objects.get(pk=pk, user=request.user)
+        except Exception:
+            return Response({'success': False, 'error': 'Not found'}, status=404)
+
+        if not session.report:
+            return Response({'success': False, 'error': 'Report not yet generated'}, status=400)
+
+        try:
+            from io import BytesIO  # noqa: PLC0415
+            from django.http import HttpResponse  # noqa: PLC0415
+            import reportlab.lib.pagesizes as pagesizes  # noqa: PLC0415
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer  # noqa: PLC0415
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # noqa: PLC0415
+            from reportlab.lib.units import inch  # noqa: PLC0415
+            from reportlab.lib import colors  # noqa: PLC0415
+
+            buf    = BytesIO()
+            doc    = SimpleDocTemplate(buf, pagesize=pagesizes.A4,
+                                       leftMargin=inch, rightMargin=inch,
+                                       topMargin=inch, bottomMargin=inch)
+            styles = getSampleStyleSheet()
+            story  = []
+
+            # Title
+            title_style = ParagraphStyle('Title', parent=styles['Title'],
+                                         fontSize=20, spaceAfter=20, textColor=colors.HexColor('#1e293b'))
+            story.append(Paragraph(f"Research Report", title_style))
+            story.append(Paragraph(session.query[:200], styles['Heading2']))
+            story.append(Spacer(1, 0.2 * inch))
+
+            # Metadata
+            date_str = session.completed_at.strftime('%B %d, %Y') if session.completed_at else 'In progress'
+            story.append(Paragraph(f"<i>Generated: {date_str} · Synapse AI</i>", styles['Normal']))
+            story.append(Spacer(1, 0.3 * inch))
+
+            # Body — strip markdown headers and convert to paragraphs
+            import re  # noqa
+            for line in session.report.split('\n'):
+                line = line.strip()
+                if not line:
+                    story.append(Spacer(1, 0.1 * inch))
+                elif line.startswith('# '):
+                    story.append(Paragraph(line[2:], styles['Heading1']))
+                elif line.startswith('## '):
+                    story.append(Paragraph(line[3:], styles['Heading2']))
+                elif line.startswith('### '):
+                    story.append(Paragraph(line[4:], styles['Heading3']))
+                elif line.startswith('---'):
+                    story.append(Spacer(1, 0.2 * inch))
+                else:
+                    # Replace markdown bold/italic
+                    line = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', line)
+                    line = re.sub(r'\*([^*]+)\*',   r'<i>\1</i>', line)
+                    story.append(Paragraph(line, styles['Normal']))
+
+            doc.build(story)
+
+            buf.seek(0)
+            filename = f"research-report-{str(session.id)[:8]}.pdf"
+            response = HttpResponse(buf, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+
+        except ImportError:
+            # reportlab not installed — return markdown as plain text download
+            from django.http import HttpResponse  # noqa: PLC0415
+            response = HttpResponse(session.report, content_type='text/markdown')
+            response['Content-Disposition'] = f'attachment; filename="research-report-{str(session.id)[:8]}.md"'
+            return response
+        except Exception as exc:
+            logger.error("PDF export failed for session %s: %s", pk, exc)
+            return Response({'success': False, 'error': 'PDF generation failed'}, status=500)
+
+
 class BriefingHistoryView(APIView):
     """GET /api/briefing/history/ — last 7 days of briefings."""
     permission_classes = [IsAuthenticated]

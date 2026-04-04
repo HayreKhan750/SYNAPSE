@@ -9,8 +9,11 @@ import { useQuery } from '@tanstack/react-query';
 import {
   BookOpen, ChevronDown, Search, Sparkles, Brain, X,
   FileText, Loader2, ExternalLink, Copy, CheckCircle2,
-  TrendingUp, BarChart2, Layers, Zap,
+  TrendingUp, BarChart2, Layers, Zap, Download, Network,
+  Clock, CheckCheck, AlertCircle, ChevronRight,
 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/utils/api';
 import { PaperCard } from '@/components/cards';
@@ -46,6 +49,293 @@ const SYNTHESIS_PROMPTS = [
   'Compare and contrast the approaches taken by these papers',
   'What datasets and benchmarks are commonly used in this area?',
 ];
+
+// ── TASK-601-F2/F3: Research Session — Progress Tracker + Report Viewer ────────
+
+const RESEARCH_STEPS = [
+  { key: 'queued',   label: 'Queued',          icon: Clock },
+  { key: 'running',  label: 'Researching…',    icon: Network },
+  { key: 'complete', label: 'Report Ready',    icon: CheckCheck },
+  { key: 'failed',   label: 'Failed',          icon: AlertCircle },
+]
+
+function ResearchProgressBadge({ status }: { status: string }) {
+  const step = RESEARCH_STEPS.find(s => s.key === status) ?? RESEARCH_STEPS[0]
+  const Icon = step.icon
+  const colorMap: Record<string, string> = {
+    queued:   'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    running:  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    complete: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    failed:   'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${colorMap[status] ?? colorMap.queued}`}>
+      {status === 'running' ? <Loader2 size={10} className="animate-spin" /> : <Icon size={10} />}
+      {step.label}
+    </span>
+  )
+}
+
+function ResearchSessionCard({ session, onSelect }: { session: any; onSelect: (s: any) => void }) {
+  return (
+    <div
+      onClick={() => onSelect(session)}
+      className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/40 hover:border-violet-200 dark:hover:border-violet-700/40 hover:shadow-sm transition-all cursor-pointer"
+    >
+      <Brain size={16} className="text-violet-400 flex-shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-100 line-clamp-2">{session.query}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <ResearchProgressBadge status={session.status} />
+          {session.sub_questions?.length > 0 && (
+            <span className="text-[10px] text-slate-400">{session.sub_questions.length} sub-questions</span>
+          )}
+        </div>
+      </div>
+      <ChevronRight size={14} className="text-slate-300 dark:text-slate-600 flex-shrink-0 mt-1" />
+    </div>
+  )
+}
+
+function ResearchReportModal({ session, onClose, onRefresh }: {
+  session: any; onClose: () => void; onRefresh: () => void
+}) {
+  const [activeSource, setActiveSource] = React.useState<number | null>(null)
+  const [copied, setCopied] = React.useState(false)
+
+  // Poll for updates while running
+  const { data: fresh } = useQuery({
+    queryKey: ['research-session', session.id],
+    queryFn:  () => api.get(`/agents/research/${session.id}/`).then(r => r.data?.data),
+    refetchInterval: session.status === 'running' || session.status === 'queued' ? 3000 : false,
+    staleTime: 5000,
+    initialData: session,
+  })
+
+  const current = fresh ?? session
+  const sources: any[] = current.sources ?? []
+  const subQuestions: string[] = current.sub_questions ?? []
+
+  const copyMarkdown = () => {
+    navigator.clipboard.writeText(current.report || '').then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const exportPDF = () => {
+    const url = `/api/v1/research/${session.id}/export-pdf/`
+    window.open(url, '_blank')
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-700">
+
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <ResearchProgressBadge status={current.status} />
+              {current.completed_at && (
+                <span className="text-xs text-slate-400">
+                  {new Date(current.completed_at).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 line-clamp-2">{current.query}</h2>
+          </div>
+          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+            {current.status === 'complete' && current.report && (
+              <>
+                <button onClick={copyMarkdown}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                  {copied ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                  {copied ? 'Copied!' : 'Copy MD'}
+                </button>
+                <button onClick={exportPDF}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-white bg-violet-500 hover:bg-violet-600 rounded-lg transition-colors">
+                  <Download size={12} /> PDF
+                </button>
+              </>
+            )}
+            <button onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X size={16} className="text-slate-400" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-hidden flex">
+
+          {/* ── Main: report or progress ── */}
+          <div className="flex-1 overflow-y-auto p-5">
+
+            {/* Sub-questions progress */}
+            {subQuestions.length > 0 && (
+              <div className="mb-5 p-4 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-100 dark:border-violet-800/30">
+                <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wide mb-2">
+                  Research Plan — {subQuestions.length} Sub-Questions
+                </p>
+                <ol className="space-y-1.5">
+                  {subQuestions.map((q, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
+                      <span className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 flex items-center justify-center font-bold text-[10px] flex-shrink-0">{i+1}</span>
+                      {q}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {/* Running state */}
+            {(current.status === 'running' || current.status === 'queued') && (
+              <div className="flex flex-col items-center justify-center py-12 gap-4">
+                <div className="relative w-16 h-16">
+                  <Loader2 size={64} className="animate-spin text-violet-400" />
+                  <Brain size={24} className="absolute inset-0 m-auto text-violet-600" />
+                </div>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  {current.status === 'queued' ? 'Queued — starting soon…' : 'Researching across ArXiv, GitHub, and knowledge base…'}
+                </p>
+                <p className="text-xs text-slate-400 text-center max-w-xs">
+                  This typically takes 30–90 seconds. You can close this and come back.
+                </p>
+              </div>
+            )}
+
+            {/* Failed state */}
+            {current.status === 'failed' && (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+                <AlertCircle size={48} className="text-red-400 opacity-60" />
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Research failed</p>
+                <p className="text-xs text-slate-400">Please try again or refine your query.</p>
+              </div>
+            )}
+
+            {/* Report */}
+            {current.status === 'complete' && current.report && (
+              <div className="prose prose-slate dark:prose-invert prose-sm max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {current.report}
+                </ReactMarkdown>
+              </div>
+            )}
+          </div>
+
+          {/* ── Right panel: Sources ── */}
+          {sources.length > 0 && (
+            <div className="w-64 flex-shrink-0 border-l border-slate-200 dark:border-slate-700 p-4 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50">
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-3">
+                Sources ({sources.length})
+              </p>
+              <ol className="space-y-2">
+                {sources.map((src: any, i: number) => (
+                  <li key={i}>
+                    <button
+                      onClick={() => setActiveSource(i === activeSource ? null : i)}
+                      className={`w-full text-left p-2 rounded-lg transition-colors ${
+                        activeSource === i
+                          ? 'bg-violet-100 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-700'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-start gap-1.5">
+                        <span className="text-[10px] font-bold text-violet-500 flex-shrink-0">[{i+1}]</span>
+                        <span className="text-[11px] text-slate-700 dark:text-slate-200 line-clamp-2 leading-snug">
+                          {src.title || src.url || 'Source'}
+                        </span>
+                      </div>
+                      {activeSource === i && src.url && (
+                        <a href={src.url} target="_blank" rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="mt-1 flex items-center gap-1 text-[10px] text-violet-500 hover:underline">
+                          <ExternalLink size={9} /> Open
+                        </a>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DeepResearchPanel() {
+  const queryClient = useQueryClient()
+  const [query, setQuery] = React.useState('')
+  const [selectedSession, setSelectedSession] = React.useState<any | null>(null)
+
+  const { data: sessionsData } = useQuery({
+    queryKey: ['research-sessions'],
+    queryFn:  () => api.get('/agents/research/').then(r => r.data?.data ?? []),
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+  })
+  const sessions: any[] = sessionsData ?? []
+
+  const startMutation = useMutation({
+    mutationFn: (q: string) => api.post('/agents/research/', { query: q }),
+    onSuccess: (resp) => {
+      queryClient.invalidateQueries({ queryKey: ['research-sessions'] })
+      setSelectedSession(resp.data?.data)
+      setQuery('')
+      toast.success('Research session started!')
+    },
+    onError: () => toast.error('Failed to start research session'),
+  })
+
+  return (
+    <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Brain size={18} className="text-violet-500" />
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Deep Research Mode</h2>
+        <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">— Plan-and-Execute AI agent</span>
+      </div>
+
+      {/* Start new session */}
+      <div className="flex gap-2 mb-4">
+        <input
+          className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+          placeholder="e.g. How do diffusion models work and what are their limitations?"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && query.trim() && startMutation.mutate(query)}
+        />
+        <button
+          onClick={() => query.trim() && startMutation.mutate(query)}
+          disabled={startMutation.isPending || !query.trim()}
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+        >
+          {startMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          Research
+        </button>
+      </div>
+
+      {/* Sessions list */}
+      {sessions.length > 0 && (
+        <div className="space-y-2">
+          {sessions.slice(0, 5).map((s: any) => (
+            <ResearchSessionCard key={s.id} session={s} onSelect={setSelectedSession} />
+          ))}
+        </div>
+      )}
+
+      {/* Report modal */}
+      {selectedSession && (
+        <ResearchReportModal
+          session={selectedSession}
+          onClose={() => setSelectedSession(null)}
+          onRefresh={() => queryClient.invalidateQueries({ queryKey: ['research-sessions'] })}
+        />
+      )}
+    </div>
+  )
+}
 
 // ─── AI Synthesis Panel ───────────────────────────────────────────────────────
 function AISynthesisPanel({ papers }: { papers: any[] }) {
@@ -398,6 +688,9 @@ export default function ResearchPage() {
 
         {/* ── AI Synthesis Panel ──────────────────────────────────── */}
         <AISynthesisPanel papers={papers} />
+
+        {/* TASK-601-F2/F3: Deep Research Mode — Plan-and-Execute agent */}
+        <DeepResearchPanel />
 
         {/* ── Filters ─────────────────────────────────────────────── */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 space-y-4">

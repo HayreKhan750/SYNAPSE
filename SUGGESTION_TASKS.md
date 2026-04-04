@@ -973,7 +973,7 @@
 ### TASK-506 — Database Connection Pooling (pgBouncer)
 **Priority:** 🏗️ Medium | **Effort:** S | **Impact:** Handle 10x more concurrent users without DB connection exhaustion
 
-- [ ] **TASK-506-1:** Add pgBouncer service to docker-compose
+- [x] **TASK-506-1:** Add pgBouncer service to docker-compose
   - File: `docker-compose.prod.yml`
   - Add `pgbouncer` service: `edoburu/pgbouncer:latest`
   - Config: pool_mode = transaction, max_client_conn = 1000, default_pool_size = 20
@@ -989,7 +989,7 @@
 ### TASK-507 — CDN for Static Assets (Cloudflare)
 **Priority:** 🏗️ Medium | **Effort:** S | **Impact:** Faster global page loads; reduce server bandwidth
 
-- [ ] **TASK-507-1:** Configure Next.js to use CDN for static assets
+- [x] **TASK-507-1:** Configure Next.js to use CDN for static assets
   - File: `frontend/next.config.mjs`
   - Add: `assetPrefix: process.env.CDN_URL || ''`
   - File: `.env.example` — add `CDN_URL=https://cdn.yoursynapse.com`
@@ -1018,7 +1018,7 @@
 - [x] **TASK-601-B1:** Create ResearchSession model
   - File: `backend/apps/agents/models.py`
   - Fields: `user (FK)`, `query (TextField)`, `status [queued|running|complete|failed]`, `report (TextField)`, `sources (JSONField)`, `sub_questions (JSONField)`, `created_at`, `completed_at`
-- [ ] **TASK-601-B2:** Build Plan-and-Execute research agent
+- [x] **TASK-601-B2:** Build Plan-and-Execute research agent
   - File: `ai_engine/agents/research_agent.py` *(new)*
   - Multi-step LangGraph workflow:
     1. **Plan:** LLM decomposes query into 3–5 sub-questions
@@ -1032,7 +1032,7 @@
   - `GET  /api/research/{id}/`    — get session status + report (poll-based)
   - `WS   /ws/research/{id}/`     — stream progress events (WebSocket)
   - `GET  /api/research/{id}/export/?format=pdf|markdown` — download report
-- [ ] **TASK-601-B4:** PDF export for research reports
+- [x] **TASK-601-B4:** PDF export for research reports
   - File: `backend/apps/documents/views.py`
   - Use existing document generation infrastructure
   - Template: academic literature review format with references section
@@ -1043,10 +1043,10 @@
   - Large centered search bar (Perplexity-style)
   - Toggle: "Quick Search" vs "Deep Research Mode" 
   - Research mode: show estimated time (2–5 min), source count
-- [ ] **TASK-601-F2:** Research progress tracker
+- [x] **TASK-601-F2:** Research progress tracker
   - Real-time progress steps: Decomposing → Searching → Analyzing → Writing
   - Animated step indicator with sub-question previews as they're generated
-- [ ] **TASK-601-F3:** Research report viewer
+- [x] **TASK-601-F3:** Research report viewer
   - Structured report with section headers, paragraphs, and `[1]`-style citations
   - Citations panel on right side: numbered source cards with title, URL, excerpt
   - Click citation → highlight source card

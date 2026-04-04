@@ -749,6 +749,79 @@ def build_knowledge_graph(self) -> Dict:
     return {'nodes_touched': nodes_created, 'edges_created': edges_created}
 
 
+@shared_task(bind=True, max_retries=2)
+def run_research_session(self, session_id: str) -> Dict:
+    """
+    TASK-601-B2: Run the Plan-and-Execute research pipeline for a ResearchSession.
+    Called when POST /api/v1/agents/research/ is hit.
+    """
+    try:
+        import sys, os  # noqa
+        ai_engine_path = os.path.join(os.path.dirname(__file__), '../../../../ai_engine')
+        if ai_engine_path not in sys.path:
+            sys.path.insert(0, ai_engine_path)
+        from ai_engine.agents.research_agent import run_research_pipeline  # noqa
+        run_research_pipeline(session_id)
+        return {'session_id': session_id, 'status': 'complete'}
+    except Exception as exc:
+        logger.error("Research session task failed for %s: %s", session_id, exc, exc_info=True)
+        # Mark session as failed
+        try:
+            from apps.agents.models import ResearchSession  # noqa
+            ResearchSession.objects.filter(pk=session_id).update(
+                status=ResearchSession.Status.FAILED
+            )
+        except Exception:
+            pass
+        raise self.retry(exc=exc, countdown=60)
+
+
+@shared_task(bind=True, max_retries=1)
+def import_zotero_library(self, user_id: str, api_key: str, zotero_user_id: str) -> Dict:
+    """Import a user's Zotero library in the background."""
+    try:
+        from apps.integrations.zotero import ZoteroClient, import_library  # noqa
+        from apps.users.models import User  # noqa
+        user   = User.objects.get(pk=user_id)
+        client = ZoteroClient(api_key=api_key, user_id=zotero_user_id)
+        result = import_library(client, user)
+        logger.info("Zotero import complete for user %s: %s", user_id, result)
+        return result
+    except Exception as exc:
+        logger.error("Zotero import failed for user %s: %s", user_id, exc)
+        raise self.retry(exc=exc, countdown=120)
+
+
+@shared_task(bind=True, max_retries=1)
+def slack_ai_query(self, question: str, channel_id: str, response_url: str) -> Dict:
+    """Answer a Slack /synapse command via AI and post delayed response."""
+    try:
+        from ai_engine.rag.pipeline import RAGPipeline  # noqa
+        pipeline = RAGPipeline()
+        result   = pipeline.query(question)
+        answer   = result.get('answer', 'No answer found.')
+        sources  = result.get('sources', [])
+
+        # Post delayed response to Slack via response_url
+        blocks = [
+            {'type': 'section', 'text': {'type': 'mrkdwn', 'text': f'*Q: {question}*'}},
+            {'type': 'section', 'text': {'type': 'mrkdwn', 'text': answer[:3000]}},
+        ]
+        if sources:
+            source_text = '\n'.join(f"• <{s.get('url', '#')}|{s.get('title', 'Source')[:60]}>" for s in sources[:3])
+            blocks.append({'type': 'context', 'elements': [{'type': 'mrkdwn', 'text': f'Sources:\n{source_text}'}]})
+
+        import requests  # noqa
+        requests.post(response_url, json={
+            'response_type': 'in_channel',
+            'blocks': blocks,
+        }, timeout=10)
+        return {'status': 'sent'}
+    except Exception as exc:
+        logger.error("Slack AI query failed: %s", exc)
+        raise self.retry(exc=exc, countdown=30)
+
+
 @shared_task(bind=True, max_retries=1)
 def backup_database(self) -> Dict:
     """
