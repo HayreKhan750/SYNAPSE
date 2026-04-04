@@ -362,6 +362,75 @@ docker compose -f docker-compose.prod.yml exec postgres \
 
 ---
 
+## Backup & Restore
+
+### Automated Backups (TASK-502)
+
+Daily `pg_dump` backups run at **02:00 UTC** via Celery beat, compressed with gzip, uploaded to S3 with **30-day retention**.
+
+**Required env vars:**
+```bash
+BACKUP_S3_BUCKET=synapse-backups              # S3 bucket name
+AWS_ACCESS_KEY_ID=...                         # AWS credentials
+AWS_SECRET_ACCESS_KEY=...
+AWS_DEFAULT_REGION=us-east-1                  # optional, default us-east-1
+BACKUP_ADMIN_EMAIL=admin@yourcompany.com      # failure alert recipient
+BACKUP_SLACK_WEBHOOK=https://hooks.slack.com/services/...  # optional Slack alert
+```
+
+**Add to `.env.example`:**
+```
+BACKUP_S3_BUCKET=
+BACKUP_ADMIN_EMAIL=
+BACKUP_SLACK_WEBHOOK=
+```
+
+**Trigger a manual backup:**
+```bash
+celery -A config call apps.core.tasks.backup_database
+```
+
+**List available backups:**
+```bash
+aws s3 ls s3://synapse-backups/postgres/ --recursive
+```
+
+### Restore Procedure
+
+1. **Download the backup:**
+   ```bash
+   aws s3 cp s3://synapse-backups/postgres/YYYY/MM/DD.sql.gz /tmp/backup.sql.gz
+   ```
+
+2. **Decompress:**
+   ```bash
+   gunzip /tmp/backup.sql.gz
+   # → creates /tmp/backup.sql
+   ```
+
+3. **Drop and recreate the database** ⚠️ *This is destructive — ensure you have a confirmed good backup first*:
+   ```bash
+   psql $DATABASE_URL -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+   ```
+
+4. **Restore:**
+   ```bash
+   psql $DATABASE_URL < /tmp/backup.sql
+   ```
+
+5. **Run migrations to ensure schema is current:**
+   ```bash
+   python manage.py migrate --run-syncdb
+   ```
+
+6. **Verify:**
+   ```bash
+   python manage.py check
+   python manage.py shell -c "from apps.users.models import User; print(User.objects.count(), 'users')"
+   ```
+
+---
+
 ## Database Migrations
 
 ```bash

@@ -870,20 +870,20 @@
 ### TASK-501 — Per-User Rate Limiting (Django)
 **Priority:** 🏗️ High | **Effort:** M | **Impact:** Prevent abuse; enforce plan tiers on Django API layer
 
-- [ ] **TASK-501-B1:** Install django-ratelimit
+- [x] **TASK-501-B1:** Install django-ratelimit
   - File: `backend/requirements.txt` — add `django-ratelimit`
-- [ ] **TASK-501-B2:** Add rate limits to AI/chat endpoints
+- [x] **TASK-501-B2:** Add rate limits to AI/chat endpoints
   - File: `backend/apps/core/views_chat.py`
   - Decorator: `@ratelimit(key='user', rate='5/d', method='POST', block=True)` for Free
   - Use Redis-backed keys: `rl:user:{id}:ai:{date}`
   - Plan-aware limits: Free 5/day · Pro 200/day · Team 1000/day pooled
-- [ ] **TASK-501-B3:** Add rate limits to agent endpoints
+- [x] **TASK-501-B3:** Add rate limits to agent endpoints
   - File: `backend/apps/agents/views.py`
   - Free: 1 agent run/day · Pro: 50/day · Team: 200/day pooled
-- [ ] **TASK-501-B4:** Return clear 429 responses
+- [x] **TASK-501-B4:** Return clear 429 responses
   - Include headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
   - JSON body: `{"error": "rate_limit_exceeded", "reset_at": "...", "upgrade_url": "/pricing"}`
-- [ ] **TASK-501-F1:** Handle 429 errors gracefully in frontend
+- [x] **TASK-501-F1:** Handle 429 errors gracefully in frontend
   - File: `frontend/src/utils/api.ts`
   - Intercept 429 → show `<UpgradeModal>` with countdown timer until reset
 
@@ -892,18 +892,18 @@
 ### TASK-502 — Database Automated Backups
 **Priority:** 🏗️ High | **Effort:** S | **Impact:** Data loss prevention; production safety net
 
-- [ ] **TASK-502-B1:** Create pg_dump Celery task
+- [x] **TASK-502-B1:** Create pg_dump Celery task
   - File: `backend/apps/core/tasks.py`
   - Task: `backup_database()` — runs daily at 2:00 AM UTC via Celery beat
   - Command: `pg_dump {DATABASE_URL} | gzip > /tmp/backup_{date}.sql.gz`
   - Upload to S3: `s3://synapse-backups/postgres/YYYY/MM/DD.sql.gz`
   - Retention policy: keep last 30 days; delete older backups automatically
   - Env vars: `BACKUP_S3_BUCKET=`, `AWS_ACCESS_KEY_ID=`, `AWS_SECRET_ACCESS_KEY=`
-- [ ] **TASK-502-B2:** Add backup failure alerting
+- [x] **TASK-502-B2:** Add backup failure alerting
   - On task failure: send email to admin + POST to Slack webhook
   - Add Prometheus metric: `synapse_backup_last_success_timestamp`
   - Alert rule: if backup not run in 25 hours → fire alert
-- [ ] **TASK-502-3:** Document backup restore procedure
+- [x] **TASK-502-3:** Document backup restore procedure
   - File: `DEPLOYMENT.md` — add "Backup & Restore" section
   - Include: `aws s3 cp ...`, `gunzip`, `psql {DATABASE_URL} < backup.sql` steps
 

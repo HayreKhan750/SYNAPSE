@@ -59,6 +59,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # ── Middleware ────────────────────────────────────────────────
 MIDDLEWARE = [
+    'apps.core.rate_limit_middleware.RateLimitHeaderMiddleware',  # TASK-501-B4
     'apps.core.middleware.APIVersionHeaderMiddleware',  # TASK-105-4: X-API-Version header
     # 'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -195,9 +196,10 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    # TASK-501: Plan-aware throttling — PlanAwareThrottle reads user plan from billing
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
+        'apps.core.throttles.APIRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '20/minute',
@@ -257,6 +259,12 @@ CELERY_BEAT_SCHEDULE = {
     'daily-briefing-generation': {
         'task':     'apps.core.tasks.generate_daily_briefings',
         'schedule': crontab(hour=6, minute=30),  # 06:30 UTC every day
+        'options':  {'queue': 'default'},
+    },
+    # TASK-502-B1: Daily database backup — runs at 02:00 UTC
+    'daily-db-backup': {
+        'task':     'apps.core.tasks.backup_database',
+        'schedule': crontab(hour=2, minute=0),
         'options':  {'queue': 'default'},
     },
 }

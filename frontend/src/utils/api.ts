@@ -160,6 +160,21 @@ api.interceptors.response.use(
       }
     }
 
+    // TASK-501-F1: Rate limit exceeded (429) → show UpgradeModal with countdown
+    if (error.response?.status === 429) {
+      const data = error.response.data as Record<string, unknown> | undefined
+      const resetAt = (data?.reset_at as string) ?? null
+      const upgradeUrl = (data?.upgrade_url as string) ?? '/pricing'
+      const message = (data?.message as string) ?? 'Rate limit exceeded. Please upgrade your plan for higher limits.'
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('synapse:rate_limit_exceeded', {
+            detail: { resetAt, upgradeUrl, message, data },
+          }),
+        )
+      }
+    }
+
     return Promise.reject(error)
   },
 )

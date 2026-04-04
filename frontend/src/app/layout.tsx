@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Providers } from '@/components/Providers'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
+import { RateLimitBanner } from '@/components/RateLimitBanner'
 import '@/styles/globals.css'
 import 'katex/dist/katex.min.css'
 
@@ -48,6 +49,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <ServiceWorkerRegistration />
         <Providers>{children}</Providers>
+        {/* TASK-501-F1: Rate limit exceeded banner with countdown + upgrade CTA */}
+        <RateLimitBanner />
         {/* TASK-104-3: Portal root for React modal portals */}
         <div id="modal-root" />
       </body>

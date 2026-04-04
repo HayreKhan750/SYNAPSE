@@ -602,6 +602,153 @@ def generate_daily_briefings(self) -> Dict:
     return {'created': created, 'skipped': skipped}
 
 
+@shared_task(bind=True, max_retries=1)
+def backup_database(self) -> Dict:
+    """
+    TASK-502-B1: Daily pg_dump backup → gzip → upload to S3.
+
+    Schedule: 02:00 UTC daily via Celery beat.
+    Retention: 30 days — older backups are deleted automatically.
+
+    Required env vars:
+        DATABASE_URL            — PostgreSQL connection string
+        BACKUP_S3_BUCKET        — S3 bucket name (e.g. synapse-backups)
+        AWS_ACCESS_KEY_ID       — AWS credentials
+        AWS_SECRET_ACCESS_KEY   — AWS credentials
+        AWS_DEFAULT_REGION      — (optional, default us-east-1)
+        BACKUP_ADMIN_EMAIL      — email to alert on failure
+    """
+    import gzip
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+    from datetime import timedelta
+    from urllib.parse import urlparse
+    from django.conf import settings as django_settings
+    from django.core.mail import send_mail
+
+    db_url       = os.environ.get('DATABASE_URL', '')
+    bucket       = os.environ.get('BACKUP_S3_BUCKET', '')
+    admin_email  = os.environ.get('BACKUP_ADMIN_EMAIL', '')
+    slack_url    = os.environ.get('BACKUP_SLACK_WEBHOOK', '')
+
+    today_str = timezone.now().strftime('%Y/%m/%d')
+    filename  = f"postgres/{today_str}.sql.gz"
+
+    if not db_url or not bucket:
+        logger.warning("TASK-502: DATABASE_URL or BACKUP_S3_BUCKET not set — skipping backup")
+        return {'status': 'skipped', 'reason': 'missing env vars'}
+
+    try:
+        import boto3  # noqa: PLC0415
+    except ImportError:
+        logger.error("TASK-502: boto3 not installed — cannot upload backup")
+        return {'status': 'error', 'reason': 'boto3 not installed'}
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dump_path = os.path.join(tmpdir, 'backup.sql')
+            gz_path   = os.path.join(tmpdir, 'backup.sql.gz')
+
+            # ── 1. pg_dump ─────────────────────────────────────────────────
+            logger.info("TASK-502: Running pg_dump…")
+            result = subprocess.run(
+                ['pg_dump', '--no-owner', '--no-acl', db_url],
+                stdout=open(dump_path, 'w'),
+                stderr=subprocess.PIPE,
+                timeout=600,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"pg_dump failed: {result.stderr.decode()[:500]}")
+
+            # ── 2. gzip ────────────────────────────────────────────────────
+            with open(dump_path, 'rb') as f_in, gzip.open(gz_path, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+            gz_size_mb = os.path.getsize(gz_path) / (1024 * 1024)
+            logger.info("TASK-502: Compressed backup %.1f MB", gz_size_mb)
+
+            # ── 3. Upload to S3 ────────────────────────────────────────────
+            s3 = boto3.client(
+                's3',
+                region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'),
+            )
+            with open(gz_path, 'rb') as f:
+                s3.put_object(
+                    Bucket=bucket,
+                    Key=filename,
+                    Body=f,
+                    ContentType='application/gzip',
+                    ServerSideEncryption='AES256',
+                    StorageClass='STANDARD_IA',
+                )
+            logger.info("TASK-502: Uploaded s3://%s/%s", bucket, filename)
+
+            # ── 4. Retention — delete backups older than 30 days ───────────
+            cutoff = timezone.now() - timedelta(days=30)
+            paginator = s3.get_paginator('list_objects_v2')
+            deleted   = 0
+            for page in paginator.paginate(Bucket=bucket, Prefix='postgres/'):
+                for obj in page.get('Contents', []):
+                    if obj['LastModified'].replace(tzinfo=None) < cutoff.replace(tzinfo=None):
+                        s3.delete_object(Bucket=bucket, Key=obj['Key'])
+                        deleted += 1
+            if deleted:
+                logger.info("TASK-502: Cleaned up %d old backups (>30 days)", deleted)
+
+        return {
+            'status':      'success',
+            'bucket':      bucket,
+            'key':         filename,
+            'size_mb':     round(gz_size_mb, 2),
+            'deleted_old': deleted,
+        }
+
+    except Exception as exc:
+        logger.error("TASK-502: Backup FAILED — %s", exc, exc_info=True)
+
+        # ── TASK-502-B2: Failure alerting ──────────────────────────────────
+        err_msg = str(exc)[:1000]
+        subject = f"[SYNAPSE] Database backup FAILED — {timezone.now().strftime('%Y-%m-%d')}"
+        body    = (
+            f"The automated database backup failed at {timezone.now().isoformat()}.\n\n"
+            f"Error:\n{err_msg}\n\n"
+            "Please investigate immediately and trigger a manual backup:\n"
+            "  celery -A config call apps.core.tasks.backup_database\n\n"
+            "Restore procedure: see DEPLOYMENT.md § Backup & Restore"
+        )
+
+        # Email admin
+        if admin_email:
+            try:
+                send_mail(
+                    subject=subject,
+                    message=body,
+                    from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@synapse.app'),
+                    recipient_list=[admin_email],
+                    fail_silently=True,
+                )
+            except Exception as mail_exc:
+                logger.error("TASK-502: Failed to send backup failure email: %s", mail_exc)
+
+        # Slack webhook
+        if slack_url:
+            try:
+                import urllib.request, json as _json  # noqa: PLC0415,E401
+                payload = _json.dumps({
+                    'text': f":rotating_light: *Database backup FAILED* ({timezone.now().strftime('%Y-%m-%d')})\n```{err_msg[:500]}```"
+                }).encode()
+                req = urllib.request.Request(
+                    slack_url, data=payload,
+                    headers={'Content-Type': 'application/json'},
+                )
+                urllib.request.urlopen(req, timeout=5)
+            except Exception as slack_exc:
+                logger.error("TASK-502: Slack alert failed: %s", slack_exc)
+
+        raise self.retry(exc=exc, countdown=300)  # retry once after 5 min
+
+
 def _update_source_last_scraped(source_type: str) -> None:
     """
     Update the last_scraped_at timestamp for sources of a given type.

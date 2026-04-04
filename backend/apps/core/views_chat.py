@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from apps.core.throttles import ChatRateThrottle
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -522,7 +523,7 @@ def _get_or_create_conversation(conversation_id: str, user=None) -> Conversation
     return conv
 
 
-class ChatView(APIView):
+class ChatView(APIView):  # TASK-501-B2: ChatRateThrottle applied
     """
     POST /api/v1/ai/chat
 

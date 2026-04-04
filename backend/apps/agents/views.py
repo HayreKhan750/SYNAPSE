@@ -27,6 +27,7 @@ from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from apps.core.throttles import AgentRateThrottle
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -60,6 +61,7 @@ class AgentTaskListCreateView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes   = [AgentRateThrottle]   # TASK-501-B3
 
     def get(self, request: Request) -> Response:
         qs = AgentTask.objects.filter(user=request.user).order_by("-created_at")
