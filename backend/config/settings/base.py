@@ -185,6 +185,7 @@ SENDGRID_API_KEY    = os.environ.get('SENDGRID_API_KEY', '')
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.core.auth.APIKeyAuthentication',   # TASK-605-B2
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',

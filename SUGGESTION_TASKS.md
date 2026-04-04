@@ -1134,13 +1134,13 @@
   - File: `backend/apps/users/models.py`
   - Model: `APIKey` (user FK, key_prefix CharField, key_hash CharField, name, scopes JSONField, last_used DateTimeField null, created_at, is_active bool, expires_at null)
   - Key format: `sk-syn-{32 random chars}` — store only hash (SHA-256), show full key once on creation
-- [ ] **TASK-605-B2:** APIKey authentication class
+- [x] **TASK-605-B2:** APIKey authentication class
   - File: `backend/apps/core/auth.py` *(new)*
   - DRF `BaseAuthentication` subclass: `APIKeyAuthentication`
   - Read `Authorization: Bearer sk-syn-...` header
   - Hash incoming key, lookup in DB, update `last_used`
   - Apply to all `/api/v1/` endpoints (alongside session auth)
-- [ ] **TASK-605-B3:** Public API endpoints (rate-limited by plan)
+- [x] **TASK-605-B3:** Public API endpoints (rate-limited by plan)
   - `GET  /api/v1/content/articles/` — search articles (`?q=`, `?topic=`, `?limit=`)
   - `GET  /api/v1/content/papers/`   — search papers
   - `GET  /api/v1/content/repos/`    — search repositories
@@ -1154,12 +1154,12 @@
   - `DELETE /api/keys/{id}/` — revoke key (set is_active=False)
 
 #### Frontend
-- [ ] **TASK-605-F1:** API Keys section in settings
+- [x] **TASK-605-F1:** API Keys section in settings
   - File: `frontend/src/app/(dashboard)/settings/page.tsx`
   - Table: key name, prefix (sk-syn-xxxx...), created, last used, scopes, revoke button
   - "Create API Key" button → modal: name input + scope checkboxes → show full key once with copy button
   - Warning: "Copy your key now — we will not show it again"
-- [ ] **TASK-605-F2:** Developer Portal page
+- [x] **TASK-605-F2:** Developer Portal page
   - File: `frontend/src/app/(dashboard)/developers/page.tsx` *(new)*
   - Sections:
     - Quick Start: copy-paste code snippets (Python / TypeScript / cURL)
