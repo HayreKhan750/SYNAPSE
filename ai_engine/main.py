@@ -57,6 +57,20 @@ async def lifespan(app: FastAPI):
     Warms up the embedding model and RAG pipeline at startup
     so the first user request isn't slow.
     """
+    # ── OpenTelemetry (TASK-504-B2) ──────────────────────────────────────────────
+    _OTEL_ENABLED = os.environ.get("OTEL_ENABLED", "").lower() == "true"
+    if _OTEL_ENABLED:
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+            _otel_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+            FastAPIInstrumentor.instrument_app(app)
+            logger.info("otel_enabled", endpoint=_otel_endpoint)
+        except ImportError:
+            logger.warning("otel_instrumentation_not_installed",
+                          message="Install opentelemetry-instrumentation-fastapi to enable tracing")
+        except Exception as exc:
+            logger.warning("otel_instrumentation_failed", error=str(exc))
+
     logger.info("SYNAPSE AI Engine starting up…")
 
     # ── Redis health check (TASK-004-B9) ─────────────────────────────────────

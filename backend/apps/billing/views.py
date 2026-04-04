@@ -185,8 +185,12 @@ class WebhookView(APIView):
         payload    = request.body
 
         try:
-            from apps.billing.stripe_service import construct_webhook_event
-            event = construct_webhook_event(payload, sig_header)
+            # Verify Stripe webhook signature
+            import stripe
+            from django.conf import settings
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+            )
         except Exception as exc:
             logger.warning("stripe_webhook_invalid_signature", error=str(exc))
             return Response({"error": "Invalid signature."}, status=status.HTTP_400_BAD_REQUEST)

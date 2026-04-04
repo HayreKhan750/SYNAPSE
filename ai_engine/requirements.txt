@@ -38,6 +38,14 @@ redis>=5.0,<6.0
 structlog>=24.2,<25.0
 sentry-sdk[fastapi]>=2.5,<3.0
 
+# ── OpenTelemetry (TASK-504-B2) — optional, disabled by default ────────────────
+# Uncomment to enable distributed tracing via OTEL_ENABLED=true
+# opentelemetry-api>=1.20,<2.0
+# opentelemetry-sdk>=1.20,<2.0
+# opentelemetry-instrumentation>=0.41,<1.0
+# opentelemetry-instrumentation-fastapi>=0.41,<1.0
+# opentelemetry-exporter-otlp>=0.41,<1.0
+
 # ── Token estimation (TASK-004-B3) ─────────────────────────────────────────────
 tiktoken>=0.7,<1.0
 

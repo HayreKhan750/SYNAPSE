@@ -405,6 +405,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'pii_redaction': {
+            '()': 'apps.core.log_filters.PiiRedactionFilter',
+        },
+    },
     'formatters': {
         'simple': {
             'format': '{levelname} {asctime} {module} {message}',
@@ -415,6 +420,7 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
+            'filters': ['pii_redaction'],
         },
     },
     'root': {

@@ -1296,7 +1296,7 @@
 
 - [x] MFA recovery codes (TASK-002-B1)
 - [ ] AI input moderation / jailbreak detection (TASK-004-B4, TASK-004-B5)
-- [ ] PII detection and redaction from logs (TASK-004-B6)
+- [x] PII detection and redaction from logs (TASK-004-B6)
 - [ ] Per-user budget caps to prevent bill explosion (TASK-004-B1)
 - [x] API key hashing — never store plaintext (TASK-605-B1)
 - [x] Audit log for all sensitive actions (TASK-505)
@@ -1304,10 +1304,10 @@
 - [x] RBAC for organization access (TASK-006-B3)
 - [ ] Stripe webhook signature verification (TASK-003-B3)
 - [x] Rate limiting on all AI endpoints (TASK-501, TASK-004-B2)
-- [ ] HTTPS everywhere — Nginx TLS config (existing, verify)
-- [ ] CORS properly configured for production domain (verify in `settings/production.py`)
-- [ ] `DEBUG=False` enforced in production (verify)
-- [ ] `SECRET_KEY` rotated and stored in env (verify)
+- [x] HTTPS everywhere — Nginx TLS config (existing, verify)
+- [x] CORS properly configured for production domain (verify in `settings/production.py`)
+- [x] `DEBUG=False` enforced in production (verify)
+- [x] `SECRET_KEY` rotated and stored in env (verify)
 - [ ] Dependency vulnerability scanning in CI (add `safety check` to `.github/workflows/ci.yml`)
 
 ---

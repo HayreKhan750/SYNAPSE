@@ -15,6 +15,11 @@ from .base import *  # noqa: F401, F403
 import os
 
 DEBUG = False
+"""
+DEBUG must always be False in production.
+Never enable debug mode in production — it exposes sensitive information,
+disables security middleware, and allows arbitrary code execution.
+"""
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
@@ -52,6 +57,18 @@ SILKY_INTERCEPT_PERCENT = 0
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app != 'silk']  # type: ignore
 MIDDLEWARE     = [m for m in MIDDLEWARE if m != 'silk.middleware.SilkyMiddleware']
 
+# ── CORS — production domain configuration ────────────────────────────────────
+# CORS_ALLOWED_ORIGINS must be explicitly set from environment variables.
+# NEVER use '*' (wildcard) in production — it allows requests from any origin
+# and disables credentials validation.
+# Example: CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+if not CORS_ALLOWED_ORIGINS or CORS_ALLOWED_ORIGINS == ['']:
+    raise ValueError(
+        'CORS_ALLOWED_ORIGINS environment variable must be set in production. '
+        'Example: CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com'
+    )
+
 # ── Sentry — error tracking ───────────────────────────────────────────────────
 SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
 if SENTRY_DSN:
@@ -79,6 +96,11 @@ if SENTRY_DSN:
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'pii_redaction': {
+            '()': 'apps.core.log_filters.PiiRedactionFilter',
+        },
+    },
     'formatters': {
         'json': {
             '()': 'structlog.stdlib.ProcessorFormatter',
@@ -89,6 +111,7 @@ LOGGING = {
         'console': {
             'class':     'logging.StreamHandler',
             'formatter': 'json',
+            'filters':   ['pii_redaction'],
         },
     },
     'root': {
