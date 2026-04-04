@@ -267,6 +267,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=2, minute=0),
         'options':  {'queue': 'default'},
     },
+    # TASK-602-B2: Daily star velocity computation — runs at 04:00 UTC
+    'daily-star-velocity': {
+        'task':     'apps.repositories.analytics.compute_star_velocity',
+        'schedule': crontab(hour=4, minute=0),
+        'options':  {'queue': 'default'},
+    },
 }
 # Track when a task transitions to STARTED (enables "processing" status in DB)
 CELERY_TASK_TRACK_STARTED = True

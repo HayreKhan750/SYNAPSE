@@ -1057,19 +1057,19 @@
 ### TASK-602 — GitHub Intelligence Dashboard
 **Priority:** 🚀 Medium | **Effort:** L | **Impact:** Killer feature for developer/CTO audience; free to attract devs
 
-- [ ] **TASK-602-B1:** Enhance GitHub spider with velocity data
+- [x] **TASK-602-B1:** Enhance GitHub spider with velocity data
   - File: `scraper/spiders/github_spider.py`
   - Capture: star count snapshots over time (store daily), fork count, language, topics, last_commit_date, contributor_count, open_issues
-- [ ] **TASK-602-B2:** Create GitHub trend analytics Celery task
+- [x] **TASK-602-B2:** Create GitHub trend analytics Celery task
   - File: `backend/apps/repositories/` — new `analytics.py`
   - Daily task: compute 7-day and 30-day star velocity for each repo
   - Classify: `rising_star` (>50 stars/week), `stable`, `declining` (<-10 stars/week)
   - Store trend classification in Repository model
-- [ ] **TASK-602-B3:** GitHub intelligence API endpoints
+- [x] **TASK-602-B3:** GitHub intelligence API endpoints
   - `GET /api/github/trending/` — repos sorted by 7d star velocity (filter: `?language=`, `?topic=`)
   - `GET /api/github/ecosystem/{language}/` — language health: total repos, avg star growth, top frameworks
   - `GET /api/github/repo/{id}/analysis/` — full repo analysis: growth chart, tech stack, similar repos
-- [ ] **TASK-602-F1:** Overhaul GitHub Intelligence page
+- [x] **TASK-602-F1:** Overhaul GitHub Intelligence page
   - File: `frontend/src/app/(dashboard)/github/page.tsx`
   - Sections:
     - **Trending Now:** repos with star velocity sparklines (use existing `StarSparkline` component)

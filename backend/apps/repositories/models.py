@@ -24,6 +24,25 @@ class Repository(models.Model):
     embedding_id = models.CharField(max_length=200, blank=True)
     embedding    = VectorField(dimensions=384, null=True, blank=True)
     scraped_at   = models.DateTimeField(auto_now=True)
+
+    # ── TASK-602-B1: Star velocity + trend classification ─────────────────────
+    class TrendClass(models.TextChoices):
+        RISING_STAR = 'rising_star', 'Rising Star'
+        STABLE      = 'stable',      'Stable'
+        DECLINING   = 'declining',   'Declining'
+
+    stars_7d_delta    = models.IntegerField(default=0)
+    stars_30d_delta   = models.IntegerField(default=0)
+    velocity_7d       = models.FloatField(default=0.0)
+    velocity_30d      = models.FloatField(default=0.0)
+    trend_class       = models.CharField(
+        max_length=20, choices=TrendClass.choices, default=TrendClass.STABLE, db_index=True
+    )
+    star_history      = models.JSONField(default=list)
+    last_commit_date  = models.DateTimeField(null=True, blank=True)
+    contributor_count = models.IntegerField(default=0)
+    open_issues       = models.IntegerField(default=0)
+    is_rising_star    = models.BooleanField(default=False, db_index=True)
     repo_created_at = models.DateTimeField(null=True, blank=True)
     stars_today  = models.IntegerField(default=0)
     metadata     = models.JSONField(default=dict, blank=True)
