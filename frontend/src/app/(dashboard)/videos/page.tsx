@@ -37,7 +37,7 @@ const SORT_OPTIONS = [
 
 export default function VideosPage() {
   const [selectedTopic, setSelectedTopic] = useState('All')
-  const [sortBy, setSortBy] = useState('-view_count')
+  const [sortBy, setSortBy] = useState('-published_at')
   const [playingVideo, setPlayingVideo] = useState<Video | null>(null)
   const PAGE_SIZE = 20
 
