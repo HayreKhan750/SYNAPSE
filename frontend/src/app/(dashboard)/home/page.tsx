@@ -387,15 +387,15 @@ export default function Dashboard() {
 
               <SectionHeader title="Latest from Tech Feed" subtitle="Curated articles from around the web" href="/feed" />
               {articlesLoading ? (
-                <HorizontalScroller cardWidth={320}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Array.from({ length: 6 }).map((_, i) => <ArticleSkeleton key={i} />)}
-                </HorizontalScroller>
+                </div>
               ) : trendingArticles.length > 0 ? (
-                <HorizontalScroller cardWidth={320}>
-                  {trendingArticles.map((article: any) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {trendingArticles.slice(0, 6).map((article: any) => (
                     <ArticleCard key={article.id} article={article} />
                   ))}
-                </HorizontalScroller>
+                </div>
               ) : (
                 <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
                   <p className="text-slate-500 dark:text-slate-400">No articles yet</p>
