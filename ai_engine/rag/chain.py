@@ -146,98 +146,19 @@ class SynapseRAGChain:
         model:       str   = "",
     ):
         """
-        Build the RAG chain LLM — TASK-302: supports OpenRouter, Anthropic, Ollama, Gemini.
+        Build the RAG chain LLM.
 
-        Provider resolution order (when provider='auto'):
-          OpenRouter → Gemini → raise
-
-        Explicit provider bypasses auto-detection.
+        QA-24: Delegates to the shared ai_engine.agents.llm_factory.build_llm()
+        to avoid duplicating provider-routing logic across the codebase.
+        See llm_factory.py for the full provider selection order.
         """
-        # ── Anthropic Claude ──────────────────────────────────────────────────
-        if provider == "anthropic":
-            anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
-            if not anthropic_key:
-                raise ValueError("ANTHROPIC_API_KEY required for provider='anthropic'.")
-            try:
-                from langchain_anthropic import ChatAnthropic
-                resolved_model = model or os.environ.get("CLAUDE_MODEL_PRIMARY", "claude-3-5-sonnet-20241022")
-                return ChatAnthropic(
-                    model=resolved_model,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    anthropic_api_key=anthropic_key,
-                    streaming=streaming,
-                )
-            except ImportError as exc:
-                raise ImportError("Install langchain-anthropic: pip install langchain-anthropic") from exc
-
-        # ── Ollama (local) ────────────────────────────────────────────────────
-        if provider == "ollama":
-            try:
-                from langchain_ollama import ChatOllama
-                base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-                resolved_model = model or os.environ.get("OLLAMA_MODEL", "llama3.2")
-                return ChatOllama(
-                    model=resolved_model,
-                    base_url=base_url,
-                    temperature=temperature,
-                    num_predict=max_tokens,
-                )
-            except ImportError as exc:
-                raise ImportError("Install langchain-ollama: pip install langchain-ollama") from exc
-
-        # ── Google Gemini (explicit) ──────────────────────────────────────────
-        if provider == "gemini":
-            gemini_key = os.environ.get("GEMINI_API_KEY", "")
-            if not gemini_key:
-                raise ValueError("GEMINI_API_KEY required for provider='gemini'.")
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            return ChatGoogleGenerativeAI(
-                model=model or os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
-                temperature=temperature,
-                max_output_tokens=max_tokens,
-                google_api_key=gemini_key,
-                streaming=streaming,
-                convert_system_message_to_human=True,
-            )
-
-        # ── OpenRouter / OpenAI (auto or explicit) ────────────────────────────
-        openrouter_key   = os.environ.get("OPENROUTER_API_KEY", "")
-        openrouter_base  = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-        openrouter_model = model or os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
-        if openrouter_key:
-            return ChatOpenAI(
-                model=openrouter_model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                openai_api_key=openrouter_key,
-                openai_api_base=openrouter_base,
-                streaming=streaming,
-                default_headers={
-                    "HTTP-Referer": "https://synapse.ai",
-                    "X-Title": "SYNAPSE RAG",
-                },
-            )
-
-        # ── Gemini auto-fallback ──────────────────────────────────────────────
-        gemini_key = os.environ.get("GEMINI_API_KEY", "")
-        if gemini_key:
-            try:
-                from langchain_google_genai import ChatGoogleGenerativeAI
-                return ChatGoogleGenerativeAI(
-                    model=model or os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
-                    google_api_key=gemini_key,
-                    streaming=streaming,
-                    convert_system_message_to_human=True,
-                )
-            except ImportError:
-                pass
-
-        raise ValueError(
-            "No LLM configured. Set one of: OPENROUTER_API_KEY, ANTHROPIC_API_KEY, "
-            "GEMINI_API_KEY, or use provider='ollama'."
+        from ai_engine.agents.llm_factory import build_llm
+        return build_llm(
+            provider=provider,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            streaming=streaming,
         )
 
     # ------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 import { ArticleCard, PaperCard } from '@/components/cards';
 
 export default function RecommendedSection() {

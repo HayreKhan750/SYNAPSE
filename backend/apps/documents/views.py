@@ -43,6 +43,93 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# QA-16: Document LLM Builder — extracted from DocumentGenerateView
+# ---------------------------------------------------------------------------
+
+class _DocumentLLMBuilder:
+    """
+    Handles LLM provider selection and raw text invocation for document generation.
+
+    Extracted from DocumentGenerateView._expand_prompt_to_sections() to:
+      1. Separate concerns (prompt construction vs. LLM invocation)
+      2. Make the LLM call independently testable
+      3. Eliminate 45 lines of duplicated inline LLM invocation code in views.py
+    """
+
+    @staticmethod
+    def invoke(
+        system: str,
+        user_msg: str,
+        openrouter_key: str = '',
+        gemini_key: str = '',
+        model_override: str = '',
+    ) -> str | None:
+        """
+        Invoke the LLM and return the raw string response, or None on failure.
+
+        Provider selection: OpenRouter (preferred) → Gemini (fallback) → None.
+        """
+        import os
+        try:
+            from langchain_core.messages import HumanMessage, SystemMessage
+        except ImportError:
+            logger.error("langchain-core not installed — cannot generate LLM sections")
+            return None
+
+        # ── OpenRouter (preferred — 200+ models including GPT-4o, Claude, Gemini) ──
+        if openrouter_key:
+            try:
+                from langchain_openai import ChatOpenAI
+                model = model_override or os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+                llm = ChatOpenAI(
+                    model=model,
+                    openai_api_key=openrouter_key,
+                    openai_api_base=os.environ.get(
+                        "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+                    ),
+                    temperature=0.7,
+                    max_tokens=16000,
+                )
+                resp = llm.invoke([SystemMessage(content=system), HumanMessage(content=user_msg)])
+                raw = resp.content if isinstance(resp.content, str) else str(resp.content)
+                logger.info("_DocumentLLMBuilder: OpenRouter response (%d chars)", len(raw))
+                return raw
+            except Exception as exc:
+                logger.warning(
+                    "_DocumentLLMBuilder: OpenRouter failed (%s) — trying Gemini", exc
+                )
+
+        # ── Google Gemini (fallback) ──────────────────────────────────────────
+        if gemini_key:
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                llm = ChatGoogleGenerativeAI(
+                    model=model_override or os.environ.get(
+                        "GEMINI_MODEL", "gemini-1.5-flash-latest"
+                    ),
+                    google_api_key=gemini_key,
+                    temperature=0.7,
+                    max_output_tokens=8192,
+                    convert_system_message_to_human=True,
+                )
+                resp = llm.invoke([SystemMessage(content=system), HumanMessage(content=user_msg)])
+                raw = resp.content if isinstance(resp.content, str) else str(resp.content)
+                logger.info("_DocumentLLMBuilder: Gemini response (%d chars)", len(raw))
+                return raw
+            except Exception as exc:
+                logger.warning("_DocumentLLMBuilder: Gemini failed (%s)", exc)
+
+        # ── No provider available ─────────────────────────────────────────────
+        if not openrouter_key and not gemini_key:
+            logger.warning(
+                "_DocumentLLMBuilder: No LLM API key configured. "
+                "Go to Settings → AI Engine to add your OpenRouter or Gemini key."
+            )
+        return None
+
+
 # Ensure ai_engine is importable regardless of whether we're running inside
 # Docker (PYTHONPATH=/app:/ai_engine_pkg) or locally (project root on path).
 # In Docker: /ai_engine_pkg is on PYTHONPATH and ./ai_engine is mounted there.
@@ -105,13 +192,15 @@ class DocumentGenerateView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
-        doc_type  = data["doc_type"]
-        title     = data["title"]
-        prompt    = data["prompt"]
-        sections  = data.get("sections") or []
-        subtitle  = data.get("subtitle", "")
-        author    = data.get("author", "") or "SYNAPSE AI"  # coerce empty string → default
-        user_id   = str(request.user.id)
+        doc_type        = data["doc_type"]
+        title           = data["title"]
+        prompt          = data["prompt"]
+        sections        = data.get("sections") or []
+        subtitle        = data.get("subtitle", "")
+        author          = data.get("author", "") or "SYNAPSE AI"  # coerce empty string → default
+        user_id         = str(request.user.id)
+        content_types   = data.get("content_types") or []
+        source_item_ids = data.get("source_item_ids") or []
 
         # ── HTML pages: generate the actual HTML/CSS/JS directly from the prompt ──
         if doc_type == "html":
@@ -139,12 +228,19 @@ class DocumentGenerateView(APIView):
                 if line.startswith("Path:"):
                     file_path_str = line.replace("Path:", "").strip()
                     break
+            sources_used = []
         else:
-            # Build sections from prompt if not provided — use LLM to expand into rich content
+            # Build sections from prompt if not provided — use LLM + RAG context
             if not sections:
-                sections = self._expand_prompt_to_sections(prompt, title, doc_type,
+                sections, sources_used = self._expand_prompt_to_sections(
+                    prompt, title, doc_type,
                     user=request.user,
-                    model_override=data.get('model', ''))
+                    model_override=data.get('model', ''),
+                    content_types=content_types,
+                    source_item_ids=source_item_ids,
+                )
+            else:
+                sources_used = []
 
             try:
                 result_str, file_path_str = self._call_tool(
@@ -188,11 +284,13 @@ class DocumentGenerateView(APIView):
             file_path=rel_path,
             file_size_bytes=file_size,
             agent_prompt=prompt,
+            sources_metadata=sources_used,
             metadata={
                 "subtitle": subtitle,
                 "author": author,
                 "section_count": len(sections),
                 "tool_result": result_str[:500],
+                "rag_sources_count": len(sources_used),
             },
         )
 
@@ -233,27 +331,160 @@ class DocumentGenerateView(APIView):
         return openrouter_key, gemini_key
 
     @staticmethod
-    def _expand_prompt_to_sections(prompt: str, title: str, doc_type: str, user=None, model_override: str = '') -> list:
+    def _retrieve_rag_context(
+        prompt: str,
+        user,
+        content_types: list,
+        source_item_ids: list,
+    ) -> tuple:
+        """
+        Retrieve relevant content from the user's Synapse knowledge base.
+
+        Two modes:
+          1. source_item_ids provided → fetch those specific items directly from DB
+          2. otherwise → run hybrid vector search via SynapseRetriever
+
+        Returns (context_text: str, sources: list[dict])
+        """
+        sources = []
+        context_parts = []
+
+        # ── Mode 1: pinned specific items ──────────────────────────────────────
+        if source_item_ids:
+            type_to_model = {
+                'article':    ('apps.articles.models',    'Article'),
+                'paper':      ('apps.papers.models',      'ResearchPaper'),
+                'repository': ('apps.repositories.models','Repository'),
+                'video':      ('apps.videos.models',      'Video'),
+            }
+            for item in source_item_ids:
+                item_id   = item.get('id')
+                item_type = item.get('type', '').lower().rstrip('s')  # normalise "articles" → "article"
+                if not item_id or item_type not in type_to_model:
+                    continue
+                module_path, model_name = type_to_model[item_type]
+                try:
+                    import importlib
+                    mod   = importlib.import_module(module_path)
+                    Model = getattr(mod, model_name)
+                    obj   = Model.objects.get(pk=item_id)
+                    title_val   = getattr(obj, 'title', '') or getattr(obj, 'name', '') or str(obj)
+                    summary_val = (
+                        getattr(obj, 'summary', '')
+                        or getattr(obj, 'abstract', '')
+                        or getattr(obj, 'description', '')
+                        or getattr(obj, 'body', '')[:1000]
+                        or ''
+                    )
+                    url_val = getattr(obj, 'url', '') or getattr(obj, 'html_url', '') or ''
+                    context_parts.append(
+                        f"[{item_type.upper()}] {title_val}\n{summary_val}"
+                    )
+                    sources.append({
+                        'id':           str(item_id),
+                        'content_type': item_type,
+                        'title':        title_val,
+                        'url':          url_val,
+                        'snippet':      summary_val[:300],
+                    })
+                except Exception as exc:
+                    logger.warning("Could not fetch pinned item %s (%s): %s", item_id, item_type, exc)
+
+        # ── Mode 2: vector search ──────────────────────────────────────────────
+        else:
+            try:
+                from ai_engine.rag.retriever import SynapseRetriever
+                retriever = SynapseRetriever(
+                    k=4,
+                    mode='hybrid',
+                    use_reranker=False,  # skip reranker for speed during doc generation
+                    content_types=content_types or list(
+                        __import__('ai_engine.rag.retriever', fromlist=['COLLECTION_NAMES']).COLLECTION_NAMES.keys()
+                    ),
+                )
+                docs = retriever.invoke(f"{prompt} {title}")
+                for doc in docs[:8]:  # cap at 8 sources
+                    meta    = doc.metadata or {}
+                    title_v = meta.get('title', '')
+                    url_v   = meta.get('source', '') or meta.get('url', '')
+                    ct      = meta.get('content_type', 'unknown')
+                    snippet = doc.page_content[:300]
+                    context_parts.append(f"[{ct.upper()}] {title_v}\n{doc.page_content}")
+                    sources.append({
+                        'id':           str(meta.get('id', '')),
+                        'content_type': ct,
+                        'title':        title_v,
+                        'url':          url_v,
+                        'snippet':      snippet,
+                        'similarity_score': meta.get('rerank_score') or meta.get('rrf_score') or meta.get('similarity_score', 0.0),
+                    })
+                logger.info("RAG retrieved %d sources for document generation", len(sources))
+            except Exception as exc:
+                logger.warning("RAG retrieval failed (non-fatal): %s", exc)
+
+        context_text = "\n\n---\n\n".join(context_parts) if context_parts else ""
+        return context_text, sources
+
+    @staticmethod
+    def _expand_prompt_to_sections(
+        prompt: str,
+        title: str,
+        doc_type: str,
+        user=None,
+        model_override: str = '',
+        content_types: list = None,
+        source_item_ids: list = None,
+    ) -> tuple:
         """
         Use OpenRouter (preferred) or Gemini to expand a free-text prompt into
         a list of structured sections: [{"heading": str, "content": str}, ...].
-        Reads API keys from user.preferences first, then environment variables.
-        Falls back to intelligently structured sections if no LLM key is available.
+
+        Now RAG-enhanced: retrieves relevant content from the user's Synapse
+        knowledge base (saved articles, papers, repos, videos) and injects it
+        as grounding context into the LLM prompt before generating sections.
+
+        Returns (sections: list, sources_used: list[dict])
         """
         import json, re
+
+        # ── Step 1: Retrieve RAG context from user's knowledge base ───────────
+        context_text, sources_used = DocumentGenerateView._retrieve_rag_context(
+            prompt=prompt,
+            user=user,
+            content_types=content_types or [],
+            source_item_ids=source_item_ids or [],
+        )
+
+        # ── Step 2: Build LLM prompt — inject context if available ────────────
+        if context_text:
+            rag_block = (
+                "KNOWLEDGE BASE CONTEXT\n"
+                "The following content has been retrieved from the user's personal Synapse "
+                "knowledge base (their saved articles, research papers, repositories, and videos). "
+                "Use this as your PRIMARY source material. Ground your document in this real content. "
+                "Reference specific titles, findings, and details from these sources.\n\n"
+                f"{context_text}\n\n"
+                "END OF KNOWLEDGE BASE CONTEXT\n"
+            )
+        else:
+            rag_block = ""
 
         system = (
             "You are a senior research analyst and strategy consultant with expertise across industries, "
             "markets, and disciplines — equivalent to a Principal at McKinsey, BCG, or Bain. "
             "Your writing is authoritative, evidence-based, and deeply analytical.\n\n"
-            "TASK: Write a comprehensive, research-grade professional document on the given topic.\n\n"
+            + (rag_block if rag_block else "")
+            + "TASK: Write a comprehensive, research-grade professional document on the given topic.\n\n"
             "STRUCTURAL REQUIREMENTS:\n"
             "- Generate exactly 6-8 major sections with clear, specific headings.\n"
             "- Each section: minimum 4 full paragraphs, each paragraph 5-7 sentences.\n"
             "- Paragraphs separated by double newlines (\\n\\n).\n\n"
             "CONTENT REQUIREMENTS:\n"
             "- Write specifically about the EXACT topic given — not a generic template.\n"
-            "- Include real facts, statistics, named organisations, countries, dates, and figures.\n"
+            + ("- Draw on and reference the knowledge base content provided above.\n"
+               "- Cite specific items from the knowledge base by their title where relevant.\n"
+               if rag_block else "")
+            + "- Include real facts, statistics, named organisations, countries, dates, and figures.\n"
             "- Provide expert analysis: causation, trends, strategic implications, future scenarios.\n"
             "- Vary paragraph types: analytical, comparative, descriptive, prescriptive.\n"
             "- Zero generic filler — every sentence must add specific, substantive value.\n\n"
@@ -272,7 +503,8 @@ class DocumentGenerateView(APIView):
             f"Topic: {title}\n"
             f"Document type: {doc_type}\n"
             f"User instruction: {prompt}\n\n"
-            "Write a deeply researched, expert-level document SPECIFICALLY about the topic above. "
+            + ("Use the knowledge base context provided in the system prompt as your primary source. " if rag_block else "")
+            + "Write a deeply researched, expert-level document SPECIFICALLY about the topic above. "
             "Do NOT use generic templates or placeholder text. Every sentence must be about this "
             "specific topic with real, concrete, topic-specific information. "
             "Return the JSON sections array now."
@@ -280,51 +512,16 @@ class DocumentGenerateView(APIView):
 
         openrouter_key, gemini_key = DocumentGenerateView._get_llm_keys(user)
 
-        raw = None
-        try:
-            # OpenRouter is PREFERRED (supports 200+ models including Gemini, GPT-4o, Claude)
-            if openrouter_key:
-                from langchain_openai import ChatOpenAI
-                from langchain_core.messages import HumanMessage, SystemMessage
-                import os
-                model = model_override or os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
-                llm = ChatOpenAI(
-                    model=model,
-                    openai_api_key=openrouter_key,
-                    openai_api_base=os.environ.get("OPENROUTER_BASE_URL",
-                                                   "https://openrouter.ai/api/v1"),
-                    temperature=0.7,
-                    max_tokens=16000,
-                )
-                resp = llm.invoke([SystemMessage(content=system), HumanMessage(content=user_msg)])
-                raw = resp.content if isinstance(resp.content, str) else str(resp.content)
-                logger.info("OpenRouter LLM response received (%d chars)", len(raw))
-
-            # Gemini as fallback
-            elif gemini_key:
-                from langchain_google_genai import ChatGoogleGenerativeAI
-                from langchain_core.messages import HumanMessage, SystemMessage
-                import os
-                llm = ChatGoogleGenerativeAI(
-                    model=os.environ.get("GEMINI_MODEL", "gemini-1.5-flash-latest"),
-                    google_api_key=gemini_key,
-                    temperature=0.7,
-                    max_output_tokens=8192,
-                    convert_system_message_to_human=True,
-                )
-                resp = llm.invoke([SystemMessage(content=system), HumanMessage(content=user_msg)])
-                raw = resp.content if isinstance(resp.content, str) else str(resp.content)
-                logger.info("Gemini LLM response received (%d chars)", len(raw))
-
-            else:
-                logger.warning(
-                    "No LLM API key configured (checked user.preferences + env vars). "
-                    "Go to Settings → AI Engine to add your OpenRouter or Gemini key."
-                )
-
-        except Exception as exc:
-            logger.warning("LLM section expansion failed: %s — falling back to structured content", exc)
-            raw = None
+        # QA-16: LLM invocation delegated to _DocumentLLMBuilder to separate
+        # concerns — this method handles RAG + prompt construction + JSON parsing;
+        # _DocumentLLMBuilder handles provider selection and raw invocation.
+        raw = _DocumentLLMBuilder.invoke(
+            system=system,
+            user_msg=user_msg,
+            openrouter_key=openrouter_key,
+            gemini_key=gemini_key,
+            model_override=model_override,
+        )
 
         if raw:
             # Extract the JSON array from the response — handles markdown fences,
@@ -417,14 +614,14 @@ class DocumentGenerateView(APIView):
                     ]
                     if valid_sections:
                         logger.info("LLM expanded prompt into %d sections", len(valid_sections))
-                        return valid_sections
+                        return valid_sections, sources_used
             except (ValueError, Exception) as exc:
                 logger.warning("Failed to parse LLM sections JSON: %s — raw: %s", exc, raw[:200])
 
         # Smart fallback: generate structured sections using the prompt as a topic guide.
         # This produces a real, readable document even without an LLM.
         logger.info("Generating structured fallback sections from prompt (no LLM or parse failed)")
-        return DocumentGenerateView._build_fallback_sections(prompt, title, doc_type)
+        return DocumentGenerateView._build_fallback_sections(prompt, title, doc_type), sources_used
 
     @staticmethod
     def _build_fallback_sections(prompt: str, title: str, doc_type: str) -> list:

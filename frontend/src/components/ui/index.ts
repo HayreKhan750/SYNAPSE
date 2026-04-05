@@ -18,3 +18,5 @@ export {
   SkeletonGrid,
 } from './SkeletonLoader'
 export { Tooltip } from './Tooltip'
+export { HorizontalScroller } from './HorizontalScroller'
+export { ScrollSentinel } from './ScrollSentinel'

@@ -13,7 +13,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 
 interface UseVoiceInputOptions {
   /** Called with the transcribed text when transcription completes */
@@ -69,10 +69,19 @@ export function useVoiceInput({
       stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
     } catch (err: unknown) {
       const e = err as DOMException
+      // Handle each DOMException type specifically (ERR-03)
       if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
         setError('Microphone permission denied. Please allow microphone access in your browser settings.')
+      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+        setError('No microphone found. Please connect a microphone and try again.')
+      } else if (e.name === 'SecurityError') {
+        setError('Microphone access blocked by browser security policy. Please use HTTPS or check site permissions.')
+      } else if (e.name === 'AbortError') {
+        setError('Microphone access was interrupted. Please try again.')
+      } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+        setError('Microphone is already in use by another application. Please close other apps and try again.')
       } else {
-        setError(`Could not access microphone: ${e.message}`)
+        setError(`Could not access microphone: ${e.message ?? e.name}`)
       }
       return
     }

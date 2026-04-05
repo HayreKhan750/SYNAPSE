@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Twitter, TrendingUp, Search, RefreshCw, ChevronDown } from 'lucide-react';
-import api from '@/utils/api';
+import React, { useState, useCallback } from 'react';
+import { Twitter, Search, RefreshCw, ChevronDown } from 'lucide-react';
+import { api } from '@/utils/api';
 import { TweetCard } from '@/components/cards';
 import { cn } from '@/utils/helpers';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { ScrollSentinel } from '@/components/ui/ScrollSentinel';
 
 const TOPICS = ['All', 'AI', 'Web Dev', 'Security', 'Cloud', 'Research', 'Programming', 'Tech'];
 
@@ -29,32 +30,29 @@ export default function TweetsPage() {
   const [selectedTopic, setSelectedTopic] = useState('All');
   const [sortBy, setSortBy] = useState('-posted_at');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
 
   const topicParam = selectedTopic === 'All' ? undefined : selectedTopic;
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['tweets', topicParam, sortBy, page, searchQuery],
-    queryFn: () =>
-      api.get('/tweets/', {
-        params: {
-          page,
-          page_size: 20,
-          ordering: sortBy,
-          ...(topicParam ? { topic: topicParam } : {}),
-          ...(searchQuery ? { q: searchQuery } : {}),
-        },
-      }).then(r => r.data),
-    staleTime: 30_000,
-  });
-
-  const tweets: any[] = Array.isArray(data?.data) ? data.data
-    : Array.isArray(data?.results) ? data.results
-    : Array.isArray(data) ? data : [];
-  const totalCount = data?.meta?.total || data?.count || 0;
-
-  const handleLoadMore = () => setPage((p) => p + 1);
+  const { items: tweets, sentinelRef, isFetchingNextPage, isLoading, hasNextPage, total: totalCount, reset } =
+    useInfiniteScroll<any>({
+      fetchPage: useCallback(async (page: number) => {
+        const r = await api.get('/tweets/', {
+          params: {
+            page,
+            page_size: 20,
+            ordering: sortBy,
+            ...(topicParam ? { topic: topicParam } : {}),
+            ...(searchQuery ? { q: searchQuery } : {}),
+          },
+        });
+        const d = r.data;
+        const items: any[] = Array.isArray(d?.data) ? d.data : Array.isArray(d?.results) ? d.results : Array.isArray(d) ? d : [];
+        const total = d?.meta?.total ?? d?.count ?? items.length;
+        return { items, total };
+      }, [topicParam, sortBy, searchQuery]),
+      deps: [topicParam, sortBy, searchQuery],
+    });
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Latest';
 
@@ -77,13 +75,13 @@ export default function TweetsPage() {
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
-                onClick={() => refetch()}
-                disabled={isFetching}
+                onClick={reset}
+                disabled={isFetchingNextPage}
                 className="flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
                 title="Refresh feed"
               >
-                <RefreshCw size={11} className={isFetching ? 'animate-spin' : ''} />
-                <span className="hidden sm:inline">{isFetching ? 'Refreshing…' : 'Refresh'}</span>
+                <RefreshCw size={11} className={isFetchingNextPage ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline">{isFetchingNextPage ? 'Refreshing…' : 'Refresh'}</span>
               </button>
               <span className="hidden xs:flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse shrink-0" />
@@ -100,7 +98,7 @@ export default function TweetsPage() {
                 type="text"
                 placeholder="Search tweets..."
                 value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                onChange={(e) => { setSearchQuery(e.target.value); }}
                 className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/50 transition-all"
               />
             </div>
@@ -115,7 +113,7 @@ export default function TweetsPage() {
               {TOPICS.map((topic) => (
                 <button
                   key={topic}
-                  onClick={() => { setSelectedTopic(topic); setPage(1); }}
+                  onClick={() => { setSelectedTopic(topic); }}
                   className={cn(
                     'px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0',
                     selectedTopic === topic
@@ -142,7 +140,7 @@ export default function TweetsPage() {
                   {SORT_OPTIONS.map((option) => (
                     <button
                       key={option.value}
-                      onClick={() => { setSortBy(option.value); setShowSortDropdown(false); setPage(1); }}
+                      onClick={() => { setSortBy(option.value); setShowSortDropdown(false); }}
                       className={cn(
                         'w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm transition-colors',
                         sortBy === option.value
@@ -205,16 +203,13 @@ export default function TweetsPage() {
                   <TweetCard key={tweet.id} tweet={tweet} />
                 ))}
               </div>
-              {tweets.length < totalCount && (
-                <div className="flex justify-center pt-4">
-                  <button
-                    onClick={handleLoadMore}
-                    className="px-6 py-2.5 rounded-xl font-semibold text-sm bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white transition-all shadow-sm hover:shadow-md"
-                  >
-                    Load more tweets
-                  </button>
-                </div>
-              )}
+              <ScrollSentinel
+                sentinelRef={sentinelRef}
+                isFetchingNextPage={isFetchingNextPage}
+                hasNextPage={hasNextPage}
+                onRetry={reset}
+                endLabel={`All ${totalCount} tweets loaded ✨`}
+              />
             </>
           ) : (
             <div className="text-center py-16 bg-white dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
@@ -224,7 +219,7 @@ export default function TweetsPage() {
                 {searchQuery ? 'Try a different search term' : 'Run the X/Twitter scraper to populate this feed'}
               </p>
               <button
-                onClick={() => { setSelectedTopic('All'); setSearchQuery(''); setPage(1); }}
+                onClick={() => { setSelectedTopic('All'); setSearchQuery(''); }}
                 className="mt-3 text-sm text-sky-500 hover:text-sky-600 font-medium"
               >
                 Clear filters

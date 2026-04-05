@@ -36,6 +36,12 @@ class GeneratedDocument(models.Model):
         related_name='documents',
         help_text='If set, this document belongs to an org workspace.',
     )
+    # RAG: stores which Synapse sources were used as context during generation
+    sources_metadata = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='List of Synapse sources (articles/papers/repos/videos) used as RAG context.',
+    )
 
     class Meta:
         db_table = 'generated_documents'

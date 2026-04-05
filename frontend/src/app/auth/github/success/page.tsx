@@ -44,7 +44,7 @@ export default function GitHubSuccessPage() {
       if (isOnboarded) {
         router.replace('/home');
       } else {
-        router.replace('/onboarding/wizard');
+        router.replace('/wizard');
       }
     });
   }, [searchParams, router, refreshUser]);

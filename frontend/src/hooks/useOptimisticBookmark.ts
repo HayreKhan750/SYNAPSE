@@ -29,8 +29,10 @@ export function useOptimisticBookmark() {
 
   return useMutation({
     mutationFn: async ({ contentType, objectId }: ToggleBookmarkArgs) => {
+      // Backend route: /api/v1/bookmarks/<content_type_name>/<object_id>/
+      // (registered under core/urls.py — NOT under /core/ prefix)
       const { data } = await api.post(
-        `/core/bookmarks/${contentType}/${objectId}/`,
+        `/bookmarks/${contentType}/${objectId}/`,
       )
       return data
     },

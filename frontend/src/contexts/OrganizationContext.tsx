@@ -63,6 +63,8 @@ interface OrganizationContextValue {
   /** Switch the active org (pass null for personal workspace) */
   switchOrg: (orgId: string | null) => void;
   loading: boolean;
+  /** Non-null when the org fetch failed — show to user */
+  error: string | null;
   /** Force re-fetch orgs from API */
   refetchOrgs: () => Promise<void>;
 }
@@ -78,6 +80,7 @@ const OrganizationContext = createContext<OrganizationContextValue>({
   isMember: false,
   switchOrg: () => {},
   loading: false,
+  error: null,
   refetchOrgs: async () => {},
 });
 
@@ -90,10 +93,12 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchOrgs = useCallback(async () => {
     if (!isAuthenticated) return;
     setLoading(true);
+    setError(null);
     try {
       const { data } = await api.get('/organizations/');
       const list: Organization[] = data?.data ?? data?.results ?? [];
@@ -111,7 +116,9 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
         setActiveOrgId(list.length === 1 ? list[0].id : null);
       }
     } catch (err) {
-      console.error('Failed to fetch organizations', err);
+      const msg = err instanceof Error ? err.message : 'Failed to load organizations';
+      console.error('Failed to fetch organizations:', err);
+      setError(msg);
       setOrgs([]);
     } finally {
       setLoading(false);
@@ -144,8 +151,8 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
   const isMember = role !== null;
 
   const value = useMemo<OrganizationContextValue>(
-    () => ({ orgs, org, role, isOwner, isAdmin, isMember, switchOrg, loading, refetchOrgs: fetchOrgs }),
-    [orgs, org, role, isOwner, isAdmin, isMember, switchOrg, loading, fetchOrgs],
+    () => ({ orgs, org, role, isOwner, isAdmin, isMember, switchOrg, loading, error, refetchOrgs: fetchOrgs }),
+    [orgs, org, role, isOwner, isAdmin, isMember, switchOrg, loading, error, fetchOrgs],
   );
 
   return (

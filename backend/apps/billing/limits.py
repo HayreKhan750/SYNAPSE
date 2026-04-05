@@ -203,6 +203,26 @@ def _count_usage(user, resource: str) -> int:
     return 0
 
 
+# ── Aliases for backwards-compat / alternate naming conventions ───────────────
+
+def get_plan_limits(plan: str) -> dict:
+    """Return the full limits dict for a plan. Falls back to free for unknown plans."""
+    return dict(PLAN_LIMITS.get(plan, PLAN_LIMITS["free"]))
+
+
+def check_limit(plan: str, resource: str, current_usage: int) -> bool:
+    """
+    Return True if current_usage is within the plan limit for resource, False if exceeded.
+
+    Unlike check_plan_limit (which raises), this returns a bool for simple gating.
+    -1 limit means unlimited → always True.
+    """
+    limit = get_plan_limit(plan, resource)
+    if limit == -1:
+        return True
+    return current_usage < limit
+
+
 # ── DRF-friendly exception handler helper ─────────────────────────────────────
 
 def plan_limit_response(exc) -> dict:

@@ -43,6 +43,10 @@ class RateLimitHeaderMiddleware:
     def __call__(self, request: HttpRequest):
         response = self.get_response(request)
 
+        # Guard: streaming views (SSE) and some middleware chains return None
+        if response is None:
+            return response
+
         # Only touch /api/ paths
         if not request.path.startswith('/api/'):
             return response
@@ -56,7 +60,8 @@ class RateLimitHeaderMiddleware:
 
         # Convert plain 429 to structured JSON
         if response.status_code == 429:
-            if not getattr(response, 'content_type', '').startswith('application/json'):
+            ct = getattr(response, 'content_type', '') or ''
+            if not ct.startswith('application/json'):
                 try:
                     # Try to parse existing content
                     existing = json.loads(response.content.decode())

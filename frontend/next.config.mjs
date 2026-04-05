@@ -5,12 +5,10 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // TypeScript and ESLint errors are surfaced during builds.
+  // Do NOT set ignoreBuildErrors or ignoreDuringBuilds — these flags mask real
+  // type errors and lint violations that would break runtime behaviour.
+  // Fix underlying errors instead of suppressing them here.
   // Skip Next.js trailing-slash redirect so /api/v1/* proxy rewrites run first.
   skipTrailingSlashRedirect: true,
   // Proxy /api/v1/* → Django backend

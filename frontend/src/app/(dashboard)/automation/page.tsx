@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 // TASK-104-2: Modals moved to global /components/modals/ for reusability
 import { EditWorkflowModal } from '@/components/modals/EditWorkflowModal';
 import { TemplatesModal } from '@/components/modals/TemplatesModal';

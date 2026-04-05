@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 
 interface ActionResult {
   action: string;

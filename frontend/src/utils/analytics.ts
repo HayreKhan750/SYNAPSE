@@ -91,8 +91,12 @@ export function track(event: EventName, properties?: EventProperties): void {
     // Dynamic import to avoid SSR issues
     import('posthog-js').then(({ default: posthog }) => {
       posthog.capture(event, properties)
+    }).catch((err) => {
+      console.warn('[Analytics] track() failed to load posthog-js:', err)
     })
-  } catch {}
+  } catch (err) {
+    console.warn('[Analytics] track() error:', err)
+  }
 }
 
 export function identifyUser(userId: string, properties?: {
@@ -104,8 +108,12 @@ export function identifyUser(userId: string, properties?: {
   try {
     import('posthog-js').then(({ default: posthog }) => {
       posthog.identify(userId, properties)
+    }).catch((err) => {
+      console.warn('[Analytics] identifyUser() failed to load posthog-js:', err)
     })
-  } catch {}
+  } catch (err) {
+    console.warn('[Analytics] identifyUser() error:', err)
+  }
 }
 
 export function resetUser(): void {
@@ -113,8 +121,12 @@ export function resetUser(): void {
   try {
     import('posthog-js').then(({ default: posthog }) => {
       posthog.reset()
+    }).catch((err) => {
+      console.warn('[Analytics] resetUser() failed to load posthog-js:', err)
     })
-  } catch {}
+  } catch (err) {
+    console.warn('[Analytics] resetUser() error:', err)
+  }
 }
 
 export function optOut(): void {
@@ -123,8 +135,12 @@ export function optOut(): void {
   try {
     import('posthog-js').then(({ default: posthog }) => {
       posthog.opt_out_capturing()
+    }).catch((err) => {
+      console.warn('[Analytics] optOut() failed to load posthog-js:', err)
     })
-  } catch {}
+  } catch (err) {
+    console.warn('[Analytics] optOut() error:', err)
+  }
 }
 
 export function optIn(): void {
@@ -133,8 +149,12 @@ export function optIn(): void {
   try {
     import('posthog-js').then(({ default: posthog }) => {
       posthog.opt_in_capturing()
+    }).catch((err) => {
+      console.warn('[Analytics] optIn() failed to load posthog-js:', err)
     })
-  } catch {}
+  } catch (err) {
+    console.warn('[Analytics] optIn() error:', err)
+  }
 }
 
 // ── Page view tracking hook helper ─────────────────────────────────────────────

@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 import toast from 'react-hot-toast'
 import {
   User,

@@ -130,10 +130,12 @@ app = FastAPI(
 
 # ── CORS ───────────────────────────────────────────────────────────────────────
 
-_allowed_origins = os.environ.get(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:8000",
-).split(",")
+_allowed_origins = [
+    o.strip() for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://localhost:8000",
+    ).split(",") if o.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -303,12 +305,12 @@ async def chat(request: ChatRequest) -> Any:
     TASK-302: Now supports per-request provider/model selection with plan
     gating and budget-aware fallback via resolve_provider_model().
     """
-    import uuid as _uuid
     from ai_engine.rag import get_rag_pipeline
     from ai_engine.agents.router import resolve_provider_model
 
     pipeline = get_rag_pipeline()
-    conv_id  = request.conversation_id or str(_uuid.uuid4())
+    # uuid is already imported at module level — no need for local alias
+    conv_id  = request.conversation_id or str(uuid.uuid4())
 
     # Resolve provider + model (plan gating + budget routing)
     try:
@@ -323,19 +325,23 @@ async def chat(request: ChatRequest) -> Any:
         raise HTTPException(status_code=429, detail=str(exc))
 
     if request.stream:
+        # INC-03: Wrap each chunk as NDJSON — pipeline.stream_chat yields raw
+        # string tokens, but the endpoint declares application/x-ndjson.
+        # Each line must be a valid JSON object so clients can parse incrementally.
         def _stream() -> Iterator[str]:
             import json
             try:
-                yield from pipeline.stream_chat(
+                for chunk in pipeline.stream_chat(
                     question=request.question,
                     conversation_id=conv_id,
                     content_types=request.content_types,
                     provider=provider,
                     model=model,
-                )
+                ):
+                    yield json.dumps({"token": chunk, "conversation_id": conv_id}) + "\n"
             except Exception as exc:
                 logger.exception("rag_stream_failed")
-                yield json.dumps({"error": str(exc)})
+                yield json.dumps({"error": str(exc)}) + "\n"
 
         return StreamingResponse(_stream(), media_type="application/x-ndjson")
 

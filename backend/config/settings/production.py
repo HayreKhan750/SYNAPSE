@@ -21,7 +21,12 @@ Never enable debug mode in production — it exposes sensitive information,
 disables security middleware, and allows arbitrary code execution.
 """
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
+if not ALLOWED_HOSTS:
+    raise ValueError(
+        'ALLOWED_HOSTS environment variable must be set in production. '
+        'Example: ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com'
+    )
 
 # ── Security headers ──────────────────────────────────────────────────────────
 SECURE_SSL_REDIRECT              = True
@@ -39,6 +44,18 @@ SECURE_BROWSER_XSS_FILTER        = True
 X_FRAME_OPTIONS                  = 'DENY'
 SECURE_REFERRER_POLICY           = 'strict-origin-when-cross-origin'
 SECURE_PROXY_SSL_HEADER          = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# ── SEC-10: Password hashing — use bcrypt (strong, adaptive) in production ────
+# Django's default PBKDF2 is acceptable but bcrypt/argon2 are preferred for
+# production workloads. argon2 is the winner of the Password Hashing Competition
+# and is the most resistant to GPU-based brute-force attacks.
+# Install: pip install argon2-cffi  (already in requirements.txt)
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',   # primary (best)
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',  # fallback
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',   # legacy migration
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+]
 
 # ── Database — connection pooling ─────────────────────────────────────────────
 DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', 60))
@@ -104,7 +121,9 @@ LOGGING = {
     'formatters': {
         'json': {
             '()': 'structlog.stdlib.ProcessorFormatter',
-            'processor': 'structlog.dev.ConsoleRenderer' if DEBUG else 'structlog.processors.JSONRenderer',
+            # DEBUG is always False in production — use JSONRenderer unconditionally.
+            # structlog.dev.ConsoleRenderer is for local development only.
+            'processor': 'structlog.processors.JSONRenderer',
         },
     },
     'handlers': {

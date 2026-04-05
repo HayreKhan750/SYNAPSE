@@ -71,6 +71,8 @@ export interface Article {
   /** True once the full NLP pipeline (keywords + topic + sentiment + summary) has run. */
   nlp_processed: boolean
   metadata: Record<string, unknown>
+  /** Short excerpt fetched from the article URL (populated before AI summary is ready). */
+  excerpt?: string
 }
 
 // Repository

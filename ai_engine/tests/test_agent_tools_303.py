@@ -195,6 +195,47 @@ class TestRunPythonCode:
 
 # ── read_document ─────────────────────────────────────────────────────────────
 
+def _make_stream_mock(content: bytes, content_type: str = 'text/plain',
+                      content_length: int | None = None) -> MagicMock:
+    """
+    Build a mock for httpx's streaming context manager.
+
+    _read_document now uses client.stream("GET", url) as resp: / resp.iter_bytes()
+    This helper wires up the mock chain correctly.
+    """
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+
+    headers: dict = {'content-type': content_type}
+    if content_length is not None:
+        headers['content-length'] = str(content_length)
+
+    # headers dict-style access used by _read_document
+    mock_resp.headers = headers
+
+    # Split content into realistic chunks
+    chunk_size = 65536
+    chunks = [content[i:i + chunk_size] for i in range(0, max(len(content), 1), chunk_size)]
+    mock_resp.iter_bytes.return_value = iter(chunks)
+
+    # Context manager protocol: `with client.stream(...) as resp:`
+    mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+    mock_resp.__exit__ = MagicMock(return_value=False)
+    return mock_resp
+
+
+def _patch_stream_client(mock_resp: MagicMock):
+    """Return a patch context that injects the streaming mock into httpx.Client."""
+    inner_client = MagicMock()
+    inner_client.stream.return_value = mock_resp
+
+    outer_ctx = MagicMock()
+    outer_ctx.__enter__ = MagicMock(return_value=inner_client)
+    outer_ctx.__exit__ = MagicMock(return_value=False)
+
+    return patch('ai_engine.agents.tools.httpx.Client', return_value=outer_ctx)
+
+
 class TestReadDocument:
 
     def test_rejects_non_http_url(self):
@@ -203,26 +244,18 @@ class TestReadDocument:
 
         result = _read_document('file:///etc/passwd')
         assert 'error' in result
+        assert 'http' in result['error'].lower()
 
     def test_reads_plain_text(self):
         """Downloads and returns plain text content."""
         from ai_engine.agents.tools import _read_document
 
-        mock_resp = MagicMock()
-        mock_resp.headers.get.return_value = 'text/plain'
-        mock_resp.content = b'Hello world, this is a plain text document.'
-        mock_resp.raise_for_status = MagicMock()
-
-        with patch('ai_engine.agents.tools.httpx.Client') as mock_client_cls:
-            ctx = MagicMock()
-            ctx.__enter__ = MagicMock(return_value=ctx)
-            ctx.__exit__ = MagicMock(return_value=False)
-            ctx.get.return_value = mock_resp
-            mock_client_cls.return_value = ctx
-
+        content = b'Hello world, this is a plain text document.'
+        mock_resp = _make_stream_mock(content, content_type='text/plain')
+        with _patch_stream_client(mock_resp):
             result = _read_document('https://example.com/doc.txt')
 
-        assert 'error' not in result
+        assert 'error' not in result, f"Unexpected error: {result.get('error')}"
         assert 'Hello world' in result['text']
         assert result['doc_type'] == 'text'
 
@@ -231,13 +264,13 @@ class TestReadDocument:
         import httpx as _httpx
         from ai_engine.agents.tools import _read_document
 
-        with patch('ai_engine.agents.tools.httpx.Client') as mock_client_cls:
-            ctx = MagicMock()
-            ctx.__enter__ = MagicMock(return_value=ctx)
-            ctx.__exit__ = MagicMock(return_value=False)
-            ctx.get.side_effect = _httpx.RequestError('connection failed', request=None)
-            mock_client_cls.return_value = ctx
+        inner_client = MagicMock()
+        inner_client.stream.side_effect = _httpx.RequestError('connection failed', request=None)
+        outer_ctx = MagicMock()
+        outer_ctx.__enter__ = MagicMock(return_value=inner_client)
+        outer_ctx.__exit__ = MagicMock(return_value=False)
 
+        with patch('ai_engine.agents.tools.httpx.Client', return_value=outer_ctx):
             result = _read_document('https://unreachable.example.com/doc.pdf')
 
         assert 'error' in result
@@ -247,22 +280,39 @@ class TestReadDocument:
         from ai_engine.agents.tools import _read_document
 
         long_content = b'A' * 20000
-        mock_resp = MagicMock()
-        mock_resp.headers.get.return_value = 'text/plain'
-        mock_resp.content = long_content
-        mock_resp.raise_for_status = MagicMock()
-
-        with patch('ai_engine.agents.tools.httpx.Client') as mock_client_cls:
-            ctx = MagicMock()
-            ctx.__enter__ = MagicMock(return_value=ctx)
-            ctx.__exit__ = MagicMock(return_value=False)
-            ctx.get.return_value = mock_resp
-            mock_client_cls.return_value = ctx
-
+        mock_resp = _make_stream_mock(long_content, content_type='text/plain')
+        with _patch_stream_client(mock_resp):
             result = _read_document('https://example.com/long.txt', max_chars=5000)
 
+        assert 'error' not in result, f"Unexpected error: {result.get('error')}"
         assert len(result['text']) <= 5000
         assert result['truncated'] is True
+
+    def test_blocks_oversized_content_length_header(self):
+        """SEC-07: Rejects file when Content-Length header exceeds the download limit."""
+        from ai_engine.agents.tools import _read_document, _MAX_DOWNLOAD_BYTES
+
+        oversized = _MAX_DOWNLOAD_BYTES + 1
+        mock_resp = _make_stream_mock(b'', content_type='text/plain',
+                                      content_length=oversized)
+        with _patch_stream_client(mock_resp):
+            result = _read_document('https://example.com/huge.bin')
+
+        assert 'error' in result
+        assert 'large' in result['error'].lower() or 'limit' in result['error'].lower()
+
+    def test_blocks_oversized_streaming_body(self):
+        """SEC-07: Rejects download when streamed bytes exceed limit (no Content-Length)."""
+        from ai_engine.agents.tools import _read_document, _MAX_DOWNLOAD_BYTES
+
+        # One chunk bigger than the limit — no Content-Length header
+        huge_chunk = b'X' * (_MAX_DOWNLOAD_BYTES + 1)
+        mock_resp = _make_stream_mock(huge_chunk, content_type='text/plain')
+        with _patch_stream_client(mock_resp):
+            result = _read_document('https://example.com/huge_no_cl.bin')
+
+        assert 'error' in result
+        assert 'large' in result['error'].lower() or 'limit' in result['error'].lower()
 
 
 # ── generate_chart ────────────────────────────────────────────────────────────

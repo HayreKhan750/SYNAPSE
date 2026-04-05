@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 
 // Static fallback schemas — gear ⚙️ works even before the API responds
 // (typed after the interfaces are declared below, cast at usage site)

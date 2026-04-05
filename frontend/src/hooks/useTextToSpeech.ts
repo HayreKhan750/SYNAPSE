@@ -66,13 +66,31 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     const utterance = new SpeechSynthesisUtterance(clean)
     utteranceRef.current = utterance
 
-    // Prefer a natural-sounding English voice if available
+    // Select the best available English voice using a robust scoring strategy.
+    // Avoid name.includes('Natural') — this string is browser/OS-specific and
+    // unreliable across Chrome, Firefox, Safari, and mobile browsers.
+    // Instead score by: local service (lower latency) + en-US preference + non-robot names.
     const voices = window.speechSynthesis.getVoices()
-    const preferredVoice =
-      voices.find(v => v.lang.startsWith('en') && v.localService && v.name.includes('Natural')) ??
-      voices.find(v => v.lang.startsWith('en') && v.localService) ??
-      voices.find(v => v.lang.startsWith('en')) ??
-      null
+    const enVoices = voices.filter(v => v.lang.startsWith('en'))
+
+    const scoreVoice = (v: SpeechSynthesisVoice): number => {
+      let score = 0
+      if (v.localService) score += 10          // local = lower latency, no network
+      if (v.lang === 'en-US') score += 5       // prefer US English
+      else if (v.lang === 'en-GB') score += 3  // British English as fallback
+      // Prefer voices that are known to sound natural (cross-browser safe names)
+      const lower = v.name.toLowerCase()
+      if (lower.includes('samantha') || lower.includes('karen') ||
+          lower.includes('daniel') || lower.includes('moira') ||
+          lower.includes('fiona') || lower.includes('alex')) score += 4
+      // Deprioritise obviously robotic/legacy voices
+      if (lower.includes('espeak') || lower.includes('mbrola')) score -= 5
+      return score
+    }
+
+    const preferredVoice = enVoices.length > 0
+      ? enVoices.reduce((best, v) => scoreVoice(v) >= scoreVoice(best) ? v : best)
+      : null
 
     if (preferredVoice) utterance.voice = preferredVoice
     utterance.rate   = 1.0

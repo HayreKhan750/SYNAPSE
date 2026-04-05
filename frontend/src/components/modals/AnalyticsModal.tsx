@@ -6,7 +6,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

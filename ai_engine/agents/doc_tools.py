@@ -87,9 +87,32 @@ class _Brand:
 # Storage helpers
 # ─────────────────────────────────────────────────────────────────────────────
 def _doc_dir(user_id: str = "anonymous") -> Path:
+    """Return the per-user document directory, creating it if needed.
+
+    SEC-05: Sanitise user_id to prevent path traversal attacks.
+    A malicious user_id like '../../etc' could escape the media root.
+    We strip all path separators and non-alphanumeric characters.
+    """
+    import re as _re
+    # Allow only alphanumeric, hyphens, and underscores — reject everything else.
+    # This covers path separators (/ \\), dots (..), null bytes, and Unicode tricks.
+    safe_user_id = _re.sub(r'[^a-zA-Z0-9_\-]', '_', str(user_id))
+    if not safe_user_id or safe_user_id in ('', '_', '__'):
+        safe_user_id = 'anonymous'
+
     root = Path(os.environ.get("DJANGO_MEDIA_ROOT") or
-                os.environ.get("MEDIA_ROOT") or "media")
-    d = root / "documents" / str(user_id)
+                os.environ.get("MEDIA_ROOT") or "media").resolve()
+    d = root / "documents" / safe_user_id
+
+    # Final guard: ensure the resolved path is still inside root
+    # (defence-in-depth against symlink attacks)
+    try:
+        d.resolve().relative_to(root)
+    except ValueError:
+        raise PermissionError(
+            f"Resolved document path escapes media root: {d}"
+        )
+
     d.mkdir(parents=True, exist_ok=True)
     return d
 

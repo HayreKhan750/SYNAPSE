@@ -23,7 +23,7 @@ import {
   BookOpen, GitBranch, User, Lightbulb, Wrench, Building2,
   ChevronRight, ExternalLink, Loader2, Info,
 } from 'lucide-react';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

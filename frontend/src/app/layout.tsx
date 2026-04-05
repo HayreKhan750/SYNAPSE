@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import { Providers } from '@/components/Providers'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 import { RateLimitBanner } from '@/components/RateLimitBanner'
 import '@/styles/globals.css'
 import 'katex/dist/katex.min.css'
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+// Use system font stack instead of fetching from Google Fonts (avoids network timeout in dev)
+const inter = { variable: '--font-inter' }
 
 // Viewport config must be a separate export in Next.js 14+
 export const viewport: Viewport = {

@@ -28,9 +28,16 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 import { ChatMessage as ChatMessageType, Conversation, ChatSource } from '@/types';
-import { ChatMessage } from '@/components/chat/ChatMessage';
+import dynamic from 'next/dynamic';
+// Lazy-load ChatMessage — it pulls in react-markdown, remark-gfm, remark-math,
+// rehype-katex, and MermaidBlock (mermaid). This defers ~300KB of markdown/math
+// libs until the chat page is actually opened, making every other page faster.
+const ChatMessage = dynamic(
+  () => import('@/components/chat/ChatMessage').then(m => ({ default: m.ChatMessage })),
+  { ssr: false, loading: () => <div className="h-16 w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" /> },
+);
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { cn } from '@/utils/helpers';
 import { useApiKeyStatus } from '@/hooks/useApiKeyStatus';

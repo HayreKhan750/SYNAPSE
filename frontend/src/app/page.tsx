@@ -11,7 +11,7 @@ import {
   BarChart3, MessageSquare, Brain, Twitter
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

@@ -10,16 +10,26 @@
  *  4. Tech Radar          — trending topics/frameworks via TrendRadar component
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   GitBranch, Star, TrendingUp, ExternalLink,
   ArrowUp, ArrowDown, Minus, Globe,
   Flame, Sparkles, Activity,
 } from 'lucide-react';
-import api from '@/utils/api';
-import { StarSparkline } from '@/components/charts/StarSparkline';
-import { TrendRadar } from '@/components/charts/TrendRadar';
+import { api } from '@/utils/api';
+import dynamic from 'next/dynamic';
+
+// Lazy-load recharts-based chart components — recharts is ~200KB and only
+// needed when the user actually visits this page (not on initial dashboard load).
+const StarSparkline = dynamic(
+  () => import('@/components/charts/StarSparkline').then(m => ({ default: m.StarSparkline })),
+  { ssr: false, loading: () => <div className="h-8 w-24 bg-slate-100 dark:bg-slate-700 rounded animate-pulse" /> },
+)
+const TrendRadar = dynamic(
+  () => import('@/components/charts/TrendRadar').then(m => ({ default: m.TrendRadar })),
+  { ssr: false, loading: () => <div className="h-64 bg-slate-100 dark:bg-slate-700 rounded-2xl animate-pulse" /> },
+)
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -203,9 +213,13 @@ function EcosystemCard({ language }: { language: string }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
+const PAGE_STEP = 12; // how many repos to reveal per scroll
+
 export default function GitHubPage() {
   const [language, setLanguage] = useState('All');
   const [section, setSection]   = useState<'trending' | 'rising'>('trending');
+  const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const { data: trendingData, isLoading } = useQuery({
     queryKey: ['github-trending-velocity', language],
@@ -217,7 +231,30 @@ export default function GitHubPage() {
 
   const repos       = trendingData ?? [];
   const risingStars = repos.filter(r => r.is_rising_star);
-  const displayRepos = section === 'rising' ? risingStars : repos;
+  const allDisplayRepos = section === 'rising' ? risingStars : repos;
+  const displayRepos = allDisplayRepos.slice(0, visibleCount);
+  const hasMore = visibleCount < allDisplayRepos.length;
+
+  // Reset visible count when filter/section changes
+  useEffect(() => { setVisibleCount(PAGE_STEP); }, [language, section]);
+
+  // IntersectionObserver to auto-reveal more repos
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const setSentinel = useCallback((node: HTMLDivElement | null) => {
+    sentinelRef.current = node;
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!node) return;
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(c => c + PAGE_STEP);
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    observerRef.current.observe(node);
+  }, []);
+  useEffect(() => () => { observerRef.current?.disconnect(); }, []);
 
   const radarData = React.useMemo(() => {
     const topicCount: Record<string, number> = {};
@@ -315,9 +352,22 @@ export default function GitHubPage() {
                 <p className="text-sm mt-1">Star velocity is computed daily at 04:00 UTC.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {displayRepos.map((repo, i) => <RepoCard key={repo.id} repo={repo} rank={i + 1} />)}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {displayRepos.map((repo, i) => <RepoCard key={repo.id} repo={repo} rank={i + 1} />)}
+                </div>
+                {/* Infinite reveal sentinel */}
+                <div ref={setSentinel} className="flex justify-center py-8">
+                  {hasMore ? (
+                    <div className="flex items-center gap-2 text-slate-400 text-sm">
+                      <span className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                      Loading more repos…
+                    </div>
+                  ) : allDisplayRepos.length > 0 ? (
+                    <p className="text-slate-400 text-sm">✅ All {allDisplayRepos.length} repos shown</p>
+                  ) : null}
+                </div>
+              </>
             )}
           </section>
 

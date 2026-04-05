@@ -12,7 +12,8 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { ArticleCard } from '@/components/cards/ArticleCard'
 import { RepositoryCard } from '@/components/cards/RepositoryCard'
 import { PaperCard } from '@/components/cards/PaperCard'
-import { VideoCard } from '@/components/cards/VideoCard'
+import { VideoCard, type Video } from '@/components/cards/VideoCard'
+import { VideoPlayerModal } from '@/components/modals/VideoPlayerModal'
 import { cn } from '@/utils/helpers'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -50,6 +51,7 @@ export default function SearchPage() {
   const [activeTab, setActiveTab] = useState<TabType>('all')
   const [inputFocused, setInputFocused] = useState(false)
   const [history, setHistory] = useState<string[]>([])
+  const [playingVideo, setPlayingVideo] = useState<Video | null>(null)
   const debouncedQuery = useDebounce(query, 350)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -102,6 +104,7 @@ export default function SearchPage() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6">
+      <VideoPlayerModal video={playingVideo} onClose={() => setPlayingVideo(null)} />
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-10">
 
         {/* ── Header ── */}
@@ -379,7 +382,7 @@ export default function SearchPage() {
                     <span className="text-xs text-slate-500 font-normal">({videos.length})</span>
                   </h2>
                   <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    {videos.map((v: any) => <VideoCard key={v.id} video={v} />)}
+                    {videos.map((v: any) => <VideoCard key={v.id} video={v} onPlay={(vid) => setPlayingVideo(vid)} />)}
                   </div>
                 </section>
               )}

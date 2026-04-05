@@ -24,15 +24,60 @@ MEMORY_WINDOW_K = 10
 
 
 # ---------------------------------------------------------------------------
-# Redis client (lazy, best-effort)
+# Redis circuit breaker (INC-06)
+# ---------------------------------------------------------------------------
+# Prevents hammering a downed Redis with every request.
+# State: CLOSED (normal) → OPEN (failing) → HALF-OPEN (testing recovery)
+
+_CB_FAILURE_THRESHOLD = int(os.environ.get("REDIS_CB_FAILURES", "3"))   # trips after N failures
+_CB_RECOVERY_TIMEOUT  = int(os.environ.get("REDIS_CB_TIMEOUT_S", "30")) # seconds before retry
+
+_cb_failures: int   = 0
+_cb_open_at:  float = 0.0   # timestamp when circuit opened (0 = closed)
+
+
+def _cb_is_open() -> bool:
+    """Return True when the circuit breaker is OPEN (Redis assumed down)."""
+    if _cb_open_at == 0.0:
+        return False
+    return (time.monotonic() - _cb_open_at) < _CB_RECOVERY_TIMEOUT
+
+
+def _cb_record_success() -> None:
+    global _cb_failures, _cb_open_at
+    _cb_failures = 0
+    _cb_open_at  = 0.0
+
+
+def _cb_record_failure() -> None:
+    global _cb_failures, _cb_open_at
+    _cb_failures += 1
+    if _cb_failures >= _CB_FAILURE_THRESHOLD and _cb_open_at == 0.0:
+        _cb_open_at = time.monotonic()
+        logger.error(
+            "Redis circuit breaker OPENED after %d failures — "
+            "conversation history disabled for %ds. "
+            "Check REDIS_HOST=%s REDIS_PORT=%s",
+            _cb_failures, _CB_RECOVERY_TIMEOUT,
+            os.environ.get("REDIS_HOST", "localhost"),
+            os.environ.get("REDIS_PORT", "6379"),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Redis client
 # ---------------------------------------------------------------------------
 
 def _get_redis_client() -> redis.Redis:
     """
-    Return a connected Redis client. Raises RuntimeError if Redis is unreachable.
-    Redis is required — there is no in-memory fallback (would cause silent data loss
-    on worker restart).
+    Return a connected Redis client. Raises RuntimeError if Redis is unreachable
+    or the circuit breaker is OPEN.
     """
+    if _cb_is_open():
+        raise RuntimeError(
+            "Redis circuit breaker is OPEN — skipping connection attempt. "
+            f"Will retry in {_CB_RECOVERY_TIMEOUT}s."
+        )
     try:
         client = redis.Redis(
             host=os.environ.get("REDIS_HOST", "localhost"),
@@ -42,8 +87,10 @@ def _get_redis_client() -> redis.Redis:
             socket_connect_timeout=2,
         )
         client.ping()
+        _cb_record_success()
         return client
     except Exception as exc:
+        _cb_record_failure()
         logger.critical(
             "Redis connection failed — conversation history unavailable. "
             "Ensure Redis is running and REDIS_HOST/REDIS_PORT are set correctly. "
@@ -162,7 +209,18 @@ class ConversationMemoryManager:
             if raw:
                 return json.loads(raw)
         except Exception as exc:
-            logger.warning("Failed to load conversation history: %s", exc)
+            # ERR-06: Log prominently — silent return of empty list causes the user
+            # to lose their entire chat history without any indication of why.
+            # The caller (get_or_create) will return an empty memory, which means
+            # the assistant loses context. This should be visible in logs/monitoring.
+            logger.error(
+                "CONVERSATION HISTORY LOST — Redis read failed for conversation '%s': %s. "
+                "User will experience context loss (assistant forgets previous messages). "
+                "Check Redis connectivity: REDIS_HOST=%s REDIS_CHAT_DB=%s",
+                conversation_id, exc,
+                os.environ.get("REDIS_HOST", "localhost"),
+                os.environ.get("REDIS_CHAT_DB", "3"),
+            )
         return []
 
     # ------------------------------------------------------------------

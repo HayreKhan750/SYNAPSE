@@ -261,8 +261,12 @@ class TestSynapseAgentBuildLLM:
                 base_mod.SynapseAgent(tools=[], provider='ollama')
 
     def test_anthropic_uses_claude_model(self):
-        """Anthropic provider selects CLAUDE_MODEL_PRIMARY when no explicit model."""
-        from ai_engine.agents import base as base_mod
+        """Anthropic provider selects CLAUDE_MODEL_PRIMARY when no explicit model.
+
+        QA-24: _build_llm now delegates to llm_factory.build_llm(), so we patch
+        the factory rather than base_mod._ChatAnthropic.
+        """
+        import ai_engine.agents.llm_factory as factory_mod
 
         mock_anthropic = MagicMock()
         mock_instance  = MagicMock()
@@ -271,9 +275,10 @@ class TestSynapseAgentBuildLLM:
         with patch.dict(os.environ, {
             'ANTHROPIC_API_KEY': 'test-key',
             'CLAUDE_MODEL_PRIMARY': 'claude-test-model',
-        }), patch.object(base_mod, '_ANTHROPIC_AVAILABLE', True), \
-           patch.object(base_mod, '_ChatAnthropic', mock_anthropic):
-            agent = base_mod.SynapseAgent(tools=[], provider='anthropic')
+        }), patch.object(factory_mod, '_ANTHROPIC_AVAILABLE', True), \
+           patch.object(factory_mod, 'ChatAnthropic', mock_anthropic):
+            from ai_engine.agents.base import SynapseAgent
+            agent = SynapseAgent(tools=[], provider='anthropic')
 
         mock_anthropic.assert_called_once()
         call_kwargs = mock_anthropic.call_args[1]
@@ -285,17 +290,22 @@ class TestSynapseAgentBuildLLM:
         assert agent.provider == 'anthropic'
 
     def test_auto_falls_back_to_openrouter(self):
-        """Auto provider with OPENROUTER_API_KEY uses OpenRouter."""
-        from ai_engine.agents import base as base_mod
+        """Auto provider with OPENROUTER_API_KEY uses OpenRouter.
 
-        mock_openai  = MagicMock()
+        QA-24: _build_llm now delegates to llm_factory.build_llm(), so we patch
+        the factory module instead of base_mod._ChatOpenAI.
+        """
+        import ai_engine.agents.llm_factory as factory_mod
+
+        mock_openai   = MagicMock()
         mock_instance = MagicMock()
         mock_openai.return_value = mock_instance
 
         with patch.dict(os.environ, {'OPENROUTER_API_KEY': 'test-key'}), \
-             patch.object(base_mod, '_OPENAI_AVAILABLE', True), \
-             patch.object(base_mod, '_ChatOpenAI', mock_openai):
-            agent = base_mod.SynapseAgent(tools=[], provider='auto')
+             patch.object(factory_mod, '_OPENAI_AVAILABLE', True), \
+             patch.object(factory_mod, 'ChatOpenAI', mock_openai):
+            from ai_engine.agents.base import SynapseAgent
+            agent = SynapseAgent(tools=[], provider='auto')
 
         mock_openai.assert_called_once()
 

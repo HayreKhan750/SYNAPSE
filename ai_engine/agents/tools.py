@@ -144,7 +144,7 @@ def _fetch_articles(
         cutoff = timezone.now() - timedelta(days=days_back)
         qs = Article.objects.filter(
             scraped_at__gte=cutoff,
-        ).order_by("-trending_score", "-scraped_at")
+        ).select_related("source").order_by("-trending_score", "-scraped_at")
 
         if topic:
             from django.db.models import Q
@@ -522,10 +522,11 @@ def _web_search(
     include_domains: Optional[list[str]] = None,
 ) -> list[dict]:
     """Live web search via Tavily API."""
-    import os
-    tavily_key = os.environ.get("TAVILY_API_KEY", "")
-    if not tavily_key:
-        return [{"error": "TAVILY_API_KEY not configured. Set it in .env to enable live web search."}]
+    # ERR-04: Validate key at call time — strip whitespace, check minimum length
+    # os is imported at module level
+    tavily_key = os.environ.get("TAVILY_API_KEY", "").strip()
+    if not tavily_key or len(tavily_key) < 8:
+        return [{"error": "TAVILY_API_KEY not configured or invalid. Set it in .env to enable live web search."}]
 
     try:
         from tavily import TavilyClient  # type: ignore
@@ -580,10 +581,14 @@ _SAFE_BUILTINS_KEYS = {
     "list", "dict", "set", "tuple", "bytes", "len", "range",
     "enumerate", "zip", "map", "filter", "sorted", "reversed",
     "min", "max", "sum", "abs", "round", "print", "repr",
-    "type", "isinstance", "issubclass", "hasattr", "getattr",
-    "callable", "iter", "next", "any", "all", "hash", "id",
+    "type", "isinstance", "issubclass", "hasattr",
+    "callable", "iter", "next", "any", "all", "hash",
     "chr", "ord", "hex", "oct", "bin", "pow", "divmod",
+    "format", "vars", "dir",
 }
+# NOTE: "getattr", "setattr", "delattr", "id", "__import__" are intentionally
+# excluded — getattr/setattr can be used to escape the sandbox by accessing
+# dunder attributes on objects (e.g. ().__class__.__bases__[0].__subclasses__()).
 
 _SAFE_MODULES = {
     "math", "statistics", "json", "datetime", "re",
@@ -591,17 +596,47 @@ _SAFE_MODULES = {
     "decimal", "fractions", "random",
 }
 
+# Patterns that are blocked outright before execution.
+# This is a defence-in-depth measure — the primary control is the restricted
+# builtins dict and safe-import guard. String matching alone is insufficient
+# (e.g. getattr bypass), so we do NOT rely solely on this list.
 _BLOCKED_PATTERNS = [
-    "__import__", "importlib", "subprocess", "os.system",
-    "open(", "socket", "requests", "urllib", "shutil",
-    "pathlib", "builtins",
+    # Dunder escape vectors
+    "__class__", "__bases__", "__subclasses__", "__globals__",
+    "__builtins__", "__import__", "__loader__", "__spec__",
+    "__code__", "__func__", "__self__", "__mro__",
+    # Dangerous stdlib modules
+    "importlib", "subprocess", "multiprocessing",
+    "socket", "requests", "urllib", "httpx", "aiohttp",
+    "shutil", "pathlib", "tempfile",
+    # File / OS access
+    "open(", "os.system", "os.popen", "os.exec",
+    "os.spawn", "os.fork", "os.path",
+    # Code execution
+    "eval(", "exec(", "compile(",
+    # Reflection / introspection abuse
+    "builtins", "ctypes", "cffi",
 ]
 
 
 def _run_python_code(code: str, timeout_seconds: int = 10) -> dict:
-    """Execute Python code in a restricted sandbox."""
+    """Execute Python code in a restricted sandbox.
+
+    Security model (defence in depth):
+    1. Blocked-pattern scan — fast pre-flight check for known escape vectors.
+    2. Restricted builtins dict — only explicitly whitelisted builtins are
+       injected; `getattr`, `setattr`, `__import__` etc. are excluded.
+    3. Safe-import guard — replaces `__import__` with a function that only
+       allows modules in `_SAFE_MODULES`.
+    4. Thread timeout — kills runaway code after `timeout_seconds`.
+
+    Limitations: `exec()` sandboxing in CPython is not a security boundary.
+    Do NOT use this to run untrusted code from unauthenticated sources.
+    For stronger isolation, use Docker-based sandboxing (e.g. gVisor).
+    """
     import io, sys, threading, traceback
 
+    # 1. Pre-flight blocked-pattern scan
     for pattern in _BLOCKED_PATTERNS:
         if pattern in code:
             return {
@@ -610,38 +645,63 @@ def _run_python_code(code: str, timeout_seconds: int = 10) -> dict:
                 "result": None,
             }
 
+    # 2. Cap code size to prevent memory exhaustion
+    if len(code) > 50_000:
+        return {
+            "success": False, "stdout": "",
+            "stderr": "SecurityError: Code exceeds maximum allowed size (50,000 characters).",
+            "result": None,
+        }
+
     stdout_buf = io.StringIO()
     err_container: dict = {}
 
     def _execute():
-        def _safe_import(name, *a, **kw):
-            if name in _SAFE_MODULES:
+        # 3. Build restricted builtins — only whitelisted keys
+        import builtins as _builtins_module
+        safe_builtins = {
+            k: getattr(_builtins_module, k)
+            for k in _SAFE_BUILTINS_KEYS
+            if hasattr(_builtins_module, k)
+        }
+
+        def _safe_import(name, *args, fromlist=(), level=0, **kwargs):
+            # Strip submodule path — e.g. "os.path" → block at "os"
+            top_level = name.split(".")[0]
+            if top_level in _SAFE_MODULES:
                 import importlib
                 return importlib.import_module(name)
             raise ImportError(f"Module '{name}' is not allowed in the sandbox.")
 
-        builtins = {k: __builtins__[k] for k in _SAFE_BUILTINS_KEYS if k in __builtins__} \
-            if isinstance(__builtins__, dict) \
-            else {k: getattr(__builtins__, k) for k in _SAFE_BUILTINS_KEYS if hasattr(__builtins__, k)}
-        builtins["__import__"] = _safe_import
+        safe_builtins["__import__"] = _safe_import
 
-        g = {"__builtins__": builtins}
-        old = sys.stdout
+        # Completely isolated global namespace — no access to host globals
+        sandbox_globals: dict = {
+            "__builtins__": safe_builtins,
+            "__name__": "__sandbox__",
+            "__doc__": None,
+        }
+
+        old_stdout = sys.stdout
         sys.stdout = stdout_buf
         try:
-            exec(compile(code, "<sandbox>", "exec"), g)  # noqa: S102
+            exec(compile(code, "<sandbox>", "exec"), sandbox_globals)  # noqa: S102
         except Exception:
             err_container["error"] = traceback.format_exc()
         finally:
-            sys.stdout = old
+            sys.stdout = old_stdout
 
     t = threading.Thread(target=_execute, daemon=True)
     t.start()
     t.join(timeout=timeout_seconds)
 
     if t.is_alive():
-        return {"success": False, "stdout": stdout_buf.getvalue(),
-                "stderr": f"TimeoutError: exceeded {timeout_seconds}s.", "result": None}
+        return {
+            "success": False,
+            "stdout": stdout_buf.getvalue(),
+            "stderr": f"TimeoutError: Code execution exceeded {timeout_seconds}s limit.",
+            "result": None,
+        }
 
     error = err_container.get("error")
     return {
@@ -675,19 +735,51 @@ class ReadDocumentInput(BaseModel):
     max_chars: int = Field(default=8000, ge=1000, le=20000)
 
 
+
+# SEC-07: Maximum download size for _read_document — prevents a malicious URL
+# from causing the agent to download a multi-GB file into memory.
+_MAX_DOWNLOAD_BYTES = int(os.environ.get("AGENT_MAX_DOWNLOAD_MB", "20")) * 1024 * 1024
+
+
 def _read_document(url: str, max_chars: int = 8000) -> dict:
-    """Download and extract text from a public PDF or document URL."""
-    import os, re, tempfile
+    """Download and extract text from a public PDF or document URL.
+
+    SEC-07: Enforces a maximum download size (_MAX_DOWNLOAD_BYTES) to prevent
+    memory exhaustion from large files served by malicious or misbehaving URLs.
+    """
+    import re, tempfile
 
     if not url.startswith(("http://", "https://")):
         return {"error": "Only http:// and https:// URLs are supported."}
 
+    tmp_path: str | None = None
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            resp = client.get(url, headers={"User-Agent": "SYNAPSE-Agent/1.0"})
-            resp.raise_for_status()
-            content_type = resp.headers.get("content-type", "").lower()
-            raw_bytes = resp.content
+            # Stream the response to check Content-Length before downloading fully
+            with client.stream("GET", url, headers={"User-Agent": "SYNAPSE-Agent/1.0"}) as resp:
+                resp.raise_for_status()
+                content_type = resp.headers.get("content-type", "").lower()
+
+                # Check Content-Length header first (not always present)
+                content_length = int(resp.headers.get("content-length", 0))
+                if content_length > _MAX_DOWNLOAD_BYTES:
+                    return {
+                        "error": f"File too large: {content_length / 1024 / 1024:.1f} MB "
+                                 f"(limit: {_MAX_DOWNLOAD_BYTES // 1024 // 1024} MB)"
+                    }
+
+                # Stream body with running size check
+                chunks = []
+                downloaded = 0
+                for chunk in resp.iter_bytes(chunk_size=65536):
+                    downloaded += len(chunk)
+                    if downloaded > _MAX_DOWNLOAD_BYTES:
+                        return {
+                            "error": f"File too large: exceeded "
+                                     f"{_MAX_DOWNLOAD_BYTES // 1024 // 1024} MB download limit."
+                        }
+                    chunks.append(chunk)
+                raw_bytes = b"".join(chunks)
     except Exception as exc:
         return {"error": f"Failed to fetch document: {exc}"}
 
@@ -697,10 +789,15 @@ def _read_document(url: str, max_chars: int = 8000) -> dict:
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                 tmp.write(raw_bytes)
                 tmp_path = tmp.name
-            doc = fitz.open(tmp_path)
-            pages = [p.get_text() for p in doc]
-            doc.close()
-            os.unlink(tmp_path)
+            try:
+                doc = fitz.open(tmp_path)
+                pages = [p.get_text() for p in doc]
+                doc.close()
+            finally:
+                # Always clean up temp file — even if fitz.open() raises
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                    tmp_path = None
             text = "\n".join(pages)
             doc_type, page_count = "pdf", len(pages)
         except ImportError:

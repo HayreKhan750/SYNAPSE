@@ -9,7 +9,7 @@ import {
   Zap, Info, AlertTriangle, AlertCircle, CheckCircle2, X,
 } from 'lucide-react'
 import Link from 'next/link'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 import { cn } from '@/utils/helpers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────

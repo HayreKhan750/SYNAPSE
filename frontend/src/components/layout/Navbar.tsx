@@ -7,7 +7,7 @@ import { useTheme } from 'next-themes'
 import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2, CreditCard, Zap, Command } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 import { OrgSwitcher } from '@/components/layout/OrgSwitcher'
 import { useNotificationSocket } from '@/hooks/useNotificationSocket'
 import { Tooltip } from '@/components/ui/Tooltip'
@@ -43,7 +43,6 @@ function PlanBadge() {
 }
 
 interface NavbarProps {
-  onMenuClick?: () => void
   onMobileMenuClick: () => void
   onSearchClick?: () => void   // TASK-402-4: trigger command palette
 }

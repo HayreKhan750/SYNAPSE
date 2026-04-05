@@ -113,9 +113,9 @@ export const ArticleCard = memo(function ArticleCard({ article }: ArticleCardPro
         </div>
       ) : !article.summary || article.summary === '' ? (
         <div className="mb-3">
-          {(article as any).excerpt ? (
+          {article.excerpt ? (
             <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-400 mb-1.5 leading-relaxed">
-              {(article as any).excerpt}
+              {article.excerpt}
             </p>
           ) : (article.tags?.length > 0 || article.topic) ? (
             <p className="line-clamp-2 text-sm text-slate-500 dark:text-slate-400 mb-1.5 leading-relaxed">
@@ -125,7 +125,7 @@ export const ArticleCard = memo(function ArticleCard({ article }: ArticleCardPro
               ].filter(Boolean).join(' ')}.
             </p>
           ) : null}
-          {!(article as any).excerpt && (
+          {!article.excerpt && (
             <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700/60 text-slate-400 dark:text-slate-500">
               <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

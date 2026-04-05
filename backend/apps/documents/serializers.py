@@ -57,7 +57,7 @@ class ProjectGenerateSerializer(serializers.Serializer):
 class DocumentGenerateSerializer(serializers.Serializer):
     """Input serializer for document generation requests."""
 
-    VALID_DOC_TYPES = ["pdf", "ppt", "word", "markdown", "html"]
+    VALID_DOC_TYPES = ["pdf", "ppt", "word", "markdown"]
 
     doc_type = serializers.ChoiceField(
         choices=VALID_DOC_TYPES,
@@ -108,6 +108,30 @@ class DocumentGenerateSerializer(serializers.Serializer):
             "Defaults to OPENROUTER_MODEL env var or gpt-4o-mini."
         ),
     )
+    content_types = serializers.ListField(
+        child=serializers.ChoiceField(choices=["articles", "papers", "repositories", "videos"]),
+        required=False,
+        allow_empty=True,
+        default=list,
+        help_text=(
+            "Filter RAG retrieval to specific content types. "
+            "Options: 'articles', 'papers', 'repositories', 'videos'. "
+            "Defaults to all types."
+        ),
+    )
+    source_item_ids = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_empty=True,
+        default=list,
+        help_text=(
+            "Pin specific Synapse items as source context. "
+            "Each dict must have 'id' (UUID) and 'type' "
+            "('article', 'paper', 'repository', 'video'). "
+            "Example: [{'id': 'uuid-here', 'type': 'paper'}]. "
+            "When provided, skips vector search and uses these items directly."
+        ),
+    )
 
     def validate_title(self, value: str) -> str:
         value = value.strip()
@@ -126,6 +150,7 @@ class GeneratedDocumentSerializer(serializers.ModelSerializer):
     """Full serializer for reading document records."""
 
     download_url = serializers.SerializerMethodField()
+    sources_used = serializers.JSONField(source='sources_metadata', read_only=True)
 
     class Meta:
         model = GeneratedDocument
@@ -139,6 +164,7 @@ class GeneratedDocumentSerializer(serializers.ModelSerializer):
             "agent_prompt",
             "download_url",
             "metadata",
+            "sources_used",
             "created_at",
             "version",
             "parent",

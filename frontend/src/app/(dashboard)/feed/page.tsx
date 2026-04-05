@@ -5,11 +5,13 @@ import ForYouTab from './ForYouTab';
 import TrendingTab from './TrendingTab';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, Search, RefreshCw } from 'lucide-react';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 import { ArticleCard } from '@/components/cards';
 import RecommendedSection from './RecommendedSection';
 import { ArticleSkeleton } from '@/components/cards/SkeletonCard';
 import { cn } from '@/utils/helpers';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { ScrollSentinel } from '@/components/ui/ScrollSentinel';
 
 const TOPICS = ['All', 'AI', 'Web Dev', 'Security', 'Cloud', 'Research', 'DevOps'];
 const SORT_OPTIONS = ['Latest', 'Trending'];
@@ -23,7 +25,6 @@ const POST_WORKFLOW_POLL_DURATION = 3 * 60 * 1000; // 3 minutes
 export default function FeedPage() {
   const queryClient = useQueryClient();
   const [selectedTopic, setSelectedTopic] = useState('All');
-  const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<'latest' | 'trending'>('latest');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState<'latest' | 'for-you' | 'trending'>('latest');
@@ -36,6 +37,26 @@ export default function FeedPage() {
   const prevArticleCount = useRef<number>(0);
 
   const topicParam = selectedTopic === 'All' ? undefined : selectedTopic.toLowerCase();
+
+  // ── Infinite scroll ────────────────────────────────────────────────────────
+  const { items: articles, sentinelRef, isFetchingNextPage, isLoading, hasNextPage, total: totalCount, reset: resetFeed } =
+    useInfiniteScroll<any>({
+      fetchPage: useCallback(async (page: number) => {
+        const r = await api.get('/articles/', {
+          params: {
+            page,
+            page_size: 12,
+            topic: topicParam,
+            ordering: sortBy === 'trending' ? '-trending_score' : '-published_at',
+          },
+        });
+        const d = r.data;
+        const items = Array.isArray(d?.data) ? d.data : Array.isArray(d?.results) ? d.results : Array.isArray(d) ? d : [];
+        const total = d?.meta?.total ?? d?.count ?? items.length;
+        return { items, total };
+      }, [topicParam, sortBy]),
+      deps: [topicParam, sortBy],
+    });
 
   // Activate post-workflow polling mode for the given duration from now.
   const activatePostWorkflowPolling = useCallback(() => {
@@ -97,33 +118,6 @@ export default function FeedPage() {
     api.post('/articles/summarize/', { batch_size: 20 }).catch(() => {});
   }, []);
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['articles', topicParam, page, sortBy],
-    queryFn: () =>
-      api.get('/articles/', {
-        params: {
-          page,
-          topic: topicParam,
-          ordering: sortBy === 'trending' ? '-trending_score' : '-published_at',
-        },
-      }).then(r => r.data),
-    // Poll aggressively after a workflow run; otherwise only while summaries are pending.
-    refetchInterval: (query) => {
-      if (postWorkflowPolling) return POST_WORKFLOW_POLL_INTERVAL;
-      const articles: any[] = Array.isArray(query.state.data?.data)
-        ? query.state.data.data
-        : Array.isArray(query.state.data?.results)
-        ? query.state.data.results
-        : [];
-      const hasPending = articles.some((a: any) => !a.summary || a.summary === '');
-      return hasPending ? SUMMARY_POLL_INTERVAL : false;
-    },
-    refetchIntervalInBackground: false,
-  });
-
-  const articles = Array.isArray(data?.data) ? data.data : Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-  const totalCount = data?.meta?.total || data?.count || 0;
-
   // Detect when new articles arrive during post-workflow polling and show banner
   useEffect(() => {
     if (!postWorkflowPolling) return;
@@ -139,13 +133,9 @@ export default function FeedPage() {
   const handleRefreshFeed = useCallback(() => {
     setShowNewBanner(false);
     setNewArticleCount(0);
-    setPage(1);
+    resetFeed();
     queryClient.invalidateQueries({ queryKey: ['articles'] });
-  }, [queryClient]);
-
-  const handleLoadMore = () => {
-    setPage((p) => p + 1);
-  };
+  }, [queryClient, resetFeed]);
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -161,12 +151,12 @@ export default function FeedPage() {
             {/* Manual refresh button */}
             <button
               onClick={handleRefreshFeed}
-              disabled={isFetching}
+              disabled={isFetchingNextPage}
               className="flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
               title="Refresh feed"
             >
-              <RefreshCw size={11} className={isFetching ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">{isFetching ? 'Refreshing…' : 'Refresh'}</span>
+              <RefreshCw size={11} className={isLoading ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">{isLoading ? 'Refreshing…' : 'Refresh'}</span>
             </button>
             <span className="hidden xs:flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full whitespace-nowrap">
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${postWorkflowPolling ? 'bg-blue-400 animate-pulse' : 'bg-emerald-400 animate-pulse'}`} />
@@ -203,7 +193,7 @@ export default function FeedPage() {
           {TOPICS.map((topic) => (
             <button
               key={topic}
-              onClick={() => { setSelectedTopic(topic); setPage(1); }}
+              onClick={() => { setSelectedTopic(topic); }}
               className={cn(
                 'px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0',
                 selectedTopic === topic
@@ -230,7 +220,7 @@ export default function FeedPage() {
               {SORT_OPTIONS.map((option) => (
                 <button
                   key={option}
-                  onClick={() => { setSortBy(option.toLowerCase() as any); setShowSortDropdown(false); setPage(1); }}
+                  onClick={() => { setSortBy(option.toLowerCase() as any); setShowSortDropdown(false); }}
                   className={cn(
                     'w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm transition-colors',
                     sortBy === option.toLowerCase()
@@ -283,16 +273,13 @@ export default function FeedPage() {
                   <ArticleCard key={article.id} article={article} />
                 ))}
               </div>
-              {articles.length < totalCount && (
-                <div className="flex justify-center pt-4">
-                  <button
-                    onClick={handleLoadMore}
-                    className="px-6 py-2.5 rounded-xl font-semibold text-sm bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white transition-all shadow-sm hover:shadow-md"
-                  >
-                    Load more articles
-                  </button>
-                </div>
-              )}
+              <ScrollSentinel
+                sentinelRef={sentinelRef}
+                isFetchingNextPage={isFetchingNextPage}
+                hasNextPage={hasNextPage}
+                onRetry={resetFeed}
+                endLabel={`All ${totalCount} articles loaded ✨`}
+              />
             </>
           ) : (
             <div className="text-center py-16 bg-white dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60 flex flex-col items-center gap-3 px-6">
@@ -310,14 +297,14 @@ export default function FeedPage() {
               <div className="flex flex-wrap items-center gap-2 justify-center">
                 {selectedTopic !== 'All' && (
                   <button
-                    onClick={() => { setSelectedTopic('All'); setPage(1); }}
+                    onClick={() => { setSelectedTopic('All'); }}
                     className="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
                   >
                     Clear filter
                   </button>
                 )}
                 <a
-                  href="/onboarding/wizard"
+                  href="/wizard"
                   className="px-4 py-2 rounded-xl text-sm font-semibold border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
                 >
                   ✨ Personalise feed

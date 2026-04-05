@@ -11,9 +11,17 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent.parent / "
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-in-production')
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+SECRET_KEY = os.environ.get('SECRET_KEY', '')
+if not SECRET_KEY:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "The SECRET_KEY environment variable is not set. "
+        "Generate one with: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\" "
+        "and add it to your .env file."
+    )
+# Default DEBUG to False — fail safe. Developers must explicitly set DEBUG=True.
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
 # ── Applications ─────────────────────────────────────────────
 DJANGO_APPS = [
@@ -106,7 +114,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', 'synapse_pass'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 600,   # Keep DB connections alive for 10 min (was 60s)
+        'CONN_MAX_AGE': 600,   # Keep DB connections alive for 10 min — enables connection reuse under load
         'OPTIONS': {
             'connect_timeout': 10,
         },
@@ -143,7 +151,11 @@ CACHES = {
     }
 }
 
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+# CFG-06: Use cached_db session backend instead of pure cache.
+# The pure 'cache' backend loses ALL sessions if Redis crashes or restarts,
+# instantly logging out every user. 'cached_db' reads from Redis (fast path)
+# and falls back to PostgreSQL (durable) — best of both worlds.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_CACHE_ALIAS = 'default'
 
 # ── Auth ──────────────────────────────────────────────────────
@@ -230,10 +242,12 @@ SIMPLE_JWT = {
 }
 
 # ── CORS ──────────────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://127.0.0.1:3000'
-).split(',')
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:3000,http://127.0.0.1:3000'
+    ).split(',') if o.strip()
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # ── Celery ────────────────────────────────────────────────────
@@ -375,6 +389,35 @@ GOOGLE_REDIRECT_URI   = os.environ.get(
 # ── AWS S3 (Phase 6.2) ───────────────────────────────────────────────────────
 AWS_ACCESS_KEY_ID       = os.environ.get('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY   = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+
+# ── Optional integration key warnings ────────────────────────────────────────
+# Emit startup warnings for optional third-party integrations that are
+# configured but missing required keys. These are non-fatal — features degrade
+# gracefully when keys are absent — but surfacing the warning at startup is
+# far better than a cryptic error at call time.
+def _warn_missing_keys() -> None:
+    import warnings
+    _optional_keys: list[tuple[str, str]] = [
+        ('GOOGLE_CLIENT_ID',    'Google Drive / OAuth integration will be unavailable'),
+        ('GOOGLE_CLIENT_SECRET','Google Drive / OAuth integration will be unavailable'),
+        ('AWS_ACCESS_KEY_ID',   'S3 storage integration will be unavailable'),
+        ('AWS_SECRET_ACCESS_KEY','S3 storage integration will be unavailable'),
+        ('SENDGRID_API_KEY',    'Email delivery via SendGrid will be unavailable; console backend used'),
+        ('STRIPE_SECRET_KEY',   'Billing / Stripe integration will be unavailable'),
+        ('GITHUB_CLIENT_ID',    'GitHub OAuth will be unavailable'),
+        ('OPENAI_API_KEY',      'AI moderation and OpenAI LLM features will be unavailable'),
+        ('ANTHROPIC_API_KEY',   'Claude LLM support will be unavailable'),
+    ]
+    for key, msg in _optional_keys:
+        if not os.environ.get(key):
+            warnings.warn(
+                f'[Synapse] {key} is not set — {msg}.',
+                category=RuntimeWarning,
+                stacklevel=2,
+            )
+
+_warn_missing_keys()
+
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'synapse-media')
 AWS_S3_REGION_NAME      = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
 AWS_S3_CUSTOM_DOMAIN    = os.environ.get('AWS_S3_CUSTOM_DOMAIN', '')

@@ -18,8 +18,15 @@ SIMPLE_JWT = {
 if 'django.contrib.postgres' not in INSTALLED_APPS:
     INSTALLED_APPS = list(INSTALLED_APPS) + ['django.contrib.postgres']
 
-# Allow all CORS in development
-CORS_ALLOW_ALL_ORIGINS = True
+# Allow only localhost origins in development — mirrors production model.
+# CORS_ALLOW_ALL_ORIGINS=True would allow any origin (including malicious sites)
+# to make credentialed requests to the API. Restrict to known dev origins instead.
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:3001',   # alternate dev port
+    'http://127.0.0.1:3001',
+]
 
 # Disable axes in development for convenience
 AXES_ENABLED = False

@@ -23,9 +23,52 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 VALID_PROJECT_TYPES = ["django", "fastapi", "nextjs", "datascience", "react_lib"]
 
+# SEC-06: Allowed feature flags per template — prevents injection of arbitrary
+# strings into generated code via the features list.
+_ALLOWED_FEATURES: Dict[str, frozenset] = {
+    "django": frozenset({
+        "auth", "testing", "ci_cd", "payments", "stripe", "docker", "celery",
+        "redis", "rest_framework", "graphql", "channels", "s3", "postgres",
+        "admin", "api", "jwt",
+    }),
+    "fastapi": frozenset({
+        "auth", "testing", "ci_cd", "jwt", "oauth2", "docker", "celery",
+        "redis", "sqlalchemy", "postgres", "websockets", "prometheus", "sentry", "s3",
+    }),
+    "nextjs": frozenset({
+        "auth", "testing", "ci_cd", "tailwind", "shadcn", "stripe", "sentry",
+        "pwa", "i18n", "mdx", "prisma", "trpc", "zustand", "redux",
+    }),
+    "datascience": frozenset({
+        "pytorch", "tensorflow", "sklearn", "xgboost", "plotly", "testing",
+        "streamlit", "fastapi", "docker", "mlflow", "dvc", "ci_cd",
+    }),
+    "react_lib": frozenset({
+        "typescript", "storybook", "jest", "vitest", "rollup", "testing",
+        "vite", "tailwind", "emotion", "styled_components", "ci_cd",
+    }),
+}
+
 
 def _project_dir(user_id: str = "anonymous") -> Path:
-    d = Path(os.environ.get("MEDIA_ROOT", "media")) / "projects" / str(user_id)
+    """Return the per-user project directory, creating it if needed.
+
+    SEC-06: Sanitise user_id to prevent path traversal attacks.
+    """
+    import re as _re
+    safe_user_id = _re.sub(r'[^a-zA-Z0-9_\-]', '_', str(user_id))
+    if not safe_user_id or safe_user_id in ('', '_', '__'):
+        safe_user_id = 'anonymous'
+
+    root = Path(os.environ.get("MEDIA_ROOT", "media")).resolve()
+    d = root / "projects" / safe_user_id
+
+    # Symlink-attack guard: ensure resolved path stays inside root
+    try:
+        d.resolve().relative_to(root)
+    except ValueError:
+        raise PermissionError(f"Resolved project path escapes media root: {d}")
+
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -458,7 +501,23 @@ def _create_project(
                 f"Valid types: {', '.join(VALID_PROJECT_TYPES)}"
             )
 
+        # SEC-06: Validate and sanitise feature flags
+        import re as _re
+        allowed = _ALLOWED_FEATURES.get(project_type, frozenset())
+        invalid = [f for f in features if f not in allowed]
+        if invalid:
+            return (
+                f"Invalid feature(s) for '{project_type}': {invalid}. "
+                f"Allowed: {sorted(allowed)}"
+            )
+
+        # Sanitise project name — must start with letter, alphanumeric/hyphens/underscores only
         name = name.strip() or "my-project"
+        if not _re.match(r'^[a-zA-Z][a-zA-Z0-9_\-]{0,63}$', name):
+            return (
+                "Project name must start with a letter, contain only alphanumeric "
+                "characters, hyphens or underscores, and be 1–64 characters long."
+            )
 
         # Build the template file dict
         template_fn = TEMPLATE_MAP[project_type]

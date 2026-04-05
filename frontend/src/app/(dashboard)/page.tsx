@@ -2,13 +2,14 @@
 // This file is superseded by (dashboard)/home/page.tsx
 // Kept as a fallback redirect
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, Bookmark, MessageSquare, FileText } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/utils/api';
 import { ArticleCard, RepositoryCard, PaperCard } from '@/components/cards';
-import { VideoCard } from '@/components/cards/VideoCard';
+import { VideoCard, type Video } from '@/components/cards/VideoCard';
+import { VideoPlayerModal } from '@/components/modals/VideoPlayerModal';
 import { ArticleSkeleton, RepositorySkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
 
 const StatCard = ({ icon: Icon, label, value, gradient, href }: any) => (
@@ -100,6 +101,7 @@ const SectionHeader = ({ title, subtitle, href }: { title: string; subtitle?: st
 );
 
 export default function Dashboard() {
+  const [playingVideo, setPlayingVideo] = useState<Video | null>(null);
   const queryClient = useQueryClient();
 
   // When a workflow completes and scraping is queued, invalidate count badges
@@ -191,6 +193,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex-1 overflow-y-auto">
+      <VideoPlayerModal video={playingVideo} onClose={() => setPlayingVideo(null)} />
       <div className="pb-10">
 
         {/* ── Hero Banner ──────────────────────────────────────────── */}
@@ -278,7 +281,7 @@ export default function Dashboard() {
             ) : trendingVideos.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {trendingVideos.map((video: any) => (
-                  <VideoCard key={video.id} video={video} />
+                  <VideoCard key={video.id} video={video} onPlay={(v) => setPlayingVideo(v)} />
                 ))}
               </div>
             ) : (

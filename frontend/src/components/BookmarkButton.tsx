@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Heart } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/utils/helpers'
 import toast from 'react-hot-toast'

@@ -43,7 +43,7 @@ export default function RegisterPage() {
       try {
         await googleAuth(tokenResponse.access_token)
         toast.success('Account created with Google!')
-        router.push('/onboarding/wizard')
+        router.push('/wizard')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Google sign-up failed.')
       } finally {
@@ -67,8 +67,8 @@ export default function RegisterPage() {
         password: data.password, password2: data.confirm_password,
       })
       toast.success('Account created! Welcome to SYNAPSE 🎉')
-      // New users → onboarding wizard; returning users stay on home
-      router.push('/onboarding/wizard')
+      // New users → onboarding wizard; (onboarding) is a Next.js route group, not a URL segment
+      router.push('/wizard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account')
     } finally {

@@ -9,8 +9,6 @@ urlpatterns = [
     path('api/v1/users/', include('apps.users.urls')),
     # TASK-605-B3: Public API endpoints (API key + session auth)
     path('api/v1/content/', include('apps.core.public_api_urls')),
-    path('api/v1/ai/', include('apps.core.public_api_urls')),
-    path('api/v1/trends/', include('apps.core.public_api_urls')),  # alias — frontend uses /users/ prefix
     path('api/v1/articles/', include('apps.articles.urls')),
     path('api/v1/repos/', include('apps.repositories.urls')),
     path('api/v1/papers/', include('apps.papers.urls')),

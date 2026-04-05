@@ -321,6 +321,43 @@ def hybrid_search_view(request):
     })
 
 
+def _dist_to_similarity(dist) -> float | None:
+    """Convert CosineDistance (0=identical, 2=opposite) to a 0–1 similarity score."""
+    return round(1 - (dist / 2), 4) if dist is not None else None
+
+
+def _annotate_similarity(objects: list, serialized: list) -> list:
+    """Attach similarity_score to each serialized item in-place."""
+    for i, item in enumerate(serialized):
+        dist = getattr(objects[i], 'similarity', None)
+        item['similarity_score'] = _dist_to_similarity(dist)
+    return serialized
+
+
+def _vector_search(model_cls, serializer_cls, query_vector, limit: int, extra_filters: dict):
+    """
+    QA-11: Shared helper for vector similarity search across any content model.
+
+    Annotates queryset with CosineDistance, applies extra_filters, slices to
+    `limit`, serializes, and attaches similarity_score to each result.
+    """
+    from pgvector.django import CosineDistance  # noqa: PLC0415
+
+    qs = (
+        model_cls.objects
+        .filter(embedding__isnull=False)
+        .annotate(similarity=CosineDistance('embedding', query_vector))
+        .order_by('similarity')
+    )
+    for attr, value in extra_filters.items():
+        if value:
+            qs = qs.filter(**{attr: value})
+
+    objects = list(qs[:limit])
+    serialized = list(serializer_cls(objects, many=True).data)
+    return _annotate_similarity(objects, serialized)
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def semantic_search(request):
@@ -328,32 +365,16 @@ def semantic_search(request):
     POST /api/v1/search/semantic
 
     Perform semantic (vector) search across Articles, ResearchPapers,
-    Repositories, and Videos using pgvector cosine similarity.
+    Repositories, Videos, and Tweets using pgvector cosine similarity.
 
     Request body (JSON):
-        query        (str, required)  — Natural language search query.
-        limit        (int, optional)  — Max results per content type (default 10, max 50).
-        content_types (list, optional) — Which types to search: articles, papers, repos, videos.
-                                         Defaults to all four.
-        filters      (dict, optional) — Optional per-type filters:
-                                         {"source": "arxiv", "topic": "Machine Learning"}
+        query         (str, required)  — Natural language search query.
+        limit         (int, optional)  — Max results per content type (default 10, max 50).
+        content_types (list, optional) — Which types to search. Defaults to all five.
+        filters       (dict, optional) — Optional per-type filters.
 
     Response (200):
-        {
-          "success": true,
-          "data": {
-            "articles": [{...article fields..., "similarity_score": 0.92}, ...],
-            "papers":   [{...paper fields...,   "similarity_score": 0.88}, ...],
-            "repos":    [{...repo fields...,    "similarity_score": 0.85}, ...],
-            "videos":   [{...video fields...,   "similarity_score": 0.80}, ...]
-          },
-          "meta": {
-            "query": "...",
-            "limit": 10,
-            "total": 35,
-            "execution_time_ms": 142
-          }
-        }
+        {"success": true, "data": {...}, "meta": {...}}
     """
     import time as _time
     import os
@@ -366,17 +387,14 @@ def semantic_search(request):
             status=422,
         )
 
-    limit = min(int(request.data.get('limit', 10)), 50)
-    content_types = request.data.get('content_types', ['articles', 'papers', 'repos', 'videos'])
-    filters = request.data.get('filters', {})
-
-    start_time = _time.time()
+    limit         = min(int(request.data.get('limit', 10)), 50)
+    content_types = request.data.get('content_types', ['articles', 'papers', 'repos', 'videos', 'tweets'])
+    filters       = request.data.get('filters', {})
+    start_time    = _time.time()
 
     # ── 1. Generate query embedding ───────────────────────────────────────────
     try:
-        project_root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
         from ai_engine.embeddings import embed_text  # noqa: PLC0415
@@ -389,132 +407,69 @@ def semantic_search(request):
             status=503,
         )
 
-    # ── 2. Search each content type ───────────────────────────────────────────
-    from pgvector.django import CosineDistance  # noqa: PLC0415
-
-    results = {}
+    # ── 2. Search each content type via shared helper ─────────────────────────
+    results: dict = {}
 
     if 'articles' in content_types:
-        from apps.articles.models import Article  # noqa: PLC0415
-        from apps.articles.serializers import ArticleListSerializer  # noqa: PLC0415
-
-        qs = (
-            Article.objects
-            .filter(embedding__isnull=False)
-            .annotate(similarity=CosineDistance('embedding', query_vector))
-            .order_by('similarity')
+        from apps.articles.models import Article                      # noqa: PLC0415
+        from apps.articles.serializers import ArticleListSerializer   # noqa: PLC0415
+        results['articles'] = _vector_search(
+            Article, ArticleListSerializer, query_vector, limit,
+            extra_filters={
+                'topic__iexact':               filters.get('topic'),
+                'source__source_type__iexact': filters.get('source'),
+                'published_at__gte':           filters.get('date_from'),
+                'published_at__lte':           filters.get('date_to'),
+            },
         )
-        # Optional filters
-        if filters.get('topic'):
-            qs = qs.filter(topic__iexact=filters['topic'])
-        if filters.get('source'):
-            qs = qs.filter(source__source_type__iexact=filters['source'])
-        if filters.get('date_from'):
-            qs = qs.filter(published_at__gte=filters['date_from'])
-        if filters.get('date_to'):
-            qs = qs.filter(published_at__lte=filters['date_to'])
-
-        articles = list(qs[:limit])
-        serialized = ArticleListSerializer(articles, many=True).data
-        for i, item in enumerate(serialized):
-            # similarity from CosineDistance is distance (0=identical, 2=opposite);
-            # convert to a 0–1 similarity score.
-            dist = getattr(articles[i], 'similarity', None)
-            item['similarity_score'] = round(1 - (dist / 2), 4) if dist is not None else None
-        results['articles'] = serialized
 
     if 'papers' in content_types:
-        from apps.papers.models import ResearchPaper  # noqa: PLC0415
-        from apps.papers.serializers import ResearchPaperSerializer  # noqa: PLC0415
-
-        qs = (
-            ResearchPaper.objects
-            .filter(embedding__isnull=False)
-            .annotate(similarity=CosineDistance('embedding', query_vector))
-            .order_by('similarity')
+        from apps.papers.models import ResearchPaper                  # noqa: PLC0415
+        from apps.papers.serializers import ResearchPaperSerializer   # noqa: PLC0415
+        results['papers'] = _vector_search(
+            ResearchPaper, ResearchPaperSerializer, query_vector, limit,
+            extra_filters={
+                'categories__icontains':   filters.get('category'),
+                'difficulty_level__iexact': filters.get('difficulty'),
+            },
         )
-        if filters.get('category'):
-            qs = qs.filter(categories__icontains=filters['category'])
-        if filters.get('difficulty'):
-            qs = qs.filter(difficulty_level__iexact=filters['difficulty'])
-
-        papers = list(qs[:limit])
-        serialized = ResearchPaperSerializer(papers, many=True).data
-        for i, item in enumerate(serialized):
-            dist = getattr(papers[i], 'similarity', None)
-            item['similarity_score'] = round(1 - (dist / 2), 4) if dist is not None else None
-        results['papers'] = serialized
 
     if 'repos' in content_types:
-        from apps.repositories.models import Repository  # noqa: PLC0415
+        from apps.repositories.models import Repository              # noqa: PLC0415
         from apps.repositories.serializers import RepositorySerializer  # noqa: PLC0415
-
-        qs = (
-            Repository.objects
-            .filter(embedding__isnull=False)
-            .annotate(similarity=CosineDistance('embedding', query_vector))
-            .order_by('similarity')
+        results['repos'] = _vector_search(
+            Repository, RepositorySerializer, query_vector, limit,
+            extra_filters={'language__iexact': filters.get('language')},
         )
-        if filters.get('language'):
-            qs = qs.filter(language__iexact=filters['language'])
-
-        repos = list(qs[:limit])
-        serialized = RepositorySerializer(repos, many=True).data
-        for i, item in enumerate(serialized):
-            dist = getattr(repos[i], 'similarity', None)
-            item['similarity_score'] = round(1 - (dist / 2), 4) if dist is not None else None
-        results['repos'] = serialized
 
     if 'videos' in content_types:
-        from apps.videos.models import Video  # noqa: PLC0415
-        from apps.videos.serializers import VideoSerializer  # noqa: PLC0415
-
-        qs = (
-            Video.objects
-            .filter(embedding__isnull=False)
-            .annotate(similarity=CosineDistance('embedding', query_vector))
-            .order_by('similarity')
+        from apps.videos.models import Video                         # noqa: PLC0415
+        from apps.videos.serializers import VideoSerializer          # noqa: PLC0415
+        results['videos'] = _vector_search(
+            Video, VideoSerializer, query_vector, limit,
+            extra_filters={},
         )
-
-        videos = list(qs[:limit])
-        serialized = VideoSerializer(videos, many=True).data
-        for i, item in enumerate(serialized):
-            dist = getattr(videos[i], 'similarity', None)
-            item['similarity_score'] = round(1 - (dist / 2), 4) if dist is not None else None
-        results['videos'] = serialized
 
     if 'tweets' in content_types:
-        from apps.tweets.models import Tweet  # noqa: PLC0415
-        from apps.tweets.serializers import TweetListSerializer  # noqa: PLC0415
-
-        qs = (
-            Tweet.objects
-            .filter(embedding__isnull=False)
-            .annotate(similarity=CosineDistance('embedding', query_vector))
-            .order_by('similarity')
+        from apps.tweets.models import Tweet                         # noqa: PLC0415
+        from apps.tweets.serializers import TweetListSerializer      # noqa: PLC0415
+        results['tweets'] = _vector_search(
+            Tweet, TweetListSerializer, query_vector, limit,
+            extra_filters={'topic__iexact': filters.get('topic')},
         )
-        if filters.get('topic'):
-            qs = qs.filter(topic__iexact=filters['topic'])
-
-        tweets = list(qs[:limit])
-        serialized = TweetListSerializer(tweets, many=True).data
-        for i, item in enumerate(serialized):
-            dist = getattr(tweets[i], 'similarity', None)
-            item['similarity_score'] = round(1 - (dist / 2), 4) if dist is not None else None
-        results['tweets'] = serialized
 
     # ── 3. Build response ─────────────────────────────────────────────────────
-    total = sum(len(v) for v in results.values())
+    total      = sum(len(v) for v in results.values())
     elapsed_ms = round((_time.time() - start_time) * 1000)
 
     return Response({
         'success': True,
-        'data': results,
+        'data':    results,
         'meta': {
-            'query': query,
-            'limit': limit,
-            'total': total,
-            'content_types': content_types,
+            'query':             query,
+            'limit':             limit,
+            'total':             total,
+            'content_types':     content_types,
             'execution_time_ms': elapsed_ms,
         },
     })
@@ -538,8 +493,25 @@ class BookmarkListView(APIView):
 class BookmarkToggleView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # QA-05: Explicit allowlist prevents bookmarking internal/admin models
+    _VALID_CONTENT_TYPES = frozenset({
+        'article', 'researchpaper', 'repository', 'video', 'tweet',
+    })
+
     def post(self, request, content_type_name, object_id):
         """Toggle bookmark for a content object (add if not exists, remove if exists)."""
+        # QA-05: validate content type against allowlist before DB lookup
+        if content_type_name not in self._VALID_CONTENT_TYPES:
+            return Response(
+                {
+                    'success': False,
+                    'error': {
+                        'message': f"Invalid content type '{content_type_name}'. "
+                                   f"Must be one of: {sorted(self._VALID_CONTENT_TYPES)}",
+                    },
+                },
+                status=400,
+            )
         try:
             ct = ContentType.objects.get(model=content_type_name)
         except ContentType.DoesNotExist:

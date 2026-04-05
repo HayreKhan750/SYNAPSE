@@ -133,12 +133,28 @@ class SynapseEmbedder:
         if not texts:
             return []
 
-        # Sanitise inputs
-        clean_texts = [_truncate_text(t) if t and t.strip() else "" for t in texts]
-        results: List[List[float]] = []
+        # Sanitise inputs — track original indices so we can reinsert zero vectors
+        # for empty/whitespace-only strings without sending them to the model.
+        # Sending empty strings produces misleading zero/near-zero vectors that
+        # pollute nearest-neighbour retrieval results.
+        zero_vector = [0.0] * self.dimensions
+        index_map: List[int] = []      # maps clean_texts position → original index
+        clean_texts: List[str] = []
+
+        for idx, t in enumerate(texts):
+            if t and t.strip():
+                clean_texts.append(_truncate_text(t))
+                index_map.append(idx)
+
+        # Allocate output list, pre-filled with zero vectors for empty inputs
+        results: List[List[float]] = [zero_vector[:] for _ in texts]
+
+        if not clean_texts:
+            return results
 
         for i in range(0, len(clean_texts), batch_size):
             batch = clean_texts[i: i + batch_size]
+            batch_indices = index_map[i: i + batch_size]
             start = time.time()
             batch_embeddings = self._embed_local(batch)
             elapsed = round(time.time() - start, 2)
@@ -146,7 +162,8 @@ class SynapseEmbedder:
                 "Embedded batch %d-%d in %.2fs",
                 i, i + len(batch), elapsed,
             )
-            results.extend(batch_embeddings)
+            for orig_idx, emb in zip(batch_indices, batch_embeddings):
+                results[orig_idx] = emb
 
         return results
 

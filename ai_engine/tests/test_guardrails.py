@@ -138,39 +138,48 @@ class TestModerationModule:
         result = check_moderation("")
         assert result["flagged"] is False
 
-    def test_moderation_api_error_allows_through(self):
-        """If OpenAI API is down, should NOT block the user — degrade gracefully."""
-        check_moderation, _ = _import_moderation()
+    def test_moderation_api_error_blocks_request(self):
+        """If OpenAI API is down, should fail CLOSED and raise ModerationFlaggedError.
+
+        Security rationale: silently allowing through on network error creates a
+        moderation bypass vector — an attacker could deliberately trigger API failures
+        to circumvent content filtering. Fail closed is the correct security posture.
+        Callers should surface a "service temporarily unavailable" message to the user.
+        """
+        check_moderation, ModerationFlaggedError = _import_moderation()
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk_test_fake", "MODERATION_ENABLED": "true"}):
-            with patch("openai.OpenAI") as mock_openai:
-                mock_openai.return_value.moderations.create.side_effect = Exception("API down")
-                result = check_moderation("What is machine learning?")
-        assert result["flagged"] is False  # graceful degradation
+            with patch("ai_engine.middleware.moderation._openai_module") as mock_openai:
+                mock_openai.OpenAI.return_value.moderations.create.side_effect = Exception("API down")
+                with pytest.raises(ModerationFlaggedError) as exc_info:
+                    check_moderation("What is machine learning?")
+        # hard_block=False distinguishes "API unavailable" from "definitely harmful"
+        assert exc_info.value.hard_block is False
+        assert exc_info.value.categories.get("service_unavailable") is True
 
     def test_flagged_content_raises_error(self):
         """Simulate a flagged moderation response."""
         check_moderation, ModerationFlaggedError = _import_moderation()
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk_test_fake", "MODERATION_ENABLED": "true"}):
-            with patch("openai.OpenAI") as mock_openai:
+            with patch("ai_engine.middleware.moderation._openai_module") as mock_openai:
                 mock_result = MagicMock()
                 mock_result.flagged = True
-                mock_result.categories = MagicMock(
-                    **{
-                        "sexual/minors": True,
-                        "violence": False,
-                        "hate": False,
-                        "harassment": False,
-                        "self-harm": False,
-                        "sexual": False,
-                        "violence/graphic": False,
-                        "harassment/threatening": False,
-                        "self-harm/instructions": False,
-                        "hate/threatening": False,
-                        "self-harm/intent": False,
-                    }
-                )
-                mock_result.category_scores = mock_result.categories
-                mock_openai.return_value.moderations.create.return_value = MagicMock(
+                # Use a real dict so dict(result.categories) works correctly in check_moderation
+                categories_dict = {
+                    "sexual/minors": True,
+                    "violence": False,
+                    "hate": False,
+                    "harassment": False,
+                    "self-harm": False,
+                    "sexual": False,
+                    "violence/graphic": False,
+                    "harassment/threatening": False,
+                    "self-harm/instructions": False,
+                    "hate/threatening": False,
+                    "self-harm/intent": False,
+                }
+                mock_result.categories = categories_dict
+                mock_result.category_scores = {k: (1.0 if v else 0.0) for k, v in categories_dict.items()}
+                mock_openai.OpenAI.return_value.moderations.create.return_value = MagicMock(
                     results=[mock_result]
                 )
                 with pytest.raises(ModerationFlaggedError) as exc_info:

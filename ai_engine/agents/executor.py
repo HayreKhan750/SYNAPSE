@@ -9,8 +9,9 @@ Phase 5.1 — Agent Framework (Week 13)
 """
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, AsyncIterator, Dict, Iterator, List, Optional
 
 from .base import SynapseAgent  # noqa: F401 — SynapseAgent uses LangGraph internally
 from .registry import AgentToolRegistry, get_registry
@@ -291,7 +292,7 @@ class SynapseAgentExecutor:
         extra_context: Optional[Dict[str, Any]] = None,
     ) -> Iterator[Dict[str, Any]]:
         """
-        Stream intermediate steps and the final answer.
+        Stream intermediate steps and the final answer (synchronous generator).
 
         Yields dicts of the form:
           {"step": {"thought": ..., "action": ..., "action_input": ...}}
@@ -302,6 +303,44 @@ class SynapseAgentExecutor:
         agent = self._make_agent(tool_names)
         logger.info("Streaming agent task (tools=%s): %s", tool_names or "all", task[:120])
         yield from agent.stream(task, extra_context=extra_context)
+
+    async def astream(
+        self,
+        task: str,
+        tool_names: Optional[List[str]] = None,
+        extra_context: Optional[Dict[str, Any]] = None,
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """
+        INC-03: Async generator wrapper around the synchronous stream().
+
+        Runs the blocking sync generator in a thread pool so it can be
+        consumed from async contexts (Django async views, WebSocket consumers,
+        FastAPI endpoints) without blocking the event loop.
+
+        Usage::
+
+            async for event in executor.astream("Summarise trending AI papers"):
+                await websocket.send_json(event)
+        """
+        agent = self._make_agent(tool_names)
+        logger.info("Async-streaming agent task (tools=%s): %s", tool_names or "all", task[:120])
+
+        loop = asyncio.get_event_loop()
+        sync_gen = agent.stream(task, extra_context=extra_context)
+
+        while True:
+            try:
+                # Advance the sync generator off-thread to avoid blocking the event loop
+                event = await loop.run_in_executor(None, next, sync_gen, _SENTINEL)
+                if event is _SENTINEL:
+                    break
+                yield event
+            except StopIteration:
+                break
+            except Exception as exc:
+                logger.error("astream error: %s", exc)
+                yield {"error": str(exc)}
+                break
 
     def list_tools(self) -> List[Dict[str, str]]:
         """Return descriptions of all registered tools (for API /agents/tools endpoint)."""
@@ -317,6 +356,10 @@ class SynapseAgentExecutor:
             "max_iterations": self.max_iterations,
             "max_execution_time_s": self.max_execution_time,
         }
+
+
+# Sentinel used by astream() to detect StopIteration safely from run_in_executor
+_SENTINEL = object()
 
 
 # ---------------------------------------------------------------------------

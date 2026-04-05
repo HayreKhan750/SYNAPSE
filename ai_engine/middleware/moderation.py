@@ -19,10 +19,22 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# ── Config ─────────────────────────────────────────────────────────────────────
+# Import openai at module level so it can be patched in tests.
+# Guarded with try/except so the module loads even when the package isn't installed.
+try:
+    import openai as _openai_module
+except ImportError:  # pragma: no cover
+    _openai_module = None  # type: ignore[assignment]
 
-MODERATION_ENABLED = os.environ.get("MODERATION_ENABLED", "true").lower() == "true"
-OPENAI_API_KEY     = os.environ.get("OPENAI_API_KEY", "")
+# ── Config ─────────────────────────────────────────────────────────────────────
+# Read at call time (not module level) so that environment variable overrides
+# (e.g. in tests using patch.dict) take effect correctly.
+
+def _is_moderation_enabled() -> bool:
+    return os.environ.get("MODERATION_ENABLED", "true").lower() == "true"
+
+def _get_openai_api_key() -> str:
+    return os.environ.get("OPENAI_API_KEY", "")
 
 # Categories we treat as hard-block (refuse + log)
 HARD_BLOCK_CATEGORIES = {
@@ -79,16 +91,20 @@ def check_moderation(text: str, user_id: Optional[str] = None) -> dict:
         ModerationFlaggedError: If content is flagged (hard-block categories always raise;
                                  soft-block categories also raise).
     """
-    if not MODERATION_ENABLED or not text or not text.strip():
+    if not _is_moderation_enabled() or not text or not text.strip():
         return {"flagged": False, "categories": {}, "scores": {}, "hard_block": False}
 
-    if not OPENAI_API_KEY:
+    openai_api_key = _get_openai_api_key()
+    if not openai_api_key:
         logger.debug("moderation_skipped: OPENAI_API_KEY not set")
         return {"flagged": False, "categories": {}, "scores": {}, "hard_block": False}
 
+    if _openai_module is None:  # pragma: no cover
+        logger.warning("moderation_skipped: openai package not installed")
+        return {"flagged": False, "categories": {}, "scores": {}, "hard_block": False}
+
     try:
-        import openai
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        client = _openai_module.OpenAI(api_key=openai_api_key)
         response = client.moderations.create(
             input=text[:4096],  # Moderation API limit
             model="omni-moderation-latest",
@@ -124,6 +140,21 @@ def check_moderation(text: str, user_id: Optional[str] = None) -> dict:
     except ModerationFlaggedError:
         raise
     except Exception as exc:
-        # If the Moderation API is unavailable, log and allow through
-        logger.warning("moderation_api_error (allowing through): %s", exc)
-        return {"flagged": False, "categories": {}, "scores": {}, "hard_block": False}
+        # ERR-07: Moderation API failure — fail CLOSED (block) rather than
+        # allowing content through. Silently allowing through on network error
+        # creates a moderation bypass vector: an attacker could trigger API
+        # failures to circumvent content filtering.
+        #
+        # We raise ModerationFlaggedError with hard_block=False so callers
+        # can distinguish "definitely harmful" from "cannot verify" and apply
+        # appropriate UX (e.g. "Service temporarily unavailable" vs "Blocked").
+        logger.error(
+            "moderation_api_error user=%s error=%s — blocking request (fail-closed)",
+            user_id, exc,
+        )
+        raise ModerationFlaggedError(
+            categories={"service_unavailable": True},
+            scores={},
+            hard_block=False,
+            user_id=user_id,
+        ) from exc

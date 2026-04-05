@@ -7,7 +7,7 @@ import {
   Loader2, Plus, X, ChevronRight, ArrowLeft, FolderOpen, Globe, Lock,
   Check, FolderCheck, Pencil, Save, Twitter,
 } from 'lucide-react'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 import { cn } from '@/utils/helpers'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -665,7 +665,7 @@ export default function LibraryPage() {
                 Browse articles
               </a>
               <a
-                href="/onboarding/wizard"
+                href="/wizard"
                 className="px-4 py-2 rounded-xl text-sm font-semibold border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
               >
                 ✨ Personalise your feed

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Newspaper, GitBranch, BookOpen,
-  MessageSquare, Zap, FileText, Library, LogOut,
+  MessageSquare, Zap, Library, LogOut,
   ChevronLeft, ChevronRight, Bot, Youtube, TrendingUp, Twitter, CreditCard, Building2,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
@@ -28,7 +28,6 @@ const NAV_LINKS = [
   { href: '/chat',       label: 'AI Chat',       icon: MessageSquare,   accent: '#0ea5e9' },
   { href: '/automation', label: 'Automation',    icon: Zap,             accent: '#eab308' },
   { href: '/agents',     label: 'AI Agents',     icon: Bot,             accent: '#ec4899' },
-  { href: '/documents',  label: 'Documents',     icon: FileText,        accent: '#f97316' },
   { href: '/library',    label: 'Library',       icon: Library,         accent: '#14b8a6' },
   { href: '/billing',        label: 'Billing',        icon: CreditCard,  accent: '#f59e0b' },
   { href: '/organizations',  label: 'Organizations',  icon: Building2,   accent: '#8b5cf6' },
@@ -217,6 +216,7 @@ export function MobileBottomNav() {
             <Link
               key={href}
               href={href}
+              prefetch={true}
               className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors ${
                 active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'
               }`}

@@ -5,7 +5,7 @@ import { Play, Eye, ThumbsUp, Clock, Youtube } from 'lucide-react'
 import { formatRelativeTime } from '@/utils/helpers'
 import { cn } from '@/utils/helpers'
 
-interface Video {
+export interface Video {
   id: string
   youtube_id: string
   title: string
@@ -49,12 +49,17 @@ function parseTopics(topics: string[] | string): string[] {
   return []
 }
 
-export const VideoCard = memo(function VideoCard({ video }: { video: Video }) {
-  const topics = parseTopics(video.topics)
+interface VideoCardProps {
+  video: Video
+  onPlay: (video: Video) => void
+}
+
+export const VideoCard = memo(function VideoCard({ video, onPlay }: VideoCardProps) {
+  const topics   = parseTopics(video.topics)
   const duration = formatDuration(video.duration_seconds)
-  const views = formatViews(video.view_count)
-  const likes = formatViews(video.like_count)
-  const ago = formatRelativeTime(video.fetched_at || null)
+  const views    = formatViews(video.view_count)
+  const likes    = formatViews(video.like_count)
+  const ago      = formatRelativeTime(video.fetched_at || null)
 
   return (
     <div
@@ -63,11 +68,15 @@ export const VideoCard = memo(function VideoCard({ video }: { video: Video }) {
         'group relative bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/60',
         'overflow-hidden transition-all duration-200',
         'hover:shadow-xl hover:shadow-red-500/10 hover:border-red-300/60 dark:hover:border-red-500/40',
-        'hover:-translate-y-0.5'
+        'hover:-translate-y-0.5',
       )}
     >
       {/* Thumbnail */}
-      <a href={video.url} target="_blank" rel="noopener noreferrer" className="block relative overflow-hidden">
+      <button
+        onClick={() => onPlay(video)}
+        aria-label={`Play: ${video.title}`}
+        className="block w-full relative overflow-hidden text-left focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+      >
         {video.thumbnail_url ? (
           <img
             src={video.thumbnail_url}
@@ -81,28 +90,24 @@ export const VideoCard = memo(function VideoCard({ video }: { video: Video }) {
             <Youtube size={40} className="text-red-500 opacity-60" />
           </div>
         )}
-        {/* Duration badge */}
         <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-sm text-white text-xs font-mono px-1.5 py-0.5 rounded-md">
           {duration}
         </div>
-        {/* Play overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
           <div className="bg-red-600/95 rounded-full p-3 sm:p-4 shadow-2xl shadow-red-500/40 scale-90 group-hover:scale-100 transition-transform">
             <Play size={20} className="text-white fill-white ml-0.5" />
           </div>
         </div>
-      </a>
+      </button>
 
       {/* Content */}
       <div className="p-3 sm:p-4">
-        <a
-          href={video.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block font-semibold text-slate-900 dark:text-white hover:text-red-600 dark:hover:text-red-400 transition-colors line-clamp-2 text-sm leading-snug mb-1.5"
+        <button
+          onClick={() => onPlay(video)}
+          className="block w-full text-left font-semibold text-slate-900 dark:text-white hover:text-red-600 dark:hover:text-red-400 transition-colors line-clamp-2 text-sm leading-snug mb-1.5"
         >
           {video.title}
-        </a>
+        </button>
 
         <p className="text-xs text-red-600 dark:text-red-400 font-semibold mb-2 truncate">
           {video.channel_name}
@@ -117,10 +122,7 @@ export const VideoCard = memo(function VideoCard({ video }: { video: Video }) {
         {topics.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2.5">
             {topics.slice(0, 3).map((t) => (
-              <span
-                key={t}
-                className="text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-full font-medium capitalize border border-red-100 dark:border-red-800/30 truncate max-w-[90px]"
-              >
+              <span key={t} className="text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-full font-medium capitalize border border-red-100 dark:border-red-800/30 truncate max-w-[90px]">
                 {t}
               </span>
             ))}
@@ -128,20 +130,9 @@ export const VideoCard = memo(function VideoCard({ video }: { video: Video }) {
         )}
 
         <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-          <span className="flex items-center gap-1 whitespace-nowrap">
-            <Eye size={11} />
-            {views}
-          </span>
-          {video.like_count > 0 && (
-            <span className="flex items-center gap-1 whitespace-nowrap">
-              <ThumbsUp size={11} />
-              {likes}
-            </span>
-          )}
-          <span className="flex items-center gap-1 whitespace-nowrap">
-            <Clock size={11} />
-            {ago}
-          </span>
+          <span className="flex items-center gap-1 whitespace-nowrap"><Eye size={11} /> {views}</span>
+          {video.like_count > 0 && <span className="flex items-center gap-1 whitespace-nowrap"><ThumbsUp size={11} /> {likes}</span>}
+          <span className="flex items-center gap-1 whitespace-nowrap"><Clock size={11} /> {ago}</span>
         </div>
       </div>
     </div>

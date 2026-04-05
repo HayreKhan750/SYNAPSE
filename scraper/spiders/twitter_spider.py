@@ -10,7 +10,6 @@ import re
 import logging
 from datetime import datetime, timezone, timedelta
 import scrapy
-from scrapy import signals
 
 logger = logging.getLogger(__name__)
 

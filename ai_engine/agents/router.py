@@ -130,9 +130,11 @@ def resolve_provider_model(
     # ── Budget gating ─────────────────────────────────────────────────────
     budget_pct = _get_budget_percent(user_id, role) if user_id else 0.0
     if budget_pct >= 1.0:
-        from ai_engine.middleware.rate_limit import BudgetExceededError
+        from ai_engine.middleware.rate_limit import BudgetExceededError, get_budget_status
+        info = get_budget_status(user_id or "", role) if user_id else {}
         raise BudgetExceededError(
-            f"Daily budget exhausted ({budget_pct * 100:.0f}% used).",
+            used_cents=info.get("used_cents", 0),
+            limit_cents=info.get("limit_cents", 0),
             reset_at=_get_reset_time(),
         )
 
@@ -303,11 +305,12 @@ def get_model_for_user(
     budget_pct = _get_budget_percent(user_id, role)
 
     if budget_pct >= 1.0:
-        # Fully exhausted — raise
-        from ai_engine.middleware.rate_limit import BudgetExceededError
+        # Fully exhausted — raise with correct constructor signature
+        from ai_engine.middleware.rate_limit import BudgetExceededError, get_budget_status
+        info = get_budget_status(user_id, role)
         raise BudgetExceededError(
-            f"Daily budget exhausted ({budget_pct * 100:.0f}% used). "
-            f"Upgrade your plan for higher limits.",
+            used_cents=info.get("used_cents", 0),
+            limit_cents=info.get("limit_cents", 0),
             reset_at=_get_reset_time(),
         )
 
@@ -371,7 +374,8 @@ def _get_budget_percent(user_id: str, role: str) -> float:
         info = get_budget_status(user_id, role)
         if info.get("unlimited"):
             return 0.0
-        spent = info.get("spent_cents", 0)
+        # get_budget_status returns "used_cents" (not "spent_cents")
+        spent = info.get("used_cents", 0)
         limit = info.get("limit_cents", 1)
         return spent / max(limit, 1)
     except Exception as exc:

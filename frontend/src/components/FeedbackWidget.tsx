@@ -19,7 +19,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, MessageSquare, Send, Loader2, CheckCircle2 } from 'lucide-react'
 import { api } from '@/utils/api'
-import { cn } from '@/utils/cn'
+import { cn } from '@/utils/helpers'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 

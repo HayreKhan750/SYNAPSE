@@ -40,6 +40,21 @@ const setAccessToken = (token: string) => {
   localStorage.setItem('synapse_access_token', token)
 }
 
+const setRefreshToken = (token: string) => {
+  localStorage.setItem('synapse_refresh_token', token)
+  // Also keep the Zustand persisted store in sync so rehydration uses the latest token
+  try {
+    const raw = localStorage.getItem('synapse-auth')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.state) {
+        parsed.state.refreshToken = token
+        localStorage.setItem('synapse-auth', JSON.stringify(parsed))
+      }
+    }
+  } catch {}
+}
+
 const clearTokens = () => {
   localStorage.removeItem('synapse_access_token')
   localStorage.removeItem('synapse_refresh_token')
@@ -128,10 +143,13 @@ api.interceptors.response.use(
         const refreshToken = getRefreshToken()
         if (!refreshToken) throw new Error('No refresh token')
 
-        const { data } = await authApi.post<{ access: string }>('/auth/token/refresh/', {
+        const { data } = await authApi.post<{ access: string; refresh?: string }>('/auth/token/refresh/', {
           refresh: refreshToken,
         })
         setAccessToken(data.access)
+        // ROTATE_REFRESH_TOKENS=True: backend issues a new refresh token on every refresh.
+        // Save it so the next silent refresh doesn't use the now-blacklisted old token.
+        if (data.refresh) setRefreshToken(data.refresh)
         processQueue(null, data.access)
         originalRequest.headers.Authorization = `Bearer ${data.access}`
         return api(originalRequest)

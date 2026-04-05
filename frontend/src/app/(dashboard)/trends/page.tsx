@@ -17,10 +17,20 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   Legend as ReLegend, ResponsiveContainer,
 } from 'recharts'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 import { cn } from '@/utils/helpers'
-import { TrendRadar } from '@/components/charts/TrendRadar'
-import { TopicPieChart } from '@/components/charts/TopicPieChart'
+import dynamic from 'next/dynamic'
+
+// Lazy-load recharts-based charts — avoids loading ~200KB of recharts
+// on pages that don't use charts (sidebar navigation is instant).
+const TrendRadar = dynamic(
+  () => import('@/components/charts/TrendRadar').then(m => ({ default: m.TrendRadar })),
+  { ssr: false, loading: () => <div className="h-64 bg-slate-100 dark:bg-slate-700 rounded-2xl animate-pulse" /> },
+)
+const TopicPieChart = dynamic(
+  () => import('@/components/charts/TopicPieChart').then(m => ({ default: m.TopicPieChart })),
+  { ssr: false, loading: () => <div className="h-48 bg-slate-100 dark:bg-slate-700 rounded-2xl animate-pulse" /> },
+)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

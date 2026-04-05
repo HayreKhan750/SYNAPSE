@@ -1,21 +1,22 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { ScrollSentinel } from '@/components/ui/ScrollSentinel';
 import {
   BookOpen, ChevronDown, Search, Sparkles, Brain, X,
   FileText, Loader2, ExternalLink, Copy, CheckCircle2,
   TrendingUp, BarChart2, Layers, Zap, Download, Network,
   Clock, CheckCheck, AlertCircle, ChevronRight,
 } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 import { PaperCard } from '@/components/cards';
 import { PaperSkeleton } from '@/components/cards/SkeletonCard';
 import { cn } from '@/utils/helpers';
@@ -589,47 +590,42 @@ export default function ResearchPage() {
   const [sortBy, setSortBy] = useState('-fetched_at');
   const [showCategoryDropdown,  setShowCategoryDropdown]  = useState(false);
   const [showSortDropdown,      setShowSortDropdown]      = useState(false);
-  const [page,                  setPage]                  = useState(1);
   const [searchQuery,           setSearchQuery]           = useState('');
   const [searchInput,           setSearchInput]           = useState('');
 
   const difficultyParam = selectedDifficulty === 'All' ? undefined : selectedDifficulty.toLowerCase();
 
-  const getSortOrdering = () => {
-    return sortBy;
-  };
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['papers', difficultyParam, selectedCategory, sortBy, page, searchQuery],
-    queryFn: () =>
-      api.get('/papers/', {
-        params: {
-          page,
-          difficulty_level:  difficultyParam,
-          category:          selectedCategory || undefined,
-          ordering:          getSortOrdering(),
-          search:            searchQuery || undefined,
-        },
-      }).then(r => r.data),
-  });
-
-  const papers     = Array.isArray(data?.data) ? data.data
-                   : Array.isArray(data?.results) ? data.results
-                   : Array.isArray(data) ? data : [];
-  const totalCount = data?.meta?.total || data?.count || 0;
+  const { items: papers, sentinelRef, isFetchingNextPage, isLoading, hasNextPage, total: totalCount, reset: resetPapers } =
+    useInfiniteScroll<any>({
+      fetchPage: useCallback(async (page: number) => {
+        const r = await api.get('/papers/', {
+          params: {
+            page,
+            page_size: 12,
+            difficulty_level: difficultyParam,
+            category:         selectedCategory || undefined,
+            ordering:         sortBy,
+            search:           searchQuery || undefined,
+          },
+        });
+        const d = r.data;
+        const items: any[] = Array.isArray(d?.data) ? d.data : Array.isArray(d?.results) ? d.results : Array.isArray(d) ? d : [];
+        const total = d?.meta?.total ?? d?.count ?? items.length;
+        return { items, total };
+      }, [difficultyParam, selectedCategory, sortBy, searchQuery]),
+      deps: [difficultyParam, selectedCategory, sortBy, searchQuery],
+    });
 
   const handleSearch = () => {
     setSearchQuery(searchInput.trim());
-    setPage(1);
   };
 
   const clearFilters = () => {
     setSelectedDifficulty('All');
     setSelectedCategory('');
-    setSortBy('Date');
+    setSortBy('-fetched_at');
     setSearchQuery('');
     setSearchInput('');
-    setPage(1);
   };
 
   return (
@@ -705,7 +701,7 @@ export default function ResearchPage() {
               {DIFFICULTIES.map((d) => (
                 <button
                   key={d}
-                  onClick={() => { setSelectedDifficulty(d); setPage(1); }}
+                  onClick={() => { setSelectedDifficulty(d); }}
                   className={cn(
                     'px-3 py-1.5 rounded-full text-xs font-semibold transition-all',
                     selectedDifficulty === d
@@ -734,7 +730,7 @@ export default function ResearchPage() {
               {showCategoryDropdown && (
                 <div className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-20 max-h-56 overflow-y-auto">
                   <button
-                    onClick={() => { setSelectedCategory(''); setShowCategoryDropdown(false); setPage(1); }}
+                    onClick={() => { setSelectedCategory(''); setShowCategoryDropdown(false); }}
                     className={cn('w-full text-left px-4 py-2.5 text-sm transition rounded-t-xl',
                       !selectedCategory ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50')}
                   >
@@ -743,7 +739,7 @@ export default function ResearchPage() {
                   {ARXIV_CATEGORIES.map((cat) => (
                     <button
                       key={cat}
-                      onClick={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); setPage(1); }}
+                      onClick={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
                       className={cn('w-full text-left px-4 py-2.5 text-sm transition',
                         selectedCategory === cat ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50')}
                     >
@@ -769,7 +765,7 @@ export default function ResearchPage() {
                   {SORT_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); setPage(1); }}
+                      onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); }}
                       className={cn('w-full text-left px-4 py-2.5 text-sm transition first:rounded-t-xl last:rounded-b-xl',
                         sortBy === opt.value ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50')}
                     >
@@ -817,16 +813,13 @@ export default function ResearchPage() {
                 <PaperCard key={paper.id} paper={paper} />
               ))}
             </div>
-            {papers.length < totalCount && (
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={() => setPage(p => p + 1)}
-                  className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm"
-                >
-                  Load More Papers
-                </button>
-              </div>
-            )}
+            <ScrollSentinel
+              sentinelRef={sentinelRef}
+              isFetchingNextPage={isFetchingNextPage}
+              hasNextPage={hasNextPage}
+              onRetry={resetPapers}
+              endLabel={`All ${totalCount} papers loaded ✨`}
+            />
           </>
         ) : (
           <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col items-center gap-3 px-6">
@@ -849,7 +842,7 @@ export default function ResearchPage() {
                 Clear filters
               </button>
               <a
-                href="/onboarding/wizard"
+                href="/wizard"
                 className="px-4 py-2 rounded-xl text-sm font-semibold border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
               >
                 ✨ Personalise research

@@ -13,7 +13,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 import toast from 'react-hot-toast'
 import {
   Check,

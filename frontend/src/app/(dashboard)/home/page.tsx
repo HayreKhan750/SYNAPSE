@@ -6,7 +6,9 @@ import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, B
 import Link from 'next/link';
 import api from '@/utils/api';
 import { ArticleCard, RepositoryCard, PaperCard, TweetCard } from '@/components/cards';
-import { VideoCard } from '@/components/cards/VideoCard';
+import { HorizontalScroller } from '@/components/ui/HorizontalScroller';
+import { VideoCard, type Video } from '@/components/cards/VideoCard';
+import { VideoPlayerModal } from '@/components/modals/VideoPlayerModal';
 import { ArticleSkeleton, RepositorySkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
 
 const StatCard = ({ icon: Icon, label, value, gradient, href }: any) => (
@@ -233,6 +235,7 @@ const SectionHeader = ({ title, subtitle, href }: { title: string; subtitle?: st
 );
 
 export default function Dashboard() {
+  const [playingVideo, setPlayingVideo] = useState<Video | null>(null);
   const queryClient = useQueryClient();
 
   // When a workflow completes and scraping is queued, invalidate count badges
@@ -298,7 +301,7 @@ export default function Dashboard() {
 
   const { data: papers, isLoading: papersLoading } = useQuery({
     queryKey: ['papers', 'home'],
-    queryFn: () => api.get('/papers/', { params: { page_size: 3, ordering: '-fetched_at' } }).then(r => r.data),
+    queryFn: () => api.get('/papers/', { params: { page_size: 10, ordering: '-fetched_at' } }).then(r => r.data),
     staleTime: 30_000,
     gcTime:   10 * 60_000,
     refetchOnWindowFocus: true,
@@ -306,7 +309,7 @@ export default function Dashboard() {
 
   const { data: videosData, isLoading: videosLoading } = useQuery({
     queryKey: ['videos', 'home'],
-    queryFn: () => api.get('/videos/', { params: { page_size: 4, ordering: '-fetched_at' } }).then(r => r.data),
+    queryFn: () => api.get('/videos/', { params: { page_size: 12, ordering: '-fetched_at' } }).then(r => r.data),
     staleTime: 30_000,
     gcTime:   10 * 60_000,
     refetchOnWindowFocus: true,
@@ -314,7 +317,7 @@ export default function Dashboard() {
 
   const { data: tweetsData, isLoading: tweetsLoading } = useQuery({
     queryKey: ['tweets', 'home'],
-    queryFn: () => api.get('/tweets/', { params: { page_size: 4, ordering: '-scraped_at' } }).then(r => r.data),
+    queryFn: () => api.get('/tweets/', { params: { page_size: 12, ordering: '-scraped_at' } }).then(r => r.data),
     staleTime: 30_000,         // 30s — count stays fresh
     gcTime:   10 * 60_000,
     refetchOnWindowFocus: true, // re-fetch when user returns to the tab
@@ -334,12 +337,13 @@ export default function Dashboard() {
 
   const trendingArticles = extractList(articles, 4);
   const trendingRepos    = extractList(repos, 3);
-  const trendingPapers   = extractList(papers, 3);
-  const trendingVideos   = extractList(videosData, 4);
-  const trendingTweets   = extractList(tweetsData, 4);
+  const trendingPapers   = extractList(papers, 10);
+  const trendingVideos   = extractList(videosData, 12);
+  const trendingTweets   = extractList(tweetsData, 12);
 
   return (
     <div className="flex-1 overflow-y-auto">
+      <VideoPlayerModal video={playingVideo} onClose={() => setPlayingVideo(null)} />
       <div className="pb-10">
 
         {/* ── Hero Banner ──────────────────────────────────────────── */}
@@ -423,17 +427,17 @@ export default function Dashboard() {
           <div>
             <SectionHeader title="Latest Videos" subtitle="AI-curated tech & ML videos" href="/videos" />
             {videosLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse aspect-video" />
+              <HorizontalScroller cardWidth={280}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" style={{ aspectRatio: '16/9' }} />
                 ))}
-              </div>
+              </HorizontalScroller>
             ) : trendingVideos.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <HorizontalScroller cardWidth={280}>
                 {trendingVideos.map((video: any) => (
-                  <VideoCard key={video.id} video={video} />
+                  <VideoCard key={video.id} video={video} onPlay={(v) => setPlayingVideo(v)} />
                 ))}
-              </div>
+              </HorizontalScroller>
             ) : (
               <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
                 <p className="text-slate-500 dark:text-slate-400">No videos yet</p>
@@ -445,15 +449,15 @@ export default function Dashboard() {
           <div>
             <SectionHeader title="Latest Research Papers" subtitle="New papers from arXiv (cs.AI, cs.LG, cs.CL)" href="/research" />
             {papersLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Array.from({ length: 3 }).map((_, i) => <PaperSkeleton key={i} />)}
-              </div>
+              <HorizontalScroller cardWidth={340}>
+                {Array.from({ length: 4 }).map((_, i) => <PaperSkeleton key={i} />)}
+              </HorizontalScroller>
             ) : trendingPapers.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <HorizontalScroller cardWidth={340}>
                 {trendingPapers.map((paper: any) => (
                   <PaperCard key={paper.id} paper={paper} />
                 ))}
-              </div>
+              </HorizontalScroller>
             ) : (
               <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
                 <p className="text-slate-500 dark:text-slate-400">No papers yet</p>
@@ -465,15 +469,17 @@ export default function Dashboard() {
           <div>
             <SectionHeader title="Latest from X (Twitter)" subtitle="Curated tweets on AI, programming & tech" href="/tweets" />
             {tweetsLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse h-48" />)}
-              </div>
+              <HorizontalScroller cardWidth={280}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse h-48" />
+                ))}
+              </HorizontalScroller>
             ) : trendingTweets.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <HorizontalScroller cardWidth={280}>
                 {trendingTweets.map((tweet: any) => (
                   <TweetCard key={tweet.id} tweet={tweet} />
                 ))}
-              </div>
+              </HorizontalScroller>
             ) : (
               <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
                 <p className="text-slate-500 dark:text-slate-400">No tweets yet</p>

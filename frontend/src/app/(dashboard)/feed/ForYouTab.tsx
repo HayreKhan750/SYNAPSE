@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 import { ArticleCard, PaperCard } from '@/components/cards';
 import { ArticleSkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
 

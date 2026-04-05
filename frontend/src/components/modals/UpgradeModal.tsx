@@ -9,9 +9,9 @@
  *   openUpgradeModal({ resource: 'ai_queries', used: 50, limit: 50, plan: 'free' })
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 import toast from 'react-hot-toast'
 import {
   Zap,

@@ -6,7 +6,7 @@
  * when no key is configured.
  */
 import { useQuery } from '@tanstack/react-query'
-import api from '@/utils/api'
+import { api } from '@/utils/api'
 
 interface ApiKeyStatus {
   gemini_configured: boolean

@@ -19,7 +19,7 @@ import {
   MessageSquare, Bot, Zap, Settings, CreditCard, Home,
   Newspaper, TrendingUp, Twitter, X, ArrowRight, Clock,
 } from 'lucide-react';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
