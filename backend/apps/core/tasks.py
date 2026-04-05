@@ -598,8 +598,8 @@ def generate_daily_briefings(self) -> Dict:
         except Exception as exc:
             logger.error("Failed to generate briefing for user %s: %s", user.id, exc, exc_info=True)
 
-    logger.info("Daily briefings: created=%d skipped=%d", created, skipped)
-    return {'created': created, 'skipped': skipped}
+    logger.info("Daily briefings: created=%s skipped=%s", created, skipped)
+    return {'created': int(created), 'skipped': int(skipped)}
 
 
 @shared_task(bind=True, max_retries=2)
