@@ -5,26 +5,28 @@ import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import {
   Search, FileText, GitBranch, BookOpen, Loader2, Sparkles,
-  TrendingUp, Clock, X, Youtube,
+  TrendingUp, Clock, X, Youtube, Twitter,
 } from 'lucide-react'
 import api from '@/utils/api'
 import { useDebounce } from '@/hooks/useDebounce'
 import { ArticleCard } from '@/components/cards/ArticleCard'
 import { RepositoryCard } from '@/components/cards/RepositoryCard'
 import { PaperCard } from '@/components/cards/PaperCard'
+import { TweetCard } from '@/components/cards/TweetCard'
 import { VideoCard, type Video } from '@/components/cards/VideoCard'
 import { VideoPlayerModal } from '@/components/modals/VideoPlayerModal'
 import { cn } from '@/utils/helpers'
 import { motion, AnimatePresence } from 'framer-motion'
 
-type TabType = 'all' | 'articles' | 'repos' | 'papers' | 'videos'
+type TabType = 'all' | 'articles' | 'repos' | 'papers' | 'videos' | 'tweets'
 
 const TABS: { id: TabType; label: string; icon: React.ElementType; colour: string }[] = [
-  { id: 'all',      label: 'All',          icon: Search,    colour: 'text-indigo-600 dark:text-indigo-400'  },
-  { id: 'articles', label: 'Articles',     icon: FileText,  colour: 'text-cyan-600 dark:text-cyan-400'    },
-  { id: 'repos',    label: 'Repos',        icon: GitBranch, colour: 'text-emerald-600 dark:text-emerald-400' },
-  { id: 'papers',   label: 'Papers',       icon: BookOpen,  colour: 'text-violet-600 dark:text-violet-400'  },
-  { id: 'videos',   label: 'Videos',       icon: Youtube,   colour: 'text-red-400'     },
+  { id: 'all',      label: 'All',      icon: Search,    colour: 'text-indigo-600 dark:text-indigo-400'   },
+  { id: 'articles', label: 'Articles', icon: FileText,  colour: 'text-cyan-600 dark:text-cyan-400'      },
+  { id: 'repos',    label: 'Repos',    icon: GitBranch, colour: 'text-emerald-600 dark:text-emerald-400' },
+  { id: 'papers',   label: 'Papers',   icon: BookOpen,  colour: 'text-violet-600 dark:text-violet-400'   },
+  { id: 'videos',   label: 'Videos',   icon: Youtube,   colour: 'text-red-400'                           },
+  { id: 'tweets',   label: 'X / Tweets', icon: Twitter, colour: 'text-sky-500 dark:text-sky-400'         },
 ]
 
 const TRENDING_SEARCHES = [
@@ -71,11 +73,15 @@ export default function SearchPage() {
     staleTime: 30_000,
   })
 
-  // ── Semantic search query ───────────────────────────────────────────────────
+  // ── Semantic search query (POST — backend expects JSON body) ───────────────
   const { data: semanticData, isFetching: semanticFetching } = useQuery({
     queryKey: ['semantic-search', debouncedQuery],
     queryFn: () =>
-      api.get('/search/semantic/', { params: { q: debouncedQuery, limit: 5 } }).then(r => r.data),
+      api.post('/search/semantic/', {
+        query: debouncedQuery,
+        limit: 5,
+        content_types: ['articles', 'papers', 'repos', 'videos', 'tweets'],
+      }).then(r => r.data),
     enabled: debouncedQuery.length >= 4,
     staleTime: 60_000,
   })
@@ -84,11 +90,12 @@ export default function SearchPage() {
   const repos    = data?.data?.repos    || []
   const papers   = data?.data?.papers   || []
   const videos   = data?.data?.videos   || []
-  const total    = (articles.length + repos.length + papers.length + videos.length) || data?.meta?.total || 0
+  const tweets   = data?.data?.tweets   || []
+  const total    = (articles.length + repos.length + papers.length + videos.length + tweets.length) || data?.meta?.total || 0
   const semanticResults: any[] = semanticData?.data?.results || semanticData?.results || []
 
-  const showLoading = (isLoading || isFetching) && debouncedQuery.length >= 2
-  const hasResults  = total > 0
+  const showLoading  = (isLoading || isFetching) && debouncedQuery.length >= 2
+  const hasResults   = total > 0
   const showDropdown = inputFocused && !debouncedQuery && (history.length > 0 || TRENDING_SEARCHES.length > 0)
 
   const handleSelect = (q: string) => { setQuery(q); setInputFocused(false); inputRef.current?.blur() }
@@ -100,6 +107,7 @@ export default function SearchPage() {
     repos:    repos.length,
     papers:   papers.length,
     videos:   videos.length,
+    tweets:   tweets.length,
   }
 
   return (
@@ -383,6 +391,20 @@ export default function SearchPage() {
                   </h2>
                   <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {videos.map((v: any) => <VideoCard key={v.id} video={v} onPlay={(vid) => setPlayingVideo(vid)} />)}
+                  </div>
+                </section>
+              )}
+
+              {/* Tweets */}
+              {(activeTab === 'all' || activeTab === 'tweets') && tweets.length > 0 && (
+                <section>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                    <Twitter size={16} className="text-sky-400 shrink-0" />
+                    X / Tweets
+                    <span className="text-xs text-slate-500 font-normal">({tweets.length})</span>
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                    {tweets.map((t: any) => <TweetCard key={t.id} tweet={t} />)}
                   </div>
                 </section>
               )}
