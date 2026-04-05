@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import React, { useState, useCallback } from 'react'
 import { Youtube, TrendingUp, Eye, Play } from 'lucide-react'
 import api from '@/utils/api'
 import { VideoCard, VideoSkeleton, type Video } from '@/components/cards/VideoCard'
 import { VideoPlayerModal } from '@/components/modals/VideoPlayerModal'
 import { cn } from '@/utils/helpers'
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
+import { ScrollSentinel } from '@/components/ui/ScrollSentinel'
 
 const TOPICS = [
   'All',
@@ -37,15 +38,13 @@ const SORT_OPTIONS = [
 export default function VideosPage() {
   const [selectedTopic, setSelectedTopic] = useState('All')
   const [sortBy, setSortBy] = useState('-view_count')
-  const [page, setPage] = useState(1)
   const [playingVideo, setPlayingVideo] = useState<Video | null>(null)
-  const PAGE_SIZE = 24
+  const PAGE_SIZE = 20
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['videos', selectedTopic, sortBy, page],
-    queryFn: () =>
-      api
-        .get('/videos/', {
+  const { items: videos, sentinelRef, isFetchingNextPage, isLoading, hasNextPage, total: totalVideos, reset } =
+    useInfiniteScroll<any>({
+      fetchPage: useCallback(async (page: number) => {
+        const r = await api.get('/videos/', {
           params: {
             page,
             page_size: PAGE_SIZE,
@@ -53,20 +52,17 @@ export default function VideosPage() {
             ...(selectedTopic !== 'All' ? { search: selectedTopic } : {}),
           },
         })
-        .then((r) => r.data),
-    placeholderData: keepPreviousData,
-  })
+        const d = r.data
+        const rawData = d?.data
+        const items: any[] = Array.isArray(rawData) ? rawData
+          : Array.isArray(rawData?.results) ? rawData.results
+          : Array.isArray(d?.results) ? d.results : []
+        const total = d?.meta?.total ?? rawData?.count ?? d?.count ?? items.length
+        return { items, total }
+      }, [selectedTopic, sortBy]),
+      deps: [selectedTopic, sortBy],
+    })
 
-  // Handle both paginated {data: {results: [], count: N}} and flat {data: []}
-  const rawData = data?.data
-  const videos: any[] = Array.isArray(rawData)
-    ? rawData
-    : Array.isArray(rawData?.results)
-    ? rawData.results
-    : []
-  const meta = data?.meta || {}
-  const totalVideos = meta.total ?? rawData?.count ?? videos.length
-  const totalPages = meta.total_pages ?? Math.ceil(totalVideos / PAGE_SIZE) ?? 1
   const totalViews = videos.reduce((s: number, v: any) => s + (v.view_count || 0), 0)
 
   return (
@@ -130,7 +126,7 @@ export default function VideosPage() {
               {SORT_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
-                  onClick={() => { setSortBy(opt.value); setPage(1) }}
+                  onClick={() => setSortBy(opt.value)}
                   className={cn(
                     'px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0',
                     sortBy === opt.value
@@ -155,7 +151,7 @@ export default function VideosPage() {
           {TOPICS.map((topic) => (
             <button
               key={topic}
-              onClick={() => { setSelectedTopic(topic); setPage(1) }}
+              onClick={() => setSelectedTopic(topic)}
               className={cn(
                 'px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0',
                 selectedTopic === topic
@@ -176,11 +172,20 @@ export default function VideosPage() {
             ))}
           </div>
         ) : videos.length > 0 ? (
-          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-            {videos.map((video: any) => (
-              <VideoCard key={video.id} video={video} onPlay={(v) => setPlayingVideo(v)} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {videos.map((video: any) => (
+                <VideoCard key={video.id} video={video} onPlay={(v) => setPlayingVideo(v)} />
+              ))}
+            </div>
+            <ScrollSentinel
+              sentinelRef={sentinelRef}
+              isFetchingNextPage={isFetchingNextPage}
+              hasNextPage={hasNextPage}
+              onRetry={reset}
+              endLabel={`All ${totalVideos} videos loaded ✨`}
+            />
+          </>
         ) : (
           <div className="text-center py-12 sm:py-16 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             <Youtube size={44} className="mx-auto text-slate-400 dark:text-slate-500 mb-3" />
@@ -197,28 +202,6 @@ export default function VideosPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 sm:px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs sm:text-sm font-semibold"
-            >
-              ← Prev
-            </button>
-            <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 px-2 sm:px-4">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-3 sm:px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs sm:text-sm font-semibold"
-            >
-              Next →
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )
