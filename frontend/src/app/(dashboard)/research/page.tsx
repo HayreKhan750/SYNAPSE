@@ -502,12 +502,12 @@ export default function ResearchPage() {
             </button>
             {showCategoryDropdown && (
               <div className="absolute top-full mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[160px] max-h-56 overflow-y-auto">
-                <button onClick={() => { setSelectedCategory(''); setShowCategoryDropdown(false); }}
+                <button onClick={(e) => { e.stopPropagation(); setSelectedCategory(''); setShowCategoryDropdown(false); }}
                   className={cn('w-full text-left px-3 py-2 text-xs transition rounded-t-xl', !selectedCategory ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
                   All Categories
                 </button>
                 {ARXIV_CATEGORIES.map((cat) => (
-                  <button key={cat} onClick={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
+                  <button key={cat} onClick={(e) => { e.stopPropagation(); setSelectedCategory(cat); setShowCategoryDropdown(false); }}
                     className={cn('w-full text-left px-3 py-2 text-xs transition', selectedCategory === cat ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
                     {CATEGORY_LABELS[cat] || cat}
                   </button>
@@ -528,7 +528,7 @@ export default function ResearchPage() {
             {showSortDropdown && (
               <div className="absolute top-full mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[130px]">
                 {SORT_OPTIONS.map((opt) => (
-                  <button key={opt.value} onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); }}
+                  <button key={opt.value} onClick={(e) => { e.stopPropagation(); setSortBy(opt.value); setShowSortDropdown(false); }}
                     className={cn('w-full text-left px-3 py-2 text-xs transition first:rounded-t-xl last:rounded-b-xl',
                       sortBy === opt.value ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
                     {opt.label}
@@ -548,18 +548,6 @@ export default function ResearchPage() {
 
         </div>
 
-        {/* ── Results header ───────────────────────────────────────── */}
-        {!isLoading && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {searchQuery ? (
-                <><strong className="text-gray-900 dark:text-white">"{searchQuery}"</strong> — {totalCount} results</>
-              ) : (
-                <>{totalCount} papers{selectedCategory ? ` in ${CATEGORY_LABELS[selectedCategory] || selectedCategory}` : ''}</>
-              )}
-            </p>
-          </div>
-        )}
 
         {/* ── Papers grid ──────────────────────────────────────────── */}
         {isLoading ? (
