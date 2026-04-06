@@ -59,49 +59,38 @@ export default function TweetsPage() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="pb-8">
-        {/* Page Header */}
-        <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10">
-          <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <Twitter size={20} className="text-sky-500" />
-                <h1 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
-                  X (Twitter) Feed
-                </h1>
+        {/* ── Compact header — one row ── */}
+        <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            {/* Icon + title */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-sm">
+                <Twitter size={13} className="text-white" />
               </div>
-              <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-                {totalCount} tweets curated
-              </p>
+              <div className="hidden sm:block">
+                <h1 className="text-sm font-bold text-slate-900 dark:text-white leading-none">X Feed</h1>
+                {totalCount > 0 && <p className="text-[10px] text-slate-400 mt-0.5">{totalCount.toLocaleString()} tweets</p>}
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <button
-                onClick={reset}
-                disabled={isFetchingNextPage}
-                className="flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
-                title="Refresh feed"
-              >
-                <RefreshCw size={11} className={isFetchingNextPage ? 'animate-spin' : ''} />
-                <span className="hidden sm:inline">{isFetchingNextPage ? 'Refreshing…' : 'Refresh'}</span>
-              </button>
-              <span className="hidden xs:flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse shrink-0" />
-                <span className="hidden sm:inline">Live</span>
-              </span>
-            </div>
-          </div>
 
-          {/* Search bar */}
-          <div className="mt-3 sm:mt-4">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Search — fills remaining space */}
+            <div className="relative flex-1 min-w-0">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search tweets..."
+                placeholder="Search tweets…"
                 value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); }}
-                className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/50 transition-all"
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/50 transition-all"
               />
             </div>
+
+            {/* Refresh */}
+            <button onClick={reset} disabled={isFetchingNextPage}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40">
+              <RefreshCw size={11} className={isFetchingNextPage ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </button>
           </div>
         </div>
 
