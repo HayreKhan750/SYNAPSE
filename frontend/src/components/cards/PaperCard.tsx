@@ -55,26 +55,24 @@ export const PaperCard = memo(function PaperCard({ paper }: PaperCardProps) {
       {/* Accent bar */}
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
 
-      {/* Top row: date only */}
-      <div className="flex items-center justify-end mb-3">
-        <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
+      {/* Top row: date left, categories right — aligned like a header */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
           {formatRelativeTime(paper.fetched_at || null)}
         </span>
+        {categories.length > 0 && (
+          <div className="flex flex-wrap justify-end gap-1">
+            {categories.slice(0, 3).map((category) => (
+              <span
+                key={category}
+                className="text-xs px-2 py-0.5 rounded-full bg-violet-100/70 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 font-medium border border-violet-200 dark:border-violet-700/30 truncate max-w-[90px]"
+              >
+                {category}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Category pills */}
-      {categories.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
-          {categories.slice(0, 3).map((category) => (
-            <span
-              key={category}
-              className="text-xs px-2 py-0.5 rounded-full bg-violet-100/70 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 font-medium border border-violet-200 dark:border-violet-700/30 truncate max-w-[120px]"
-            >
-              {category}
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Title */}
       <h3 className="line-clamp-2 font-semibold text-sm sm:text-base text-slate-900 dark:text-white mb-2 leading-snug group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
