@@ -140,47 +140,41 @@ export default function FeedPage() {
   return (
     <div className="flex-1 overflow-y-auto">
     <div className="pb-8">
-      {/* ── Page Header ───────────────────────────────────────────── */}
-      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">Tech Intelligence Feed</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">{totalCount} articles curated</p>
+      {/* ── Compact Header (one row) ──────────────────────────────── */}
+      <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          {/* Icon + title */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-indigo-500/25">
+              <Zap size={13} className="text-white" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="text-sm font-bold text-slate-900 dark:text-white leading-none">Tech Feed</h1>
+              {totalCount > 0 && <p className="text-[10px] text-slate-400 mt-0.5">{totalCount.toLocaleString()} articles</p>}
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Manual refresh button */}
-            <button
-              onClick={handleRefreshFeed}
-              disabled={isFetchingNextPage}
-              className="flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
-              title="Refresh feed"
-            >
-              <RefreshCw size={11} className={isLoading ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">{isLoading ? 'Refreshing…' : 'Refresh'}</span>
-            </button>
-            <span className="hidden xs:flex items-center gap-1 sm:gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1.5 rounded-full whitespace-nowrap">
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${postWorkflowPolling ? 'bg-blue-400 animate-pulse' : 'bg-emerald-400 animate-pulse'}`} />
-              <span className="hidden sm:inline">{postWorkflowPolling ? 'Watching…' : 'Live'}</span>
-            </span>
-          </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex gap-0.5 sm:gap-1 mt-3 sm:mt-4 overflow-x-auto scrollbar-hide">
-          {(['latest', 'for-you', 'trending'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0',
-                activeTab === tab
-                  ? 'bg-indigo-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-              )}
-            >
-              {tab === 'for-you' ? 'For You ✨' : tab === 'trending' ? '🔥 Trending' : 'Latest'}
-            </button>
-          ))}
+          {/* Tabs inline */}
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide flex-1">
+            {(['latest', 'for-you', 'trending'] as const).map((tab) => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={cn(
+                  'px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap shrink-0',
+                  activeTab === tab
+                    ? 'bg-indigo-500 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                )}>
+                {tab === 'for-you' ? 'For You ✨' : tab === 'trending' ? '🔥 Trending' : 'Latest'}
+              </button>
+            ))}
+          </div>
+
+          {/* Refresh only */}
+          <button onClick={handleRefreshFeed} disabled={isFetchingNextPage}
+            className="shrink-0 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
+            title="Refresh feed">
+            <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+          </button>
         </div>
       </div>
 
