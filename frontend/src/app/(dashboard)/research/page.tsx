@@ -411,6 +411,13 @@ export default function ResearchPage() {
     setSearchInput('');
   };
 
+  // Close dropdowns when clicking outside
+  React.useEffect(() => {
+    const handler = () => { setShowCategoryDropdown(false); setShowSortDropdown(false); };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 pb-12">
@@ -455,22 +462,20 @@ export default function ResearchPage() {
             </button>
           </div>
 
-          {/* Inline quick stats */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0 text-xs text-slate-500 dark:text-slate-400">
-            <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg">
-              <TrendingUp size={11} className="text-indigo-500" />
-              {papers.reduce((s, p) => s + (p.citation_count || 0), 0).toLocaleString()} citations
-            </span>
-            <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg">
-              <Layers size={11} className="text-violet-500" />
-              {Array.from(new Set(papers.flatMap(p => p.categories || []))).length} categories
-            </span>
-          </div>
+          {/* Inline quick stats — only show when data is loaded */}
+          {totalCount > 0 && (
+            <div className="hidden lg:flex items-center gap-2 shrink-0 text-xs text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg">
+                <BookOpen size={11} className="text-indigo-500" />
+                {totalCount.toLocaleString()} papers
+              </span>
+            </div>
+          )}
         </div>
 
 
         {/* ── Compact filter strip ─────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2 overflow-x-auto scrollbar-hide">
+        <div className="flex flex-wrap items-center gap-2 relative">
           {/* Difficulty pills */}
           {DIFFICULTIES.map((d) => (
             <button
@@ -493,7 +498,7 @@ export default function ResearchPage() {
           {/* Category dropdown */}
           <div className="relative shrink-0">
             <button
-              onClick={() => { setShowCategoryDropdown(!showCategoryDropdown); setShowSortDropdown(false); }}
+              onClick={(e) => { e.stopPropagation(); setShowCategoryDropdown(!showCategoryDropdown); setShowSortDropdown(false); }}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap',
                 selectedCategory
@@ -523,7 +528,7 @@ export default function ResearchPage() {
           {/* Sort dropdown */}
           <div className="relative shrink-0">
             <button
-              onClick={() => { setShowSortDropdown(!showSortDropdown); setShowCategoryDropdown(false); }}
+              onClick={(e) => { e.stopPropagation(); setShowSortDropdown(!showSortDropdown); setShowCategoryDropdown(false); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition whitespace-nowrap"
             >
               {SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Sort'}
