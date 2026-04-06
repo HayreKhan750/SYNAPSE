@@ -30,10 +30,8 @@ const ARXIV_CATEGORIES = [
 ];
 // Only Newest — difficulty filter removed (all papers are 'intermediate' in current DB)
 const SORT_OPTIONS = [
-  { label: 'Newest',     value: '-fetched_at'      },
-  { label: 'Date',       value: '-published_date'   },
-  { label: 'Citations',  value: '-citation_count'   },
-  { label: 'Difficulty', value: 'difficulty_level'  },
+  { label: 'Newest', value: '-fetched_at'     },
+  { label: 'Popular', value: '-bookmark_count' },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {

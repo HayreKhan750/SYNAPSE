@@ -55,12 +55,9 @@ export const PaperCard = memo(function PaperCard({ paper }: PaperCardProps) {
       {/* Accent bar */}
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
 
-      {/* Top row: difficulty + date */}
-      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-        <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full shrink-0', getDifficultyColor(paper.difficulty_level))}>
-          {paper.difficulty_level?.charAt(0).toUpperCase() + paper.difficulty_level?.slice(1) || 'Research'}
-        </span>
-        <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
+      {/* Top row: date only */}
+      <div className="flex items-center justify-end mb-3">
+        <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
           {formatRelativeTime(paper.fetched_at || null)}
         </span>
       </div>
