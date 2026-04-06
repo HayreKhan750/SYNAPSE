@@ -224,7 +224,7 @@ export default function GitHubPage() {
   const { data: trendingData, isLoading } = useQuery({
     queryKey: ['github-trending-velocity', language],
     queryFn:  () => api.get('/repos/trending-velocity/', {
-      params: language !== 'All' ? { language } : {},
+      params: { limit: 500, ...(language !== 'All' ? { language } : {}) },
     }).then(r => r.data?.data as Repo[]),
     staleTime: 2 * 60_000,
   });

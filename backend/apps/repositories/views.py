@@ -57,7 +57,7 @@ class GitHubTrendingView(APIView):
     def get(self, request):
         language = request.query_params.get('language', '').strip().lower()
         topic    = request.query_params.get('topic', '').strip().lower()
-        limit    = min(int(request.query_params.get('limit', 20)), 100)
+        limit    = min(int(request.query_params.get('limit', 200)), 500)
 
         qs = Repository.objects.all().order_by('-velocity_7d', '-stars')
         if language:
