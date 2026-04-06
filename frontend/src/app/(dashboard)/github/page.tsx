@@ -303,6 +303,32 @@ export default function GitHubPage() {
 
         <div className="px-6 mt-6 space-y-10">
 
+          {/* ── Ecosystem Health ── */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Globe size={18} className="text-cyan-500" />
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Ecosystem Health</h2>
+              <span className="text-xs text-slate-400 ml-1">language growth indicators</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              {ECOSYSTEM_LANGS.map(lang => <EcosystemCard key={lang} language={lang} />)}
+            </div>
+          </section>
+
+          {/* ── Tech Radar ── */}
+          {radarData.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <Activity size={18} className="text-violet-500" />
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Tech Radar</h2>
+                <span className="text-xs text-slate-400 ml-1">trending topics across all repos</span>
+              </div>
+              <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-6">
+                <TrendRadar data={radarData} />
+              </div>
+            </section>
+          )}
+
           {/* ── Trending Now / Rising Stars ── */}
           <section>
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
@@ -370,32 +396,6 @@ export default function GitHubPage() {
               </>
             )}
           </section>
-
-          {/* ── Ecosystem Health ── */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Globe size={18} className="text-cyan-500" />
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Ecosystem Health</h2>
-              <span className="text-xs text-slate-400 ml-1">language growth indicators</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              {ECOSYSTEM_LANGS.map(lang => <EcosystemCard key={lang} language={lang} />)}
-            </div>
-          </section>
-
-          {/* ── Tech Radar ── */}
-          {radarData.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <Activity size={18} className="text-violet-500" />
-                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Tech Radar</h2>
-                <span className="text-xs text-slate-400 ml-1">trending topics across all repos</span>
-              </div>
-              <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-6">
-                <TrendRadar data={radarData} />
-              </div>
-            </section>
-          )}
 
         </div>
       </div>
