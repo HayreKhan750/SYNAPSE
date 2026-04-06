@@ -20,7 +20,7 @@ class ArticleListView(ListAPIView):
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['topic', 'source__source_type']
-    search_fields = ['title', 'summary', 'author', 'topic', 'tags']
+    search_fields = ['title', 'summary', 'author', 'topic']
     ordering_fields = ['published_at', 'trending_score', 'view_count', 'scraped_at']
     ordering = ['-published_at']
     pagination_class = StandardPagination

@@ -15,6 +15,7 @@ import rehypeKatex from 'rehype-katex'
 import { formatDistanceToNow } from 'date-fns'
 import {
   Bot,
+  Brain,
   Send,
   X,
   ChevronDown,
@@ -454,12 +455,25 @@ const COMMAND_TEMPLATES = [
   { label: 'Research AI trends',       prompt: 'Research the latest trends in large language models and summarize key findings.', type: 'research' as AgentTaskType },
   { label: 'Analyze React repos',      prompt: 'Search GitHub for trending React repositories and provide an analysis.', type: 'github' as AgentTaskType },
   { label: 'Fetch ML papers',          prompt: 'Fetch the latest machine learning papers from arXiv and summarize them.', type: 'arxiv' as AgentTaskType },
+  { label: 'Summarise paper findings', prompt: 'Fetch recent cs.AI papers from arXiv and summarise the key findings and implications of each paper.', type: 'arxiv' as AgentTaskType },
+  { label: 'Compare paper methods',    prompt: 'Fetch recent cs.LG papers from arXiv and compare and contrast the methodologies used across the papers.', type: 'arxiv' as AgentTaskType },
+  { label: 'Open research problems',   prompt: 'Fetch recent cs.CL papers from arXiv and identify the open problems and future research directions mentioned.', type: 'arxiv' as AgentTaskType },
+  { label: 'Datasets & benchmarks',    prompt: 'Fetch recent cs.AI papers from arXiv and list the datasets and benchmarks commonly used in this research area.', type: 'arxiv' as AgentTaskType },
   { label: 'Tech trend report',        prompt: 'Analyze current technology trends in AI and cloud computing.', type: 'trends' as AgentTaskType },
   { label: 'X/Twitter AI buzz',        prompt: 'Analyze the latest tweets and discussions about AI, LLMs and machine learning. Identify key themes, top voices, and emerging trends from X/Twitter.', type: 'tweets' as AgentTaskType },
   { label: 'Top tech tweets today',    prompt: 'Find and summarize the most impactful tech tweets from today. Focus on AI, programming, and open source topics.', type: 'tweets' as AgentTaskType },
   { label: 'PDF: AI State of the Art',  prompt: 'Generate a comprehensive PDF report on the current state of generative AI with key trends, breakthroughs, and future outlook.', type: 'document' as AgentTaskType },
   { label: 'PPT: RAG Explainer',        prompt: 'Create a 6-slide PowerPoint presentation explaining Retrieval-Augmented Generation (RAG): what it is, how it works, use cases, limitations, and future directions.', type: 'document' as AgentTaskType },
   { label: 'Markdown: API README',      prompt: 'Write a developer README in Markdown for a REST API service, including setup instructions, authentication, endpoints, and examples.', type: 'document' as AgentTaskType },
+]
+
+// Research synthesis quick-prompts (shown when arxiv task type is selected)
+const RESEARCH_SYNTHESIS_PROMPTS = [
+  { label: '📋 Key findings',     prompt: 'Fetch the latest cs.AI papers from arXiv and summarise the key findings and implications of each paper.' },
+  { label: '🔬 Methodologies',    prompt: 'Fetch recent cs.LG papers from arXiv and analyse what are the main methodologies used across these papers.' },
+  { label: '🔮 Open problems',    prompt: 'Fetch recent cs.CL papers from arXiv and identify what open problems or future research directions are identified.' },
+  { label: '⚖️ Compare methods',  prompt: 'Fetch recent cs.AI papers from arXiv and compare and contrast the approaches taken by the papers.' },
+  { label: '📊 Datasets used',    prompt: 'Fetch recent cs.AI papers from arXiv and list what datasets and benchmarks are commonly used in this area.' },
 ]
 
 const STATUS_CONFIG = {
@@ -1458,6 +1472,28 @@ export default function AgentsPage() {
                 </div>
               </div>
             </form>
+
+            {/* ── Research Synthesis quick-prompts (arxiv task type only) ── */}
+            {taskType === 'arxiv' && (
+              <div className="mt-4 rounded-xl border border-indigo-100 dark:border-indigo-800/60 bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/20 overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600">
+                  <Brain size={14} className="text-white shrink-0" />
+                  <span className="text-xs font-bold text-white">AI Research Synthesis</span>
+                  <span className="ml-auto text-[10px] text-indigo-200">Click to analyse papers from arXiv</span>
+                </div>
+                <div className="p-3 flex flex-wrap gap-1.5">
+                  {RESEARCH_SYNTHESIS_PROMPTS.map(s => (
+                    <button
+                      key={s.label}
+                      onClick={() => setPrompt(s.prompt)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg bg-white dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/60 transition font-medium"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Quick commands */}
             <div className="mt-4">

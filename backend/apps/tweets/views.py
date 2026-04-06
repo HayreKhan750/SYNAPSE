@@ -15,7 +15,7 @@ class TweetListView(ListAPIView):
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['topic', 'author_username', 'lang', 'is_retweet']
-    search_fields = ['text', 'author_username', 'author_display_name', 'hashtags']
+    search_fields = ['text', 'author_username', 'author_display_name']
     ordering_fields = ['posted_at', 'trending_score', 'like_count', 'retweet_count', 'view_count', 'scraped_at']
     ordering = ['-posted_at']
     pagination_class = StandardPagination

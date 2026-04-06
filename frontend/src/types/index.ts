@@ -53,12 +53,13 @@ export interface Source {
 export interface Article {
   id: string
   title: string
-  content: string
+  content?: string
   /** BART-generated abstractive summary (Phase 2.2). Empty string when not yet summarized. */
   summary: string
   url: string
   source: Source | null
-  source_type?: string
+  /** Direct source_type string (e.g. 'hackernews', 'blog') — convenience field from API. */
+  source_type: string
   author: string
   published_at: string | null
   scraped_at: string
@@ -70,7 +71,7 @@ export interface Article {
   view_count: number
   /** True once the full NLP pipeline (keywords + topic + sentiment + summary) has run. */
   nlp_processed: boolean
-  metadata: Record<string, unknown>
+  metadata?: Record<string, unknown>
   /** Short excerpt fetched from the article URL (populated before AI summary is ready). */
   excerpt?: string
 }
@@ -83,7 +84,7 @@ export interface Repository {
   full_name: string
   description: string
   url: string
-  clone_url: string
+  clone_url?: string
   stars: number
   forks: number
   watchers: number
@@ -94,6 +95,11 @@ export interface Repository {
   owner_name?: string
   is_trending: boolean
   stars_today: number
+  stars_7d_delta: number
+  velocity_7d: number
+  trend_class: 'rising_star' | 'stable' | 'declining'
+  is_rising_star: boolean
+  readme_summary?: string
   scraped_at?: string
   repo_created_at: string | null
   metadata: Record<string, unknown>

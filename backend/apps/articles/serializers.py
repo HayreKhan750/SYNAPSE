@@ -22,14 +22,20 @@ class ArticleListSerializer(serializers.ModelSerializer):
     source = SourceSerializer(read_only=True)
     excerpt = serializers.SerializerMethodField()
 
+    source_type = serializers.SerializerMethodField()
+
     class Meta:
         model  = Article
         fields = [
-            'id', 'title', 'summary', 'excerpt', 'url', 'source', 'author',
+            'id', 'title', 'summary', 'excerpt', 'url', 'source', 'source_type', 'author',
             'published_at', 'topic', 'tags', 'keywords',
             'sentiment_score', 'trending_score', 'view_count',
             'scraped_at', 'nlp_processed',
         ]
+
+    def get_source_type(self, obj) -> str:
+        """Return the source_type directly for use in the frontend card badge."""
+        return obj.source.source_type if obj.source else ''
 
     def get_excerpt(self, obj) -> str:
         """

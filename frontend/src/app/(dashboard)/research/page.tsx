@@ -12,8 +12,9 @@ import {
   BookOpen, ChevronDown, Search, Sparkles, Brain, X,
   FileText, Loader2, ExternalLink, Copy, CheckCircle2,
   TrendingUp, BarChart2, Layers, Zap, Download, Network,
-  Clock, CheckCheck, AlertCircle, ChevronRight,
+  Clock, CheckCheck, AlertCircle, ChevronRight, ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/utils/api';
@@ -43,13 +44,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   'math.ST': '📐 Statistics',
 };
 
-const SYNTHESIS_PROMPTS = [
-  'Summarise the key findings and implications of these papers',
-  'What are the main methodologies used across these papers?',
-  'What open problems or future research directions are identified?',
-  'Compare and contrast the approaches taken by these papers',
-  'What datasets and benchmarks are commonly used in this area?',
-];
 
 // ── TASK-601-F2/F3: Research Session — Progress Tracker + Report Viewer ────────
 
@@ -338,216 +332,6 @@ function DeepResearchPanel() {
   )
 }
 
-// ─── AI Synthesis Panel ───────────────────────────────────────────────────────
-function AISynthesisPanel({ papers }: { papers: any[] }) {
-  const [query, setQuery]           = useState('');
-  const [result, setResult]         = useState('');
-  const [streaming, setStreaming]   = useState(false);
-  const [copied, setCopied]         = useState(false);
-  const [showPanel, setShowPanel]   = useState(false);
-  const resultRef                   = useRef<HTMLDivElement>(null);
-
-  const handleSynthesize = async (overrideQuery?: string) => {
-    const q = (overrideQuery ?? query).trim();
-    if (!q) return;
-
-    setStreaming(true);
-    setResult('');
-    setShowPanel(true);
-
-    try {
-      const token = useAuthStore.getState().accessToken;
-      const paperContext = papers.slice(0, 8).map((p, i) =>
-        `[${i+1}] "${p.title}" — ${p.authors?.slice(0,2).join(', ') || 'Unknown'} (${p.published_date?.slice(0,4) || ''})\nAbstract: ${(p.abstract || p.summary || '').slice(0, 300)}…`
-      ).join('\n\n');
-
-      // Use the AI chat stream endpoint (bypasses Next.js proxy trailing-slash bug)
-      const backendBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
-      const response = await fetch(`${backendBase}/api/v1/ai/chat/stream/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          question: `You are a senior research analyst. Analyse the following ${papers.length} research papers and answer: ${q}\n\nPapers:\n${paperContext}\n\nProvide a structured, insightful synthesis with key findings, comparisons, and actionable insights.`,
-          conversation_id: `synthesis-${Date.now()}`,
-        }),
-      });
-
-      if (!response.ok || !response.body) {
-        setResult('⚠ Synthesis failed — server error. Please check your API key in Settings → AI Engine.');
-        setStreaming(false);
-        return;
-      }
-
-      const reader  = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer    = '';
-      let accumulated = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (line.startsWith('event: done')) { setStreaming(false); return; }
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (!raw) continue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.error) { setResult(`⚠ ${parsed.error}`); setStreaming(false); return; }
-            if (typeof parsed === 'string') { accumulated += parsed; setResult(accumulated); }
-          } catch {
-            accumulated += raw;
-            setResult(accumulated);
-          }
-        }
-      }
-    } catch (err) {
-      setResult('⚠ Synthesis failed. Please check your API key in Settings → AI Engine.');
-    } finally {
-      setStreaming(false);
-    }
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(result);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="rounded-2xl border border-indigo-100 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/30 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 sm:p-5 bg-gradient-to-r from-indigo-600 to-violet-600 flex-wrap gap-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <Brain className="w-4 h-4 sm:w-5 sm:h-5 text-white dark:text-white" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-sm sm:text-base font-bold text-white dark:text-white">AI Research Synthesis</h2>
-            <p className="text-xs text-indigo-200">
-              {papers.length > 0 ? `${Math.min(papers.length, 8)} papers in context` : 'Load papers to analyse'}
-            </p>
-          </div>
-        </div>
-        {papers.length > 0 && (
-          <span className="px-2.5 py-1 rounded-full bg-white/20 text-white text-xs font-semibold shrink-0 whitespace-nowrap">
-            {papers.length} papers
-          </span>
-        )}
-      </div>
-
-      {/* Prompt suggestions */}
-      <div className="p-3 sm:p-4 border-b border-indigo-100 dark:border-indigo-800/50">
-        <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-2">Quick analyses:</p>
-        <div className="flex flex-wrap gap-1.5 sm:gap-2">
-          {SYNTHESIS_PROMPTS.map((p) => (
-            <button
-              key={p}
-              onClick={() => { setQuery(p); handleSynthesize(p); }}
-              disabled={streaming || papers.length === 0}
-              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/60 transition disabled:opacity-40 disabled:cursor-not-allowed text-left leading-snug"
-            >
-              {p.slice(0, 40)}…
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Custom query input */}
-      <div className="p-3 sm:p-4 flex gap-2 sm:gap-3">
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSynthesize()}
-            placeholder="Ask anything about these papers…"
-            className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            disabled={streaming || papers.length === 0}
-          />
-        </div>
-        <button
-          onClick={() => handleSynthesize()}
-          disabled={streaming || !query.trim() || papers.length === 0}
-          className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition disabled:opacity-50 shrink-0 whitespace-nowrap"
-        >
-          {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          <span className="hidden xs:inline">{streaming ? 'Synthesising…' : 'Analyse'}</span>
-        </button>
-      </div>
-
-      {/* Result display */}
-      <AnimatePresence>
-        {(result || streaming) && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="border-t border-indigo-100 dark:border-indigo-800/50"
-          >
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                  <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                    {streaming ? 'Synthesising…' : 'Synthesis Complete'}
-                  </span>
-                </div>
-                {result && !streaming && (
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition"
-                  >
-                    {copied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
-                )}
-              </div>
-              <div
-                ref={resultRef}
-                className="prose prose-sm dark:prose-invert max-w-none leading-relaxed max-h-96 overflow-y-auto rounded-xl bg-slate-900 p-5 border border-slate-700/50
-                  prose-headings:text-white prose-headings:font-bold prose-headings:mt-4 prose-headings:mb-2
-                  prose-p:text-slate-300 prose-p:leading-relaxed prose-p:my-2
-                  prose-strong:text-white prose-strong:font-semibold
-                  prose-em:text-slate-300 prose-em:italic
-                  prose-code:text-indigo-300 prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono
-                  prose-pre:bg-slate-800 prose-pre:border prose-pre:border-slate-700 prose-pre:rounded-lg prose-pre:p-4
-                  prose-ul:text-slate-300 prose-ul:my-2 prose-ul:space-y-1
-                  prose-ol:text-slate-300 prose-ol:my-2 prose-ol:space-y-1
-                  prose-li:text-slate-300 prose-li:leading-relaxed
-                  prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-950/30 prose-blockquote:text-slate-300 prose-blockquote:rounded-r-lg prose-blockquote:py-1
-                  prose-hr:border-slate-700
-                  prose-a:text-indigo-400 hover:prose-a:text-indigo-300
-                  prose-table:text-sm prose-th:text-white prose-th:bg-slate-800 prose-td:text-slate-300 prose-td:border-slate-700"
-              >
-                {streaming && !result ? (
-                  <div className="flex items-center gap-2 text-slate-400 text-sm">
-                    <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                    Generating synthesis…
-                  </div>
-                ) : (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                  >
-                    {result}
-                  </ReactMarkdown>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 // ─── Stats Bar ────────────────────────────────────────────────────────────────
 function StatsBar({ papers }: { papers: any[] }) {
@@ -682,10 +466,30 @@ export default function ResearchPage() {
         {/* ── Stats Bar ───────────────────────────────────────────── */}
         <StatsBar papers={papers} />
 
-        {/* ── AI Synthesis Panel ──────────────────────────────────── */}
-        <AISynthesisPanel papers={papers} />
+        {/* ── AI Research Synthesis banner → redirects to Agents tab ── */}
+        <Link href="/agents?task_type=arxiv" className="block group">
+          <div className="rounded-2xl border border-indigo-100 dark:border-indigo-800/60 bg-gradient-to-r from-indigo-50 via-violet-50 to-purple-50 dark:from-indigo-950/30 dark:via-violet-950/20 dark:to-purple-950/20 p-5 flex items-center justify-between gap-4 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-200">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">AI Research Synthesis</p>
+                <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
+                  Analyse, compare &amp; synthesise papers using AI &mdash; now in the <span className="font-semibold">AI Agents</span> tab
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold group-hover:bg-indigo-700 transition-colors">
+                Open in Agents <ArrowRight size={12} />
+              </span>
+              <ArrowRight size={16} className="text-indigo-400 group-hover:text-indigo-600 transition-colors sm:hidden" />
+            </div>
+          </div>
+        </Link>
 
-        {/* TASK-601-F2/F3: Deep Research Mode — Plan-and-Execute agent */}
+        {/* Deep Research Mode — Plan-and-Execute agent */}
         <DeepResearchPanel />
 
         {/* ── Filters ─────────────────────────────────────────────── */}

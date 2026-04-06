@@ -261,7 +261,7 @@ export default function GitHubPage() {
     for (const r of repos) for (const t of (r.topics || [])) topicCount[t] = (topicCount[t] || 0) + 1;
     return Object.entries(topicCount)
       .sort((a, b) => b[1] - a[1]).slice(0, 12)
-      .map(([name, count]) => ({ name, value: count, category: 'topic' }));
+      .map(([name, count]) => ({ topic: name, score: Math.min(count * 8, 100) }));
   }, [repos]);
 
   return (

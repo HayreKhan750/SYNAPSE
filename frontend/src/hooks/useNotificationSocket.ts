@@ -39,7 +39,7 @@ const NOTIF_TYPE_TOAST: Record<string, (msg: string) => void> = {
 
 export function useNotificationSocket() {
   const queryClient = useQueryClient()
-  const { token, isAuthenticated } = useAuthStore()
+  const { accessToken: token, isAuthenticated } = useAuthStore()
   const wsRef   = useRef<WebSocket | null>(null)
   const retries = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)

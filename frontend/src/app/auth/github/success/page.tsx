@@ -8,12 +8,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { setTokens } from '@/utils/api';
 
 export default function GitHubSuccessPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const { refreshUser } = useAuthStore();
+  const { refreshUser, setTokens } = useAuthStore();
   const [error, setError] = useState('');
 
   useEffect(() => {

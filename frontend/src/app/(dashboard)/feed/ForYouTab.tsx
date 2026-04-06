@@ -5,21 +5,12 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { api } from '@/utils/api';
 import { ArticleCard, PaperCard } from '@/components/cards';
 import { ArticleSkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
+import type { Article, ResearchPaper } from '@/types';
 
 // TASK-001-T3: ForYouTab fetches from two sources and merges them:
 //   1. Interest-filtered articles  — GET /articles/?for_you=1  (topic/tag matching)
 //   2. Vector-based recommendations — GET /recommendations/    (embedding similarity)
 // Results are deduplicated by id and displayed together.
-
-interface Article {
-  id: string;
-  [key: string]: any;
-}
-
-interface Paper {
-  id: string;
-  [key: string]: any;
-}
 
 interface InterestFeedResponse {
   results?: Article[];
@@ -27,9 +18,9 @@ interface InterestFeedResponse {
 }
 
 interface RecoResponse {
-  data?: { articles?: Article[]; papers?: Paper[] };
+  data?: { articles?: Article[]; papers?: ResearchPaper[] };
   articles?: Article[];
-  papers?: Paper[];
+  papers?: ResearchPaper[];
 }
 
 export default function ForYouTab() {
@@ -41,7 +32,7 @@ export default function ForYouTab() {
     queryKey: ['for-you-interest', offset],
     queryFn: () =>
       api
-        .get('/articles/', { params: { for_you: 1, limit, offset } })
+        .get('/articles/', { params: { for_you: 1, page_size: limit, page: Math.floor(offset / limit) + 1 } })
         .then(r => r.data)
         .catch(() => ({ results: [] })),
     placeholderData: keepPreviousData,
@@ -65,7 +56,7 @@ export default function ForYouTab() {
     ...recoArticles.filter(a => !seenIds.has(a.id)),
   ];
 
-  const papers: Paper[] = recoData?.data?.papers ?? recoData?.papers ?? [];
+  const papers: ResearchPaper[] = recoData?.data?.papers ?? recoData?.papers ?? [];
   const hasMore = (mergedArticles.length + papers.length) >= limit;
 
   const loadMore = () => {
@@ -95,7 +86,7 @@ export default function ForYouTab() {
 
           {papers.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {papers.map((p: Paper) => (
+              {papers.map((p: ResearchPaper) => (
                 <PaperCard key={p.id} paper={p} />
               ))}
             </div>

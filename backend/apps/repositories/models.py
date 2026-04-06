@@ -41,7 +41,6 @@ class Repository(models.Model):
     star_history      = models.JSONField(default=list)
     last_commit_date  = models.DateTimeField(null=True, blank=True)
     contributor_count = models.IntegerField(default=0)
-    open_issues       = models.IntegerField(default=0)
     is_rising_star    = models.BooleanField(default=False, db_index=True)
     repo_created_at = models.DateTimeField(null=True, blank=True)
     stars_today  = models.IntegerField(default=0)
