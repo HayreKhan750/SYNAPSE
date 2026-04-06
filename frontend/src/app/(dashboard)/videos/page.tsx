@@ -63,7 +63,6 @@ export default function VideosPage() {
       deps: [selectedTopic, sortBy],
     })
 
-  const totalViews = videos.reduce((s: number, v: any) => s + (v.view_count || 0), 0)
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -98,21 +97,6 @@ export default function VideosPage() {
                 <p className="text-xl sm:text-3xl font-bold">{TOPICS.length - 1}</p>
               </div>
               <TrendingUp size={22} className="opacity-75 shrink-0 sm:size-8" />
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-3 sm:p-4 text-white overflow-hidden">
-            <div className="flex items-center justify-between gap-1">
-              <div className="min-w-0">
-                <p className="text-xs opacity-90 truncate">Views</p>
-                <p className="text-xl sm:text-3xl font-bold">
-                  {totalViews >= 1_000_000
-                    ? `${(totalViews / 1_000_000).toFixed(1)}M`
-                    : totalViews >= 1_000
-                    ? `${(totalViews / 1_000).toFixed(0)}K`
-                    : totalViews}
-                </p>
-              </div>
-              <Eye size={22} className="opacity-75 shrink-0 sm:size-8" />
             </div>
           </div>
         </div>
