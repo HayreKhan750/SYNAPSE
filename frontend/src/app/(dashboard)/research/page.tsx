@@ -411,11 +411,21 @@ export default function ResearchPage() {
     setSearchInput('');
   };
 
-  // Close dropdowns when clicking outside
+  // Close dropdowns when clicking outside — use refs to detect inside vs outside clicks
+  const categoryRef = useRef<HTMLDivElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
-    const handler = () => { setShowCategoryDropdown(false); setShowSortDropdown(false); };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
+    const handler = (e: MouseEvent) => {
+      if (categoryRef.current && !categoryRef.current.contains(e.target as Node)) {
+        setShowCategoryDropdown(false);
+      }
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   return (
@@ -487,9 +497,9 @@ export default function ResearchPage() {
           <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 shrink-0" />
 
           {/* Category dropdown */}
-          <div className="relative shrink-0">
+          <div ref={categoryRef} className="relative shrink-0">
             <button
-              onClick={(e) => { e.stopPropagation(); setShowCategoryDropdown(!showCategoryDropdown); setShowSortDropdown(false); }}
+              onClick={() => { setShowCategoryDropdown(v => !v); setShowSortDropdown(false); }}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap',
                 selectedCategory
@@ -502,12 +512,12 @@ export default function ResearchPage() {
             </button>
             {showCategoryDropdown && (
               <div className="absolute top-full mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[160px] max-h-56 overflow-y-auto">
-                <button onClick={(e) => { e.stopPropagation(); setSelectedCategory(''); setShowCategoryDropdown(false); }}
+                <button onClick={() => { setSelectedCategory(''); setShowCategoryDropdown(false); }}
                   className={cn('w-full text-left px-3 py-2 text-xs transition rounded-t-xl', !selectedCategory ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
                   All Categories
                 </button>
                 {ARXIV_CATEGORIES.map((cat) => (
-                  <button key={cat} onClick={(e) => { e.stopPropagation(); setSelectedCategory(cat); setShowCategoryDropdown(false); }}
+                  <button key={cat} onClick={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
                     className={cn('w-full text-left px-3 py-2 text-xs transition', selectedCategory === cat ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
                     {CATEGORY_LABELS[cat] || cat}
                   </button>
@@ -517,9 +527,9 @@ export default function ResearchPage() {
           </div>
 
           {/* Sort dropdown */}
-          <div className="relative shrink-0">
+          <div ref={sortRef} className="relative shrink-0">
             <button
-              onClick={(e) => { e.stopPropagation(); setShowSortDropdown(!showSortDropdown); setShowCategoryDropdown(false); }}
+              onClick={() => { setShowSortDropdown(v => !v); setShowCategoryDropdown(false); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition whitespace-nowrap"
             >
               {SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Sort'}
@@ -528,7 +538,7 @@ export default function ResearchPage() {
             {showSortDropdown && (
               <div className="absolute top-full mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[130px]">
                 {SORT_OPTIONS.map((opt) => (
-                  <button key={opt.value} onClick={(e) => { e.stopPropagation(); setSortBy(opt.value); setShowSortDropdown(false); }}
+                  <button key={opt.value} onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); }}
                     className={cn('w-full text-left px-3 py-2 text-xs transition first:rounded-t-xl last:rounded-b-xl',
                       sortBy === opt.value ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
                     {opt.label}
