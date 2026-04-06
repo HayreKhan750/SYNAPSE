@@ -327,90 +327,55 @@ export default function GitHubPage() {
     <div className="flex-1 overflow-y-auto">
       <div className="pb-12">
 
-        {/* ── Header ── */}
-        <div className="px-6 pt-8 pb-6 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                <GitBranch size={28} className="text-emerald-500" />
-                GitHub Intelligence
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
-                Real-time star velocity, rising stars, and ecosystem health — updated daily at 04:00 UTC.
-              </p>
-            </div>
-            {!isLoading && repos.length > 0 && (
-              <div className="flex items-center gap-6 text-sm">
-                <div className="text-center">
-                  <div className="font-bold text-slate-800 dark:text-slate-100">{repos.length}</div>
-                  <div className="text-xs text-slate-400">Tracked</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-bold text-orange-500">{risingStars.length}</div>
-                  <div className="text-xs text-slate-400">Rising Stars</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-bold text-emerald-500">
-                    +{repos.slice(0, 10).reduce((s, r) => s + Math.max(0, r.stars_7d_delta), 0).toLocaleString()}
-                  </div>
-                  <div className="text-xs text-slate-400">Stars 7d (top 10)</div>
-                </div>
+        {/* ── Compact Header (GitHub Radar style) ── */}
+        <div className="px-6 pt-6 pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Title */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-md shadow-emerald-500/25">
+                <GitBranch size={15} className="text-white" />
               </div>
-            )}
+              <div>
+                <h1 className="text-base font-bold text-slate-900 dark:text-white leading-none">GitHub Radar</h1>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  {repos.length > 0 ? `${repos.length.toLocaleString()} repositories tracked` : 'Trending repositories'}
+                </p>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="relative flex-1 min-w-0">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search repos by name, description, or language…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+              />
+            </div>
+          </div>
+
+          {/* Language pills */}
+          <div className="flex items-center gap-2 mt-3 overflow-x-auto scrollbar-hide pb-0.5">
+            {LANGUAGES.map(lang => (
+              <button key={lang} onClick={() => setLanguage(lang)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${
+                  language === lang
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-300'
+                }`}>
+                {lang !== 'All' && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: LANG_COLORS[lang] || '#6366f1' }} />}
+                {lang}
+              </button>
+            ))}
           </div>
         </div>
 
         <div className="px-6 mt-6 space-y-10">
 
-
-          {/* ── Trending Now / Rising Stars ── */}
+          {/* ── Repo grid ── */}
           <section>
-            {/* Search bar */}
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Search repos by name, description, or language..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-              />
-            </div>
-
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
-                {(['trending', 'rising'] as const).map(s => (
-                  <button key={s} onClick={() => setSection(s)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      section === s
-                        ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}>
-                    {s === 'trending' ? <><TrendingUp size={14} /> Trending Now</> : (
-                      <><Flame size={14} className="text-orange-500" /> Rising Stars
-                        {risingStars.length > 0 && (
-                          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 text-[10px] font-bold">
-                            {risingStars.length}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {LANGUAGES.map(lang => (
-                  <button key={lang} onClick={() => setLanguage(lang)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      language === lang
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}>
-                    {lang !== 'All' && <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style={{ backgroundColor: LANG_COLORS[lang] || '#6366f1' }} />}
-                    {lang}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
