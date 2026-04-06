@@ -9,12 +9,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { ScrollSentinel } from '@/components/ui/ScrollSentinel';
 import {
-  BookOpen, ChevronDown, Search, Sparkles, Brain, X,
+  BookOpen, ChevronDown, Search, Sparkles, X,
   FileText, Loader2, ExternalLink, Copy, CheckCircle2,
   TrendingUp, BarChart2, Layers, Zap, Download, Network,
-  Clock, CheckCheck, AlertCircle, ChevronRight, ArrowRight,
+  Clock, CheckCheck, AlertCircle, ChevronRight,
 } from 'lucide-react';
-import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/utils/api';
@@ -466,31 +465,6 @@ export default function ResearchPage() {
         {/* ── Stats Bar ───────────────────────────────────────────── */}
         <StatsBar papers={papers} />
 
-        {/* ── AI Research Synthesis banner → redirects to Agents tab ── */}
-        <Link href="/agents?task_type=arxiv" className="block group">
-          <div className="rounded-2xl border border-indigo-100 dark:border-indigo-800/60 bg-gradient-to-r from-indigo-50 via-violet-50 to-purple-50 dark:from-indigo-950/30 dark:via-violet-950/20 dark:to-purple-950/20 p-5 flex items-center justify-between gap-4 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-200">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">AI Research Synthesis</p>
-                <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
-                  Analyse, compare &amp; synthesise papers using AI &mdash; now in the <span className="font-semibold">AI Agents</span> tab
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold group-hover:bg-indigo-700 transition-colors">
-                Open in Agents <ArrowRight size={12} />
-              </span>
-              <ArrowRight size={16} className="text-indigo-400 group-hover:text-indigo-600 transition-colors sm:hidden" />
-            </div>
-          </div>
-        </Link>
-
-        {/* Deep Research Mode — Plan-and-Execute agent */}
-        <DeepResearchPanel />
 
         {/* ── Filters ─────────────────────────────────────────────── */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 space-y-4">
