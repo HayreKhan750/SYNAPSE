@@ -462,15 +462,6 @@ export default function ResearchPage() {
             </button>
           </div>
 
-          {/* Inline quick stats — only show when data is loaded */}
-          {totalCount > 0 && (
-            <div className="hidden lg:flex items-center gap-2 shrink-0 text-xs text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg">
-                <BookOpen size={11} className="text-indigo-500" />
-                {totalCount.toLocaleString()} papers
-              </span>
-            </div>
-          )}
         </div>
 
 
@@ -555,12 +546,6 @@ export default function ResearchPage() {
             </button>
           )}
 
-          {/* Result count */}
-          {totalCount > 0 && (
-            <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 shrink-0">
-              {totalCount.toLocaleString()} results
-            </span>
-          )}
         </div>
 
         {/* ── Results header ───────────────────────────────────────── */}

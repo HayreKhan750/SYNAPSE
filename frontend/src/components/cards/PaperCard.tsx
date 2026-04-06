@@ -99,8 +99,8 @@ export const PaperCard = memo(function PaperCard({ paper }: PaperCardProps) {
         </p>
       )}
 
-      {/* Citation count */}
-      {paper.citation_count && paper.citation_count > 0 && (
+      {/* Citation count — only show when > 0 (citation_count=0 would render as "0" in React) */}
+      {(paper.citation_count ?? 0) > 0 && (
         <div className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mb-3 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-full">
           💬 <span className="font-medium">{paper.citation_count}</span> citations
         </div>
