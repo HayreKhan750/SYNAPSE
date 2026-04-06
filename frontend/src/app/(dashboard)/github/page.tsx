@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   GitBranch, Star, TrendingUp, ExternalLink,
   ArrowUp, ArrowDown, Minus, Globe,
-  Flame, Sparkles, Activity,
+  Flame, Sparkles, Activity, Search,
 } from 'lucide-react';
 import { api } from '@/utils/api';
 import dynamic from 'next/dynamic';
