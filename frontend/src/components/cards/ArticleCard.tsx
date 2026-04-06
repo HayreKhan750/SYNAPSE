@@ -156,11 +156,21 @@ export const ArticleCard = memo(function ArticleCard({ article }: ArticleCardPro
       {/* Bottom row */}
       <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100 dark:border-slate-700/50 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 shrink">
-          {article.author && (
-            <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[100px] sm:max-w-[140px]">
-              {article.author}
-            </span>
-          )}
+          {/* Show source name instead of garbled HN/Reddit usernames.
+              A "real" author name has a space (e.g. "John Doe") or is > 20 chars meaningfully.
+              HN usernames are short random strings like "clfhhc" — we skip those. */}
+          {(() => {
+            const author = article.author?.trim();
+            const isRealAuthor = author && (author.includes(' ') || author.length > 15);
+            const displayName = isRealAuthor
+              ? author
+              : (article.source?.name || null);
+            return displayName ? (
+              <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[100px] sm:max-w-[140px]">
+                {displayName}
+              </span>
+            ) : null;
+          })()}
           <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
             {readingTime} min read
           </span>
