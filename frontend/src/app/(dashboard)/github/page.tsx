@@ -362,29 +362,6 @@ export default function GitHubPage() {
 
         <div className="px-6 mt-6 space-y-10">
 
-          {/* ── Tech Radar ── */}
-          {radarData.length > 0 && (
-            <section>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2">
-                  <Activity size={18} className="text-violet-500" />
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Tech Radar</h2>
-                  <span className="text-xs text-slate-400 ml-1">trending topics across all repos</span>
-                </div>
-                <button
-                  onClick={() => setShowRadar(!showRadar)}
-                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                >
-                  {showRadar ? 'Hide' : 'Show'} Radar
-                </button>
-              </div>
-              {showRadar && (
-                <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-6">
-                  <TrendRadar data={radarData} />
-                </div>
-              )}
-            </section>
-          )}
 
           {/* ── Trending Now / Rising Stars ── */}
           <section>
