@@ -211,6 +211,52 @@ function EcosystemCard({ language }: { language: string }) {
   );
 }
 
+// ── EcosystemCompactStrip ──────────────────────────────────────────────────────
+
+function EcosystemCompactStrip({ languages }: { languages: string[] }) {
+  const { data: allEcosystemData } = useQuery({
+    queryKey: ['github-ecosystem-all', languages],
+    queryFn: async () => {
+      const results: Record<string, EcosystemData> = {};
+      for (const lang of languages) {
+        try {
+          const res = await api.get(`/repos/ecosystem/${lang}/`);
+          results[lang] = res.data?.data as EcosystemData;
+        } catch {
+          // skip on error
+        }
+      }
+      return results;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const data = allEcosystemData || {};
+
+  return (
+    <div className="flex flex-wrap gap-3">
+      {languages.map(lang => {
+        const ecoData = data[lang];
+        if (!ecoData) return <div key={lang} className="bg-slate-100 dark:bg-slate-800 rounded-xl h-8 w-24 animate-pulse" />;
+        
+        const color = LANG_COLORS[lang] || '#6366f1';
+        const growthPositive = ecoData.avg_velocity_7d >= 0;
+
+        return (
+          <div key={lang} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 hover:shadow-sm transition-shadow">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{lang}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{ecoData.total_repos.toLocaleString()} repos</span>
+            <span className={`text-xs font-semibold flex-shrink-0 ${growthPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+              {growthPositive ? '+' : ''}{ecoData.avg_velocity_7d.toFixed(1)} ★/day
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 const PAGE_STEP = 12; // how many repos to reveal per scroll
@@ -219,6 +265,8 @@ export default function GitHubPage() {
   const [language, setLanguage] = useState('All');
   const [section, setSection]   = useState<'trending' | 'rising'>('trending');
   const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showRadar, setShowRadar] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const { data: trendingData, isLoading } = useQuery({
@@ -231,12 +279,25 @@ export default function GitHubPage() {
 
   const repos       = trendingData ?? [];
   const risingStars = repos.filter(r => r.is_rising_star);
-  const allDisplayRepos = section === 'rising' ? risingStars : repos;
+  const baseSectionRepos = section === 'rising' ? risingStars : repos;
+  
+  // Filter by search query
+  const allDisplayRepos = searchQuery.trim()
+    ? baseSectionRepos.filter(r => {
+        const query = searchQuery.toLowerCase();
+        return (
+          r.full_name.toLowerCase().includes(query) ||
+          (r.description?.toLowerCase().includes(query) ?? false) ||
+          (r.language?.toLowerCase().includes(query) ?? false)
+        );
+      })
+    : baseSectionRepos;
+  
   const displayRepos = allDisplayRepos.slice(0, visibleCount);
   const hasMore = visibleCount < allDisplayRepos.length;
 
-  // Reset visible count when filter/section changes
-  useEffect(() => { setVisibleCount(PAGE_STEP); }, [language, section]);
+  // Reset visible count when filter/section/search changes
+  useEffect(() => { setVisibleCount(PAGE_STEP); }, [language, section, searchQuery]);
 
   // IntersectionObserver to auto-reveal more repos
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -310,27 +371,46 @@ export default function GitHubPage() {
               <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Ecosystem Health</h2>
               <span className="text-xs text-slate-400 ml-1">language growth indicators</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              {ECOSYSTEM_LANGS.map(lang => <EcosystemCard key={lang} language={lang} />)}
-            </div>
+            <EcosystemCompactStrip languages={ECOSYSTEM_LANGS} />
           </section>
 
           {/* ── Tech Radar ── */}
           {radarData.length > 0 && (
             <section>
-              <div className="flex items-center gap-2 mb-4">
-                <Activity size={18} className="text-violet-500" />
-                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Tech Radar</h2>
-                <span className="text-xs text-slate-400 ml-1">trending topics across all repos</span>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <Activity size={18} className="text-violet-500" />
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Tech Radar</h2>
+                  <span className="text-xs text-slate-400 ml-1">trending topics across all repos</span>
+                </div>
+                <button
+                  onClick={() => setShowRadar(!showRadar)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  {showRadar ? 'Hide' : 'Show'} Radar
+                </button>
               </div>
-              <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-6">
-                <TrendRadar data={radarData} />
-              </div>
+              {showRadar && (
+                <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-6">
+                  <TrendRadar data={radarData} />
+                </div>
+              )}
             </section>
           )}
 
           {/* ── Trending Now / Rising Stars ── */}
           <section>
+            {/* Search bar */}
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="Search repos by name, description, or language..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+              />
+            </div>
+
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
               <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
                 {(['trending', 'rising'] as const).map(s => (
