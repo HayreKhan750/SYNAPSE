@@ -125,7 +125,7 @@ export const TweetCard = memo(function TweetCard({ tweet }: TweetCardProps) {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-col items-end gap-1 shrink-0">
           {tweet.topic && (
             <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', getTopicColor(tweet.topic))}>
               {tweet.topic}
@@ -145,7 +145,7 @@ export const TweetCard = memo(function TweetCard({ tweet }: TweetCardProps) {
         </p>
       </div>
 
-      {/* Media preview */}
+      {/* Media preview — hide if image fails to load */}
       {tweet.media_urls.length > 0 && (
         <div className="mb-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
           <img
@@ -153,6 +153,11 @@ export const TweetCard = memo(function TweetCard({ tweet }: TweetCardProps) {
             alt="Tweet media"
             className="w-full max-h-48 object-cover"
             loading="lazy"
+            onError={(e) => {
+              // Hide the entire media container if image is broken
+              const container = (e.target as HTMLImageElement).parentElement;
+              if (container) container.style.display = 'none';
+            }}
           />
         </div>
       )}
@@ -174,18 +179,24 @@ export const TweetCard = memo(function TweetCard({ tweet }: TweetCardProps) {
       {/* Engagement metrics row */}
       <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-700/50 flex-wrap">
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400" title="Replies">
-            <MessageSquare size={13} />
-            {formatNumber(tweet.reply_count)}
-          </span>
-          <span className="flex items-center gap-1 text-xs text-emerald-500 dark:text-emerald-400" title="Retweets">
-            <Repeat2 size={13} />
-            {formatNumber(tweet.retweet_count)}
-          </span>
-          <span className="flex items-center gap-1 text-xs text-pink-500 dark:text-pink-400" title="Likes">
-            <Heart size={13} />
-            {formatNumber(tweet.like_count)}
-          </span>
+          {tweet.reply_count > 0 && (
+            <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400" title="Replies">
+              <MessageSquare size={13} />
+              {formatNumber(tweet.reply_count)}
+            </span>
+          )}
+          {tweet.retweet_count > 0 && (
+            <span className="flex items-center gap-1 text-xs text-emerald-500 dark:text-emerald-400" title="Retweets">
+              <Repeat2 size={13} />
+              {formatNumber(tweet.retweet_count)}
+            </span>
+          )}
+          {tweet.like_count > 0 && (
+            <span className="flex items-center gap-1 text-xs text-pink-500 dark:text-pink-400" title="Likes">
+              <Heart size={13} />
+              {formatNumber(tweet.like_count)}
+            </span>
+          )}
           {tweet.view_count > 0 && (
             <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500" title="Views">
               <Eye size={13} />
