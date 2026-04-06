@@ -8,11 +8,20 @@ from .serializers import ResearchPaperSerializer
 from apps.core.pagination import StandardPagination
 
 class PaperFilter(django_filters.FilterSet):
-    category   = django_filters.CharFilter(field_name='categories', lookup_expr='contains')
+    # categories is a JSONField (array). Use a custom filter to do
+    # categories__contains=[value] which checks if the array contains the value.
+    category   = django_filters.CharFilter(method='filter_category')
     difficulty = django_filters.ChoiceFilter(field_name='difficulty_level',
                      choices=ResearchPaper.Difficulty.choices)
     date_from  = django_filters.DateFilter(field_name='published_date', lookup_expr='gte')
     date_to    = django_filters.DateFilter(field_name='published_date', lookup_expr='lte')
+
+    def filter_category(self, queryset, name, value):
+        """Filter papers whose categories JSONField array contains the given value."""
+        if not value:
+            return queryset
+        return queryset.filter(categories__contains=[value])
+
     class Meta:
         model  = ResearchPaper
         fields = ['difficulty', 'date_from', 'date_to']

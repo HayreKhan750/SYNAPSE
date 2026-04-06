@@ -28,6 +28,7 @@ const ARXIV_CATEGORIES = [
   'cs.AI', 'cs.LG', 'cs.CL', 'cs.CV', 'cs.CR',
   'cs.DB', 'cs.DS', 'cs.SE', 'math.ST',
 ];
+// Only Newest — difficulty filter removed (all papers are 'intermediate' in current DB)
 const SORT_OPTIONS = [
   { label: 'Newest',     value: '-fetched_at'      },
   { label: 'Date',       value: '-published_date'   },
@@ -477,24 +478,6 @@ export default function ResearchPage() {
 
         {/* ── Compact filter strip ─────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2 relative">
-          {/* Difficulty pills */}
-          {DIFFICULTIES.map((d) => (
-            <button
-              key={d}
-              onClick={() => setSelectedDifficulty(d)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap shrink-0',
-                selectedDifficulty === d
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-300',
-              )}
-            >
-              {d}
-            </button>
-          ))}
-
-          {/* Divider */}
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 shrink-0" />
 
           {/* Category dropdown */}
           <div ref={categoryRef} className="relative shrink-0">
@@ -526,27 +509,19 @@ export default function ResearchPage() {
             )}
           </div>
 
-          {/* Sort dropdown */}
-          <div ref={sortRef} className="relative shrink-0">
-            <button
-              onClick={() => { setShowSortDropdown(v => !v); setShowCategoryDropdown(false); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition whitespace-nowrap"
+          {/* Sort — simple pills, no dropdown */}
+          {SORT_OPTIONS.map(opt => (
+            <button key={opt.value} onClick={() => setSortBy(opt.value)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap shrink-0',
+                sortBy === opt.value
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-300',
+              )}
             >
-              {SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Sort'}
-              <ChevronDown size={11} className={cn('transition-transform', showSortDropdown && 'rotate-180')} />
+              {opt.label}
             </button>
-            {showSortDropdown && (
-              <div className="absolute top-full mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[130px]">
-                {SORT_OPTIONS.map((opt) => (
-                  <button key={opt.value} onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); }}
-                    className={cn('w-full text-left px-3 py-2 text-xs transition first:rounded-t-xl last:rounded-b-xl',
-                      sortBy === opt.value ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
 
           {/* Clear filters */}
           {(searchQuery || selectedDifficulty !== 'All' || selectedCategory || sortBy !== '-fetched_at') && (
