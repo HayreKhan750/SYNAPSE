@@ -145,22 +145,42 @@ export const TweetCard = memo(function TweetCard({ tweet }: TweetCardProps) {
         </p>
       </div>
 
-      {/* Media preview — hide if image fails to load */}
-      {tweet.media_urls.length > 0 && (
-        <div className="mb-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-          <img
-            src={tweet.media_urls[0]}
-            alt="Tweet media"
-            className="w-full max-h-48 object-cover"
-            loading="lazy"
-            onError={(e) => {
-              // Hide the entire media container if image is broken
-              const container = (e.target as HTMLImageElement).parentElement;
-              if (container) container.style.display = 'none';
-            }}
-          />
-        </div>
-      )}
+      {/* Media preview — normalize Nitter proxy URLs to Twitter CDN */}
+      {tweet.media_urls.length > 0 && (() => {
+        // Convert Nitter proxy URLs to direct Twitter CDN URLs
+        const rawUrl = tweet.media_urls[0];
+        let imgSrc = rawUrl;
+
+        // Pattern: nitter.*/pic/media%2F{id}.jpg → pbs.twimg.com/media/{id}
+        const nitterMatch = rawUrl.match(/\/pic\/media%2F([^?&%]+)/i);
+        if (nitterMatch) {
+          const mediaId = decodeURIComponent(nitterMatch[1]);
+          imgSrc = `https://pbs.twimg.com/media/${mediaId}`;
+        }
+
+        return (
+          <div className="mb-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+            <img
+              src={imgSrc}
+              alt="Tweet media"
+              className="w-full max-h-48 object-cover"
+              loading="lazy"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                // Try original URL as fallback if CDN failed
+                if (img.src !== rawUrl && !img.dataset.triedOriginal) {
+                  img.dataset.triedOriginal = '1';
+                  img.src = rawUrl;
+                } else {
+                  // Both failed — hide container
+                  const container = img.parentElement;
+                  if (container) container.style.display = 'none';
+                }
+              }}
+            />
+          </div>
+        );
+      })()}
 
       {/* Hashtags */}
       {tweet.hashtags.length > 0 && (
