@@ -415,155 +415,147 @@ export default function ResearchPage() {
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 pb-12">
 
-        {/* ── Hero Header ─────────────────────────────────────────── */}
-        <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-2xl p-5 sm:p-8 text-white dark:text-white relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-4 right-12 w-32 h-32 rounded-full bg-white" />
-            <div className="absolute bottom-0 left-24 w-48 h-48 rounded-full bg-white" />
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-200" />
-              <span className="text-xs font-bold text-indigo-200 uppercase tracking-widest">SYNAPSE AI</span>
+        {/* ── Compact Header + Search (GitHub Radar style) ─────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          {/* Title */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-500/25">
+              <BookOpen size={15} className="text-white" />
             </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold mb-2 leading-tight">Research Explorer</h1>
-            <p className="text-indigo-200 text-sm sm:text-lg max-w-xl leading-relaxed">
-              Discover, analyse, and synthesise cutting-edge research papers with AI-powered insights.
-            </p>
+            <div>
+              <h1 className="text-base font-bold text-slate-900 dark:text-white leading-none">Research Papers</h1>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {totalCount > 0 ? `${totalCount.toLocaleString()} papers` : 'arXiv cs.AI · cs.LG · cs.CL'}
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* ── Search Bar ──────────────────────────────────────────── */}
-        <div className="flex gap-2 sm:gap-3">
-          <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search papers by title, author, or keyword…"
-              className="w-full pl-9 sm:pl-12 pr-4 py-2.5 sm:py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
-            />
-            {searchQuery && (
-              <button
-                onClick={clearFilters}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <button
-            onClick={handleSearch}
-            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm shrink-0"
-          >
-            <Search className="w-4 h-4" />
-            <span className="hidden xs:inline">Search</span>
-          </button>
-        </div>
-
-        {/* ── Stats Bar ───────────────────────────────────────────── */}
-        <StatsBar papers={papers} />
-
-
-        {/* ── Filters ─────────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 space-y-4">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-            <BarChart2 className="w-4 h-4 text-indigo-500" /> Filters
-          </h3>
-
-          {/* Difficulty pills */}
-          <div>
-            <p className="text-xs text-gray-500 mb-2 font-medium">Difficulty</p>
-            <div className="flex flex-wrap gap-2">
-              {DIFFICULTIES.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => { setSelectedDifficulty(d); }}
-                  className={cn(
-                    'px-3 py-1.5 rounded-full text-xs font-semibold transition-all',
-                    selectedDifficulty === d
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-700',
-                  )}
-                >
-                  {d}
+          {/* Search — fills remaining space */}
+          <div className="flex gap-2 flex-1 min-w-0">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Search papers by title, author, keyword…"
+                className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              />
+              {searchQuery && (
+                <button onClick={clearFilters} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600">
+                  <X className="w-3.5 h-3.5" />
                 </button>
-              ))}
+              )}
             </div>
+            <button
+              onClick={handleSearch}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm shrink-0"
+            >
+              <Search className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Category + Sort */}
-          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-start sm:items-end">
-            {/* Category */}
-            <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
-              <p className="text-xs text-gray-500 mb-2 font-medium">Category</p>
-              <button
-                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                className="w-full px-3 sm:px-4 py-2 rounded-xl text-sm font-medium flex items-center justify-between bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-300 transition"
-              >
-                <span className="truncate mr-2">{selectedCategory ? CATEGORY_LABELS[selectedCategory] || selectedCategory : 'All Categories'}</span>
-                <ChevronDown className={cn('w-4 h-4 transition-transform shrink-0', showCategoryDropdown && 'rotate-180')} />
-              </button>
-              {showCategoryDropdown && (
-                <div className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-20 max-h-56 overflow-y-auto">
-                  <button
-                    onClick={() => { setSelectedCategory(''); setShowCategoryDropdown(false); }}
-                    className={cn('w-full text-left px-4 py-2.5 text-sm transition rounded-t-xl',
-                      !selectedCategory ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50')}
-                  >
-                    All Categories
+          {/* Inline quick stats */}
+          <div className="hidden lg:flex items-center gap-3 shrink-0 text-xs text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg">
+              <TrendingUp size={11} className="text-indigo-500" />
+              {papers.reduce((s, p) => s + (p.citation_count || 0), 0).toLocaleString()} citations
+            </span>
+            <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg">
+              <Layers size={11} className="text-violet-500" />
+              {Array.from(new Set(papers.flatMap(p => p.categories || []))).length} categories
+            </span>
+          </div>
+        </div>
+
+
+        {/* ── Compact filter strip ─────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto scrollbar-hide">
+          {/* Difficulty pills */}
+          {DIFFICULTIES.map((d) => (
+            <button
+              key={d}
+              onClick={() => setSelectedDifficulty(d)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap shrink-0',
+                selectedDifficulty === d
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-300',
+              )}
+            >
+              {d}
+            </button>
+          ))}
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 shrink-0" />
+
+          {/* Category dropdown */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => { setShowCategoryDropdown(!showCategoryDropdown); setShowSortDropdown(false); }}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap',
+                selectedCategory
+                  ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              )}
+            >
+              {selectedCategory ? CATEGORY_LABELS[selectedCategory] || selectedCategory : 'Category'}
+              <ChevronDown size={11} className={cn('transition-transform', showCategoryDropdown && 'rotate-180')} />
+            </button>
+            {showCategoryDropdown && (
+              <div className="absolute top-full mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[160px] max-h-56 overflow-y-auto">
+                <button onClick={() => { setSelectedCategory(''); setShowCategoryDropdown(false); }}
+                  className={cn('w-full text-left px-3 py-2 text-xs transition rounded-t-xl', !selectedCategory ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
+                  All Categories
+                </button>
+                {ARXIV_CATEGORIES.map((cat) => (
+                  <button key={cat} onClick={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
+                    className={cn('w-full text-left px-3 py-2 text-xs transition', selectedCategory === cat ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
+                    {CATEGORY_LABELS[cat] || cat}
                   </button>
-                  {ARXIV_CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
-                      className={cn('w-full text-left px-4 py-2.5 text-sm transition',
-                        selectedCategory === cat ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50')}
-                    >
-                      {CATEGORY_LABELS[cat] || cat}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Sort */}
-            <div className="relative w-full sm:w-auto">
-              <p className="text-xs text-gray-500 mb-2 font-medium">Sort by</p>
-              <button
-                onClick={() => setShowSortDropdown(!showSortDropdown)}
-                className="w-full sm:w-auto px-3 sm:px-4 py-2 rounded-xl text-sm font-medium flex items-center justify-between gap-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-indigo-300 transition"
-              >
-                {SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? "Sort"}
-                <ChevronDown className={cn('w-4 h-4 transition-transform shrink-0', showSortDropdown && 'rotate-180')} />
-              </button>
-              {showSortDropdown && (
-                <div className="absolute top-full mt-1 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-20 min-w-[140px]">
-                  {SORT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); }}
-                      className={cn('w-full text-left px-4 py-2.5 text-sm transition first:rounded-t-xl last:rounded-b-xl',
-                        sortBy === opt.value ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50')}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Clear filters */}
-            {(searchQuery || selectedDifficulty !== 'All' || selectedCategory || sortBy !== '-fetched_at') && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 transition border border-gray-200 dark:border-gray-600"
-              >
-                <X className="w-3.5 h-3.5" /> Clear all
-              </button>
+                ))}
+              </div>
             )}
           </div>
+
+          {/* Sort dropdown */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => { setShowSortDropdown(!showSortDropdown); setShowCategoryDropdown(false); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition whitespace-nowrap"
+            >
+              {SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Sort'}
+              <ChevronDown size={11} className={cn('transition-transform', showSortDropdown && 'rotate-180')} />
+            </button>
+            {showSortDropdown && (
+              <div className="absolute top-full mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[130px]">
+                {SORT_OPTIONS.map((opt) => (
+                  <button key={opt.value} onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); }}
+                    className={cn('w-full text-left px-3 py-2 text-xs transition first:rounded-t-xl last:rounded-b-xl',
+                      sortBy === opt.value ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700')}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Clear filters */}
+          {(searchQuery || selectedDifficulty !== 'All' || selectedCategory || sortBy !== '-fetched_at') && (
+            <button onClick={clearFilters}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-red-500 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 transition shrink-0">
+              <X size={11} /> Clear
+            </button>
+          )}
+
+          {/* Result count */}
+          {totalCount > 0 && (
+            <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 shrink-0">
+              {totalCount.toLocaleString()} results
+            </span>
+          )}
         </div>
 
         {/* ── Results header ───────────────────────────────────────── */}
