@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ForYouTab from './ForYouTab';
 import TrendingTab from './TrendingTab';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, Search, RefreshCw } from 'lucide-react';
+import { ChevronDown, Search, RefreshCw, Zap } from 'lucide-react';
 import { api } from '@/utils/api';
 import { ArticleCard } from '@/components/cards';
 import RecommendedSection from './RecommendedSection';
