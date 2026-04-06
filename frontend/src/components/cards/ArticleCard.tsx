@@ -84,11 +84,8 @@ export const ArticleCard = memo(function ArticleCard({ article }: ArticleCardPro
       {/* Subtle gradient accent top bar */}
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
 
-      {/* Top row: source badge + timestamp */}
-      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-        <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 max-w-[140px] truncate', getSourceColor(article.source?.source_type || article.source_type || 'blog'))}>
-          {article.source?.name || article.source_type || 'Blog'}
-        </span>
+      {/* Top row: timestamp only */}
+      <div className="flex items-center justify-start gap-2 mb-3">
         <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
           <Clock size={11} />
           {formatRelativeTime(article.scraped_at)}
@@ -153,39 +150,17 @@ export const ArticleCard = memo(function ArticleCard({ article }: ArticleCardPro
         </div>
       )}
 
-      {/* Bottom row */}
-      <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100 dark:border-slate-700/50 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0 shrink">
-          {/* Show source name instead of garbled HN/Reddit usernames.
-              A "real" author name has a space (e.g. "John Doe") or is > 20 chars meaningfully.
-              HN usernames are short random strings like "clfhhc" — we skip those. */}
-          {(() => {
-            const author = article.author?.trim();
-            const isRealAuthor = author && (author.includes(' ') || author.length > 15);
-            const displayName = isRealAuthor
-              ? author
-              : (article.source?.name || null);
-            return displayName ? (
-              <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[100px] sm:max-w-[140px]">
-                {displayName}
-              </span>
-            ) : null;
-          })()}
-          <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
-            {readingTime} min read
-          </span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={handleAskAI}
-            title="Ask AI about this article"
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-indigo-500 dark:text-indigo-400 hover:text-white hover:bg-indigo-600 transition-all border border-indigo-400/30 hover:border-indigo-500 whitespace-nowrap"
-          >
-            <MessageSquare size={11} />
-            <span className="hidden xs:inline">Ask AI</span>
-          </button>
-          <BookmarkButton contentType="article" objectId={article.id} size={15} />
-        </div>
+      {/* Bottom row: Ask AI button + BookmarkButton only */}
+      <div className="flex items-center justify-end gap-1 pt-2.5 border-t border-slate-100 dark:border-slate-700/50">
+        <button
+          onClick={handleAskAI}
+          title="Ask AI about this article"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-indigo-500 dark:text-indigo-400 hover:text-white hover:bg-indigo-600 transition-all border border-indigo-400/30 hover:border-indigo-500 whitespace-nowrap"
+        >
+          <MessageSquare size={11} />
+          <span className="hidden xs:inline">Ask AI</span>
+        </button>
+        <BookmarkButton contentType="article" objectId={article.id} size={15} />
       </div>
     </div>
   );

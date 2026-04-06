@@ -28,6 +28,7 @@ export default function FeedPage() {
   const [sortBy, setSortBy] = useState<'latest' | 'trending'>('latest');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState<'latest' | 'for-you' | 'trending'>('latest');
+  const [searchQuery, setSearchQuery] = useState('');
   // Banner shown when new articles arrive after a workflow run
   const [newArticleCount, setNewArticleCount] = useState(0);
   const [showNewBanner, setShowNewBanner] = useState(false);
@@ -47,6 +48,7 @@ export default function FeedPage() {
             page,
             page_size: 12,
             topic: topicParam,
+            search: searchQuery || undefined,
             ordering: sortBy === 'trending' ? '-trending_score' : '-published_at',
           },
         });
@@ -54,8 +56,8 @@ export default function FeedPage() {
         const items = Array.isArray(d?.data) ? d.data : Array.isArray(d?.results) ? d.results : Array.isArray(d) ? d : [];
         const total = d?.meta?.total ?? d?.count ?? items.length;
         return { items, total };
-      }, [topicParam, sortBy]),
-      deps: [topicParam, sortBy],
+      }, [topicParam, sortBy, searchQuery]),
+      deps: [topicParam, sortBy, searchQuery],
     });
 
   // Activate post-workflow polling mode for the given duration from now.
@@ -167,6 +169,18 @@ export default function FeedPage() {
                 {tab === 'for-you' ? 'For You ✨' : 'Latest'}
               </button>
             ))}
+          </div>
+
+          {/* Search input */}
+          <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <Search size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search articles…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none w-24 sm:w-32"
+            />
           </div>
 
           {/* Refresh button with text */}
