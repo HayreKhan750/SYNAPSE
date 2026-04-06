@@ -154,9 +154,9 @@ export default function FeedPage() {
             </div>
           </div>
 
-          {/* Tabs inline */}
+          {/* Tabs inline — Latest + For You only */}
           <div className="flex gap-1 overflow-x-auto scrollbar-hide flex-1">
-            {(['latest', 'for-you', 'trending'] as const).map((tab) => (
+            {(['latest', 'for-you'] as const).map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={cn(
                   'px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap shrink-0',
@@ -164,70 +164,36 @@ export default function FeedPage() {
                     ? 'bg-indigo-500 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 )}>
-                {tab === 'for-you' ? 'For You ✨' : tab === 'trending' ? '🔥 Trending' : 'Latest'}
+                {tab === 'for-you' ? 'For You ✨' : 'Latest'}
               </button>
             ))}
           </div>
 
-          {/* Refresh only */}
+          {/* Refresh button with text */}
           <button onClick={handleRefreshFeed} disabled={isFetchingNextPage}
-            className="shrink-0 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
             title="Refresh feed">
-            <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+            <RefreshCw size={11} className={isLoading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
       <div className="px-4 sm:px-6 pt-4 sm:pt-5 space-y-4 sm:space-y-5">
 
-      {/* ── Filters ───────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-        {/* Topic pills - scrollable */}
-        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-0.5 flex-1">
-          {TOPICS.map((topic) => (
-            <button
-              key={topic}
-              onClick={() => { setSelectedTopic(topic); }}
-              className={cn(
-                'px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0',
-                selectedTopic === topic
-                  ? 'bg-indigo-500 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              )}
-            >
-              {topic}
-            </button>
-          ))}
-        </div>
-
-        {/* Sort */}
-        <div className="relative flex-shrink-0">
-          <button
-            onClick={() => setShowSortDropdown(!showSortDropdown)}
-            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all whitespace-nowrap"
-          >
-            {sortBy === 'latest' ? '📅 Latest' : '🔥 Trending'}
-            <ChevronDown size={13} className={cn('transition-transform', showSortDropdown && 'rotate-180')} />
+      {/* ── Topic pills ───────────────────────────────────────────── */}
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
+        {TOPICS.map((topic) => (
+          <button key={topic} onClick={() => setSelectedTopic(topic)}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0',
+              selectedTopic === topic
+                ? 'bg-indigo-500 text-white shadow-sm'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            )}>
+            {topic}
           </button>
-          {showSortDropdown && (
-            <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 min-w-[120px] sm:min-w-[130px] overflow-hidden">
-              {SORT_OPTIONS.map((option) => (
-                <button
-                  key={option}
-                  onClick={() => { setSortBy(option.toLowerCase() as any); setShowSortDropdown(false); }}
-                  className={cn(
-                    'w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm transition-colors',
-                    sortBy === option.toLowerCase()
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                  )}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        ))}
       </div>
 
       {/* ── New articles banner ── */}
