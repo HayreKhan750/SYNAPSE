@@ -272,7 +272,7 @@ export default function GitHubPage() {
     queryFn:  () => api.get('/repos/trending-velocity/', {
       params: { limit: 500, ...(language !== 'All' ? { language } : {}) },
     }).then(r => r.data?.data as Repo[]),
-    staleTime: 2 * 60_000,
+    staleTime: 0, // always refetch fresh data
   });
 
   const repos       = trendingData ?? [];
