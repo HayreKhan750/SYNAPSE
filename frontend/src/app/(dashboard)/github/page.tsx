@@ -101,26 +101,22 @@ function VelocityBadge({ delta }: { delta: number }) {
 
 // ── RepoCard ───────────────────────────────────────────────────────────────────
 
-function RepoCard({ repo, rank }: { repo: Repo; rank: number }) {
+function RepoCard({ repo }: { repo: Repo }) {
   const langColor = LANG_COLORS[repo.language] || '#6366f1';
   return (
     <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-5 hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-700/40 transition-all flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-xs font-bold text-slate-300 dark:text-slate-600 w-5 flex-shrink-0">#{rank}</span>
-          <div className="min-w-0">
-            <a href={repo.url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-100 text-sm hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-              <GitBranch size={13} className="flex-shrink-0 text-slate-400" />
-              <span className="truncate">{repo.full_name}</span>
-              <ExternalLink size={11} className="flex-shrink-0 text-slate-300 dark:text-slate-600" />
-            </a>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
-              {repo.description || 'No description'}
-            </p>
-          </div>
+      <div className="flex items-start gap-2 min-w-0">
+        <div className="min-w-0 flex-1">
+          <a href={repo.url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-100 text-sm hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
+            <GitBranch size={13} className="flex-shrink-0 text-slate-400" />
+            <span className="truncate">{repo.full_name}</span>
+            <ExternalLink size={11} className="flex-shrink-0 text-slate-300 dark:text-slate-600" />
+          </a>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
+            {repo.description || 'No description'}
+          </p>
         </div>
-        <TrendBadge trend={repo.trend_class} />
       </div>
 
       {/* Sparkline */}
@@ -390,7 +386,7 @@ export default function GitHubPage() {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {displayRepos.map((repo, i) => <RepoCard key={repo.id} repo={repo} rank={i + 1} />)}
+                  {displayRepos.map((repo) => <RepoCard key={repo.id} repo={repo} />)}
                 </div>
                 {/* Infinite reveal sentinel */}
                 <div ref={setSentinel} className="flex justify-center py-8">
