@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { ScrollSentinel } from '@/components/ui/ScrollSentinel';
 import {
-  BookOpen, ChevronDown, Search, Sparkles, X,
+  BookOpen, ChevronDown, Search, Sparkles, Brain, X,
   FileText, Loader2, ExternalLink, Copy, CheckCircle2,
   TrendingUp, BarChart2, Layers, Zap, Download, Network,
   Clock, CheckCheck, AlertCircle, ChevronRight,
