@@ -73,8 +73,6 @@ const LANG_COLORS: Record<string, string> = {
   Go: '#06b6d4', JavaScript: '#eab308', Java: '#ef4444', 'C++': '#8b5cf6',
 };
 
-const ECOSYSTEM_LANGS = ['Python', 'TypeScript', 'Rust', 'Go', 'JavaScript'];
-
 // ── TrendBadge ─────────────────────────────────────────────────────────────────
 
 function TrendBadge({ trend }: { trend: keyof typeof TREND_CONFIG }) {
@@ -162,9 +160,9 @@ function RepoCard({ repo, rank }: { repo: Repo; rank: number }) {
   );
 }
 
-// ── Ecosystem card ─────────────────────────────────────────────────────────────
+// ── (EcosystemCard removed) ────────────────────────────────────────────────────
 
-function EcosystemCard({ language }: { language: string }) {
+function _unused_EcosystemCard({ language }: { language: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ['github-ecosystem', language],
     queryFn:  () => api.get(`/repos/ecosystem/${language}/`).then(r => r.data?.data as EcosystemData),
@@ -211,9 +209,9 @@ function EcosystemCard({ language }: { language: string }) {
   );
 }
 
-// ── EcosystemCompactStrip ──────────────────────────────────────────────────────
+// ── (EcosystemCompactStrip removed) ───────────────────────────────────────────
 
-function EcosystemCompactStrip({ languages }: { languages: string[] }) {
+function _unused_EcosystemCompactStrip({ languages }: { languages: string[] }) {
   const { data: allEcosystemData } = useQuery({
     queryKey: ['github-ecosystem-all', languages],
     queryFn: async () => {
@@ -363,16 +361,6 @@ export default function GitHubPage() {
         </div>
 
         <div className="px-6 mt-6 space-y-10">
-
-          {/* ── Ecosystem Health ── */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Globe size={18} className="text-cyan-500" />
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Ecosystem Health</h2>
-              <span className="text-xs text-slate-400 ml-1">language growth indicators</span>
-            </div>
-            <EcosystemCompactStrip languages={ECOSYSTEM_LANGS} />
-          </section>
 
           {/* ── Tech Radar ── */}
           {radarData.length > 0 && (
