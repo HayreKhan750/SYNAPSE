@@ -16,7 +16,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 # Compute project root directory
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app/apps/core -> /app/apps -> /app
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent  # /project/backend/apps/core -> /project/backend/apps -> /project/backend -> /project
 
 def _ensure_dedup_ttl() -> None:
     """Ensure all dedup Redis sets have a 24-hour TTL so they don't block scraping forever.
@@ -340,7 +340,7 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: li
 
 
 @shared_task(bind=True, max_retries=3)
-def scrape_twitter(self, query: Optional[str] = None, max_results: int = 100, user_id: Optional[str] = None, use_nitter: bool = True) -> Dict:
+def scrape_twitter(self, query: Optional[str] = None, queries: Optional[str] = None, max_results: int = 100, user_id: Optional[str] = None, use_nitter: bool = True) -> Dict:
     _ensure_dedup_ttl()
     """
     Scrape tweets using the X/Twitter spider.
@@ -348,6 +348,7 @@ def scrape_twitter(self, query: Optional[str] = None, max_results: int = 100, us
     Args:
         self: Celery task instance (for retry mechanism)
         query: Search query (optional, uses default tech queries if not provided)
+        queries: JSON string of multiple search queries (optional)
         max_results: Maximum number of tweets to scrape - default: 100
 
     Returns:
@@ -371,6 +372,8 @@ def scrape_twitter(self, query: Optional[str] = None, max_results: int = 100, us
         ]
         if query:
             cmd.extend(['-a', f'query={query}'])
+        if queries:
+            cmd.extend(['-a', f'queries={queries}'])
 
         result = subprocess.run(
             cmd,
