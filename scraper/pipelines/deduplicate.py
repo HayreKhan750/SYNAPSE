@@ -102,12 +102,15 @@ class DeduplicationPipeline:
             return item
 
         item_type = item.__class__.__name__
-        redis_key = self.REDIS_KEYS.get(item_type)
+        base_redis_key = self.REDIS_KEYS.get(item_type)
         dedup_field = self.DEDUP_FIELDS.get(item_type)
 
-        if not redis_key or not dedup_field:
+        if not base_redis_key or not dedup_field:
             # Unknown item type - pass through
             return item
+            
+        user_id = getattr(spider, 'user_id', None) or __import__("os").environ.get('SYNAPSE_USER_ID')
+        redis_key = f"{base_redis_key}:usr_{user_id}" if user_id else base_redis_key
 
         if dedup_field not in item:
             logger.warning(f"Missing dedup field '{dedup_field}' in {item_type}")
