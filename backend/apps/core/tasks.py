@@ -61,6 +61,7 @@ def _scrapy_env(user_id: Optional[str] = None) -> dict:
 
     # Inject per-user API keys from their stored preferences (override .env)
     if user_id:
+        env['SYNAPSE_USER_ID'] = str(user_id)
         try:
             import django  # noqa: PLC0415
             from apps.users.models import User  # noqa: PLC0415

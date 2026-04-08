@@ -61,12 +61,30 @@ class DatabasePipeline:
             # Setup Django
             django.setup()
             self.django_setup_complete = True
+            self._user_cache = {}  # cache user lookups per spider run
             
             logger.info("Django environment initialized")
         except Exception as e:
             logger.error(f"Failed to initialize Django: {e}")
             self.django_setup_complete = False
             raise
+
+    def _resolve_user(self, spider):
+        """Resolve the Django User instance from the spider's user_id setting."""
+        user_id = getattr(spider, 'user_id', None) or os.environ.get('SYNAPSE_USER_ID')
+        if not user_id:
+            return None
+        if user_id in self._user_cache:
+            return self._user_cache[user_id]
+        try:
+            from apps.users.models import User
+            user = User.objects.get(id=user_id)
+            self._user_cache[user_id] = user
+            return user
+        except Exception:
+            logger.debug("Could not resolve user_id=%s", user_id)
+            self._user_cache[user_id] = None
+            return None
 
     def close_spider(self, spider):
         """
@@ -162,9 +180,7 @@ class DatabasePipeline:
             published_at = self._parse_datetime(item["published_at"])
 
         # Update or create article
-        article, created = Article.objects.update_or_create(
-            url_hash=url_hash,
-            defaults={
+        defaults = {
                 "url": url,
                 "title": item.get("title", ""),
                 "content": item.get("content", ""),
@@ -179,7 +195,13 @@ class DatabasePipeline:
                 "trending_score": item.get("trending_score") or 0.0,
                 "view_count": item.get("view_count", 0),
                 "metadata": item.get("metadata", {}),
-            },
+        }
+        user = self._resolve_user(spider)
+        if user:
+            defaults["user"] = user
+        article, created = Article.objects.update_or_create(
+            url_hash=url_hash,
+            defaults=defaults,
         )
 
         # Phase 2.2 — Auto-trigger NLP pipeline (incl. BART summarization)
@@ -324,9 +346,9 @@ class DatabasePipeline:
         if item.get("posted_at"):
             posted_at = self._parse_datetime(item["posted_at"])
 
-        Tweet.objects.update_or_create(
-            tweet_id=item.get("tweet_id"),
-            defaults={
+        from django.utils import timezone
+
+        defaults = {
                 "text": item.get("text", ""),
                 "author_username": item.get("author_username", ""),
                 "author_display_name": item.get("author_display_name", ""),
@@ -340,6 +362,7 @@ class DatabasePipeline:
                 "view_count": item.get("view_count", 0),
                 "bookmark_count": item.get("bookmark_count", 0),
                 "posted_at": posted_at,
+                "scraped_at": timezone.now(),
                 "hashtags": item.get("hashtags", []),
                 "mentions": item.get("mentions", []),
                 "media_urls": item.get("media_urls", []),
@@ -355,7 +378,13 @@ class DatabasePipeline:
                 "topic": item.get("topic", ""),
                 "trending_score": item.get("trending_score") or 0.0,
                 "metadata": item.get("metadata", {}),
-            },
+        }
+        user = self._resolve_user(spider)
+        if user:
+            defaults["user"] = user
+        Tweet.objects.update_or_create(
+            tweet_id=item.get("tweet_id"),
+            defaults=defaults,
         )
 
     @staticmethod

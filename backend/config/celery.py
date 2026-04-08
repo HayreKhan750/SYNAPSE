@@ -160,10 +160,18 @@ CELERY_BEAT_SCHEDULE = {
     # (Frontend uses polling via React Query — no WebSocket needed for MVP)
 
     # Phase 2.4 / 9 — Technology Trend Analysis
-    # Runs daily at midnight UTC to populate TechnologyTrend records
+    # Runs daily at 00:05 UTC — uses days_back=30 so it always finds data
     'analyze-trends-daily': {
         'task': 'apps.trends.tasks.analyze_trends_task',
         'schedule': crontab(hour=0, minute=5),  # 00:05 UTC daily
+        'kwargs': {'days_back': 30},
+        'options': {'queue': 'default'},
+    },
+    # Also re-run trends at noon so fresh scraped data is reflected same day
+    'analyze-trends-midday': {
+        'task': 'apps.trends.tasks.analyze_trends_task',
+        'schedule': crontab(hour=12, minute=5),  # 12:05 UTC daily
+        'kwargs': {'days_back': 30},
         'options': {'queue': 'default'},
     },
 }

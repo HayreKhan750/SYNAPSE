@@ -9,7 +9,7 @@ import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  TrendingUp, Loader2, RefreshCw, BarChart2, Zap,
+  TrendingUp, Loader2, BarChart2, Zap,
   Cpu, Globe, GitBranch, Brain, Box, ChevronUp, ChevronDown,
   Minus, Activity, Flame, Award, Layers, LineChart as LineChartIcon,
 } from 'lucide-react'
@@ -265,7 +265,7 @@ export default function TrendsPage() {
   const [sortBy, setSortBy] = useState<'score' | 'mentions'>('score')
   const [isTriggering, setIsTriggering] = useState(false)
 
-  const { data: trends = [], isLoading, isError, refetch, isFetching } = useQuery<TechnologyTrend[]>({
+  const { data: trends = [], isLoading, isError, refetch } = useQuery<TechnologyTrend[]>({
     queryKey: ['trends'],
     queryFn: fetchTrends,
     staleTime: 60_000,
@@ -400,14 +400,6 @@ export default function TrendsPage() {
                   ? <><Loader2 size={13} className="animate-spin" /> Analysing…</>
                   : <><Zap size={13} /> Run Analysis</>
                 }
-              </button>
-              <button
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm rounded-xl transition-colors whitespace-nowrap"
-              >
-                <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
-                <span className="hidden xs:inline">Refresh</span>
               </button>
             </div>
           </div>

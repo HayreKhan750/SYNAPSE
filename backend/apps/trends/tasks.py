@@ -55,8 +55,8 @@ def _score_technology(tech: str, since: date) -> Dict:
     """
     Compute mention count and trend score for a single technology.
 
-    Searches article titles/keywords/topics and repository names/descriptions/topics
-    to count how many times the technology appeared in the given period.
+    Searches article titles/keywords/topics, repository names/descriptions/topics,
+    research papers (arXiv), YouTube videos, and tweets.
     """
     from apps.articles.models import Article
     from apps.repositories.models import Repository
@@ -73,17 +73,37 @@ def _score_technology(tech: str, since: date) -> Dict:
         | Q(topics__icontains=tech)
     )
 
-    since_dt = timezone.make_aware(
-        timezone.datetime.combine(since, timezone.datetime.min.time())
-    )
-
     article_qs = Article.objects.filter(tech_q_article, scraped_at__date__gte=since)
     article_count = article_qs.count()
     avg_sentiment = article_qs.aggregate(avg=Avg("sentiment_score"))["avg"] or 0.0
 
     repo_count = Repository.objects.filter(tech_q_repo, scraped_at__date__gte=since).count()
 
-    # Also count tweet mentions for richer signal
+    # Count arXiv paper mentions — high-signal academic source
+    try:
+        from apps.papers.models import ResearchPaper  # noqa: PLC0415
+        tech_q_paper = (
+            Q(title__icontains=tech)
+            | Q(abstract__icontains=tech)
+            | Q(categories__icontains=tech)
+        )
+        paper_count = ResearchPaper.objects.filter(tech_q_paper, fetched_at__date__gte=since).count()
+    except Exception:
+        paper_count = 0
+
+    # Count YouTube video mentions — good signal for tutorials/adoption
+    try:
+        from apps.videos.models import Video  # noqa: PLC0415
+        tech_q_video = (
+            Q(title__icontains=tech)
+            | Q(description__icontains=tech)
+            | Q(topics__icontains=tech)
+        )
+        video_count = Video.objects.filter(tech_q_video, fetched_at__date__gte=since).count()
+    except Exception:
+        video_count = 0
+
+    # Count tweet mentions for richer signal
     try:
         from apps.tweets.models import Tweet  # noqa: PLC0415
         tech_q_tweet = (
@@ -95,27 +115,33 @@ def _score_technology(tech: str, since: date) -> Dict:
     except Exception:
         tweet_count = 0
 
-    mention_count = article_count + repo_count + tweet_count
+    mention_count = article_count + repo_count + paper_count + video_count + tweet_count
     trend_score = (
         article_count * _ARTICLE_WEIGHT
         + repo_count * _REPO_WEIGHT
-        + tweet_count * 0.5  # tweets are lighter signal but high volume
+        + paper_count * 3.0       # papers are very high signal (academic adoption)
+        + video_count * 1.5       # videos indicate tutorials/growing adoption
+        + tweet_count * 0.5       # tweets are lighter signal but high volume
         + (_SENTIMENT_BONUS if avg_sentiment > 0.1 else 0.0)
     )
 
     return {
         "mention_count": mention_count,
         "trend_score": round(trend_score, 2),
-        "sources": _build_source_list(article_count, repo_count, tweet_count),
+        "sources": _build_source_list(article_count, repo_count, tweet_count, paper_count, video_count),
     }
 
 
-def _build_source_list(article_count: int, repo_count: int, tweet_count: int = 0) -> List[str]:
+def _build_source_list(article_count: int, repo_count: int, tweet_count: int = 0, paper_count: int = 0, video_count: int = 0) -> List[str]:
     sources = []
     if article_count > 0:
         sources.append("articles")
     if repo_count > 0:
         sources.append("repositories")
+    if paper_count > 0:
+        sources.append("papers")
+    if video_count > 0:
+        sources.append("videos")
     if tweet_count > 0:
         sources.append("tweets")
     return sources
@@ -149,7 +175,7 @@ def _infer_category(tech: str) -> str:
 )
 def analyze_trends_task(
     technologies: List[str] | None = None,
-    days_back: int = 1,
+    days_back: int = 30,
     target_date: str | None = None,
 ) -> Dict:
     """
@@ -176,7 +202,7 @@ def analyze_trends_task(
     since = trend_date - timedelta(days=days_back - 1)
 
     logger.info(
-        "analyze_trends_task: scoring %d technologies for date=%s (since=%s)",
+        "analyze_trends_task: scoring %s technologies for date=%s (since=%s)",
         len(techs), trend_date, since,
     )
 
@@ -248,7 +274,7 @@ def _emit_trending_spikes(trend_date, days_back: int) -> None:
 
         for trend in top:
             logger.info(
-                "Emitting trending_spike for '%s' (score=%.1f)",
+                "Emitting trending_spike for '%s' (score=%s)",
                 trend.technology_name, trend.trend_score,
             )
             trending_spike_signal.send(

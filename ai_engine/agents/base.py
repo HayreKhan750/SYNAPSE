@@ -223,8 +223,19 @@ class SynapseAgent:
 
         try:
             config = {"recursion_limit": self.max_iterations * 2 + 2}
+
+            # Augment the task prompt with extra context if provided
+            augmented_task = task
+            if extra_context:
+                ctx_lines = [f"[{k}]: {v}" for k, v in extra_context.items() if v]
+                if ctx_lines:
+                    ctx_block = "\n".join(ctx_lines)
+                    augmented_task = (
+                        f"=== USER CONTEXT ===\n{ctx_block}\n=== END CONTEXT ===\n\n{task}"
+                    )
+
             state = self.graph.invoke(
-                {"messages": [HumanMessage(content=task)]},
+                {"messages": [HumanMessage(content=augmented_task)]},
                 config=config,
             )
             messages = state.get("messages", [])

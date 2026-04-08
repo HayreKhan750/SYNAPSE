@@ -83,6 +83,114 @@ def _extract_file_meta(answer: str, task_type: str) -> dict:
     return meta
 
 
+def _build_user_context(user) -> dict:
+    """
+    Gather comprehensive user-specific app context so the AI agent can
+    understand the user's full environment and provide informed answers.
+
+    Returns a dict whose keys are context section names and values are
+    concise string summaries. Only non-empty sections are included.
+    """
+    ctx: dict = {}
+
+    try:
+        # ── User profile ──────────────────────────────────────────
+        name = getattr(user, 'first_name', '') or user.email
+        ctx["User"] = f"{name} (plan: {getattr(user, 'role', 'free')})"
+
+        prefs = getattr(user, 'preferences', {}) or {}
+        interests = prefs.get('interests') or prefs.get('topics') or []
+        if interests:
+            ctx["Interests"] = ", ".join(interests[:10])
+
+        # ── Onboarding preferences ────────────────────────────────
+        try:
+            from apps.users.models import OnboardingPreferences
+            op = OnboardingPreferences.objects.filter(user=user, completed=True).first()
+            if op:
+                if op.interests:
+                    ctx["Onboarding Interests"] = ", ".join(op.interests[:10])
+                if getattr(op, 'experience_level', None):
+                    ctx["Experience Level"] = op.experience_level
+        except Exception:
+            pass
+
+        # ── Active automations ────────────────────────────────────
+        try:
+            from apps.automation.models import Workflow
+            active_wfs = list(
+                Workflow.objects.filter(user=user, is_active=True)
+                .values_list('name', flat=True)[:10]
+            )
+            if active_wfs:
+                ctx["Active Automations"] = ", ".join(active_wfs)
+        except Exception:
+            pass
+
+        # ── Feed statistics ───────────────────────────────────────
+        try:
+            from apps.tweets.models import Tweet
+            from apps.articles.models import Article
+            from apps.repositories.models import Repository
+            from apps.papers.models import ResearchPaper
+            from django.db.models import Q
+
+            tweet_count = Tweet.objects.filter(Q(user=user) | Q(user__isnull=True)).count()
+            article_count = Article.objects.filter(Q(user=user) | Q(user__isnull=True)).count()
+            repo_count = Repository.objects.filter(Q(user=user) | Q(user__isnull=True)).count()
+            paper_count = ResearchPaper.objects.filter(Q(user=user) | Q(user__isnull=True)).count()
+            ctx["Feed Data"] = (
+                f"{tweet_count} tweets, {article_count} articles, "
+                f"{repo_count} repositories, {paper_count} papers"
+            )
+        except Exception:
+            pass
+
+        # ── Configured integrations ───────────────────────────────
+        integrations = []
+        if prefs.get('openrouter_api_key'):
+            integrations.append("OpenRouter")
+        if prefs.get('gemini_api_key'):
+            integrations.append("Gemini")
+        if prefs.get('x_api_key'):
+            integrations.append("X/Twitter")
+        if prefs.get('github_token'):
+            integrations.append("GitHub")
+        if integrations:
+            ctx["Configured Integrations"] = ", ".join(integrations)
+        else:
+            ctx["Configured Integrations"] = "None — suggest user to configure in Settings → AI Engine"
+
+        # ── Subscription / billing ────────────────────────────────
+        try:
+            from apps.billing.models import Subscription
+            sub = Subscription.objects.filter(user=user, status='active').first()
+            if sub:
+                ctx["Subscription"] = f"{sub.plan} (active, renews {sub.current_period_end})"
+            else:
+                ctx["Subscription"] = "Free tier"
+        except Exception:
+            ctx["Subscription"] = "Free tier"
+
+        # ── Recent bookmarks ──────────────────────────────────────
+        try:
+            from apps.core.models import UserActivity
+            bookmarks = list(
+                UserActivity.objects.filter(user=user, interaction_type='bookmark')
+                .order_by('-created_at')
+                .values_list('object_id', flat=True)[:5]
+            )
+            if bookmarks:
+                ctx["Recent Bookmarks"] = f"{len(bookmarks)} items bookmarked"
+        except Exception:
+            pass
+
+    except Exception as exc:
+        logger.debug("_build_user_context failed: %s", exc)
+
+    return ctx
+
+
 @shared_task(
     bind=True,
     name="apps.agents.tasks.execute_agent_task",
@@ -207,9 +315,14 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
             openrouter_api_key=openrouter_api_key,
             gemini_api_key=gemini_api_key,
         )
+
+        # Build rich user context so the AI understands the whole app
+        user_context = _build_user_context(task_obj.user)
+
         result = executor.run(
             task=augmented_prompt,
             tool_names=tool_names,
+            extra_context=user_context,
         )
 
         # ── Save result ───────────────────────────────────────────────

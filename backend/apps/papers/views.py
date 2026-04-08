@@ -35,7 +35,14 @@ class PaperListView(generics.ListAPIView):
     search_fields      = ['title', 'abstract', 'authors', 'categories']
     ordering_fields    = ['published_date', 'citation_count', 'fetched_at']
     ordering           = ['-fetched_at']
-    queryset           = ResearchPaper.objects.all()
+
+    def get_queryset(self):
+        from django.db.models import Q
+        qs = ResearchPaper.objects.all()
+        # ── Personalization: scope to authenticated user's scraped data ──
+        if self.request.user and self.request.user.is_authenticated:
+            qs = qs.filter(Q(user=self.request.user) | Q(user__isnull=True))
+        return qs
 
 class PaperDetailView(generics.RetrieveAPIView):
     queryset           = ResearchPaper.objects.all()

@@ -1,11 +1,14 @@
 import uuid
 from django.db import models
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
+from django.utils import timezone
 from pgvector.django import VectorField
 
 
 class Tweet(models.Model):
     id                    = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user                  = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name='scraped_tweets')
     tweet_id              = models.CharField(max_length=50, unique=True, db_index=True)
     text                  = models.TextField()
     author_username       = models.CharField(max_length=200, db_index=True)
@@ -20,7 +23,7 @@ class Tweet(models.Model):
     view_count            = models.IntegerField(default=0)
     bookmark_count        = models.IntegerField(default=0)
     posted_at             = models.DateTimeField(null=True, blank=True, db_index=True)
-    scraped_at            = models.DateTimeField(auto_now_add=True)
+    scraped_at            = models.DateTimeField(default=timezone.now, db_index=True)
     hashtags              = ArrayField(models.CharField(max_length=100), default=list, blank=True)
     mentions              = ArrayField(models.CharField(max_length=200), default=list, blank=True)
     media_urls            = ArrayField(models.URLField(max_length=1000), default=list, blank=True)

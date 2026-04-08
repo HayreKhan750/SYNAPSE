@@ -281,7 +281,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
@@ -664,15 +664,12 @@ export default function ChatPage() {
                     <p className="text-[10px] text-slate-500 dark:text-slate-500">{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
-                {/* Close button with tooltip */}
+                {/* Close button */}
                 <button
                   onClick={() => setSidebarOpen(false)}
-                  className="group/close relative p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/8 transition-all"
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/8 transition-all"
                 >
                   <ChevronRight size={15} className="rotate-180" />
-                  <span className="pointer-events-none absolute right-0 top-full mt-1.5 bg-slate-800 dark:bg-slate-800 text-white text-[10px] font-semibold px-2 py-1 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/close:opacity-100 transition-opacity z-50 shadow-lg">
-                    Collapse sidebar
-                  </span>
                 </button>
               </div>
 
@@ -779,28 +776,21 @@ export default function ChatPage() {
 
         {/* Chat header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/50 flex-shrink-0">
-          {/* Sidebar toggle with premium tooltip */}
-          <div className="group/toggle relative">
-            <button
-              onClick={() => setSidebarOpen((v) => !v)}
-              className={cn(
-                'relative p-2 rounded-xl transition-all duration-200',
-                sidebarOpen
-                  ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-600/15 border border-indigo-500/25'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-300 dark:hover:border-slate-700'
-              )}
-            >
-              <ChevronRight
-                size={16}
-                className={cn('transition-transform duration-200', sidebarOpen && 'rotate-180')}
-              />
-            </button>
-            {/* Premium tooltip */}
-            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-slate-800 dark:bg-slate-800 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover/toggle:opacity-100 transition-opacity z-50 shadow-xl">
-              {sidebarOpen ? 'Collapse history' : 'Open history'}
-              <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-800 dark:bg-slate-800 border-l border-t border-slate-700 rotate-45" />
-            </div>
-          </div>
+          {/* Sidebar toggle */}
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            className={cn(
+              'relative p-2 rounded-xl transition-all duration-200',
+              sidebarOpen
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-600/15 border border-indigo-500/25'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-300 dark:hover:border-slate-700'
+            )}
+          >
+            <ChevronRight
+              size={16}
+              className={cn('transition-transform duration-200', sidebarOpen && 'rotate-180')}
+            />
+          </button>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
               <Bot size={14} className="text-slate-900 dark:text-white" />

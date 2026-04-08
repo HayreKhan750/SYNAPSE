@@ -25,7 +25,14 @@ class RepositoryListView(generics.ListAPIView):
     search_fields      = ['name', 'description', 'owner', 'topics']
     ordering_fields    = ['stars', 'forks', 'stars_today', 'scraped_at']
     ordering           = ['-stars']
-    queryset           = Repository.objects.all()
+
+    def get_queryset(self):
+        from django.db.models import Q
+        qs = Repository.objects.all()
+        # ── Personalization: scope to authenticated user's scraped data ──
+        if self.request.user and self.request.user.is_authenticated:
+            qs = qs.filter(Q(user=self.request.user) | Q(user__isnull=True))
+        return qs
 
 class RepositoryDetailView(generics.RetrieveAPIView):
     queryset           = Repository.objects.all()

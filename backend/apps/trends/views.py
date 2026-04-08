@@ -39,8 +39,32 @@ def trend_list(request):
     if category:
         qs = qs.filter(category__icontains=category)
 
-    qs = qs.order_by("-trend_score")[:limit]
-    serializer = TechnologyTrendSerializer(qs, many=True)
+    # Deduplicate: one row per technology — pick the record with the highest trend_score.
+    # Use a subquery to find the pk of the best-scored record per technology.
+    from django.db.models import Max, OuterRef, Subquery
+    best_pk_subquery = (
+        TechnologyTrend.objects
+        .filter(technology_name=OuterRef('technology_name'), date__gte=since)
+        .order_by('-trend_score')
+        .values('pk')[:1]
+    )
+    if category:
+        best_pk_subquery = (
+            TechnologyTrend.objects
+            .filter(technology_name=OuterRef('technology_name'), date__gte=since, category__icontains=category)
+            .order_by('-trend_score')
+            .values('pk')[:1]
+        )
+
+    top_per_tech = (
+        qs.values('technology_name')
+        .annotate(max_score=Max('trend_score'), best_pk=Subquery(best_pk_subquery))
+        .order_by('-max_score')[:limit]
+    )
+    best_pks = [row['best_pk'] for row in top_per_tech if row['best_pk']]
+    results = list(TechnologyTrend.objects.filter(pk__in=best_pks).order_by('-trend_score'))
+
+    serializer = TechnologyTrendSerializer(results, many=True)
     return Response({
         "success": True,
         "count": len(serializer.data),

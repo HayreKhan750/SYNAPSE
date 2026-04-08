@@ -31,13 +31,13 @@ const TOPICS = [
 const SORT_OPTIONS = [
   { label: 'Most Viewed', value: '-view_count' },
   { label: 'Most Liked', value: '-like_count' },
-  { label: 'Newest', value: '-published_at' },
+  { label: 'Newest', value: '-fetched_at' },
   { label: 'Longest', value: '-duration_seconds' },
 ]
 
 export default function VideosPage() {
   const [selectedTopic, setSelectedTopic] = useState('All')
-  const [sortBy, setSortBy] = useState('-published_at')
+  const [sortBy, setSortBy] = useState('-fetched_at')
   const [playingVideo, setPlayingVideo] = useState<Video | null>(null)
   const PAGE_SIZE = 20
 

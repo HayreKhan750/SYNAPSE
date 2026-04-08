@@ -120,9 +120,9 @@ def build_llm(
 
     # ── Google Gemini (explicit) ──────────────────────────────────────────────
     if provider == "gemini":
-        key = gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+        key = gemini_api_key
         if not key:
-            raise ValueError("GEMINI_API_KEY is required for provider='gemini'.")
+            raise ValueError("API key not configured for standard agents. Please add a Gemini key in Settings → AI Engine.")
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI  # type: ignore
         except ImportError as exc:
@@ -142,7 +142,7 @@ def build_llm(
         )
 
     # ── OpenRouter / OpenAI (explicit or auto-fallback) ───────────────────────
-    or_key   = openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+    or_key   = openrouter_api_key
     or_base  = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     or_model = model or os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
 
@@ -162,7 +162,7 @@ def build_llm(
         )
 
     # ── Gemini auto-fallback ──────────────────────────────────────────────────
-    gem_key = gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+    gem_key = gemini_api_key
     if gem_key:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI  # type: ignore
@@ -180,6 +180,5 @@ def build_llm(
             pass
 
     raise ValueError(
-        "No LLM configured. Set one of: OPENROUTER_API_KEY, ANTHROPIC_API_KEY, "
-        "GEMINI_API_KEY, or use provider='ollama' with OLLAMA_BASE_URL."
+        "API key not configured for standard agents. Please add one in Settings → AI Engine."
     )

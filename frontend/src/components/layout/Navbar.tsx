@@ -4,7 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2, CreditCard, Zap, Command } from 'lucide-react'
+import { Search, Sun, Moon, Bell, Menu, LogOut, Settings, User, Check, Trash2, CreditCard, Zap, Command, MessageSquare } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/utils/api'
@@ -44,7 +44,9 @@ function PlanBadge() {
 
 interface NavbarProps {
   onMobileMenuClick: () => void
-  onSearchClick?: () => void   // TASK-402-4: trigger command palette
+  onSearchClick?: () => void      // TASK-402-4: trigger command palette
+  onAIPanelToggle?: () => void    // TASK-403-2: toggle AI assistant panel
+  aiPanelOpen?: boolean
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -280,7 +282,7 @@ const NotificationDropdown = React.memo(function NotificationDropdown({ onClose 
 
 // ── Main Navbar ───────────────────────────────────────────────────────────────
 
-export const Navbar = React.memo(function Navbar({ onMobileMenuClick, onSearchClick }: NavbarProps) {
+export const Navbar = React.memo(function Navbar({ onMobileMenuClick, onSearchClick, onAIPanelToggle, aiPanelOpen }: NavbarProps) {
   // Real-time WebSocket notifications — connects once per session
   useNotificationSocket()
 
@@ -408,6 +410,21 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick, onSearchCl
 
           {/* Organization Switcher — TASK-006-F1 */}
           <OrgSwitcher />
+
+          {/* AI Assistant panel toggle — TASK-403-2 (xl screens only) */}
+          {onAIPanelToggle && (
+            <button
+              onClick={onAIPanelToggle}
+              className={`hidden xl:flex p-2 rounded-lg transition-colors ${
+                aiPanelOpen
+                  ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title={aiPanelOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
+            >
+              <MessageSquare size={20} />
+            </button>
+          )}
 
           {/* Dark mode toggle */}
           <button

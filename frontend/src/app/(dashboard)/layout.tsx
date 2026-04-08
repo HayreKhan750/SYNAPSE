@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { Sidebar, MobileBottomNav } from '@/components/layout/Sidebar'
 import { Navbar } from '@/components/layout/Navbar'
+import { AIAssistantPanel } from '@/components/layout/AIAssistantPanel'
 import { useAuthStore } from '@/store/authStore'
 import { OrganizationProvider } from '@/contexts/OrganizationContext'
 
@@ -26,6 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen]   = useState(false)
   const [cmdOpen,    setCmdOpen]      = useState(false)
+  const [aiPanelOpen, setAiPanelOpen] = useState(false)
   // Only show the loading screen once — on the very first hydration.
   // After that, _appMounted stays true across client-side navigations.
   const [isMounted, setIsMounted] = useState(_appMounted)
@@ -108,11 +110,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Navbar
             onMobileMenuClick={() => setMobileOpen(true)}
             onSearchClick={() => setCmdOpen(true)}
+            onAIPanelToggle={pathname !== '/chat' ? () => setAiPanelOpen(prev => !prev) : undefined}
+            aiPanelOpen={aiPanelOpen}
           />
 
-          <main id="main-content" className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
-            {children}
-          </main>
+          {/* 3-panel: main content + right AI assistant */}
+          <div className="flex-1 flex overflow-hidden min-h-0">
+            <main id="main-content" className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
+              {children}
+            </main>
+
+            {/* Right panel — AI Assistant (xl screens only, hidden on /chat page) */}
+            {pathname !== '/chat' && (
+              <AIAssistantPanel
+                isOpen={aiPanelOpen}
+                onToggle={() => setAiPanelOpen(prev => !prev)}
+              />
+            )}
+          </div>
         </div>
       </div>
 

@@ -22,6 +22,9 @@ class TweetListView(ListAPIView):
 
     def get_queryset(self):
         qs = Tweet.objects.all()
+        # ── Personalization: scope to authenticated user's scraped data ──
+        if self.request.user and self.request.user.is_authenticated:
+            qs = qs.filter(Q(user=self.request.user) | Q(user__isnull=True))
         tag = self.request.GET.get('tag')
         if tag:
             qs = qs.filter(hashtags__icontains=tag)
