@@ -45,7 +45,11 @@ class TrendingRepositoryListView(generics.ListAPIView):
     serializer_class   = RepositorySerializer
     permission_classes = [AllowAny]
     pagination_class   = StandardPagination
-    queryset           = Repository.objects.filter(is_trending=True).order_by('-stars_today')
+    def get_queryset(self):
+        qs = Repository.objects.filter(is_trending=True).order_by('-stars_today')
+        if self.request.user and self.request.user.is_authenticated:
+            qs = qs.filter(user=self.request.user)
+        return qs
 
 
 # ── TASK-602-B3: GitHub Intelligence API endpoints ────────────────────────────
@@ -67,6 +71,8 @@ class GitHubTrendingView(APIView):
         limit    = min(int(request.query_params.get('limit', 200)), 500)
 
         qs = Repository.objects.all().order_by('-velocity_7d', '-stars')
+        if request.user and request.user.is_authenticated:
+            qs = qs.filter(user=request.user)
         if language:
             qs = qs.filter(language__iexact=language)
         if topic:
@@ -104,6 +110,8 @@ class GitHubEcosystemView(APIView):
 
     def get(self, request, language: str):
         qs = Repository.objects.filter(language__iexact=language)
+        if request.user and request.user.is_authenticated:
+            qs = qs.filter(user=request.user)
         total = qs.count()
         if total == 0:
             return Response({'success': False, 'error': f'No repos found for {language}'}, status=404)
