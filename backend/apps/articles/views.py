@@ -27,10 +27,9 @@ class ArticleListView(ListAPIView):
 
     def get_queryset(self):
         qs = Article.objects.select_related('source').all()
-        # ── Personalization: scope to authenticated user's scraped data ──
+        # ── Personalization: strictly scope to authenticated user's scraped data ──
         if self.request.user and self.request.user.is_authenticated:
-            from django.db.models import Q as _Q
-            qs = qs.filter(_Q(user=self.request.user) | _Q(user__isnull=True))
+            qs = qs.filter(user=self.request.user)
         # Tag filtering
         tag = self.request.GET.get('tag')
         if tag:
