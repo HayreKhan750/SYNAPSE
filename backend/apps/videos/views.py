@@ -14,8 +14,12 @@ class VideoListView(generics.ListAPIView):
     search_fields      = ['title', 'description', 'channel_name', 'topics']
     ordering_fields    = ['published_at', 'view_count', 'like_count', 'fetched_at']
     ordering           = ['-fetched_at']
-    queryset           = Video.objects.all()
-
+    def get_queryset(self):
+        qs = Video.objects.all()
+        # ── Personalization: strictly scope to authenticated user's scraped data ──
+        if self.request.user and self.request.user.is_authenticated:
+            qs = qs.filter(user=self.request.user)
+        return qs
 class VideoDetailView(generics.RetrieveAPIView):
     queryset           = Video.objects.all()
     serializer_class   = VideoDetailSerializer

@@ -5,6 +5,7 @@ from pgvector.django import VectorField
 
 
 class Video(models.Model):
+    user          = models.ForeignKey('users.User', on_delete=models.CASCADE, null=True, blank=True, related_name='scraped_videos')
     id            = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     youtube_id    = models.CharField(max_length=50, unique=True)
     title         = models.TextField()

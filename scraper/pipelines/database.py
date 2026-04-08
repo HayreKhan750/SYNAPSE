@@ -312,24 +312,30 @@ class DatabasePipeline:
         if item.get("published_at"):
             published_at = self._parse_datetime(item["published_at"])
 
+        defaults = {
+            "title": item.get("title", ""),
+            "description": item.get("description", ""),
+            "summary": item.get("summary", ""),
+            "channel_name": item.get("channel_name", ""),
+            "channel_id": item.get("channel_id", ""),
+            "url": item.get("url", ""),
+            "thumbnail_url": item.get("thumbnail_url", ""),
+            "duration_seconds": item.get("duration_seconds", 0),
+            "view_count": item.get("view_count", 0),
+            "like_count": item.get("like_count", 0),
+            "published_at": published_at,
+            "transcript": item.get("transcript", ""),
+            "topics": item.get("topics", []),
+        }
+
+        user = self._resolve_user(spider)
+        if user:
+            defaults["user"] = user
+
         # Update or create video
         Video.objects.update_or_create(
             youtube_id=item.get("youtube_id"),
-            defaults={
-                "title": item.get("title", ""),
-                "description": item.get("description", ""),
-                "summary": item.get("summary", ""),
-                "channel_name": item.get("channel_name", ""),
-                "channel_id": item.get("channel_id", ""),
-                "url": item.get("url", ""),
-                "thumbnail_url": item.get("thumbnail_url", ""),
-                "duration_seconds": item.get("duration_seconds", 0),
-                "view_count": item.get("view_count", 0),
-                "like_count": item.get("like_count", 0),
-                "published_at": published_at,
-                "transcript": item.get("transcript", ""),
-                "topics": item.get("topics", []),
-            },
+            defaults=defaults,
         )
 
     def _save_tweet(self, item, spider):
