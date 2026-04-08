@@ -88,7 +88,7 @@ def _scrapy_env(user_id: Optional[str] = None) -> dict:
 
 
 @shared_task(bind=True, max_retries=3)
-def scrape_hackernews(self, story_type: str = 'top', limit: int = 100) -> Dict:
+def scrape_hackernews(self, story_type: str = 'top', limit: int = 100, user_id: Optional[str] = None) -> Dict:
     _ensure_dedup_ttl()
     """
     Scrape HackerNews stories using the HackerNews spider.
@@ -118,7 +118,7 @@ def scrape_hackernews(self, story_type: str = 'top', limit: int = 100) -> Dict:
             capture_output=True,
             text=True,
             timeout=300,  # 5 minute timeout
-            env=_scrapy_env(),
+            env=_scrapy_env(user_id=user_id),
         )
         
         if result.returncode == 0:
@@ -211,7 +211,7 @@ def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limi
 
 
 @shared_task(bind=True, max_retries=3)
-def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, max_papers: int = 500) -> Dict:
+def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, max_papers: int = 500, user_id: Optional[str] = None) -> Dict:
     _ensure_dedup_ttl()
     """
     Scrape arXiv papers using the arXiv spider.
@@ -249,7 +249,7 @@ def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, ma
             capture_output=True,
             text=True,
             timeout=600,  # 10 minute timeout for arXiv
-            env=_scrapy_env(),
+            env=_scrapy_env(user_id=user_id),
         )
         
         if result.returncode == 0:
@@ -277,7 +277,7 @@ def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, ma
 
 
 @shared_task(bind=True, max_retries=3)
-def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: list = None) -> Dict:
+def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: list = None, user_id: Optional[str] = None) -> Dict:
     _ensure_dedup_ttl()
     """
     Scrape YouTube videos using the YouTube spider.
@@ -313,7 +313,7 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: li
             capture_output=True,
             text=True,
             timeout=600,  # 10 minute timeout (8 queries × ~15s each = ~120s, with margin)
-            env=_scrapy_env(),
+            env=_scrapy_env(user_id=user_id),
         )
         
         if result.returncode == 0:

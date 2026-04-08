@@ -44,6 +44,7 @@ def _action_scrape_videos(params: dict, workflow=None) -> dict:
             days_back=days_back,
             max_results=max_results,
             queries=queries if queries else None,
+            user_id=str(workflow.user_id) if workflow else None,
         )
 
         return {
@@ -127,6 +128,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
         t = scrape_hackernews.delay(
             story_type=params.get('story_type', 'top'),
             limit=int(params.get('limit', params.get('items_per_source', 100))),
+            user_id=user_id,
         )
         task_ids['hackernews'] = t.id
 
@@ -142,6 +144,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
         t = scrape_arxiv.delay(
             days_back=int(params.get('days_back', 7)),
             max_papers=int(params.get('max_papers', params.get('items_per_source', 100))),
+            user_id=user_id,
         )
         task_ids['arxiv'] = t.id
 
@@ -159,6 +162,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
             days_back=int(params.get('days_back', 30)),
             max_results=int(params.get('items_per_source', params.get('max_results', 60))),
             queries=yt_queries if yt_queries else None,
+            user_id=user_id,
         )
         task_ids['youtube'] = t.id
 
