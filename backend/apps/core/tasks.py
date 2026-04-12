@@ -15,8 +15,37 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-# Compute project root directory
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent  # /project/backend/apps/core -> /project/backend/apps -> /project/backend -> /project
+# Compute project root directory - works in both local dev and Docker
+_file_path = Path(__file__).resolve()
+# Local: /project/backend/apps/core/tasks.py -> /project (4 parents)
+# Docker: /app/apps/core/tasks.py -> /app (3 parents, no 'backend' dir)
+if (_file_path.parent.parent.parent / 'backend').exists():
+    BASE_DIR = _file_path.parent.parent.parent.parent  # Local dev with backend/ folder
+else:
+    BASE_DIR = _file_path.parent.parent.parent  # Docker container, no backend/ folder
+
+# Virtualenv Python for subprocess - detect dynamically (works in local dev and Docker)
+def _get_venv_python() -> str:
+    """Find the correct virtualenv Python executable."""
+    possible_paths = [
+        # Local development paths
+        BASE_DIR / 'backend' / 'venv' / 'bin' / 'python',
+        BASE_DIR / 'venv' / 'bin' / 'python',
+        # Docker container paths
+        Path('/app') / 'backend' / 'venv' / 'bin' / 'python',
+        Path('/app') / 'venv' / 'bin' / 'python',
+        # System Python as fallback
+        Path('/usr/local/bin/python3'),
+        Path('/usr/bin/python3'),
+    ]
+    for path in possible_paths:
+        if path.exists():
+            return str(path)
+    # Fallback to current Python
+    import sys
+    return sys.executable
+
+VENV_PYTHON = _get_venv_python()
 
 def _ensure_dedup_ttl() -> None:
     """Ensure all dedup Redis sets have a 24-hour TTL so they don't block scraping forever.
@@ -84,6 +113,13 @@ def _scrapy_env(user_id: Optional[str] = None) -> dict:
         if d not in parts:
             parts.insert(0, d)
     env['PYTHONPATH'] = ':'.join(parts)
+    
+    # Ensure virtualenv bin is in PATH so subprocess finds correct Python
+    venv_bin = str(Path(VENV_PYTHON).parent)
+    current_sys_path = env.get('PATH', '')
+    if venv_bin not in current_sys_path:
+        env['PATH'] = f"{venv_bin}:{current_sys_path}"
+    
     return env
 
 
@@ -107,10 +143,14 @@ def scrape_hackernews(self, story_type: str = 'top', limit: int = 100, user_id: 
     try:
         spider_name = 'hackernews'
         cmd = [
-            'scrapy', 'crawl', spider_name,
+            VENV_PYTHON, '-m', 'scrapy', 'crawl', spider_name,
             '-a', f'story_type={story_type}',
             '-a', f'limit={limit}',
         ]
+        
+        # Add user_id as spider argument if provided
+        if user_id:
+            cmd.extend(['-a', f'user_id={user_id}'])
         
         result = subprocess.run(
             cmd,
@@ -169,13 +209,17 @@ def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limi
     try:
         spider_name = 'github'
         cmd = [
-            'scrapy', 'crawl', spider_name,
+            VENV_PYTHON, '-m', 'scrapy', 'crawl', spider_name,
             '-a', f'days_back={days_back}',
             '-a', f'limit={limit}',
         ]
         
         if language:
             cmd.extend(['-a', f'language={language}'])
+            
+        # Add user_id as spider argument if provided
+        if user_id:
+            cmd.extend(['-a', f'user_id={user_id}'])
         
         result = subprocess.run(
             cmd,
@@ -234,7 +278,7 @@ def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, ma
     try:
         spider_name = 'arxiv'
         cmd = [
-            'scrapy', 'crawl', spider_name,
+            VENV_PYTHON, '-m', 'scrapy', 'crawl', spider_name,
             '-a', f'days_back={days_back}',
             '-a', f'max_papers={max_papers}',
         ]
@@ -242,6 +286,10 @@ def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, ma
         if categories:
             categories_str = ','.join(categories)
             cmd.extend(['-a', f'categories={categories_str}'])
+            
+        # Add user_id as spider argument if provided
+        if user_id:
+            cmd.extend(['-a', f'user_id={user_id}'])
         
         result = subprocess.run(
             cmd,
@@ -298,7 +346,7 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: li
     try:
         spider_name = 'youtube'
         cmd = [
-            'scrapy', 'crawl', spider_name,
+            VENV_PYTHON, '-m', 'scrapy', 'crawl', spider_name,
             '-a', f'days_back={days_back}',
             '-a', f'max_results={max_results}',
         ]
@@ -306,6 +354,10 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: li
         if queries:
             import json
             cmd += ['-a', f'queries={json.dumps(queries)}']
+            
+        # Add user_id as spider argument if provided
+        if user_id:
+            cmd.extend(['-a', f'user_id={user_id}'])
         
         result = subprocess.run(
             cmd,
@@ -368,13 +420,17 @@ def scrape_twitter(self, query: Optional[str] = None, queries: Optional[str] = N
         logger.info(f"[{task_id}] Using spider: {spider_name} (has_x_key={has_x_api_key})")
 
         cmd = [
-            'scrapy', 'crawl', spider_name,
+            VENV_PYTHON, '-m', 'scrapy', 'crawl', spider_name,
             '-a', f'max_results={max_results}',
         ]
         if query:
             cmd.extend(['-a', f'query={query}'])
         if queries:
             cmd.extend(['-a', f'queries={queries}'])
+            
+        # Add user_id as spider argument if provided
+        if user_id:
+            cmd.extend(['-a', f'user_id={user_id}'])
 
         result = subprocess.run(
             cmd,
@@ -416,29 +472,28 @@ def scrape_twitter(self, query: Optional[str] = None, queries: Optional[str] = N
 
 
 @shared_task(bind=True, max_retries=1)
-def scrape_all(self) -> Dict:
+def scrape_all(self, user_id: Optional[str] = None) -> Dict:
     """
-    Chain all four scrapers in sequence.
-    
-    Runs all scrapers in order: HackerNews, GitHub, arXiv, YouTube.
-    Logs the overall execution and returns aggregated results.
-    
+    Queue all five scrapers in parallel.
+
     Args:
-        self: Celery task instance (for retry mechanism)
-        
+        self:    Celery task instance (for retry mechanism)
+        user_id: Optional user UUID string. When provided, junction rows are
+                 created so the user's feed is populated.
+
     Returns:
         Dictionary with aggregated results from all spiders
     """
     task_id = self.request.id
-    logger.info(f"[{task_id}] Starting all scrapers in sequence")
-    
+    logger.info(f"[{task_id}] Starting all scrapers (user_id={user_id})")
+
     try:
         results = {
-            'hackernews': scrape_hackernews.delay(),
-            'github': scrape_github.delay(),
-            'arxiv': scrape_arxiv.delay(),
-            'youtube': scrape_youtube.delay(),
-            'twitter': scrape_twitter.delay(),
+            'hackernews': scrape_hackernews.delay(user_id=user_id),
+            'github':     scrape_github.delay(user_id=user_id),
+            'arxiv':      scrape_arxiv.delay(user_id=user_id),
+            'youtube':    scrape_youtube.delay(user_id=user_id),
+            'twitter':    scrape_twitter.delay(user_id=user_id),
         }
 
         logger.info(
@@ -453,10 +508,151 @@ def scrape_all(self) -> Dict:
             'message': 'All scrapers queued',
             'task_ids': {k: v.id for k, v in results.items()},
         }
-    
+
     except Exception as exc:
         logger.error(f"[{task_id}] Error queuing all scrapers: {exc}")
         return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+
+
+@shared_task(bind=True, max_retries=2)
+def generate_user_briefing(self, user_id: str) -> Dict:
+    """
+    Generate a personalized daily briefing for a single user immediately.
+    Used after onboarding to create the first briefing with scraped content.
+    Fetches exactly 5 items from each source type for the user.
+    """
+    from datetime import date
+    from django.utils import timezone as tz
+    from apps.core.models import DailyBriefing
+    from apps.users.models import User
+    from apps.articles.models import Article, UserArticle
+    from apps.papers.models import ResearchPaper, UserPaper
+    from apps.repositories.models import Repository, UserRepository
+    from apps.videos.models import Video, UserVideo
+    from apps.tweets.models import Tweet, UserTweet
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found for briefing generation")
+        return {'status': 'error', 'message': 'User not found'}
+
+    today = date.today()
+
+    # Delete existing briefing for today to regenerate
+    DailyBriefing.objects.filter(user=user, date=today).delete()
+
+    # Fetch EXACTLY 5 items from each source for this user
+    articles = Article.objects.filter(
+        user_articles__user=user
+    ).order_by('-scraped_at')[:5]
+
+    papers = ResearchPaper.objects.filter(
+        user_papers__user=user
+    ).order_by('-fetched_at')[:5]
+
+    repos = Repository.objects.filter(
+        user_repositories__user=user
+    ).order_by('-scraped_at')[:5]
+
+    videos = Video.objects.filter(
+        user_videos__user=user
+    ).order_by('-fetched_at')[:5]
+
+    tweets = Tweet.objects.filter(
+        user_tweets__user=user
+    ).order_by('-posted_at')[:5]
+
+    # Build personalized content
+    name_greeting = f", {user.first_name}" if user.first_name else ""
+
+    content = f"""# 📊 Your Personalized Tech Briefing for {today.strftime('%B %d, %Y')}
+
+Welcome{name_greeting} to your SYNAPSE feed! Here's what's happening in tech today.
+
+## 📰 Latest Articles ({articles.count()} from HackerNews)
+
+"""
+    sources = []
+
+    for article in articles:
+        content += f"- **{article.title}**\n"
+        if article.summary:
+            content += f"  {article.summary[:120]}...\n"
+        sources.append({'title': article.title, 'url': article.url, 'type': 'article'})
+
+    content += f"""
+## 📄 Latest Research ({papers.count()} from arXiv)
+
+"""
+    for paper in papers:
+        content += f"- **{paper.title}**\n"
+        if paper.abstract:
+            content += f"  {paper.abstract[:120]}...\n"
+        sources.append({'title': paper.title, 'url': paper.url, 'type': 'paper'})
+
+    content += f"""
+## 💻 Trending Repositories ({repos.count()} from GitHub)
+
+"""
+    for repo in repos:
+        content += f"- **{repo.owner}/{repo.name}** ({repo.stars or 0} ⭐)\n"
+        if repo.description:
+            content += f"  {repo.description[:120]}...\n"
+        sources.append({'title': f"{repo.owner}/{repo.name}", 'url': repo.url, 'type': 'repository'})
+
+    content += f"""
+## 🎬 Featured Videos ({videos.count()} from YouTube)
+
+"""
+    for video in videos:
+        channel = getattr(video, 'channel', None) or getattr(video, 'channel_title', 'Unknown')
+        content += f"- **{video.title}** by {channel}\n"
+        sources.append({'title': video.title, 'url': video.url, 'type': 'video'})
+
+    content += f"""
+## 🐦 Latest from X ({tweets.count()} tweets)
+
+"""
+    for tweet in tweets:
+        content += f"- **@{tweet.author_username}**: {tweet.text[:120]}...\n"
+        sources.append({'title': f"@{tweet.author_username}", 'url': tweet.url or '', 'type': 'tweet'})
+
+    content += """
+---
+*This briefing contains real scraped data personalized for you. Your daily workflows will keep this updated automatically.*
+"""
+
+    # Calculate topics from content
+    all_titles = " ".join(a.title for a in articles[:3]).lower()
+    topics = []
+    topic_keywords = ['ai', 'machine learning', 'python', 'rust', 'kubernetes', 'llm',
+                      'security', 'web', 'cloud', 'devops', 'research', 'data science']
+    for kw in topic_keywords:
+        if kw in all_titles:
+            topics.append(kw)
+
+    # Create the briefing
+    briefing = DailyBriefing.objects.create(
+        user=user,
+        date=today,
+        content=content,
+        sources=sources[:20],
+        topic_summary={'topics': topics[:5], 'sentiment': 'positive'}
+    )
+
+    logger.info(f"Generated onboarding briefing for user {user.email}: {len(content)} chars, {len(sources)} sources")
+
+    return {
+        'status': 'success',
+        'briefing_id': str(briefing.id),
+        'content_length': len(content),
+        'articles': articles.count(),
+        'papers': papers.count(),
+        'repos': repos.count(),
+        'videos': videos.count(),
+        'tweets': tweets.count(),
+    }
 
 
 @shared_task(bind=True, max_retries=2)
@@ -532,7 +728,7 @@ def generate_daily_briefings(self) -> Dict:
                 # Nothing scraped yet — produce a placeholder
                 content = (
                     f"Good morning{', ' + user.first_name if user.first_name else ''}! "
-                    "Your personalised briefing will appear here once content has been scraped. "
+                    "Your personalised briefing will appear here once content has been scraped.\n\n"
                     "Check back tomorrow for the latest AI, development, and research highlights."
                 )
                 topic_summary: dict = {'topics': [], 'sentiment': 'neutral'}
@@ -573,17 +769,18 @@ def generate_daily_briefings(self) -> Dict:
 
                 except Exception as ai_exc:
                     logger.warning("AI briefing generation failed for user %s: %s", user.id, ai_exc)
-                    # Fallback template briefing
+                    # Fallback template briefing — use \n\n so ReactMarkdown renders paragraphs
                     name_greeting = f", {user.first_name}" if user.first_name else ""
                     top = sources[:3]
-                    bullets = "\n".join(
-                        f"  [{i+1}] {s['title']}" for i, s in enumerate(top)
+                    bullets = "\n\n".join(
+                        f"**[{i+1}]** {s['title']}" for i, s in enumerate(top)
                     )
                     content = (
                         f"Good morning{name_greeting}! Here is your daily briefing.\n\n"
-                        f"In the past 24 hours, {len(articles)} new articles, "
-                        f"{len(papers)} research papers, and {len(repos)} repositories "
-                        f"were added to your feed. Top highlights:\n{bullets}\n\n"
+                        f"In the past 24 hours, **{len(articles)} new articles**, "
+                        f"**{len(papers)} research papers**, and **{len(repos)} repositories** "
+                        f"were added to your feed.\n\n"
+                        f"Top highlights:\n\n{bullets}\n\n"
                         f"Open the feed to explore all {len(sources)} new items and stay ahead of the curve."
                     )
                     topic_summary = {'topics': [], 'sentiment': 'neutral'}

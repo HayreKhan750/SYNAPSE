@@ -147,6 +147,9 @@ class NitterSpider(scrapy.Spider):
             self.mode = 'search'
             self.queries = DEFAULT_QUERIES
             self.usernames = []
+            
+        # Store user_id for personalization
+        self.user_id = kwargs.get('user_id')
 
     def start_requests(self):
         """Generate initial requests."""

@@ -125,14 +125,18 @@ class ArXivSpider(scrapy.Spider):
         self.enrich_abstract_page = str(enrich_abstract_page).lower() in (
             "true", "1", "yes",
         )
+        
+        # Store user_id for personalization
+        self.user_id = kwargs.get('user_id')
 
         # Compute the cutoff date once (UTC)
         self.cutoff_date = (
             datetime.now(timezone.utc) - timedelta(days=self.days_back)
         ).date()
 
-        # Track how many papers have been collected per category
+        # Track how many papers have been collected per category and globally
         self._category_counts: dict[str, int] = {}
+        self._total_count = 0
 
         logger.info(
             "ArXivSpider initialised | categories=%s | days_back=%d | "
@@ -218,11 +222,10 @@ class ArXivSpider(scrapy.Spider):
         reached_cutoff = False
 
         for entry in entries:
-            # Check per-category cap
-            if self._category_counts[category] >= self.max_papers:
+            # Check global cap (max_papers is total across all categories)
+            if self._total_count >= self.max_papers:
                 logger.info(
-                    "arXiv [%s]: reached max_papers=%d — stopping.",
-                    category,
+                    "arXiv: reached global max_papers=%d (total collected) — stopping.",
                     self.max_papers,
                 )
                 return
@@ -246,6 +249,7 @@ class ArXivSpider(scrapy.Spider):
                 break  # Feed is sorted newest-first; nothing older is relevant
 
             self._category_counts[category] += 1
+            self._total_count += 1
 
             if self.enrich_abstract_page:
                 # Follow the abstract page for richer metadata
@@ -269,7 +273,7 @@ class ArXivSpider(scrapy.Spider):
 
         if (
             next_start < total_results
-            and papers_collected < self.max_papers
+            and self._total_count < self.max_papers
             and fetched == self.page_size  # Partial page = last page
         ):
             logger.debug(

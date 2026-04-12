@@ -144,7 +144,7 @@ def onboarding_complete_step(request, step: int):
 def onboarding_finish(request):
     """
     POST /api/v1/auth/onboarding/finish/
-    Marks user as fully onboarded. Triggers welcome email.
+    Marks user as fully onboarded. Triggers welcome email and creates initial workflows.
     """
     user = request.user
     prefs, _ = OnboardingPreferences.objects.get_or_create(user=user)
@@ -165,6 +165,12 @@ def onboarding_finish(request):
     except Exception as exc:
         logger.warning("Failed to send welcome email to %s: %s", user.email, exc)
 
+    # Create initial workflows and trigger immediate scraping
+    try:
+        _create_initial_workflows(user, prefs)
+    except Exception as exc:
+        logger.warning("Failed to create initial workflows for %s: %s", user.email, exc)
+
     logger.info("Onboarding completed for user %s", user.email)
     return Response(
         {
@@ -174,6 +180,191 @@ def onboarding_finish(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
+    """
+    Create initial automation workflows for new user based on their interests.
+    Triggers immediate scraping to populate their feed with 5 items each.
+    """
+    from apps.automation.models import AutomationWorkflow, WorkflowRun
+    from apps.core.tasks import (
+        scrape_hackernews, scrape_github, scrape_arxiv,
+        scrape_youtube, scrape_twitter
+    )
+    import json
+
+    user_id = str(user.id)
+    interests = prefs.interests or []
+
+    # Map interests to search queries
+    interest_queries = {
+        'ai_ml': ['machine learning', 'artificial intelligence', 'neural networks'],
+        'web_dev': ['web development', 'frontend', 'backend', 'fullstack'],
+        'security': ['cybersecurity', 'infosec', 'privacy'],
+        'cloud_devops': ['cloud computing', 'devops', 'kubernetes', 'docker'],
+        'research': ['research paper', 'academic', 'study'],
+        'data_science': ['data science', 'analytics', 'big data'],
+        'open_source': ['open source', 'github', 'contribution'],
+        'startup': ['startup', 'entrepreneurship', 'founder'],
+        'finance': ['fintech', 'crypto', 'blockchain'],
+        'health_bio': ['health tech', 'biotech', 'medical'],
+    }
+
+    # Build personalized queries from interests
+    selected_queries = []
+    for interest in interests:
+        if interest in interest_queries:
+            selected_queries.extend(interest_queries[interest])
+
+    # Default queries if no interests selected
+    if not selected_queries:
+        selected_queries = ['technology', 'programming', 'software development']
+
+    # Create workflows for each source
+    workflows_created = []
+
+    # 1. HackerNews Workflow - Daily at 06:30
+    hn_workflow = AutomationWorkflow.objects.create(
+        user=user,
+        name="Daily HackerNews Digest",
+        description=f"Top tech stories based on your interests: {', '.join(interests[:3]) or 'general tech'}",
+        trigger_type="schedule",
+        cron_expression="30 6 * * *",
+        actions=[{
+            "type": "collect_news",
+            "params": {
+                "sources": ["hackernews"],
+                "story_type": "top",
+                "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
+                "items_per_source": 5
+            }
+        }],
+        is_active=True,
+    )
+    workflows_created.append(hn_workflow)
+
+    # 2. GitHub Workflow - Daily at 07:00
+    gh_workflow = AutomationWorkflow.objects.create(
+        user=user,
+        name="Trending GitHub Repositories",
+        description=f"Hot repositories in your areas of interest",
+        trigger_type="schedule",
+        cron_expression="0 7 * * *",
+        actions=[{
+            "type": "collect_news",
+            "params": {
+                "sources": ["github"],
+                "days_back": 1,
+                "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
+                "items_per_source": 5
+            }
+        }],
+        is_active=True,
+    )
+    workflows_created.append(gh_workflow)
+
+    # 3. arXiv Workflow - Daily at 07:30
+    arxiv_workflow = AutomationWorkflow.objects.create(
+        user=user,
+        name="Latest Research Papers",
+        description=f"Academic papers matching your research interests",
+        trigger_type="schedule",
+        cron_expression="30 7 * * *",
+        actions=[{
+            "type": "collect_news",
+            "params": {
+                "sources": ["arxiv"],
+                "categories": ["cs.AI", "cs.LG", "cs.CL"],
+                "max_papers": 5,  # DEFAULT: 5 items - user can change in Automation page
+                "items_per_source": 5
+            }
+        }],
+        is_active=True,
+    )
+    workflows_created.append(arxiv_workflow)
+
+    # 4. YouTube Workflow - Daily at 08:00
+    yt_workflow = AutomationWorkflow.objects.create(
+        user=user,
+        name="Tech & Tutorial Videos",
+        description=f"Educational videos based on your learning interests",
+        trigger_type="schedule",
+        cron_expression="0 8 * * *",
+        actions=[{
+            "type": "scrape_videos",
+            "params": {
+                "queries": selected_queries[:3] if selected_queries else ['programming tutorial', 'tech news'],
+                "max_results": 5,  # DEFAULT: 5 items - user can change in Automation page
+                "days_back": 30
+            }
+        }],
+        is_active=True,
+    )
+    workflows_created.append(yt_workflow)
+
+    # 5. Twitter/X Workflow - Daily at 08:30
+    tw_workflow = AutomationWorkflow.objects.create(
+        user=user,
+        name="Tech Twitter Highlights",
+        description=f"Curated tweets from the tech community",
+        trigger_type="schedule",
+        cron_expression="30 8 * * *",
+        actions=[{
+            "type": "scrape_tweets",
+            "params": {
+                "queries": selected_queries[:3] if selected_queries else ['tech', 'programming'],
+                "max_results": 5,  # DEFAULT: 5 items - user can change in Automation page
+            }
+        }],
+        is_active=True,
+    )
+    workflows_created.append(tw_workflow)
+
+    logger.info(f"Created {len(workflows_created)} workflows for user {user.email}")
+
+    # Trigger immediate scraping runs for each workflow (5 items each)
+    # Chain the briefing generation to run after ALL spiders complete
+    from celery import chain, group
+    from apps.core.tasks import generate_user_briefing
+
+    # Create a group of scraping tasks that run in parallel
+    scrape_tasks = group(
+        scrape_hackernews.s(user_id=user_id, story_type="top", limit=5),
+        scrape_github.s(user_id=user_id, limit=5),
+        scrape_arxiv.s(user_id=user_id, max_papers=5),
+        scrape_youtube.s(user_id=user_id, max_results=5),
+        scrape_twitter.s(user_id=user_id, max_results=5),
+    )
+
+    # Chain the briefing generation to run after all spiders complete
+    # Use a callback that runs after the group completes
+    workflow_chain = scrape_tasks | generate_user_briefing.si(user_id=user_id)
+
+    # Execute the chain
+    result = workflow_chain.apply_async()
+
+    task_results = {
+        'group_id': result.id,
+        'hackernews': 'queued',
+        'github': 'queued',
+        'arxiv': 'queued',
+        'youtube': 'queued',
+        'twitter': 'queued',
+    }
+
+    logger.info(f"Triggered chained scraping + briefing for user {user.email}: group_id={result.id}")
+
+    # Create workflow runs to track these initial scrapes
+    for workflow in workflows_created:
+        WorkflowRun.objects.create(
+            workflow=workflow,
+            status="running",
+            triggered_by="onboarding",
+            metadata={"group_id": result.id, "is_initial_run": True, "task_ids": task_results}
+        )
+
+    logger.info(f"Onboarding workflows and initial scraping triggered for {user.email}")
 
 
 def _send_welcome_email(user: User) -> None:

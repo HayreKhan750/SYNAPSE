@@ -109,8 +109,8 @@ services:
         python manage.py collectstatic --noinput --clear 2>/dev/null || python manage.py collectstatic --noinput 2>/dev/null || echo "Static files skipped (permission issue — OK in dev)"
         mkdir -p /app/media/documents /app/media/projects
         chmod -R 777 /app/media 2>/dev/null || true
-        echo "Starting Django..."
-        exec python manage.py runserver 0.0.0.0:8000
+        echo "Starting Django (Daphne ASGI server)..."
+        exec daphne -b 0.0.0.0 -p 8000 config.asgi:application
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/"]
       interval: 30s
@@ -230,10 +230,10 @@ services:
       - 8.8.8.8
       - 8.8.4.4
       - 1.1.1.1
-    # concurrency=2 for scraping/agents; NLP/summarization is rate-limited by
-    # Gemini free tier (20 RPM), so tasks are staggered via countdown in tasks.py.
-    # Running 2 workers with 15s stagger = ~8 RPM, safely under the 20 RPM limit.
-    command: ["sh", "-c", "celery -A config.celery worker --loglevel=warning --concurrency=1 -Q default,scraping,agents,nlp,embeddings,slow_scraping"]
+    # concurrency=3 allows parallel processing: scraping + NLP + workflow tasks
+    # NLP/summarization is rate-limited by Gemini free tier (20 RPM), so tasks
+    # are staggered via countdown in tasks.py. 3 workers with 15s stagger = ~12 RPM.
+    command: ["sh", "-c", "celery -A config.celery worker --loglevel=warning --concurrency=3 -Q default,scraping,agents,nlp,embeddings,slow_scraping --prefetch-multiplier=1"]
     healthcheck:
       test: ["CMD-SHELL", "celery -A config.celery inspect ping -d celery@$$HOSTNAME --timeout 5 2>/dev/null | grep -q OK || exit 1"]
       interval: 30s

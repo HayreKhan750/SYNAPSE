@@ -143,7 +143,11 @@ export const Sidebar = memo(function Sidebar({
             <Tooltip key={href} content={label} side="right">
               {linkEl}
             </Tooltip>
-          ) : linkEl
+          ) : (
+            <React.Fragment key={href}>
+              {linkEl}
+            </React.Fragment>
+          )
         })}
       </nav>
 

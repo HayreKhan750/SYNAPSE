@@ -33,7 +33,6 @@ class Source(models.Model):
 
 class Article(models.Model):
     id              = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user            = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name='scraped_articles')
     title           = models.TextField()
     content         = models.TextField(blank=True)
     summary         = models.TextField(blank=True)
@@ -77,3 +76,19 @@ class Article(models.Model):
             import hashlib
             self.url_hash = hashlib.sha256(self.url.encode()).hexdigest()
         super().save(*args, **kwargs)
+
+
+class UserArticle(models.Model):
+    """Junction table linking users to globally-stored articles."""
+    id       = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_articles')
+    article  = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='user_articles')
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_articles'
+        unique_together = ('user', 'article')
+        ordering = ['-added_at']
+
+    def __str__(self):
+        return f"{self.user} ↔ {self.article}"

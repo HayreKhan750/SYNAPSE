@@ -569,31 +569,35 @@ class ScraperRunView(APIView):
         scraper_id = request.data.get('scraper', '').lower()
         params     = request.data.get('params', {}) or {}
 
+        uid = str(request.user.id) if request.user.is_authenticated else None
         SCRAPERS = {
             'youtube': lambda p: scrape_youtube.delay(
                 queries=[q.strip() for q in p.get('queries', '').splitlines() if q.strip()] or None,
                 days_back=int(p.get('days_back', 30)),
                 max_results=int(p.get('max_results', 20)),
+                user_id=uid,
             ),
             'github': lambda p: scrape_github.delay(
                 days_back=1,
                 language=p.get('language') if p.get('language') != 'All' else None,
                 limit=int(p.get('max_repos', 25)),
-                user_id=str(request.user.id) if request.user.is_authenticated else None,
+                user_id=uid,
             ),
             'hackernews': lambda p: scrape_hackernews.delay(
                 story_type=p.get('story_type', 'top'),
                 limit=int(p.get('max_stories', 30)),
+                user_id=uid,
             ),
             'arxiv': lambda p: scrape_arxiv.delay(
                 categories=[c.strip() for c in p.get('categories', '').splitlines() if c.strip()] or None,
                 days_back=int(p.get('days_back', 7)),
                 max_papers=int(p.get('max_papers', 20)),
+                user_id=uid,
             ),
             'twitter': lambda p: scrape_twitter.delay(
                 query=p.get('query') or None,
                 max_results=int(p.get('max_results', 100)),
-                user_id=str(request.user.id) if request.user.is_authenticated else None,
+                user_id=uid,
             ),
         }
 

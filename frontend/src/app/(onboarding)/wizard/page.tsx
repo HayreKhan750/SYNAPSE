@@ -9,11 +9,57 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import ProgressBar from '@/components/onboarding/ProgressBar';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAuthStore } from '@/store/authStore';
+
+// Types for step components
+interface StepTryItProps {
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  onQueryButtonClick: (q: string) => void;
+}
+
+// StepTryIt component defined OUTSIDE main component to prevent re-render focus issues
+const StepTryIt = memo(function StepTryIt({ searchQuery, onSearchChange, onQueryButtonClick }: StepTryItProps) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-2xl font-bold text-white">Take it for a spin 🚀</h2>
+        <p className="text-slate-400 mt-2">Type anything you want to research — papers, repos, articles, trends.</p>
+      </div>
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={onSearchChange}
+          placeholder="e.g. 'latest transformer architectures 2026' or 'best TypeScript frameworks'"
+          className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3.5 pr-12 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+        />
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+      </div>
+      <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+        <p className="text-slate-400 text-sm">
+          💡 <strong className="text-slate-300">Tip:</strong> SYNAPSE uses semantic search — it understands meaning,
+          not just keywords. Ask natural questions like &quot;what are the best tools for MLOps in 2026?&quot;
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {['LLM fine-tuning 2026', 'Rust async patterns', 'vector database comparison', 'startup fundraising tips'].map(q => (
+          <button
+            key={q}
+            onClick={() => onQueryButtonClick(q)}
+            className="text-xs px-3 py-1.5 bg-slate-700 rounded-lg text-slate-300 hover:bg-slate-600 transition-colors"
+          >
+            {q}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+});
 
 // ── Interests ─────────────────────────────────────────────────────────────────
 const INTERESTS = [
@@ -51,6 +97,7 @@ export default function OnboardingWizardPage() {
   const [searchQuery,       setSearchQuery]   = useState('');
   const [finished,          setFinished]      = useState(false);
   const [interestError,     setInterestError] = useState('');
+  const [setupStatus,       setSetupStatus]   = useState<string>('');
 
   // Redirect if already onboarded
   useEffect(() => {
@@ -82,11 +129,14 @@ export default function OnboardingWizardPage() {
     await completeStep(currentStep, payload);
 
     if (currentStep === TOTAL_STEPS) {
+      setSetupStatus('Creating your automation workflows...');
       const ok = await finishOnboarding();
       if (ok) {
         setFinished(true);
+        setSetupStatus('Scraping personalized content for you...');
         await refreshUser?.();
-        setTimeout(() => router.replace('/home'), 2500);
+        // Wait 45 seconds for initial scraping to complete before redirecting
+        setTimeout(() => router.replace('/home'), 45000);
       }
       return;
     }
@@ -94,9 +144,23 @@ export default function OnboardingWizardPage() {
   }, [currentStep, selectedInterests, selectedUseCase, completeStep, finishOnboarding, refreshUser, router]);
 
   const handleBack = () => setCurrentStep(s => Math.max(1, s - 1));
-  const handleSkip = () => {
-    if (currentStep < TOTAL_STEPS) setCurrentStep(s => s + 1);
-  };
+  const handleSkip = useCallback(async () => {
+    if (currentStep < TOTAL_STEPS) {
+      setCurrentStep(s => s + 1);
+    }
+    // If skipping the final step, still trigger onboarding workflows
+    if (currentStep === TOTAL_STEPS - 1) {
+      setSetupStatus('Setting up your default feed...');
+      const ok = await finishOnboarding();
+      if (ok) {
+        setFinished(true);
+        setSetupStatus('Scraping general tech content for you...');
+        await refreshUser?.();
+        // Wait 45 seconds for initial scraping to complete before redirecting
+        setTimeout(() => router.replace('/home'), 45000);
+      }
+    }
+  }, [currentStep, finishOnboarding, refreshUser, router]);
 
   // ── Step renderers ─────────────────────────────────────────────────────────
 
@@ -188,41 +252,14 @@ export default function OnboardingWizardPage() {
     </div>
   );
 
-  const StepTryIt = () => (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-2xl font-bold text-white">Take it for a spin 🚀</h2>
-        <p className="text-slate-400 mt-2">Type anything you want to research — papers, repos, articles, trends.</p>
-      </div>
-      <div className="relative">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="e.g. 'latest transformer architectures 2026' or 'best TypeScript frameworks'"
-          className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3.5 pr-12 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-        />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
-      </div>
-      <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
-        <p className="text-slate-400 text-sm">
-          💡 <strong className="text-slate-300">Tip:</strong> SYNAPSE uses semantic search — it understands meaning,
-          not just keywords. Ask natural questions like &quot;what are the best tools for MLOps in 2026?&quot;
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {['LLM fine-tuning 2026', 'Rust async patterns', 'vector database comparison', 'startup fundraising tips'].map(q => (
-          <button
-            key={q}
-            onClick={() => setSearchQuery(q)}
-            className="text-xs px-3 py-1.5 bg-slate-700 rounded-lg text-slate-300 hover:bg-slate-600 transition-colors"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  // Handlers for StepTryIt (memoized to prevent unnecessary re-renders)
+  const handleQueryButtonClick = useCallback((q: string) => {
+    setSearchQuery(q);
+  }, []);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
 
   const StepDone = () => (
     <div className="text-center space-y-6">
@@ -230,8 +267,13 @@ export default function OnboardingWizardPage() {
       <div>
         <h2 className="text-3xl font-bold text-white">You&apos;re all set!</h2>
         <p className="text-slate-400 mt-3 text-lg">
-          Your personalised SYNAPSE feed is ready. Redirecting you to your dashboard…
+          {setupStatus || "Your personalised SYNAPSE feed is being prepared..."}
         </p>
+        {setupStatus && (
+          <p className="text-slate-500 text-sm mt-2">
+            Scraping 5 articles, repos, papers, videos, and tweets just for you.
+          </p>
+        )}
       </div>
       {selectedInterests.length > 0 && (
         <div className="bg-indigo-600/10 border border-indigo-500/30 rounded-xl p-4">
@@ -251,11 +293,13 @@ export default function OnboardingWizardPage() {
       <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
         <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 animate-pulse rounded-full w-full" />
       </div>
+      <div className="text-slate-500 text-xs">
+        <p>⏳ This may take 30-60 seconds while we fetch your personalized content...</p>
+      </div>
     </div>
   );
 
-  const STEPS = [StepWelcome, StepInterests, StepUseCase, StepTryIt, StepDone];
-  const CurrentStepComponent = STEPS[currentStep - 1];
+  const STEPS = [StepWelcome, StepInterests, StepUseCase, StepDone];
 
   return (
     <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-2xl p-8">
@@ -263,7 +307,18 @@ export default function OnboardingWizardPage() {
 
       {/* Step content */}
       <div className="min-h-[300px]">
-        <CurrentStepComponent />
+        {currentStep === 4 ? (
+          <StepTryIt 
+            searchQuery={searchQuery} 
+            onSearchChange={handleInputChange}
+            onQueryButtonClick={handleQueryButtonClick}
+          />
+        ) : (
+          (() => {
+            const CurrentStepComponent = STEPS[currentStep - 1];
+            return <CurrentStepComponent />;
+          })()
+        )}
       </div>
 
       {/* Navigation buttons */}

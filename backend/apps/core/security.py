@@ -115,8 +115,12 @@ class SecurityHeadersMiddleware:
             response["Cross-Origin-Embedder-Policy"] = "unsafe-none"
             response["Cross-Origin-Resource-Policy"] = "same-site"
         else:
-            response["Cross-Origin-Opener-Policy"]   = "same-origin"
-            response["Cross-Origin-Embedder-Policy"]  = "require-corp"
+            # same-origin-allow-popups required for Google OAuth popup to work
+            # (the popup needs to call window.close() and the opener checks window.closed)
+            response["Cross-Origin-Opener-Policy"]   = "same-origin-allow-popups"
+            # credentialless allows cross-origin resources (fonts, images) while
+            # still providing isolation for same-origin scripts
+            response["Cross-Origin-Embedder-Policy"]  = "credentialless"
             response["Cross-Origin-Resource-Policy"]  = "same-origin"
 
         # Cache control for API responses (no caching of sensitive data)

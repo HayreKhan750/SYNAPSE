@@ -29,9 +29,9 @@ class RepositoryListView(generics.ListAPIView):
     def get_queryset(self):
         from django.db.models import Q
         qs = Repository.objects.all()
-        # ── Personalization: strictly scope to authenticated user's scraped data ──
+        # ── Personalization: scope to repos linked via UserRepository junction ──
         if self.request.user and self.request.user.is_authenticated:
-            qs = qs.filter(user=self.request.user)
+            qs = qs.filter(user_repositories__user=self.request.user)
         return qs
 
 class RepositoryDetailView(generics.RetrieveAPIView):
@@ -48,7 +48,7 @@ class TrendingRepositoryListView(generics.ListAPIView):
     def get_queryset(self):
         qs = Repository.objects.filter(is_trending=True).order_by('-stars_today')
         if self.request.user and self.request.user.is_authenticated:
-            qs = qs.filter(user=self.request.user)
+            qs = qs.filter(user_repositories__user=self.request.user)
         return qs
 
 
@@ -72,7 +72,7 @@ class GitHubTrendingView(APIView):
 
         qs = Repository.objects.all().order_by('-velocity_7d', '-stars')
         if request.user and request.user.is_authenticated:
-            qs = qs.filter(user=request.user)
+            qs = qs.filter(user_repositories__user=request.user)
         if language:
             qs = qs.filter(language__iexact=language)
         if topic:
@@ -111,7 +111,7 @@ class GitHubEcosystemView(APIView):
     def get(self, request, language: str):
         qs = Repository.objects.filter(language__iexact=language)
         if request.user and request.user.is_authenticated:
-            qs = qs.filter(user=request.user)
+            qs = qs.filter(user_repositories__user=request.user)
         total = qs.count()
         if total == 0:
             return Response({'success': False, 'error': f'No repos found for {language}'}, status=404)

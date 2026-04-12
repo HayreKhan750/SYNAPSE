@@ -92,6 +92,9 @@ class HackerNewsSpider(scrapy.Spider):
         self.limit = int(kwargs.get('limit', 100))
         self.limit = min(max(self.limit, 1), 500)  # Clamp 1-500
         
+        # Store user_id for personalization
+        self.user_id = kwargs.get('user_id')
+        
         self.base_url = 'https://hacker-news.firebaseio.com/v0'
     
     def start_requests(self):

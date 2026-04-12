@@ -5,6 +5,23 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Transpile ESM-only packages so Next.js / webpack can bundle them correctly.
+  transpilePackages: [
+    'react-markdown',
+    'rehype-raw',
+    'rehype-katex',
+    'remark-gfm',
+    'remark-math',
+    'unified',
+    'bail',
+    'is-plain-obj',
+    'trough',
+    'vfile',
+    'unist-util-stringify-position',
+    'mdast-util-from-markdown',
+    'mdast-util-to-string',
+    'micromark',
+  ],
   // TypeScript and ESLint errors are surfaced during builds.
   // Do NOT set ignoreBuildErrors or ignoreDuringBuilds — these flags mask real
   // type errors and lint violations that would break runtime behaviour.

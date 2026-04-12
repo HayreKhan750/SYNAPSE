@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, Bookmark, MessageSquare, FileText, Twitter, Sun, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import api from '@/utils/api';
 import { ArticleCard, RepositoryCard, PaperCard, TweetCard } from '@/components/cards';
 import { HorizontalScroller } from '@/components/ui/HorizontalScroller';
@@ -52,7 +54,7 @@ function TrendStrip() {
         : Array.isArray(data) ? data : []
       return items
     },
-    staleTime: 120_000,
+    staleTime: 5 * 60_000,    // 5 min — trends don't change fast
   })
   const trends: any[] = Array.isArray(data) ? data : []
   if (!trends.length) return null
@@ -91,7 +93,7 @@ function TodayBriefCard() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['briefing', 'today'],
     queryFn: () => api.get('/briefing/today/').then(r => r.data?.data),
-    staleTime: 5 * 60_000,
+    staleTime: 2 * 60_000,    // 2 min — briefing updates after workflow
     retry: false,
   });
 
@@ -128,11 +130,6 @@ function TodayBriefCard() {
 
   const sources: any[] = Array.isArray(data.sources) ? data.sources : [];
   const topics: string[] = data.topic_summary?.topics ?? [];
-  const paragraphs: string[] = data.content
-    ? data.content.split(/\n+/).filter(Boolean)
-    : [];
-  const preview = paragraphs[0] ?? '';
-  const rest    = paragraphs.slice(1);
 
   return (
     <div className="rounded-2xl border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-yellow-950/10 overflow-hidden">
@@ -160,17 +157,49 @@ function TodayBriefCard() {
         </button>
       </div>
 
-      {/* Content */}
+      {/* Content with Markdown Rendering */}
       <div className="px-6 pb-4">
-        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{preview}</p>
-
-        {expanded && rest.length > 0 && (
-          <div className="mt-3 space-y-3 border-t border-amber-200/60 dark:border-amber-800/30 pt-3">
-            {rest.map((para, i) => (
-              <p key={i} className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{para}</p>
-            ))}
-          </div>
-        )}
+        <div className={`prose prose-sm prose-slate dark:prose-invert max-w-none ${expanded ? '' : 'line-clamp-4'}`}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({children}) => <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-4 mb-2">{children}</h1>,
+              h2: ({children}) => <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mt-3 mb-2">{children}</h2>,
+              h3: ({children}) => <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mt-2 mb-1">{children}</h3>,
+              p: ({children}) => <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed mb-2">{children}</p>,
+              ul: ({children}) => <ul className="list-disc list-inside text-sm text-slate-700 dark:text-slate-300 mb-2 ml-2">{children}</ul>,
+              ol: ({children}) => <ol className="list-decimal list-inside text-sm text-slate-700 dark:text-slate-300 mb-2 ml-2">{children}</ol>,
+              li: ({children}) => <li className="mb-1">{children}</li>,
+              blockquote: ({children}) => (
+                <blockquote className="border-l-4 border-amber-400 pl-3 italic text-slate-600 dark:text-slate-400 my-2">
+                  {children}
+                </blockquote>
+              ),
+              table: ({children}) => (
+                <div className="overflow-x-auto my-3">
+                  <table className="min-w-full text-xs border-collapse border border-slate-200 dark:border-slate-700 rounded-lg">
+                    {children}
+                  </table>
+                </div>
+              ),
+              thead: ({children}) => <thead className="bg-slate-100 dark:bg-slate-800">{children}</thead>,
+              th: ({children}) => (
+                <th className="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">{children}</th>
+              ),
+              td: ({children}) => (
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">{children}</td>
+              ),
+              hr: () => <hr className="border-slate-200 dark:border-slate-700 my-3" />,
+              a: ({href, children}) => (
+                <a href={href} className="text-amber-600 dark:text-amber-400 hover:underline" target="_blank" rel="noopener noreferrer">
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {data.content}
+          </ReactMarkdown>
+        </div>
 
         {/* Sources */}
         {sources.length > 0 && expanded && (
@@ -238,45 +267,29 @@ export default function Dashboard() {
   const [playingVideo, setPlayingVideo] = useState<Video | null>(null);
   const queryClient = useQueryClient();
 
-  // When a workflow completes and scraping is queued, invalidate count badges
-  // so the home page reflects the new article/paper/repo counts promptly.
+  // When a workflow completes, invalidate home content queries so new data appears.
   useEffect(() => {
-    const invalidateCounts = () => {
-      // Stat badge counts
-      queryClient.invalidateQueries({ queryKey: ['articles', 'count'] });
-      queryClient.invalidateQueries({ queryKey: ['papers', 'count'] });
-      queryClient.invalidateQueries({ queryKey: ['repos', 'count'] });
-      queryClient.invalidateQueries({ queryKey: ['videos', 'count'] });
-      queryClient.invalidateQueries({ queryKey: ['tweets', 'count'] });
-      // Content sections on home
+    const invalidateHome = () => {
+      // Only invalidate home content queries — count badges derive from these
       queryClient.invalidateQueries({ queryKey: ['articles', 'home'] });
       queryClient.invalidateQueries({ queryKey: ['repos', 'home'] });
       queryClient.invalidateQueries({ queryKey: ['papers', 'home'] });
       queryClient.invalidateQueries({ queryKey: ['videos', 'home'] });
       queryClient.invalidateQueries({ queryKey: ['tweets', 'home'] });
-      // GitHub page list
-      queryClient.invalidateQueries({ queryKey: ['repos', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['briefing', 'today'] });
     };
 
-    // Same-page event (unlikely on home, but included for completeness)
-    window.addEventListener('synapse:workflow-complete', invalidateCounts);
+    // Same-page event
+    window.addEventListener('synapse:workflow-complete', invalidateHome);
 
-    // Cross-tab / cross-page: workflow completed on automation page then user navigated here
+    // Cross-tab: workflow completed on automation page then user navigated here
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'synapse:workflow-complete-at' && e.newValue) invalidateCounts();
+      if (e.key === 'synapse:workflow-complete-at' && e.newValue) invalidateHome();
     };
     window.addEventListener('storage', onStorage);
 
-    // On mount: if there's a fresh workflow-complete signal (within 3 min),
-    // immediately re-fetch counts so navigation to home shows updated numbers.
-    const storedAt = localStorage.getItem('synapse:workflow-complete-at');
-    if (storedAt) {
-      const elapsed = Date.now() - parseInt(storedAt, 10);
-      if (elapsed < 3 * 60 * 1000) invalidateCounts();
-    }
-
     return () => {
-      window.removeEventListener('synapse:workflow-complete', invalidateCounts);
+      window.removeEventListener('synapse:workflow-complete', invalidateHome);
       window.removeEventListener('storage', onStorage);
     };
   }, [queryClient]);
@@ -286,41 +299,36 @@ export default function Dashboard() {
   const { data: articles, isLoading: articlesLoading } = useQuery({
     queryKey: ['articles', 'home'],
     queryFn: () => api.get('/articles/', { params: { page_size: 12, ordering: '-scraped_at' } }).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: 2 * 60_000,     // 2 min — don't re-fetch constantly
     gcTime:   10 * 60_000,
-    refetchOnWindowFocus: true,
   });
 
   const { data: repos, isLoading: reposLoading } = useQuery({
     queryKey: ['repos', 'home'],
     queryFn: () => api.get('/repos/', { params: { page_size: 3, ordering: '-scraped_at' } }).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: 2 * 60_000,
     gcTime:   10 * 60_000,
-    refetchOnWindowFocus: true,
   });
 
   const { data: papers, isLoading: papersLoading } = useQuery({
     queryKey: ['papers', 'home'],
     queryFn: () => api.get('/papers/', { params: { page_size: 10, ordering: '-fetched_at' } }).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: 2 * 60_000,
     gcTime:   10 * 60_000,
-    refetchOnWindowFocus: true,
   });
 
   const { data: videosData, isLoading: videosLoading } = useQuery({
     queryKey: ['videos', 'home'],
     queryFn: () => api.get('/videos/', { params: { page_size: 12, ordering: '-fetched_at' } }).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: 2 * 60_000,
     gcTime:   10 * 60_000,
-    refetchOnWindowFocus: true,
   });
 
   const { data: tweetsData, isLoading: tweetsLoading } = useQuery({
     queryKey: ['tweets', 'home'],
     queryFn: () => api.get('/tweets/', { params: { page_size: 12, ordering: '-scraped_at' } }).then(r => r.data),
-    staleTime: 30_000,         // 30s — count stays fresh
+    staleTime: 2 * 60_000,
     gcTime:   10 * 60_000,
-    refetchOnWindowFocus: true, // re-fetch when user returns to the tab
   });
 
   // Derive counts from content queries — no extra network requests needed
@@ -469,17 +477,17 @@ export default function Dashboard() {
           <div>
             <SectionHeader title="Latest from X (Twitter)" subtitle="Curated tweets on AI, programming & tech" href="/tweets" />
             {tweetsLoading ? (
-              <HorizontalScroller cardWidth={280}>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse h-48" />
                 ))}
-              </HorizontalScroller>
+              </div>
             ) : trendingTweets.length > 0 ? (
-              <HorizontalScroller cardWidth={280}>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {trendingTweets.map((tweet: any) => (
                   <TweetCard key={tweet.id} tweet={tweet} />
                 ))}
-              </HorizontalScroller>
+              </div>
             ) : (
               <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/60">
                 <p className="text-slate-500 dark:text-slate-400">No tweets yet</p>

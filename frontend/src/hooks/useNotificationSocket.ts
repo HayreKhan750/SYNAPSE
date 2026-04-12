@@ -92,9 +92,18 @@ export function useNotificationSocket() {
         clearInterval((ws as any)._ping)
         if (!alive) return
         if (event.code === 4001) return // auth failed — don't retry
+        // Don't retry on server errors (500 handshake) — these need a server fix, not retries
+        if (!event.wasClean && retries.current === 0) {
+          // First unclean close — likely 500 from server. Try once more after a long delay.
+          retries.current = MAX_RETRIES - 1 // only one more attempt
+          timerRef.current = setTimeout(connect, 30_000)
+          return
+        }
+        const maxRetries = event.wasClean ? MAX_RETRIES : 3
+        if (retries.current >= maxRetries) return
         // Exponential backoff
         const delay = Math.min(BASE_DELAY_MS * 2 ** retries.current, 30_000)
-        retries.current = Math.min(retries.current + 1, MAX_RETRIES)
+        retries.current = Math.min(retries.current + 1, maxRetries)
         timerRef.current = setTimeout(connect, delay)
       }
 

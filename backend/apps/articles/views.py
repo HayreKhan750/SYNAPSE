@@ -27,9 +27,9 @@ class ArticleListView(ListAPIView):
 
     def get_queryset(self):
         qs = Article.objects.select_related('source').all()
-        # ── Personalization: strictly scope to authenticated user's scraped data ──
+        # ── Personalization: scope to articles linked via UserArticle junction ──
         if self.request.user and self.request.user.is_authenticated:
-            qs = qs.filter(user=self.request.user)
+            qs = qs.filter(user_articles__user=self.request.user)
         # Tag filtering
         tag = self.request.GET.get('tag')
         if tag:

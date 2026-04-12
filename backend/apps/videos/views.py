@@ -16,9 +16,9 @@ class VideoListView(generics.ListAPIView):
     ordering           = ['-fetched_at']
     def get_queryset(self):
         qs = Video.objects.all()
-        # ── Personalization: strictly scope to authenticated user's scraped data ──
+        # ── Personalization: scope to videos linked via UserVideo junction ──
         if self.request.user and self.request.user.is_authenticated:
-            qs = qs.filter(user=self.request.user)
+            qs = qs.filter(user_videos__user=self.request.user)
         return qs
 class VideoDetailView(generics.RetrieveAPIView):
     queryset           = Video.objects.all()

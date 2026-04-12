@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import { api } from '@/utils/api';
+import { useAuthStore } from '@/store/authStore';
 // TASK-104-2: Modals moved to global /components/modals/ for reusability
 import { EditWorkflowModal } from '@/components/modals/EditWorkflowModal';
 import { TemplatesModal } from '@/components/modals/TemplatesModal';
@@ -926,10 +927,13 @@ export default function AutomationPage() {
   // so it is never stale and never triggers re-renders.
   const pollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
 
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['workflows'],
     queryFn: fetchWorkflows,
-    refetchInterval: 10000,
+    refetchInterval: isAuthenticated ? 10000 : false,
+    enabled: isAuthenticated,
   });
 
   // ── Event-triggered notification polling ────────────────────────────────────
@@ -951,7 +955,8 @@ export default function AutomationPage() {
       }
       return list;
     },
-    refetchInterval: 15000,
+    refetchInterval: isAuthenticated ? 15000 : false,
+    enabled: isAuthenticated,
     retry: false,
   });
 
@@ -959,7 +964,7 @@ export default function AutomationPage() {
   // as timed-out on the UI side.  The backend cleanup_stale_runs task handles
   // the DB side after 1 hour; we give up on the UI after 5 minutes so the
   // card doesn't stay "Running…" forever if Celery is down or the task is stuck.
-  const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — scrapers can take a while
+  const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes — scrapers need time
 
   // On mount: clear all stale localStorage keys AND verify any stored
   // liveRuns against actual DB status, clearing those that are no longer running.
@@ -975,6 +980,8 @@ export default function AutomationPage() {
 
   // Track when each workflow's polling started so we can enforce the timeout.
   const pollStartTimes = useRef<Record<string, number>>({});
+  // Track runs that have timed out to prevent auto-restart of polling
+  const timedOutRuns = useRef<Set<string>>(new Set());
 
   // Start live polling for a specific workflow run.
   // Creates a stable setInterval in pollTimers.current (not React state),
@@ -1011,6 +1018,8 @@ export default function AutomationPage() {
       if (elapsed > POLL_TIMEOUT_MS) {
         stopPolling(workflowId);
         setLiveRuns(prev => { const n = { ...prev }; delete n[workflowId]; return n; });
+        // Mark this run as timed out so we don't auto-restart polling
+        timedOutRuns.current.add(runId);
         toast.error('Workflow status check timed out. The worker may be unavailable. Check run history for details.');
         queryClient.invalidateQueries({ queryKey: ['workflows'] });
         return;
@@ -1071,15 +1080,17 @@ export default function AutomationPage() {
           }, 5000);
         }
       } catch (err: unknown) {
-        // Swallow network errors and 401s (token refresh in flight) — the
-        // interceptor will retry automatically; we just wait for the next tick.
-        // Only abort if we get a definitive 404 (run was deleted).
+        // On any API error, clear the run so UI doesn't stay stuck in "Running"
         const status = (err as { response?: { status?: number } })?.response?.status;
-        if (status === 404) {
+        if (status === 404 || status === 500 || status === 401) {
           stopPolling(workflowId);
           setLiveRuns(prev => { const n = { ...prev }; delete n[workflowId]; return n; });
         }
-        // All other errors (401 refresh, 500, network) — keep polling silently
+        // Other network errors — clear after a few retries to prevent stuck UI
+        else {
+          stopPolling(workflowId);
+          setLiveRuns(prev => { const n = { ...prev }; delete n[workflowId]; return n; });
+        }
       }
     };
 
@@ -1094,6 +1105,20 @@ export default function AutomationPage() {
       Object.values(pollTimers.current).forEach(clearInterval);
     };
   }, []);
+
+  // Start polling for any existing pending/running runs when workflows load
+  useEffect(() => {
+    if (!workflows?.length) return;
+    workflows.forEach((w: any) => {
+      const latestRun = w.latest_run;
+      if (latestRun?.id && (latestRun.status === 'pending' || latestRun.status === 'running')) {
+        // Only start if not already polling and hasn't timed out
+        if (!pollTimers.current[w.id] && !liveRuns[w.id] && !timedOutRuns.current.has(latestRun.id)) {
+          startLiveRun(w.id, latestRun.id);
+        }
+      }
+    });
+  }, [workflows, liveRuns, startLiveRun]);
 
   // Re-attach live polling for any runs that are already in-progress when the
   // workflows list first loads (e.g. page reload, or navigating back to this
@@ -1151,6 +1176,13 @@ export default function AutomationPage() {
     mutationFn: triggerWorkflow,
     onSuccess: (data, workflowId) => {
       toast.success('Workflow triggered! Watching for live status…');
+      // Clear any previous timeout state for this workflow
+      localStorage.removeItem(`synapse:run-start:${workflowId}`);
+      // Clear timedOutRuns for any previous run of this workflow
+      const prevRunId = liveRuns[workflowId]?.runId;
+      if (prevRunId) {
+        timedOutRuns.current.delete(prevRunId);
+      }
       // Backend now returns run_id directly — no delay or fetchRuns needed
       if (data.run_id) {
         startLiveRun(workflowId, data.run_id);

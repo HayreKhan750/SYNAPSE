@@ -90,6 +90,9 @@ class YouTubeSpider(scrapy.Spider):
         self.days_back = int(days_back)
         # How many yt-dlp results to request per query.
         self.per_query = max(1, self.max_results // max(len(self.queries), 1))
+        
+        # Store user_id for personalization
+        self.user_id = kwargs.get('user_id')
 
     # ── Scrapy entry point ──────────────────────────────────────────────────
 

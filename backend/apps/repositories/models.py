@@ -7,7 +7,6 @@ from pgvector.django import VectorField
 
 class Repository(models.Model):
     id           = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user         = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name='scraped_repositories')
     github_id    = models.BigIntegerField(unique=True)
     name         = models.CharField(max_length=500)
     full_name    = models.CharField(max_length=500, unique=True)
@@ -59,3 +58,19 @@ class Repository(models.Model):
 
     def __str__(self):
         return self.full_name
+
+
+class UserRepository(models.Model):
+    """Junction table linking users to globally-stored repositories."""
+    id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_repositories')
+    repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='user_repositories')
+    added_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_repositories'
+        unique_together = ('user', 'repository')
+        ordering = ['-added_at']
+
+    def __str__(self):
+        return f"{self.user} ↔ {self.repository}"

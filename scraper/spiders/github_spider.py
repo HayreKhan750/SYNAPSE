@@ -71,6 +71,9 @@ class GitHubSpider(scrapy.Spider):
         self.limit = int(limit)
         self.items_scraped = 0
         self.rate_limit_remaining = None
+        
+        # Store user_id for personalization
+        self.user_id = kwargs.get('user_id')
 
         # Check for GitHub token
         self.github_token = os.environ.get("GITHUB_TOKEN")

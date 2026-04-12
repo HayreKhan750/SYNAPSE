@@ -39,9 +39,9 @@ class PaperListView(generics.ListAPIView):
     def get_queryset(self):
         from django.db.models import Q
         qs = ResearchPaper.objects.all()
-        # ── Personalization: strictly scope to authenticated user's scraped data ──
+        # ── Personalization: scope to papers linked via UserPaper junction ──
         if self.request.user and self.request.user.is_authenticated:
-            qs = qs.filter(user=self.request.user)
+            qs = qs.filter(user_papers__user=self.request.user)
         return qs
 
 class PaperDetailView(generics.RetrieveAPIView):

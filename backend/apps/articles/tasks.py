@@ -42,13 +42,10 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
     Returns None on failure so callers fall back to local BART.
     """
     if not api_key:
-        api_key = os.environ.get("OPENROUTER_API_KEY", "")
-    if not api_key or api_key.startswith("your-"):
-        logger.error(
-            "OPENROUTER ERROR: No valid OPENROUTER_API_KEY found. "
-            "Set OPENROUTER_API_KEY in .env or configure it in Settings → AI Engine."
-        )
-        return None
+        api_key = getattr(settings, 'GEMINI_API_KEY', None) or getattr(settings, 'OPENROUTER_API_KEY', None)
+    if not api_key:
+        logger.info("GEMINI_API_KEY not set - skipping Gemini summarization")
+        return None  # Will fall back to BART
 
     model_name = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
     base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
@@ -170,10 +167,12 @@ def _run_nlp(text: str, title: str = "") -> Optional[object]:
 
 @shared_task(
     bind=True,
-    max_retries=3,
+    max_retries=1,
     default_retry_delay=60,
     queue="nlp",
     name="apps.articles.tasks.process_article_nlp",
+    soft_time_limit=120,  # 2 minutes soft limit
+    time_limit=180,       # 3 minutes hard limit
 )
 def process_article_nlp(self, article_id: str) -> Dict:
     """
@@ -253,6 +252,9 @@ def process_article_nlp(self, article_id: str) -> Dict:
             # For now falls back to env var key inside _summarize_with_gemini
             gemini_summary = _summarize_with_gemini(text)
             chosen_summary = gemini_summary or result.summary
+            # Final fallback: use first 200 chars of cleaned text if no AI summary
+            if not chosen_summary and len(text) > 50:
+                chosen_summary = text[:200] + "..." if len(text) > 200 else text
             if chosen_summary:
                 article.summary = chosen_summary
                 update_fields.append("summary")
@@ -302,8 +304,10 @@ def process_article_nlp(self, article_id: str) -> Dict:
     max_retries=1,
     queue="nlp",
     name="apps.articles.tasks.process_pending_articles_nlp",
+    soft_time_limit=60,
+    time_limit=90,
 )
-def process_pending_articles_nlp(self, batch_size: int = 50) -> Dict:
+def process_pending_articles_nlp(self, batch_size: int = 10) -> Dict:
     """
     Queue NLP processing for articles that have not been processed yet.
 
@@ -329,10 +333,10 @@ def process_pending_articles_nlp(self, batch_size: int = 50) -> Dict:
         queued = 0
         for article_id in pending:
             # Stagger dispatch using countdown (non-blocking) instead of sleep.
-            # 5 s apart keeps us well under the 15 RPM Gemini free-tier limit.
+            # 12 s apart keeps us under 5 RPM to avoid overwhelming the worker
             process_article_nlp.apply_async(
                 args=[str(article_id)],
-                countdown=queued * 5,
+                countdown=queued * 12,
                 queue='nlp',
             )
             queued += 1

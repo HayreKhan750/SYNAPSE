@@ -54,6 +54,9 @@ class XTwitterSpider(scrapy.Spider):
             self.queries = self.DEFAULT_QUERIES
 
         self.bearer_token = os.environ.get("X_API_KEY") or os.environ.get("TWITTER_BEARER_TOKEN")
+        
+        # Store user_id for personalization
+        self.user_id = kwargs.get('user_id')
         if not self.bearer_token:
             logger.warning(
                 "X_API_KEY / TWITTER_BEARER_TOKEN not set. "

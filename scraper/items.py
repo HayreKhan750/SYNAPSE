@@ -11,6 +11,7 @@ class ArticleItem(scrapy.Item):
     source_type  = scrapy.Field()
     tags         = scrapy.Field()
     metadata     = scrapy.Field()
+    _is_existing = scrapy.Field()
 
 class RepositoryItem(scrapy.Item):
     github_id    = scrapy.Field()
@@ -30,6 +31,7 @@ class RepositoryItem(scrapy.Item):
     is_trending  = scrapy.Field()
     repo_created_at = scrapy.Field()
     metadata     = scrapy.Field()
+    _is_existing = scrapy.Field()
 
 class ResearchPaperItem(scrapy.Item):
     arxiv_id       = scrapy.Field()
@@ -41,6 +43,7 @@ class ResearchPaperItem(scrapy.Item):
     url            = scrapy.Field()
     pdf_url        = scrapy.Field()
     metadata       = scrapy.Field()
+    _is_existing   = scrapy.Field()
 
 class VideoItem(scrapy.Item):
     youtube_id    = scrapy.Field()
@@ -56,6 +59,7 @@ class VideoItem(scrapy.Item):
     published_at  = scrapy.Field()
     topics        = scrapy.Field()
     metadata      = scrapy.Field()
+    _is_existing  = scrapy.Field()
 
 class TweetItem(scrapy.Item):
     tweet_id              = scrapy.Field()
@@ -87,3 +91,4 @@ class TweetItem(scrapy.Item):
     topic                 = scrapy.Field()
     trending_score        = scrapy.Field()
     metadata              = scrapy.Field()
+    _is_existing          = scrapy.Field()

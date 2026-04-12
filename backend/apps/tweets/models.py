@@ -8,7 +8,6 @@ from pgvector.django import VectorField
 
 class Tweet(models.Model):
     id                    = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user                  = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name='scraped_tweets')
     tweet_id              = models.CharField(max_length=50, unique=True, db_index=True)
     text                  = models.TextField()
     author_username       = models.CharField(max_length=200, db_index=True)
@@ -60,3 +59,19 @@ class Tweet(models.Model):
         if not self.url and self.tweet_id:
             self.url = f"https://x.com/{self.author_username}/status/{self.tweet_id}"
         super().save(*args, **kwargs)
+
+
+class UserTweet(models.Model):
+    """Junction table linking users to globally-stored tweets."""
+    id       = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_tweets')
+    tweet    = models.ForeignKey(Tweet, on_delete=models.CASCADE, related_name='user_tweets')
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_tweets'
+        unique_together = ('user', 'tweet')
+        ordering = ['-added_at']
+
+    def __str__(self):
+        return f"{self.user} ↔ {self.tweet}"

@@ -128,11 +128,11 @@ CELERY_BEAT_SCHEDULE = {
         'options': {'queue': 'embeddings'},
     },
     # NLP processing — Phase 2.1
-    # Run every 10 minutes to pick up newly scraped articles
-    'process-pending-nlp-every-10min': {
+    # Run every 30 minutes to prevent queue overload
+    'process-pending-nlp-every-30min': {
         'task': 'apps.articles.tasks.process_pending_articles_nlp',
-        'schedule': 10 * 60,  # 10 minutes in seconds
-        'args': (50,),         # batch_size=50
+        'schedule': 30 * 60,  # 30 minutes in seconds
+        'args': (10,),         # batch_size=10 (matches default)
         'options': {'queue': 'nlp'},
     },
     # Summarization catch-up — Phase 2.2
