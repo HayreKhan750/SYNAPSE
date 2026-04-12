@@ -80,7 +80,10 @@ class DatabasePipeline:
     def _resolve_user(self, spider):
         """Resolve the Django User instance from the spider's user_id setting."""
         user_id = getattr(spider, 'user_id', None) or os.environ.get('SYNAPSE_USER_ID')
+        logger.info(f"[_resolve_user] spider.user_id={getattr(spider, 'user_id', None)}, env={os.environ.get('SYNAPSE_USER_ID')}, resolved={user_id}")
+        logger.debug(f"[_resolve_user] user_id={user_id}")
         if not user_id:
+            logger.debug(f"[_resolve_user] No user_id found")
             return None
         if user_id in self._user_cache:
             return self._user_cache[user_id]
@@ -160,10 +163,14 @@ class DatabasePipeline:
 
     def _link_user(self, junction_model, user, **lookup):
         """Create a junction row linking user ↔ content item (idempotent)."""
+        logger.info(f"[_link_user] user={user}, model={junction_model.__name__}, lookup={lookup}")
         if not user:
+            logger.info("[_link_user] No user, skipping link")
             return
+        logger.debug(f"[_link_user] Attempting to link user {user} to {junction_model.__name__}")
         try:
-            junction_model.objects.get_or_create(user=user, **lookup)
+            obj, created = junction_model.objects.get_or_create(user=user, **lookup)
+            logger.info(f"[_link_user] Linked user to {junction_model.__name__}: created={created}, id={obj.id}")
         except Exception as exc:
             logger.warning("Could not link user %s: %s", user, exc)
 

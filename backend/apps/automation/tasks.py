@@ -41,11 +41,10 @@ def _action_scrape_videos(params: dict, workflow=None) -> dict:
         max_results = int(params.get('max_results', params.get('limit', 5)))
         days_back   = int(params.get('days_back', 30))
 
-        task = scrape_youtube.delay(
-            days_back=days_back,
-            max_results=max_results,
-            queries=queries if queries else None,
-            user_id=str(workflow.user_id) if workflow else None,
+        user_id = str(workflow.user_id) if workflow else None
+        task = scrape_youtube.apply_async(
+            args=[days_back, max_results, queries if queries else None, user_id],
+            queue='scraping',
         )
 
         return {
@@ -86,20 +85,16 @@ def _action_scrape_tweets(params: dict, workflow=None) -> dict:
             # Dispatch one Nitter task per query for broader coverage
             per_query = max(1, max_results // len(queries))
             for q in queries:
-                t = scrape_twitter.delay(
-                    max_results=per_query,
-                    query=q,
-                    user_id=user_id,
-                    use_nitter=True,
+                t = scrape_twitter.apply_async(
+                    args=[q, per_query, user_id, True],
+                    queue='scraping',
                 )
                 task_ids.append(t.id)
         else:
             # No queries — scrape default tech accounts via Nitter
-            t = scrape_twitter.delay(
-                max_results=max_results,
-                query=None,
-                user_id=user_id,
-                use_nitter=True,
+            t = scrape_twitter.apply_async(
+                args=[None, max_results, user_id, True],
+                queue='scraping',
             )
             task_ids.append(t.id)
 
