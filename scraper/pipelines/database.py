@@ -135,6 +135,15 @@ class DatabasePipeline:
         item_type = item.__class__.__name__
 
         try:
+            # Handle existing items (from deduplication) - just link user
+            if item.get('_is_existing'):
+                user = self._resolve_user(spider)
+                if user:
+                    self._link_existing_item(item, spider, user)
+                    logger.info(f"[_save_item_sync] Linked existing {item_type} to user {user}")
+                return item
+
+            # Handle new items - save to database
             if item_type == "ArticleItem":
                 self._save_article(item, spider)
             elif item_type == "RepositoryItem":
@@ -175,6 +184,58 @@ class DatabasePipeline:
             logger.warning("Could not link user %s: %s", user, exc)
 
     # ── save methods ──────────────────────────────────────────────────────────
+
+    def _link_existing_item(self, item, spider, user):
+        """
+        Link an existing (dedup'd) item to the user.
+
+        The dedup pipeline marked the item as _is_existing because it already
+        exists in Redis (and therefore in the DB).  We look up the DB object
+        by its natural key and create the junction row.
+        """
+        import hashlib as _hl
+        item_type = item.__class__.__name__
+
+        try:
+            if item_type == "ArticleItem":
+                from apps.articles.models import Article, UserArticle
+                url = item.get("url", "")
+                url_hash = _hl.sha256(url.encode()).hexdigest()
+                obj = Article.objects.filter(url_hash=url_hash).first()
+                if obj:
+                    self._link_user(UserArticle, user, article=obj)
+
+            elif item_type == "RepositoryItem":
+                from apps.repositories.models import Repository, UserRepository
+                obj = Repository.objects.filter(github_id=item.get("github_id")).first()
+                if obj:
+                    self._link_user(UserRepository, user, repository=obj)
+
+            elif item_type == "ResearchPaperItem":
+                from apps.papers.models import ResearchPaper, UserPaper
+                obj = ResearchPaper.objects.filter(arxiv_id=item.get("arxiv_id")).first()
+                if obj:
+                    self._link_user(UserPaper, user, paper=obj)
+
+            elif item_type == "VideoItem":
+                from apps.videos.models import Video, UserVideo
+                obj = Video.objects.filter(youtube_id=item.get("youtube_id")).first()
+                if obj:
+                    self._link_user(UserVideo, user, video=obj)
+
+            elif item_type == "TweetItem":
+                from apps.tweets.models import Tweet, UserTweet
+                obj = Tweet.objects.filter(tweet_id=item.get("tweet_id")).first()
+                if obj:
+                    self._link_user(UserTweet, user, tweet=obj)
+
+            else:
+                logger.warning(f"Cannot link existing unknown item type: {item_type}")
+
+        except Exception as exc:
+            logger.warning(f"Failed to link existing {item_type} to user {user}: {exc}")
+
+    # ── save methods (new items) ─────────────────────────────────────────────
 
     def _save_article(self, item, spider):
         """
@@ -229,14 +290,23 @@ class DatabasePipeline:
         user = self._resolve_user(spider)
         self._link_user(UserArticle, user, article=article)
 
-        # Phase 2.2 — Auto-trigger NLP pipeline (incl. BART summarization)
+        # Phase 2.2 — Auto-trigger excerpt fetch + NLP pipeline (incl. summarization)
         if created or not article.nlp_processed:
             try:
                 import importlib
                 tasks_mod = importlib.import_module("apps.articles.tasks")
-                tasks_mod.process_article_nlp.delay(str(article.id))
+                # Fetch excerpt first (fast HTTP) so it's available for summarization
+                tasks_mod.fetch_article_excerpt.apply_async(
+                    args=[str(article.id)],
+                    countdown=2,
+                )
+                # NLP pipeline runs after excerpt has time to be fetched
+                tasks_mod.process_article_nlp.apply_async(
+                    args=[str(article.id)],
+                    countdown=15,
+                )
                 logger.info(
-                    "Queued NLP/summarization task for article %s (created=%s)",
+                    "Queued excerpt + NLP tasks for article %s (created=%s)",
                     article.id, created,
                 )
             except Exception as nlp_exc:

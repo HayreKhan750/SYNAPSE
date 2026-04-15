@@ -88,9 +88,17 @@ class YouTubeSpider(scrapy.Spider):
 
         self.max_results = int(max_results)
         self.days_back = int(days_back)
+        # Cap the number of queries so we never schedule more requests
+        # than max_results — avoids wasted yt-dlp calls.
+        max_queries = max(1, self.max_results)
+        if len(self.queries) > max_queries:
+            self.queries = self.queries[:max_queries]
         # How many yt-dlp results to request per query.
-        self.per_query = max(1, self.max_results // max(len(self.queries), 1))
-        
+        num_queries = max(len(self.queries), 1)
+        self.per_query = max(1, min(3, self.max_results // num_queries))
+        # Track total items to respect max_results across all queries
+        self.total_fetched = 0
+
         # Store user_id for personalization
         self.user_id = kwargs.get('user_id')
 
@@ -156,8 +164,15 @@ class YouTubeSpider(scrapy.Spider):
             logger.info(f'yt-dlp returned {len(entries)} entries for query "{query}"')
 
             for entry in entries:
+                # Respect max_results limit across all queries
+                if self.total_fetched >= self.max_results:
+                    logger.info(f'Reached max_results limit ({self.max_results}), closing spider')
+                    self.crawler.engine.close_spider(self, 'max_results_reached')
+                    return
+
                 item = self._entry_to_item(entry, query)
                 if item is not None:
+                    self.total_fetched += 1
                     yield item
 
         except subprocess.TimeoutExpired:

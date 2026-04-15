@@ -94,12 +94,72 @@ export const authApi: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// ── JWT expiry helper ──────────────────────────────────────────────────────────
+
+/** Decode JWT payload (no verification — we trust our own backend). Returns null if malformed. */
+const decodeJwtExp = (token: string): number | null => {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return null
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+    return typeof json.exp === 'number' ? json.exp : null
+  } catch (_) { return null }
+}
+
+/** Check if the current access token is expired (or expires within `bufferSec` seconds). */
+const isTokenExpired = (bufferSec = 30): boolean => {
+  const token = getAccessToken()
+  if (!token) return true
+  const exp = decodeJwtExp(token)
+  if (!exp) return false // can't decode — let it through, backend will reject if bad
+  return Date.now() / 1000 > exp - bufferSec
+}
+
+/** Proactively refresh the access token if it's expired. Returns the (possibly new) access token. */
+const ensureValidToken = async (): Promise<string | null> => {
+  if (!isTokenExpired()) return getAccessToken()
+
+  // Token is expired — try to refresh before the request fires
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return null
+
+  // Single-flight: if another refresh is in-flight, wait for it
+  if (isRefreshing) {
+    return new Promise<string | null>((resolve) => {
+      failedQueue.push({ resolve, reject: () => resolve(null) })
+    })
+  }
+
+  isRefreshing = true
+  try {
+    const { data } = await authApi.post<{ access: string; refresh?: string }>('/auth/token/refresh/', {
+      refresh: refreshToken,
+    })
+    setAccessToken(data.access)
+    if (data.refresh) setRefreshToken(data.refresh)
+    processQueue(null, data.access)
+    return data.access
+  } catch (err) {
+    processQueue(err, null)
+    return null
+  } finally {
+    isRefreshing = false
+  }
+}
+
 // ── Request interceptor ────────────────────────────────────────────────────────
 
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = getAccessToken()
-    if (token) config.headers.Authorization = `Bearer ${token}`
+  async (config: InternalAxiosRequestConfig & { _proactiveRefresh?: boolean }) => {
+    // Proactively refresh expired tokens before the request fires
+    // (prevents 401 → refresh → retry cycle on initial page load)
+    if (!config._proactiveRefresh) {
+      const validToken = await ensureValidToken()
+      if (validToken) config.headers.Authorization = `Bearer ${validToken}`
+    } else {
+      const token = getAccessToken()
+      if (token) config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   (err) => Promise.reject(err),
@@ -111,7 +171,7 @@ api.interceptors.response.use(
   (res) => res,
   async (
     error: AxiosError & {
-      config: InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number }
+      config: InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number; _proactiveRefresh?: boolean }
     },
   ) => {
     const originalRequest = error.config
@@ -132,11 +192,13 @@ api.interceptors.response.use(
           failedQueue.push({ resolve, reject })
         }).then((token) => {
           originalRequest.headers.Authorization = `Bearer ${token}`
+          originalRequest._proactiveRefresh = true  // skip proactive refresh on retry
           return api(originalRequest)
         })
       }
 
       originalRequest._retry = true
+      originalRequest._proactiveRefresh = true  // skip proactive refresh on retry
       isRefreshing = true
 
       try {

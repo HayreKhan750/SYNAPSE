@@ -110,7 +110,7 @@ export function TopicPieChart({
           <Tooltip content={<CustomTooltip />} />
           <Legend
             iconType="circle" iconSize={8}
-            formatter={(v) => <span className="text-xs text-slate-500 dark:text-slate-400">{v}</span>}
+            formatter={(v) => <span className="text-xs text-slate-400">{v}</span>}
           />
         </PieChart>
       </ResponsiveContainer>

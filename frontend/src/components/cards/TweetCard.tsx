@@ -133,7 +133,7 @@ export const TweetCard = memo(function TweetCard({ tweet }: TweetCardProps) {
           )}
           <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
             <Clock size={11} />
-            {formatRelativeTime(tweet.posted_at ?? tweet.scraped_at)}
+            {formatRelativeTime(tweet.posted_at || tweet.scraped_at)}
           </span>
         </div>
       </div>

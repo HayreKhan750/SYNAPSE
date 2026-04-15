@@ -123,6 +123,87 @@ def _scrapy_env(user_id: Optional[str] = None) -> dict:
     return env
 
 
+def _backfill_user_links(user_id: str, source: str, limit: int = 5) -> int:
+    """
+    After a scrape completes, ensure the user is linked to at least `limit`
+    items of the given source type.  Dedup may have prevented the spider
+    from re-yielding items that already exist in the DB; this function
+    links the user to those existing items so they appear in the feed.
+
+    Returns the number of new junction rows created.
+    """
+    if not user_id:
+        return 0
+
+    try:
+        from apps.users.models import User
+        user = User.objects.filter(pk=user_id).first()
+        if not user:
+            return 0
+    except Exception:
+        return 0
+
+    created_count = 0
+
+    try:
+        if source in ('hackernews', 'news', 'articles'):
+            from apps.articles.models import Article, UserArticle
+            already = UserArticle.objects.filter(user=user).values_list('article_id', flat=True)
+            needed = limit - already.count()
+            if needed > 0:
+                extras = Article.objects.exclude(id__in=already).order_by('-scraped_at')[:needed]
+                for a in extras:
+                    _, c = UserArticle.objects.get_or_create(user=user, article=a)
+                    created_count += int(c)
+
+        elif source == 'github':
+            from apps.repositories.models import Repository, UserRepository
+            already = UserRepository.objects.filter(user=user).values_list('repository_id', flat=True)
+            needed = limit - already.count()
+            if needed > 0:
+                extras = Repository.objects.exclude(id__in=already).order_by('-scraped_at')[:needed]
+                for r in extras:
+                    _, c = UserRepository.objects.get_or_create(user=user, repository=r)
+                    created_count += int(c)
+
+        elif source == 'arxiv':
+            from apps.papers.models import ResearchPaper, UserPaper
+            already = UserPaper.objects.filter(user=user).values_list('paper_id', flat=True)
+            needed = limit - already.count()
+            if needed > 0:
+                extras = ResearchPaper.objects.exclude(id__in=already).order_by('-fetched_at')[:needed]
+                for p in extras:
+                    _, c = UserPaper.objects.get_or_create(user=user, paper=p)
+                    created_count += int(c)
+
+        elif source in ('youtube', 'videos'):
+            from apps.videos.models import Video, UserVideo
+            already = UserVideo.objects.filter(user=user).values_list('video_id', flat=True)
+            needed = limit - already.count()
+            if needed > 0:
+                extras = Video.objects.exclude(id__in=already).order_by('-fetched_at')[:needed]
+                for v in extras:
+                    _, c = UserVideo.objects.get_or_create(user=user, video=v)
+                    created_count += int(c)
+
+        elif source in ('twitter', 'tweets'):
+            from apps.tweets.models import Tweet, UserTweet
+            already = UserTweet.objects.filter(user=user).values_list('tweet_id', flat=True)
+            needed = limit - already.count()
+            if needed > 0:
+                extras = Tweet.objects.exclude(id__in=already).order_by('-posted_at')[:needed]
+                for t in extras:
+                    _, c = UserTweet.objects.get_or_create(user=user, tweet=t)
+                    created_count += int(c)
+
+    except Exception as exc:
+        logger.warning(f"Backfill failed for user={user_id} source={source}: {exc}")
+
+    if created_count:
+        logger.info(f"Backfilled {created_count} {source} links for user {user_id}")
+    return created_count
+
+
 @shared_task(bind=True, max_retries=3)
 def scrape_hackernews(self, story_type: str = 'top', limit: int = 100, user_id: Optional[str] = None) -> Dict:
     _ensure_dedup_ttl()
@@ -164,6 +245,7 @@ def scrape_hackernews(self, story_type: str = 'top', limit: int = 100, user_id: 
         if result.returncode == 0:
             logger.info(f"[{task_id}] HackerNews scraper completed successfully")
             _update_source_last_scraped('news')
+            _backfill_user_links(user_id, 'hackernews', limit)
             return {
                 'spider': 'hackernews',
                 'status': 'success',
@@ -233,6 +315,7 @@ def scrape_github(self, days_back: int = 1, language: Optional[str] = None, limi
         if result.returncode == 0:
             logger.info(f"[{task_id}] GitHub scraper completed successfully")
             _update_source_last_scraped('github')
+            _backfill_user_links(user_id, 'github', limit)
             return {
                 'spider': 'github',
                 'status': 'success',
@@ -303,6 +386,7 @@ def scrape_arxiv(self, categories: Optional[list] = None, days_back: int = 7, ma
         if result.returncode == 0:
             logger.info(f"[{task_id}] arXiv scraper completed successfully")
             _update_source_last_scraped('arxiv')
+            _backfill_user_links(user_id, 'arxiv', max_papers)
             return {
                 'spider': 'arxiv',
                 'status': 'success',
@@ -371,6 +455,7 @@ def scrape_youtube(self, days_back: int = 30, max_results: int = 20, queries: li
         if result.returncode == 0:
             logger.info(f"[{task_id}] YouTube scraper completed successfully")
             _update_source_last_scraped('youtube')
+            _backfill_user_links(user_id, 'youtube', max_results)
             return {
                 'spider': 'youtube',
                 'status': 'success',
@@ -444,12 +529,7 @@ def scrape_twitter(self, query: Optional[str] = None, queries: Optional[str] = N
         if result.returncode == 0:
             logger.info(f"[{task_id}] X/Twitter scraper completed successfully")
             _update_source_last_scraped('twitter')
-            # Queue embedding generation for newly scraped tweets
-            try:
-                from apps.tweets.embedding_tasks import generate_pending_tweet_embeddings  # noqa: PLC0415
-                generate_pending_tweet_embeddings.delay()
-            except Exception as emb_exc:
-                logger.warning(f"[{task_id}] Could not queue tweet embeddings: {emb_exc}")
+            _backfill_user_links(user_id, 'twitter', max_results)
             return {
                 'spider': 'twitter',
                 'status': 'success',

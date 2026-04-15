@@ -1142,3 +1142,16 @@ class KnowledgeNodeDetailView(APIView):
                 ],
             },
         })
+
+
+class APIStatusView(APIView):
+    """GET /api/api-status/ — return API configuration status for user warnings."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .api_status import get_api_status
+        status = get_api_status()
+        return Response({
+            'success': True,
+            'data': status
+        })

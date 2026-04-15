@@ -255,7 +255,7 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
             "type": "collect_news",
             "params": {
                 "sources": ["github"],
-                "days_back": 1,
+                "days_back": 7,
                 "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
                 "items_per_source": 5
             }
@@ -324,36 +324,30 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
     logger.info(f"Created {len(workflows_created)} workflows for user {user.email}")
 
     # Trigger immediate scraping runs for each workflow (5 items each)
-    # Chain the briefing generation to run after ALL spiders complete
-    from celery import chain, group
+    # Dispatch each scraper individually (more reliable than a chord which
+    # requires a result backend) and queue the briefing with a countdown
+    # so it runs after the scrapers have had time to finish.
     from apps.core.tasks import generate_user_briefing
 
-    # Create a group of scraping tasks that run in parallel
-    scrape_tasks = group(
-        scrape_hackernews.s(user_id=user_id, story_type="top", limit=5),
-        scrape_github.s(user_id=user_id, limit=5),
-        scrape_arxiv.s(user_id=user_id, max_papers=5),
-        scrape_youtube.s(user_id=user_id, max_results=5),
-        scrape_twitter.s(user_id=user_id, max_results=5),
-    )
+    hn_task   = scrape_hackernews.delay(story_type="top", limit=5, user_id=user_id)
+    gh_task   = scrape_github.delay(days_back=7, limit=5, user_id=user_id)
+    arxiv_task = scrape_arxiv.delay(max_papers=5, user_id=user_id)
+    yt_task   = scrape_youtube.delay(max_results=5, user_id=user_id)
+    tw_task   = scrape_twitter.delay(max_results=5, user_id=user_id)
 
-    # Chain the briefing generation to run after all spiders complete
-    # Use a callback that runs after the group completes
-    workflow_chain = scrape_tasks | generate_user_briefing.si(user_id=user_id)
-
-    # Execute the chain
-    result = workflow_chain.apply_async()
+    # Queue briefing 90 s after scrapers — gives subprocess-based spiders
+    # time to complete and save items to the database.
+    generate_user_briefing.apply_async(kwargs={'user_id': user_id}, countdown=90)
 
     task_results = {
-        'group_id': result.id,
-        'hackernews': 'queued',
-        'github': 'queued',
-        'arxiv': 'queued',
-        'youtube': 'queued',
-        'twitter': 'queued',
+        'hackernews': hn_task.id,
+        'github':     gh_task.id,
+        'arxiv':      arxiv_task.id,
+        'youtube':    yt_task.id,
+        'twitter':    tw_task.id,
     }
 
-    logger.info(f"Triggered chained scraping + briefing for user {user.email}: group_id={result.id}")
+    logger.info(f"Triggered scraping tasks + briefing for user {user.email}: {task_results}")
 
     # Create workflow runs to track these initial scrapes
     for workflow in workflows_created:
@@ -361,7 +355,7 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
             workflow=workflow,
             status="running",
             triggered_by="onboarding",
-            metadata={"group_id": result.id, "is_initial_run": True, "task_ids": task_results}
+            metadata={"is_initial_run": True, "task_ids": task_results}
         )
 
     logger.info(f"Onboarding workflows and initial scraping triggered for {user.email}")

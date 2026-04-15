@@ -12,6 +12,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.core.mail import send_mail
 from django.conf import settings
 import uuid
+import os
 import requests as http_requests
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer,
@@ -208,12 +209,67 @@ def ai_keys_view(request):
         openrouter_ok = bool(prefs.get('openrouter_api_key'))
         github_ok     = bool(prefs.get('github_token'))
         x_api_ok      = bool(prefs.get('x_api_key'))
+
+        # Check .env fallback keys (server-wide defaults)
+        from django.conf import settings
+        env_gemini     = bool(os.environ.get('GEMINI_API_KEY'))
+        env_openrouter = bool(os.environ.get('OPENROUTER_API_KEY'))
+        env_github     = bool(os.environ.get('GITHUB_TOKEN'))
+        env_x_api      = bool(os.environ.get('X_API_KEY') or os.environ.get('TWITTER_BEARER_TOKEN'))
+
+        warnings = []
+        if not github_ok and not env_github:
+            warnings.append({
+                'key': 'github_token',
+                'label': 'GitHub',
+                'severity': 'warning',
+                'message': 'No GitHub token set. Using trending page (free, no auth) + unauthenticated API (60 req/hr). Set your token for richer results and 5000 req/hr.',
+            })
+        elif not github_ok and env_github:
+            warnings.append({
+                'key': 'github_token',
+                'label': 'GitHub',
+                'severity': 'info',
+                'message': 'Using shared GitHub token. Set your own in Settings for higher rate limits.',
+            })
+
+        if not gemini_ok and not openrouter_ok and not env_gemini and not env_openrouter:
+            warnings.append({
+                'key': 'ai',
+                'label': 'AI Chat & Summarization',
+                'severity': 'error',
+                'message': 'No AI API key configured. AI chat, summarization, and agents are unavailable. Add a Gemini or OpenRouter key in Settings.',
+            })
+        elif not gemini_ok and not openrouter_ok:
+            warnings.append({
+                'key': 'ai',
+                'label': 'AI Chat & Summarization',
+                'severity': 'info',
+                'message': 'Using shared AI key. Set your own Gemini or OpenRouter key in Settings for reliable access.',
+            })
+
+        if not x_api_ok and not env_x_api:
+            warnings.append({
+                'key': 'x_api_key',
+                'label': 'X/Twitter',
+                'severity': 'warning',
+                'message': 'No X/Twitter API key. Using Nitter fallback which may be unreliable. Set your API key in Settings.',
+            })
+        elif not x_api_ok and env_x_api:
+            warnings.append({
+                'key': 'x_api_key',
+                'label': 'X/Twitter',
+                'severity': 'info',
+                'message': 'Using shared X/Twitter key. Set your own in Settings for dedicated access.',
+            })
+
         return Response({
             'gemini_configured':     gemini_ok,
             'openrouter_configured': openrouter_ok,
             'github_configured':     github_ok,
             'x_api_configured':      x_api_ok,
             'any_configured':        gemini_ok or openrouter_ok,
+            'warnings':              warnings,
         })
 
     # POST — save keys

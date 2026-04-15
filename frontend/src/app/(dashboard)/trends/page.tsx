@@ -246,7 +246,7 @@ function TrendCard({ trend, rank, maxScore }: { trend: TechnologyTrend; rank: nu
 
 function StatCard({ label, value, icon: Icon, colour }: { label: string; value: string | number; icon: React.ElementType; colour: string }) {
   return (
-    <div className="bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-3 sm:p-4 flex items-center gap-3 overflow-hidden">
+    <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-3 sm:p-4 flex items-center gap-3 overflow-hidden">
       <div className={cn('p-2 rounded-xl shrink-0', colour.replace('text-', 'bg-').replace('400', '500/15'))}>
         <Icon size={18} className={colour} />
       </div>
@@ -456,7 +456,7 @@ export default function TrendsPage() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-4"
           >
             {/* Radar Chart — category scores */}
-            <div className="bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
+            <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Activity size={14} className="text-violet-600 dark:text-violet-400" />
                 <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Category Radar</h3>
@@ -471,7 +471,7 @@ export default function TrendsPage() {
             </div>
 
             {/* Donut Chart — top technologies by mentions */}
-            <div className="bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
+            <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Flame size={14} className="text-amber-600 dark:text-amber-400" />
                 <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Most Mentioned</h3>
@@ -493,7 +493,7 @@ export default function TrendsPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="bg-white dark:bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5"
+            className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5"
           >
             <div className="flex items-center gap-2 mb-4">
               <LineChartIcon size={14} className="text-cyan-600 dark:text-cyan-400" />
@@ -510,9 +510,9 @@ export default function TrendsPage() {
                     </linearGradient>
                   ))}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
-                <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
+                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <ReTooltip
                   contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, fontSize: 12 }}
                   labelStyle={{ color: '#94a3b8', marginBottom: 4 }}

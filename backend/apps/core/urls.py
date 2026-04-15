@@ -27,4 +27,5 @@ urlpatterns = [
     path('collections/<uuid:pk>/bookmarks/', views.CollectionBookmarkView.as_view(), name='collection-bookmarks'),
     path('recommendations/', views.recommendations, name='recommendations'),
     path('trending/', views.trending, name='trending'),
+    path('api-status/', views.APIStatusView.as_view(), name='api-status'),
 ]

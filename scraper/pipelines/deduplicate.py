@@ -38,6 +38,7 @@ class DeduplicationPipeline:
         "RepositoryItem": "synapse:seen_github_ids",
         "ResearchPaperItem": "synapse:seen_arxiv_ids",
         "VideoItem": "synapse:seen_youtube_ids",
+        "TweetItem": "synapse:seen_tweet_ids",
     }
 
     # Field to deduplicate on for each item type
@@ -46,6 +47,7 @@ class DeduplicationPipeline:
         "RepositoryItem": "github_id",
         "ResearchPaperItem": "arxiv_id",
         "VideoItem": "youtube_id",
+        "TweetItem": "tweet_id",
     }
 
     def __init__(self):

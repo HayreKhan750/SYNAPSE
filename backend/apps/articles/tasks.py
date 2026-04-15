@@ -23,6 +23,7 @@ import time
 from typing import Dict, Optional
 
 from celery import shared_task
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -58,16 +59,20 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
     has_full_content = len(text) > 300 and "Article Content:" in text
     if has_full_content:
         prompt = (
-            "You are a technical summarizer. Write a concise 2-3 sentence summary "
-            "of the following article, focusing on the key findings and takeaways.\n\n"
+            "You are a technical summarizer for a tech news feed. Write a clear 3-4 sentence "
+            "summary of the following article. Focus on: what the project/finding is, "
+            "why it matters, and key technical details. Be specific and informative — "
+            "avoid vague filler.\n\n"
             f"Article:\n{text[:max_chars]}\n\nSummary:"
         )
     else:
         prompt = (
-            "You are a tech news summarizer. Based on the title and metadata below, "
-            "write a concise 1-2 sentence description of what this article is likely about. "
-            "Be informative and specific based on the title.\n\n"
-            f"{text[:max_chars]}\n\nDescription:"
+            "You are a tech news summarizer for a developer news feed. Based on the title "
+            "and metadata below, write a 3-4 sentence explanation of what this is about, "
+            "why it's relevant to developers, and what makes it interesting. "
+            "Be specific — infer context from the title, URL, and tags. "
+            "Do NOT just repeat the title.\n\n"
+            f"{text[:max_chars]}\n\nSummary:"
         )
 
     # Try langchain_openai first; fall back to direct httpx call if not installed
@@ -78,8 +83,8 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
         try:
             llm = ChatOpenAI(
                 model=model_name,
-                temperature=0.2,
-                max_tokens=300,
+                temperature=0.3,
+                max_tokens=500,
                 openai_api_key=api_key,
                 openai_api_base=base_url,
             )
@@ -105,10 +110,10 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
                     json={
                         "model": model_name,
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 300,
-                        "temperature": 0.2,
+                        "max_tokens": 500,
+                        "temperature": 0.3,
                     },
-                    timeout=30,
+                    timeout=45,
                 )
                 resp.raise_for_status()
                 data = resp.json()
@@ -248,9 +253,27 @@ def process_article_nlp(self, article_id: str) -> Dict:
         # does not already have a human-supplied summary so we don't destroy
         # richer scraped content.
         if not article.summary:
+            # Build rich context for summarization (title + excerpt + content)
+            summary_parts = []
+            if title:
+                summary_parts.append(f"Title: {title}")
+            if article.url:
+                summary_parts.append(f"URL: {article.url}")
+            if article.topic:
+                summary_parts.append(f"Topic: {article.topic}")
+            tags_str = ", ".join(article.tags) if article.tags else ""
+            if tags_str:
+                summary_parts.append(f"Tags: {tags_str}")
+            metadata = article.metadata or {}
+            if metadata.get("excerpt"):
+                summary_parts.append(f"Excerpt: {metadata['excerpt']}")
+            if text:
+                summary_parts.append(f"\nArticle Content:\n{text}")
+            summary_text = "\n".join(summary_parts) if summary_parts else text
+
             # Try to use the article owner's API key if available (future: link articles to users)
             # For now falls back to env var key inside _summarize_with_gemini
-            gemini_summary = _summarize_with_gemini(text)
+            gemini_summary = _summarize_with_gemini(summary_text)
             chosen_summary = gemini_summary or result.summary
             # Final fallback: use first 200 chars of cleaned text if no AI summary
             if not chosen_summary and len(text) > 50:
@@ -581,6 +604,10 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
                 text_parts.append(f"HackerNews Score: {metadata['score']}")
             if metadata.get("comments"):
                 text_parts.append(f"Comments: {metadata['comments']}")
+            # Include excerpt (fetched by fetch_article_excerpt task) — this
+            # gives the AI real article description even when full content is missing
+            if metadata.get("excerpt"):
+                text_parts.append(f"Excerpt: {metadata['excerpt']}")
         if content:
             text_parts.append(f"\nArticle Content:\n{content}")
 
@@ -687,11 +714,11 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
 
         queued = 0
         for article_id in all_pending:
-            # Stagger tasks 15 s apart so we stay under Gemini's 20 RPM free tier.
-            # With concurrency=1 on the nlp queue: 1 task per 15s = 4 RPM max.
+            # Stagger tasks 5 s apart so we stay under Gemini's 20 RPM free tier.
+            # With concurrency=1 on the nlp queue: 1 task per 5s = 12 RPM max.
             summarize_article.apply_async(
                 args=[str(article_id)],
-                countdown=queued * 15,  # 15 s stagger = ~4 RPM, well under 20 RPM
+                countdown=queued * 5,  # 5 s stagger = ~12 RPM, well under 20 RPM
             )
             queued += 1
 

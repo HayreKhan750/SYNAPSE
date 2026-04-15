@@ -332,6 +332,7 @@ CELERY_TASK_ROUTES = {
     'apps.core.tasks.scrape_twitter':    {'queue': 'scraping'},
     'apps.core.tasks.scrape_all':        {'queue': 'scraping'},
     'apps.core.tasks.generate_daily_briefings': {'queue': 'default'},
+    'apps.core.tasks.generate_user_briefing':   {'queue': 'scraping'},  # runs after scrapers finish
     # Legacy prefixed names (older beat entries)
     'backend.apps.core.tasks.scrape_hackernews': {'queue': 'scraping'},
     'backend.apps.core.tasks.scrape_github':     {'queue': 'scraping'},

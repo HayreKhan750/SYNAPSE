@@ -43,7 +43,7 @@ def _action_scrape_videos(params: dict, workflow=None) -> dict:
 
         user_id = str(workflow.user_id) if workflow else None
         task = scrape_youtube.apply_async(
-            args=[days_back, max_results, queries if queries else None, user_id],
+            kwargs={'days_back': days_back, 'max_results': max_results, 'queries': queries if queries else None, 'user_id': user_id},
             queue='scraping',
         )
 
@@ -86,14 +86,14 @@ def _action_scrape_tweets(params: dict, workflow=None) -> dict:
             per_query = max(1, max_results // len(queries))
             for q in queries:
                 t = scrape_twitter.apply_async(
-                    args=[q, per_query, user_id, True],
+                    kwargs={'query': q, 'max_results': per_query, 'user_id': user_id, 'use_nitter': True},
                     queue='scraping',
                 )
                 task_ids.append(t.id)
         else:
             # No queries — scrape default tech accounts via Nitter
             t = scrape_twitter.apply_async(
-                args=[None, max_results, user_id, True],
+                kwargs={'max_results': max_results, 'user_id': user_id, 'use_nitter': True},
                 queue='scraping',
             )
             task_ids.append(t.id)
@@ -128,7 +128,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
         # Use 'limit' from workflow params, fallback to items_per_source, then default
         hn_limit = int(params.get('limit', params.get('items_per_source', DEFAULT_ITEMS_PER_SOURCE)))
         t = scrape_hackernews.apply_async(
-            args=[params.get('story_type', 'top'), hn_limit, user_id],
+            kwargs={'story_type': params.get('story_type', 'top'), 'limit': hn_limit, 'user_id': user_id},
             queue='scraping',
         )
         task_ids['hackernews'] = t.id
@@ -136,7 +136,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
     if 'github' in sources:
         gh_limit = int(params.get('limit', params.get('items_per_source', DEFAULT_ITEMS_PER_SOURCE)))
         t = scrape_github.apply_async(
-            args=[int(params.get('days_back', 7)), None, gh_limit, user_id],
+            kwargs={'days_back': int(params.get('days_back', 7)), 'language': None, 'limit': gh_limit, 'user_id': user_id},
             queue='scraping',
         )
         task_ids['github'] = t.id
@@ -144,7 +144,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
     if 'arxiv' in sources:
         arxiv_limit = int(params.get('max_papers', params.get('items_per_source', DEFAULT_ITEMS_PER_SOURCE)))
         t = scrape_arxiv.apply_async(
-            args=[None, int(params.get('days_back', 7)), arxiv_limit, user_id],
+            kwargs={'categories': None, 'days_back': int(params.get('days_back', 7)), 'max_papers': arxiv_limit, 'user_id': user_id},
             queue='scraping',
         )
         task_ids['arxiv'] = t.id
@@ -161,7 +161,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
 
         yt_limit = int(params.get('max_results', params.get('items_per_source', DEFAULT_ITEMS_PER_SOURCE)))
         t = scrape_youtube.apply_async(
-            args=[int(params.get('days_back', 30)), yt_limit, yt_queries if yt_queries else None, user_id],
+            kwargs={'days_back': int(params.get('days_back', 30)), 'max_results': yt_limit, 'queries': yt_queries if yt_queries else None, 'user_id': user_id},
             queue='scraping',
         )
         task_ids['youtube'] = t.id
@@ -178,7 +178,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
 
         tw_limit = int(params.get('items_per_source', DEFAULT_ITEMS_PER_SOURCE))
         t = scrape_twitter.apply_async(
-            args=[None, ','.join(tw_queries) if tw_queries else None, tw_limit, user_id, True],
+            kwargs={'queries': ','.join(tw_queries) if tw_queries else None, 'max_results': tw_limit, 'user_id': user_id, 'use_nitter': True},
             queue='scraping',
         )
         task_ids['twitter'] = t.id
@@ -462,7 +462,7 @@ def _dispatch_action(workflow, action: dict) -> dict:
     if action_type == 'send_email':
         return _action_send_email(workflow, params)
     if action_type == 'scrape_videos':
-        return _action_scrape_videos(params)
+        return _action_scrape_videos(params, workflow=workflow)
     if action_type == 'scrape_tweets':
         return _action_scrape_tweets(params, workflow=workflow)
     if action_type == 'collect_news':
@@ -582,17 +582,25 @@ def execute_workflow(self, workflow_id: str, trigger_event: dict | None = None, 
             run.error_message = '; '.join(errors)
         run.save(update_fields=['status', 'completed_at', 'result', 'error_message'])
 
-        # After a successful collect_news run, regenerate the user's daily briefing
+        # After a successful scraping run, regenerate the user's daily briefing
         # so the home page reflects the newly scraped data immediately.
+        # We use a generous countdown because scraping tasks run as subprocesses
+        # and can take 30-180 seconds each. The countdown starts from when the
+        # workflow finishes queuing (not from when scrapers finish).
+        SCRAPING_ACTIONS = {'collect_news', 'scrape_videos', 'scrape_tweets'}
         if not had_error:
-            action_types = [a.get('type') for a in workflow.actions]
-            if 'collect_news' in action_types:
+            action_types = {a.get('type') for a in workflow.actions}
+            if action_types & SCRAPING_ACTIONS:
                 try:
                     from apps.core.tasks import generate_user_briefing
-                    generate_user_briefing.delay(str(workflow.user_id))
+                    countdown_seconds = 180  # 3 min — enough for all scrapers to finish
+                    generate_user_briefing.apply_async(
+                        kwargs={'user_id': str(workflow.user_id)},
+                        countdown=countdown_seconds,
+                    )
                     logger.info(
-                        "[%s] Queued briefing regeneration for user %s after collect_news",
-                        task_id, workflow.user_id,
+                        "[%s] Queued briefing regeneration for user %s in %ds after %s",
+                        task_id, workflow.user_id, countdown_seconds, action_types & SCRAPING_ACTIONS,
                     )
                 except Exception as brief_exc:
                     logger.warning(

@@ -15,7 +15,7 @@ export function formatRelativeTime(dateStr: string | null): string {
       .replace(/less than a minute ago/, '<1 min ago')
       .replace(/(\d+) minutes? ago/, '$1 min ago')
       .replace(/(\d+) hours? ago/, '$1 hr ago')
-      .replace(/(\d+) days? ago/, '$1 day ago')
+      .replace(/(\d+) days? ago/, '$1 d ago')
       .replace(/(\d+) months? ago/, '$1 mo ago')
       .replace(/(\d+) years? ago/, '$1 yr ago')
       .replace(/about /, '')

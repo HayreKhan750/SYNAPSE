@@ -299,7 +299,7 @@ export default function OnboardingWizardPage() {
     </div>
   );
 
-  const STEPS = [StepWelcome, StepInterests, StepUseCase, StepDone];
+  const STEPS = [StepWelcome, StepInterests, StepUseCase, StepTryIt, StepDone];
 
   return (
     <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-2xl p-8">
@@ -307,18 +307,19 @@ export default function OnboardingWizardPage() {
 
       {/* Step content */}
       <div className="min-h-[300px]">
-        {currentStep === 4 ? (
-          <StepTryIt 
-            searchQuery={searchQuery} 
-            onSearchChange={handleInputChange}
-            onQueryButtonClick={handleQueryButtonClick}
-          />
-        ) : (
-          (() => {
-            const CurrentStepComponent = STEPS[currentStep - 1];
-            return <CurrentStepComponent />;
-          })()
-        )}
+        {(() => {
+          const CurrentStepComponent = STEPS[currentStep - 1];
+          if (!CurrentStepComponent) return null;
+          // StepTryIt (step 4) needs props; others don't
+          if (currentStep === 4) {
+            return <StepTryIt
+              searchQuery={searchQuery}
+              onSearchChange={handleInputChange}
+              onQueryButtonClick={handleQueryButtonClick}
+            />;
+          }
+          return <CurrentStepComponent />;
+        })()}
       </div>
 
       {/* Navigation buttons */}

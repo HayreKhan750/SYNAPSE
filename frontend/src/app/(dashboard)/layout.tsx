@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { Sidebar, MobileBottomNav } from '@/components/layout/Sidebar'
 import { Navbar } from '@/components/layout/Navbar'
 import { AIAssistantPanel } from '@/components/layout/AIAssistantPanel'
+import { ApiKeyWarningBanner } from '@/components/layout/ApiKeyWarningBanner'
 import { useAuthStore } from '@/store/authStore'
 import { OrganizationProvider } from '@/contexts/OrganizationContext'
 
@@ -113,6 +114,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onAIPanelToggle={pathname !== '/chat' ? () => setAiPanelOpen(prev => !prev) : undefined}
             aiPanelOpen={aiPanelOpen}
           />
+
+          {/* API key warnings — shown when fallbacks are active */}
+          <ApiKeyWarningBanner />
 
           {/* 3-panel: main content + right AI assistant */}
           <div className="flex-1 flex overflow-hidden min-h-0">

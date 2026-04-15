@@ -93,11 +93,6 @@ export const RepositoryCard = memo(function RepositoryCard({ repo }: RepositoryC
           <AlertCircle size={13} />
           {formatNumber(repo.open_issues)}
         </span>
-        {repo.stars_today && repo.stars_today > 0 && (
-          <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-            +{repo.stars_today} today
-          </span>
-        )}
       </div>
 
       {/* Topics */}

@@ -93,12 +93,24 @@ def _parse_date(date_str):
     """Parse Nitter date strings to ISO format."""
     if not date_str:
         return None
-    for fmt in ('%b %d, %Y %I:%M %p', '%d %b %Y %I:%M %p', '%Y-%m-%d %H:%M:%S'):
+    # Normalise: strip leading/trailing whitespace, remove 'UTC'/'·' separators
+    s = date_str.strip().replace('UTC', '').replace('·', ' ').strip()
+    # Collapse multiple spaces left by removals
+    s = re.sub(r'\s+', ' ', s)
+    for fmt in (
+        '%b %d, %Y %I:%M %p',       # Dec 25, 2024 3:30 PM
+        '%b %d, %Y, %I:%M %p',      # Dec 25, 2024, 3:30 PM
+        '%d %b %Y %I:%M %p',        # 25 Dec 2024 3:30 PM
+        '%Y-%m-%d %H:%M:%S',        # 2024-12-25 15:30:00
+        '%b %d %Y %I:%M %p',        # Dec 25 2024 3:30 PM
+        '%I:%M %p · %b %d, %Y',     # 3:30 PM · Dec 25, 2024
+    ):
         try:
-            dt = datetime.strptime(date_str.strip(), fmt)
+            dt = datetime.strptime(s, fmt)
             return dt.replace(tzinfo=timezone.utc).isoformat()
         except ValueError:
             continue
+    logger.debug(f'Could not parse Nitter date: {date_str!r}')
     return None
 
 
