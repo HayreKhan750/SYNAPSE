@@ -10,14 +10,15 @@
  *  ✓ Respects Do Not Track + user opt-out
  *  ✓ Tracks route changes in Next.js App Router
  *  ✓ Identifies users after login (no PII in events)
+ *  ✓ Wrapped in Suspense for Next.js static prerendering
  */
 
-import { useEffect, useRef } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { initAnalytics, trackPageView, identifyUser } from '@/utils/analytics'
 import { useAuthStore } from '@/store/authStore'
 
-export function AnalyticsProvider() {
+function AnalyticsInner() {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
   const initialised  = useRef(false)
@@ -49,6 +50,14 @@ export function AnalyticsProvider() {
   }, [user?.id])
 
   return null
+}
+
+export function AnalyticsProvider() {
+  return (
+    <Suspense fallback={null}>
+      <AnalyticsInner />
+    </Suspense>
+  )
 }
 
 export default AnalyticsProvider
