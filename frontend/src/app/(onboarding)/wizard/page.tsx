@@ -314,7 +314,7 @@ export default function OnboardingWizardPage() {
           if (currentStep === 4) {
             return <StepTryIt
               searchQuery={searchQuery}
-              onSearchChange={handleInputChange}
+              onSearchChange={(val) => handleInputChange({ target: { value: val } } as React.ChangeEvent<HTMLInputElement>)}
               onQueryButtonClick={handleQueryButtonClick}
             />;
           }
