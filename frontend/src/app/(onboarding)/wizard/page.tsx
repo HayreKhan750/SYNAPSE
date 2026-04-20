@@ -34,7 +34,7 @@ const StepTryIt = memo(function StepTryIt({ searchQuery, onSearchChange, onQuery
         <input
           type="text"
           value={searchQuery}
-          onChange={onSearchChange}
+          onChange={(e) => onSearchChange(e.target.value)}
           placeholder="e.g. 'latest transformer architectures 2026' or 'best TypeScript frameworks'"
           className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3.5 pr-12 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
         />
