@@ -68,18 +68,14 @@ function makeQueryClient() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => makeQueryClient())
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
 
-  // GoogleOAuthProvider crashes the entire React tree if clientId is empty.
-  // Wrap conditionally so the app works without Google OAuth configured.
-  const MaybeGoogleProvider = googleClientId
-    ? ({ children: c }: { children: React.ReactNode }) => (
-        <GoogleOAuthProvider clientId={googleClientId}>{c}</GoogleOAuthProvider>
-      )
-    : React.Fragment
+  // Always provide GoogleOAuthProvider so useGoogleLogin hooks don't crash.
+  // Use 'not-configured' as placeholder — Google Sign-In won't work until the
+  // real NEXT_PUBLIC_GOOGLE_CLIENT_ID is set, but the app won't crash.
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'not-configured'
 
   return (
-    <MaybeGoogleProvider>
+    <GoogleOAuthProvider clientId={googleClientId}>
       {/* TASK-401-2: ThemeProvider — respect OS prefers-color-scheme on first visit,
            store preference in localStorage via next-themes built-in mechanism */}
       <ThemeProvider
@@ -120,6 +116,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
           </UpgradeModalProvider>
         </QueryClientProvider>
       </ThemeProvider>
-    </MaybeGoogleProvider>
+    </GoogleOAuthProvider>
   )
 }
