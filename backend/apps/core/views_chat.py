@@ -287,7 +287,7 @@ def _get_pipeline(model: str = None, user=None):
     openrouter_key = _get_openrouter_key(user=user)
     gemini_keys = _get_gemini_keys(user=user)
 
-    default_model = os.environ.get("SCITELY_MODEL", os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "gpt-4o-mini")))
+    default_model = os.environ.get("SCITELY_MODEL", os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "deepseek-v3")))
     resolved_model = model or default_model
 
     if not scitely_key and not openrouter_key and not gemini_keys:

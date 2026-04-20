@@ -75,7 +75,8 @@ const nextConfig = {
   // Explicit SWC minification (default true in Next 13+ but explicit is faster CI)
   swcMinify: true,
   // Persistent build cache between deploys
-  output: 'standalone',
+  // Only use standalone output for Docker — Vercel handles its own output format
+  ...(process.env.VERCEL ? {} : { output: 'standalone' }),
   // Compiler optimisations — strip console.* in production
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production'

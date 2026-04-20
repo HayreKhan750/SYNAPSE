@@ -147,7 +147,7 @@ def build_llm(
     # ── Scitely (explicit or auto-fallback) ────────────────────────────────────
     sc_key   = scitely_api_key or os.environ.get("SCITELY_API_KEY", "")
     sc_base  = "https://api.scitely.com/v1"
-    sc_model = model or os.environ.get("SCITELY_MODEL", "gpt-4o-mini")
+    sc_model = model or os.environ.get("SCITELY_MODEL", "deepseek-v3")
 
     if provider == "scitely":
         if not sc_key:
