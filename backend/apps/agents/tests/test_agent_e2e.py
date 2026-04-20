@@ -23,17 +23,18 @@ Patch notes:
   - StandardPagination returns {success, data, meta} — tests use data["data"]
   - SSE endpoint bypasses DRF content negotiation; test uses Django test client
 """
+
 from __future__ import annotations
 
 import uuid
 from unittest.mock import MagicMock, patch
 
+from apps.agents.models import AgentTask
+from apps.users.models import User
+
 from django.test import TestCase as DjangoTestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
-
-from apps.users.models import User
-from apps.agents.models import AgentTask
 
 
 class AgentTaskE2ETest(APITestCase):
@@ -56,7 +57,10 @@ class AgentTaskE2ETest(APITestCase):
         mock_result.id = str(uuid.uuid4())
         mock_celery.delay.return_value = mock_result
 
-        payload = {"task_type": "general", "prompt": "Summarise the latest AI news for me."}
+        payload = {
+            "task_type": "general",
+            "prompt": "Summarise the latest AI news for me.",
+        }
         response = self.client.post("/api/v1/agents/tasks/", payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -75,14 +79,20 @@ class AgentTaskE2ETest(APITestCase):
 
     def test_create_task_invalid_type(self):
         """Unknown task_type should be rejected with 400."""
-        payload = {"task_type": "unknown_type", "prompt": "This is a valid long enough prompt."}
+        payload = {
+            "task_type": "unknown_type",
+            "prompt": "This is a valid long enough prompt.",
+        }
         response = self.client.post("/api/v1/agents/tasks/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_task_requires_auth(self):
         """Unauthenticated requests should get 401."""
         self.client.force_authenticate(user=None)
-        payload = {"task_type": "general", "prompt": "This is a valid long enough prompt."}
+        payload = {
+            "task_type": "general",
+            "prompt": "This is a valid long enough prompt.",
+        }
         response = self.client.post("/api/v1/agents/tasks/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -95,7 +105,10 @@ class AgentTaskE2ETest(APITestCase):
             task_type="research",
             prompt="What are the latest developments in quantum computing?",
             status=AgentTask.TaskStatus.COMPLETED,
-            result={"answer": "Quantum computing advances rapidly.", "tokens_used": 512},
+            result={
+                "answer": "Quantum computing advances rapidly.",
+                "tokens_used": 512,
+            },
             tokens_used=512,
             cost_usd="0.000768",
         )
@@ -115,7 +128,9 @@ class AgentTaskE2ETest(APITestCase):
 
     def test_cannot_access_other_users_task(self):
         """User A cannot retrieve User B's task."""
-        other = User.objects.create_user(username="other", email="other@test.com", password="pass")
+        other = User.objects.create_user(
+            username="other", email="other@test.com", password="pass"
+        )
         task = AgentTask.objects.create(
             user=other,
             task_type="general",
@@ -131,9 +146,15 @@ class AgentTaskE2ETest(APITestCase):
         """GET /agents/tasks/ returns only the authenticated user's tasks.
         StandardPagination returns {success, data, meta} format.
         """
-        AgentTask.objects.create(user=self.user, task_type="general", prompt="My task, long enough.")
-        other = User.objects.create_user(username="stranger", email="s@test.com", password="pass")
-        AgentTask.objects.create(user=other, task_type="general", prompt="Stranger task, long enough.")
+        AgentTask.objects.create(
+            user=self.user, task_type="general", prompt="My task, long enough."
+        )
+        other = User.objects.create_user(
+            username="stranger", email="s@test.com", password="pass"
+        )
+        AgentTask.objects.create(
+            user=other, task_type="general", prompt="Stranger task, long enough."
+        )
 
         response = self.client.get("/api/v1/agents/tasks/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -143,7 +164,9 @@ class AgentTaskE2ETest(APITestCase):
         task_ids = [t["id"] for t in items]
         # Only self.user's tasks should be returned
         for task_id in task_ids:
-            self.assertTrue(AgentTask.objects.filter(id=task_id, user=self.user).exists())
+            self.assertTrue(
+                AgentTask.objects.filter(id=task_id, user=self.user).exists()
+            )
         # Stranger's task must not appear
         stranger_tasks = AgentTask.objects.filter(user=other)
         stranger_ids = [str(t.id) for t in stranger_tasks]
@@ -153,12 +176,16 @@ class AgentTaskE2ETest(APITestCase):
     def test_filter_tasks_by_status(self):
         """?status=completed filter returns only completed tasks."""
         AgentTask.objects.create(
-            user=self.user, task_type="general",
-            prompt="Pending task, long enough text.", status="pending"
+            user=self.user,
+            task_type="general",
+            prompt="Pending task, long enough text.",
+            status="pending",
         )
         AgentTask.objects.create(
-            user=self.user, task_type="research",
-            prompt="Completed task, long enough text.", status="completed"
+            user=self.user,
+            task_type="research",
+            prompt="Completed task, long enough text.",
+            status="completed",
         )
 
         response = self.client.get("/api/v1/agents/tasks/?status=completed")
@@ -205,6 +232,7 @@ class AgentTaskE2ETest(APITestCase):
         Uses JWT Bearer token for authentication.
         """
         from rest_framework_simplejwt.tokens import AccessToken
+
         from django.test import Client as DjangoClient
 
         task = AgentTask.objects.create(
@@ -227,6 +255,7 @@ class AgentTaskE2ETest(APITestCase):
     def test_sse_stream_not_found(self):
         """SSE for non-existent task returns 404 (authenticated but task doesn't exist)."""
         from rest_framework_simplejwt.tokens import AccessToken
+
         from django.test import Client as DjangoClient
 
         fake_id = uuid.uuid4()
@@ -245,7 +274,10 @@ class AgentTaskE2ETest(APITestCase):
         """GET /agents/tools/ returns tool list."""
         mock_executor = MagicMock()
         mock_executor.list_tools.return_value = [
-            {"name": "search_knowledge_base", "description": "Searches the knowledge base."},
+            {
+                "name": "search_knowledge_base",
+                "description": "Searches the knowledge base.",
+            },
             {"name": "fetch_articles", "description": "Fetches articles."},
         ]
         mock_get_executor.return_value = mock_executor

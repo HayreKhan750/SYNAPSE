@@ -35,7 +35,10 @@ class RAGPipeline:
         max_tokens: int = 1024,
     ) -> None:
         self.retrieval_k = retrieval_k
-        self.model_name = model_name or os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "google/gemini-2.0-flash-001"))
+        self.model_name = model_name or os.environ.get(
+            "OPENROUTER_MODEL",
+            os.environ.get("GEMINI_MODEL", "google/gemini-2.0-flash-001"),
+        )
         self.temperature = temperature
         self.max_tokens = max_tokens
 
@@ -88,7 +91,10 @@ class RAGPipeline:
         """
         logger.debug(
             "RAG chat — conv=%s question=%r provider=%s model=%s",
-            conversation_id, question[:80], provider, model,
+            conversation_id,
+            question[:80],
+            provider,
+            model,
         )
         return self.chain.chat_with_context(
             question=question,
@@ -168,6 +174,7 @@ class RAGPipeline:
         # Check DB connection string
         try:
             from .retriever import _build_connection_string
+
             conn = _build_connection_string()
             status["components"]["database"] = "connection_string_built"
         except Exception as exc:
@@ -180,6 +187,7 @@ class RAGPipeline:
 # ---------------------------------------------------------------------------
 # Module-level singleton (lazy, thread-safe via lru_cache)
 # ---------------------------------------------------------------------------
+
 
 @lru_cache(maxsize=1)
 def get_rag_pipeline(

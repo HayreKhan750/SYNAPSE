@@ -29,11 +29,15 @@ MEMORY_WINDOW_K = 10
 # Prevents hammering a downed Redis with every request.
 # State: CLOSED (normal) → OPEN (failing) → HALF-OPEN (testing recovery)
 
-_CB_FAILURE_THRESHOLD = int(os.environ.get("REDIS_CB_FAILURES", "3"))   # trips after N failures
-_CB_RECOVERY_TIMEOUT  = int(os.environ.get("REDIS_CB_TIMEOUT_S", "30")) # seconds before retry
+_CB_FAILURE_THRESHOLD = int(
+    os.environ.get("REDIS_CB_FAILURES", "3")
+)  # trips after N failures
+_CB_RECOVERY_TIMEOUT = int(
+    os.environ.get("REDIS_CB_TIMEOUT_S", "30")
+)  # seconds before retry
 
-_cb_failures: int   = 0
-_cb_open_at:  float = 0.0   # timestamp when circuit opened (0 = closed)
+_cb_failures: int = 0
+_cb_open_at: float = 0.0  # timestamp when circuit opened (0 = closed)
 
 
 def _cb_is_open() -> bool:
@@ -46,7 +50,7 @@ def _cb_is_open() -> bool:
 def _cb_record_success() -> None:
     global _cb_failures, _cb_open_at
     _cb_failures = 0
-    _cb_open_at  = 0.0
+    _cb_open_at = 0.0
 
 
 def _cb_record_failure() -> None:
@@ -58,7 +62,8 @@ def _cb_record_failure() -> None:
             "Redis circuit breaker OPENED after %d failures — "
             "conversation history disabled for %ds. "
             "Check REDIS_HOST=%s REDIS_PORT=%s",
-            _cb_failures, _CB_RECOVERY_TIMEOUT,
+            _cb_failures,
+            _CB_RECOVERY_TIMEOUT,
             os.environ.get("REDIS_HOST", "localhost"),
             os.environ.get("REDIS_PORT", "6379"),
         )
@@ -67,6 +72,7 @@ def _cb_record_failure() -> None:
 # ---------------------------------------------------------------------------
 # Redis client
 # ---------------------------------------------------------------------------
+
 
 def _get_redis_client() -> redis.Redis:
     """
@@ -94,7 +100,8 @@ def _get_redis_client() -> redis.Redis:
         logger.critical(
             "Redis connection failed — conversation history unavailable. "
             "Ensure Redis is running and REDIS_HOST/REDIS_PORT are set correctly. "
-            "Error: %s", exc
+            "Error: %s",
+            exc,
         )
         raise RuntimeError(
             f"Redis connection failed — conversation history disabled. "
@@ -105,6 +112,7 @@ def _get_redis_client() -> redis.Redis:
 # ---------------------------------------------------------------------------
 # ConversationMemoryManager
 # ---------------------------------------------------------------------------
+
 
 class SimpleWindowMemory:
     """
@@ -119,7 +127,7 @@ class SimpleWindowMemory:
     @property
     def messages(self) -> List[BaseMessage]:
         """Return the last 2*k messages (k human + k ai pairs)."""
-        return self._messages[-(self.k * 2):]
+        return self._messages[-(self.k * 2) :]
 
     def add_user_message(self, content: str) -> None:
         self._messages.append(HumanMessage(content=content))
@@ -165,7 +173,9 @@ class ConversationMemoryManager:
         key = self._redis_key(conversation_id)
         try:
             history = self._load_history(conversation_id)
-            history.append({"human": human_message, "ai": ai_message, "ts": time.time()})
+            history.append(
+                {"human": human_message, "ai": ai_message, "ts": time.time()}
+            )
             # Keep only the last MEMORY_WINDOW_K turns in Redis too
             history = history[-MEMORY_WINDOW_K:]
             self._redis.setex(key, CONVERSATION_TTL, json.dumps(history))
@@ -217,7 +227,8 @@ class ConversationMemoryManager:
                 "CONVERSATION HISTORY LOST — Redis read failed for conversation '%s': %s. "
                 "User will experience context loss (assistant forgets previous messages). "
                 "Check Redis connectivity: REDIS_HOST=%s REDIS_CHAT_DB=%s",
-                conversation_id, exc,
+                conversation_id,
+                exc,
                 os.environ.get("REDIS_HOST", "localhost"),
                 os.environ.get("REDIS_CHAT_DB", "3"),
             )

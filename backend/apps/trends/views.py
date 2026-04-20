@@ -1,12 +1,14 @@
 """
 Trends app views — Technology Trend Radar (Phase 2 / dashboard widget).
 """
+
+from datetime import timedelta
+
+from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status
-from django.utils import timezone
-from datetime import timedelta
 
 from .models import TechnologyTrend
 from .serializers import TechnologyTrendSerializer
@@ -42,34 +44,43 @@ def trend_list(request):
     # Deduplicate: one row per technology — pick the record with the highest trend_score.
     # Use a subquery to find the pk of the best-scored record per technology.
     from django.db.models import Max, OuterRef, Subquery
+
     best_pk_subquery = (
-        TechnologyTrend.objects
-        .filter(technology_name=OuterRef('technology_name'), date__gte=since)
-        .order_by('-trend_score')
-        .values('pk')[:1]
+        TechnologyTrend.objects.filter(
+            technology_name=OuterRef("technology_name"), date__gte=since
+        )
+        .order_by("-trend_score")
+        .values("pk")[:1]
     )
     if category:
         best_pk_subquery = (
-            TechnologyTrend.objects
-            .filter(technology_name=OuterRef('technology_name'), date__gte=since, category__icontains=category)
-            .order_by('-trend_score')
-            .values('pk')[:1]
+            TechnologyTrend.objects.filter(
+                technology_name=OuterRef("technology_name"),
+                date__gte=since,
+                category__icontains=category,
+            )
+            .order_by("-trend_score")
+            .values("pk")[:1]
         )
 
     top_per_tech = (
-        qs.values('technology_name')
-        .annotate(max_score=Max('trend_score'), best_pk=Subquery(best_pk_subquery))
-        .order_by('-max_score')[:limit]
+        qs.values("technology_name")
+        .annotate(max_score=Max("trend_score"), best_pk=Subquery(best_pk_subquery))
+        .order_by("-max_score")[:limit]
     )
-    best_pks = [row['best_pk'] for row in top_per_tech if row['best_pk']]
-    results = list(TechnologyTrend.objects.filter(pk__in=best_pks).order_by('-trend_score'))
+    best_pks = [row["best_pk"] for row in top_per_tech if row["best_pk"]]
+    results = list(
+        TechnologyTrend.objects.filter(pk__in=best_pks).order_by("-trend_score")
+    )
 
     serializer = TechnologyTrendSerializer(results, many=True)
-    return Response({
-        "success": True,
-        "count": len(serializer.data),
-        "results": serializer.data,
-    })
+    return Response(
+        {
+            "success": True,
+            "count": len(serializer.data),
+            "results": serializer.data,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -81,10 +92,13 @@ def trend_trigger(request):
     """
     try:
         from .tasks import analyze_trends_task
+
         analyze_trends_task.delay()
         return Response({"success": True, "message": "Trend analysis task queued."})
     except Exception as exc:
-        return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["GET"])
@@ -132,13 +146,13 @@ def trend_history(request):
 
     # Get the top N techs by latest trend_score
     from django.db.models import Max
+
     top_techs = (
-        TechnologyTrend.objects
-        .filter(date__gte=since)
-        .values('technology_name')
-        .annotate(max_score=Max('trend_score'))
-        .order_by('-max_score')[:top]
-        .values_list('technology_name', flat=True)
+        TechnologyTrend.objects.filter(date__gte=since)
+        .values("technology_name")
+        .annotate(max_score=Max("trend_score"))
+        .order_by("-max_score")[:top]
+        .values_list("technology_name", flat=True)
     )
     top_techs = list(top_techs)
 
@@ -147,17 +161,16 @@ def trend_history(request):
 
     # Get all records for these techs in the date range
     qs = (
-        TechnologyTrend.objects
-        .filter(technology_name__in=top_techs, date__gte=since)
-        .values('technology_name', 'date', 'trend_score')
-        .order_by('date')
+        TechnologyTrend.objects.filter(technology_name__in=top_techs, date__gte=since)
+        .values("technology_name", "date", "trend_score")
+        .order_by("date")
     )
 
     # Build a date → {tech → score} lookup
-    date_set = sorted(set(str(r['date']) for r in qs))
+    date_set = sorted(set(str(r["date"]) for r in qs))
     tech_map: dict = {t: {} for t in top_techs}
     for r in qs:
-        tech_map[r['technology_name']][str(r['date'])] = round(r['trend_score'], 2)
+        tech_map[r["technology_name"]][str(r["date"])] = round(r["trend_score"], 2)
 
     series = [
         {
@@ -167,9 +180,11 @@ def trend_history(request):
         for tech in top_techs
     ]
 
-    return Response({
-        "technologies": top_techs,
-        "dates": date_set,
-        "series": series,
-        "success": True,
-    })
+    return Response(
+        {
+            "technologies": top_techs,
+            "dates": date_set,
+            "series": series,
+            "success": True,
+        }
+    )

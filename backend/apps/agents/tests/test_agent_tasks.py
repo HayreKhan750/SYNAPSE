@@ -11,18 +11,19 @@ Covers:
   - Unknown agent_task_id handled gracefully
   - tool_map includes 'document' and 'project' task types
 """
+
 from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
+from apps.agents.models import AgentTask
+from apps.agents.tasks import _notify_user, cancel_agent_task, execute_agent_task
+from apps.users.models import User
+
 from django.test import TestCase
 from django.utils import timezone as dj_tz
-
-from apps.users.models import User
-from apps.agents.models import AgentTask
-from apps.agents.tasks import execute_agent_task, cancel_agent_task, _notify_user
 
 
 def _make_user(suffix=""):
@@ -34,7 +35,9 @@ def _make_user(suffix=""):
     )
 
 
-def _make_task(user, task_type="general", prompt="This is a long enough prompt for the agent."):
+def _make_task(
+    user, task_type="general", prompt="This is a long enough prompt for the agent."
+):
     return AgentTask.objects.create(
         user=user,
         task_type=task_type,
@@ -46,6 +49,7 @@ def _make_task(user, task_type="general", prompt="This is a long enough prompt f
 # ---------------------------------------------------------------------------
 # execute_agent_task
 # ---------------------------------------------------------------------------
+
 
 class ExecuteAgentTaskTests(TestCase):
 
@@ -113,9 +117,13 @@ class ExecuteAgentTaskTests(TestCase):
         """_notify_user is called after successful execution."""
         mock_executor = MagicMock()
         mock_executor.run.return_value = {
-            "answer": "Done", "intermediate_steps": [],
-            "tokens_used": 50, "cost_usd": 0.0,
-            "execution_time_s": 0.5, "success": True, "error": None,
+            "answer": "Done",
+            "intermediate_steps": [],
+            "tokens_used": 50,
+            "cost_usd": 0.0,
+            "execution_time_s": 0.5,
+            "success": True,
+            "error": None,
         }
         mock_get_executor.return_value = mock_executor
 
@@ -131,14 +139,21 @@ class ExecuteAgentTaskTests(TestCase):
         """'document' task_type restricts agent to doc generation tools."""
         mock_executor = MagicMock()
         mock_executor.run.return_value = {
-            "answer": "PDF generated.", "intermediate_steps": [],
-            "tokens_used": 100, "cost_usd": 0.0,
-            "execution_time_s": 1.0, "success": True, "error": None,
+            "answer": "PDF generated.",
+            "intermediate_steps": [],
+            "tokens_used": 100,
+            "cost_usd": 0.0,
+            "execution_time_s": 1.0,
+            "success": True,
+            "error": None,
         }
         mock_get_executor.return_value = mock_executor
 
-        task = _make_task(self.user, task_type="document",
-                          prompt="Generate a PDF report on LLMs in 2025.")
+        task = _make_task(
+            self.user,
+            task_type="document",
+            prompt="Generate a PDF report on LLMs in 2025.",
+        )
         execute_agent_task(str(task.id))
 
         call_kwargs = mock_executor.run.call_args
@@ -152,14 +167,21 @@ class ExecuteAgentTaskTests(TestCase):
         """'project' task_type restricts agent to create_project tool."""
         mock_executor = MagicMock()
         mock_executor.run.return_value = {
-            "answer": "Project created.", "intermediate_steps": [],
-            "tokens_used": 100, "cost_usd": 0.0,
-            "execution_time_s": 1.0, "success": True, "error": None,
+            "answer": "Project created.",
+            "intermediate_steps": [],
+            "tokens_used": 100,
+            "cost_usd": 0.0,
+            "execution_time_s": 1.0,
+            "success": True,
+            "error": None,
         }
         mock_get_executor.return_value = mock_executor
 
-        task = _make_task(self.user, task_type="project",
-                          prompt="Create a FastAPI microservice project called my-api.")
+        task = _make_task(
+            self.user,
+            task_type="project",
+            prompt="Create a FastAPI microservice project called my-api.",
+        )
         execute_agent_task(str(task.id))
 
         call_kwargs = mock_executor.run.call_args
@@ -172,14 +194,21 @@ class ExecuteAgentTaskTests(TestCase):
         """'general' task_type passes tool_names=None (all tools)."""
         mock_executor = MagicMock()
         mock_executor.run.return_value = {
-            "answer": "All tools used.", "intermediate_steps": [],
-            "tokens_used": 100, "cost_usd": 0.0,
-            "execution_time_s": 1.0, "success": True, "error": None,
+            "answer": "All tools used.",
+            "intermediate_steps": [],
+            "tokens_used": 100,
+            "cost_usd": 0.0,
+            "execution_time_s": 1.0,
+            "success": True,
+            "error": None,
         }
         mock_get_executor.return_value = mock_executor
 
-        task = _make_task(self.user, task_type="general",
-                          prompt="Help me find the best Python web framework for 2025.")
+        task = _make_task(
+            self.user,
+            task_type="general",
+            prompt="Help me find the best Python web framework for 2025.",
+        )
         execute_agent_task(str(task.id))
 
         call_kwargs = mock_executor.run.call_args
@@ -191,6 +220,7 @@ class ExecuteAgentTaskTests(TestCase):
 # _notify_user
 # ---------------------------------------------------------------------------
 
+
 class NotifyUserTests(TestCase):
 
     def setUp(self):
@@ -198,6 +228,7 @@ class NotifyUserTests(TestCase):
 
     def test_creates_notification_on_success(self):
         from apps.notifications.models import Notification
+
         task = _make_task(self.user)
         task.tokens_used = 100
         task.cost_usd = 0.0000075
@@ -211,6 +242,7 @@ class NotifyUserTests(TestCase):
 
     def test_creates_notification_on_failure(self):
         from apps.notifications.models import Notification
+
         task = _make_task(self.user)
         task.tokens_used = 0
         task.cost_usd = 0
@@ -225,6 +257,7 @@ class NotifyUserTests(TestCase):
 # ---------------------------------------------------------------------------
 # cancel_agent_task
 # ---------------------------------------------------------------------------
+
 
 class CancelAgentTaskTests(TestCase):
 

@@ -8,20 +8,24 @@ or pgvector — all external dependencies are mocked.
 
 Phase 5.1 — Agent Framework (Week 13)
 """
+
 from __future__ import annotations
 
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.test import TestCase
 
+from django.test import TestCase
 
 # ---------------------------------------------------------------------------
 # Helper: build a minimal fake httpx response
 # ---------------------------------------------------------------------------
 
-def _make_httpx_response(json_data: dict = None, text: str = "", status_code: int = 200):
+
+def _make_httpx_response(
+    json_data: dict = None, text: str = "", status_code: int = 200
+):
     resp = MagicMock()
     resp.status_code = status_code
     resp.text = text
@@ -34,16 +38,21 @@ def _make_httpx_response(json_data: dict = None, text: str = "", status_code: in
 # 1. search_knowledge_base
 # ===========================================================================
 
+
 class TestSearchKnowledgeBase(TestCase):
     """Tests for ai_engine.agents.tools._search_knowledge_base."""
 
-    def _run(self, query="LangChain tutorial", limit=5, content_types=None, min_score=0.0):
+    def _run(
+        self, query="LangChain tutorial", limit=5, content_types=None, min_score=0.0
+    ):
         from ai_engine.agents.tools import _search_knowledge_base
+
         return _search_knowledge_base(query, limit, content_types, min_score)
 
     @patch("ai_engine.rag.retriever.SynapseRetriever")
     def test_returns_formatted_results(self, MockRetriever):
         from langchain_core.documents import Document
+
         mock_doc = Document(
             page_content="LangChain is a framework for building LLM apps.",
             metadata={
@@ -70,13 +79,16 @@ class TestSearchKnowledgeBase(TestCase):
 
     @patch("ai_engine.rag.retriever.SynapseRetriever")
     def test_retriever_exception_returns_error_string(self, MockRetriever):
-        MockRetriever.return_value.invoke.side_effect = Exception("DB connection refused")
+        MockRetriever.return_value.invoke.side_effect = Exception(
+            "DB connection refused"
+        )
         result = self._run()
         self.assertIn("Search failed", result)
         self.assertIn("DB connection refused", result)
 
     def test_tool_metadata(self):
         from ai_engine.agents.tools import make_search_knowledge_base_tool
+
         tool = make_search_knowledge_base_tool()
         self.assertEqual(tool.name, "search_knowledge_base")
         self.assertIn("semantic", tool.description.lower())
@@ -86,11 +98,13 @@ class TestSearchKnowledgeBase(TestCase):
 # 2. fetch_articles
 # ===========================================================================
 
+
 class TestFetchArticles(TestCase):
     """Tests for ai_engine.agents.tools._fetch_articles."""
 
     def _run(self, topic="Python", days_back=7, limit=5, source=None):
         from ai_engine.agents.tools import _fetch_articles
+
         return _fetch_articles(topic, days_back, limit, source)
 
     def test_no_articles_found(self):
@@ -105,9 +119,12 @@ class TestFetchArticles(TestCase):
         mock_article_model = MagicMock()
         mock_article_model.objects = mock_qs
 
-        with patch.dict("sys.modules", {
-            "apps.articles.models": MagicMock(Article=mock_article_model),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "apps.articles.models": MagicMock(Article=mock_article_model),
+            },
+        ):
             result = self._run(topic="obscure-topic-xyz")
             # Should always return a non-empty string (articles found, none found, or error)
             self.assertIsInstance(result, str)
@@ -115,12 +132,14 @@ class TestFetchArticles(TestCase):
 
     def test_tool_metadata(self):
         from ai_engine.agents.tools import make_fetch_articles_tool
+
         tool = make_fetch_articles_tool()
         self.assertEqual(tool.name, "fetch_articles")
         self.assertIn("article", tool.description.lower())
 
     def test_input_schema_has_required_fields(self):
         from ai_engine.agents.tools import FetchArticlesInput
+
         schema = FetchArticlesInput.schema()
         required = schema.get("required", [])
         self.assertIn("topic", required)
@@ -130,22 +149,26 @@ class TestFetchArticles(TestCase):
 # 3. analyze_trends
 # ===========================================================================
 
+
 class TestAnalyzeTrends(TestCase):
     """Tests for ai_engine.agents.tools._analyze_trends."""
 
     def test_tool_metadata(self):
         from ai_engine.agents.tools import make_analyze_trends_tool
+
         tool = make_analyze_trends_tool()
         self.assertEqual(tool.name, "analyze_trends")
         self.assertIn("trend", tool.description.lower())
 
     def test_input_schema_requires_technologies(self):
         from ai_engine.agents.tools import AnalyzeTrendsInput
+
         schema = AnalyzeTrendsInput.schema()
         self.assertIn("technologies", schema.get("required", []))
 
     def test_input_schema_period_days_default(self):
         from ai_engine.agents.tools import AnalyzeTrendsInput
+
         obj = AnalyzeTrendsInput(technologies=["Python"])
         self.assertEqual(obj.period_days, 30)
 
@@ -182,8 +205,16 @@ GITHUB_RESPONSE = {
 class TestSearchGitHub(TestCase):
     """Tests for ai_engine.agents.tools._search_github."""
 
-    def _run(self, query="LangChain", language="Python", stars_min=1000, limit=5, sort="stars"):
+    def _run(
+        self,
+        query="LangChain",
+        language="Python",
+        stars_min=1000,
+        limit=5,
+        sort="stars",
+    ):
         from ai_engine.agents.tools import _search_github
+
         return _search_github(query, language, stars_min, limit, sort)
 
     @patch("ai_engine.agents.tools.httpx.Client")
@@ -220,16 +251,18 @@ class TestSearchGitHub(TestCase):
     @patch("ai_engine.agents.tools.httpx.Client")
     def test_api_error_returns_error_string(self, MockClient):
         import httpx
+
         mock_resp = MagicMock()
         mock_resp.status_code = 403
-        MockClient.return_value.__enter__.return_value.get.side_effect = httpx.HTTPStatusError(
-            "Forbidden", request=MagicMock(), response=mock_resp
+        MockClient.return_value.__enter__.return_value.get.side_effect = (
+            httpx.HTTPStatusError("Forbidden", request=MagicMock(), response=mock_resp)
         )
         result = self._run()
         self.assertIn("rate limit", result.lower())
 
     def test_tool_metadata(self):
         from ai_engine.agents.tools import make_search_github_tool
+
         tool = make_search_github_tool()
         self.assertEqual(tool.name, "search_github")
         self.assertIn("github", tool.description.lower())
@@ -265,8 +298,11 @@ ARXIV_ATOM_RESPONSE = """<?xml version="1.0" encoding="UTF-8"?>
 class TestFetchArxivPapers(TestCase):
     """Tests for ai_engine.agents.tools._fetch_arxiv_papers."""
 
-    def _run(self, query="transformer", max_results=5, categories=None, sort_by="relevance"):
+    def _run(
+        self, query="transformer", max_results=5, categories=None, sort_by="relevance"
+    ):
         from ai_engine.agents.tools import _fetch_arxiv_papers
+
         return _fetch_arxiv_papers(query, max_results, categories, sort_by)
 
     @patch("ai_engine.agents.tools.httpx.Client")
@@ -294,7 +330,9 @@ class TestFetchArxivPapers(TestCase):
 
     @patch("ai_engine.agents.tools.httpx.Client")
     def test_empty_feed_returns_no_results_message(self, MockClient):
-        empty_feed = '<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>'
+        empty_feed = (
+            '<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>'
+        )
         mock_resp = _make_httpx_response(text=empty_feed)
         MockClient.return_value.__enter__.return_value.get.return_value = mock_resp
 
@@ -303,7 +341,9 @@ class TestFetchArxivPapers(TestCase):
 
     @patch("ai_engine.agents.tools.httpx.Client")
     def test_exception_returns_error_string(self, MockClient):
-        MockClient.return_value.__enter__.return_value.get.side_effect = Exception("Connection timeout")
+        MockClient.return_value.__enter__.return_value.get.side_effect = Exception(
+            "Connection timeout"
+        )
 
         result = self._run()
         self.assertIn("arXiv fetch failed", result)
@@ -311,12 +351,14 @@ class TestFetchArxivPapers(TestCase):
 
     def test_tool_metadata(self):
         from ai_engine.agents.tools import make_fetch_arxiv_papers_tool
+
         tool = make_fetch_arxiv_papers_tool()
         self.assertEqual(tool.name, "fetch_arxiv_papers")
         self.assertIn("arxiv", tool.description.lower())
 
     def test_input_schema_defaults(self):
         from ai_engine.agents.tools import FetchArxivPapersInput
+
         obj = FetchArxivPapersInput(query="deep learning")
         self.assertEqual(obj.max_results, 10)
         self.assertEqual(obj.sort_by, "relevance")
@@ -327,14 +369,15 @@ class TestFetchArxivPapers(TestCase):
 # 6. Registry tests
 # ===========================================================================
 
+
 class TestAgentToolRegistry(TestCase):
     """Tests for ai_engine.agents.registry.AgentToolRegistry."""
 
     @patch("ai_engine.agents.registry.AgentToolRegistry.build")
     def test_get_registry_returns_singleton(self, mock_build):
         """get_registry() always returns the same instance."""
-        from ai_engine.agents.registry import get_registry, _registry_instance
         import ai_engine.agents.registry as reg_module
+        from ai_engine.agents.registry import _registry_instance, get_registry
 
         # Reset singleton for isolated test
         reg_module._registry_instance = None
@@ -386,6 +429,7 @@ class TestAgentToolRegistry(TestCase):
 
     def test_get_tools_with_name_filter(self):
         from ai_engine.agents.registry import AgentToolRegistry
+
         registry = AgentToolRegistry()
 
         # Manually inject two fake tools
@@ -402,6 +446,7 @@ class TestAgentToolRegistry(TestCase):
 
     def test_describe_returns_name_and_description(self):
         from ai_engine.agents.registry import AgentToolRegistry
+
         registry = AgentToolRegistry()
 
         fake_tool = MagicMock()
@@ -420,27 +465,34 @@ class TestAgentToolRegistry(TestCase):
 # 7. Base agent safety limits
 # ===========================================================================
 
+
 class TestSynapseAgentBase(TestCase):
     """Tests for ai_engine.agents.base.SynapseAgent utility methods."""
 
     def test_estimate_tokens(self):
         from ai_engine.agents.base import SynapseAgent
-        tokens = SynapseAgent._estimate_tokens("Hello world", "Hi there, how can I help?")
+
+        tokens = SynapseAgent._estimate_tokens(
+            "Hello world", "Hi there, how can I help?"
+        )
         self.assertGreater(tokens, 0)
 
     def test_estimate_cost(self):
         from ai_engine.agents.base import SynapseAgent
+
         cost = SynapseAgent._estimate_cost(1000)
         self.assertGreater(cost, 0)
         self.assertLess(cost, 0.01)  # Should be tiny
 
     def test_serialize_steps_empty(self):
         from ai_engine.agents.base import SynapseAgent
+
         result = SynapseAgent._serialize_steps([])
         self.assertEqual(result, [])
 
     def test_serialize_steps_with_data(self):
         from ai_engine.agents.base import SynapseAgent
+
         action = MagicMock()
         action.log = "Thought: I should search"
         action.tool = "search_knowledge_base"
@@ -456,12 +508,15 @@ class TestSynapseAgentBase(TestCase):
 
     def test_max_iterations_default(self):
         from ai_engine.agents.base import SynapseAgent
+
         self.assertEqual(SynapseAgent.MAX_ITERATIONS, 10)
 
     def test_max_execution_time_default(self):
         from ai_engine.agents.base import SynapseAgent
+
         self.assertEqual(SynapseAgent.MAX_EXECUTION_TIME, 300)
 
     def test_max_tokens_per_task(self):
         from ai_engine.agents.base import SynapseAgent
+
         self.assertEqual(SynapseAgent.MAX_TOKENS_PER_TASK, 10_000)

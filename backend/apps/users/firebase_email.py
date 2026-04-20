@@ -27,6 +27,7 @@ import os
 from typing import Optional
 
 import requests as http_requests
+
 from django.conf import settings
 from django.core.mail import send_mail as django_send_mail
 
@@ -49,15 +50,17 @@ def _get_firebase_app():
 
         # Option 1: GOOGLE_APPLICATION_CREDENTIALS env var (path to JSON)
         # Option 2: FIREBASE_CREDENTIALS_JSON env var (JSON string)
-        creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
-        creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+        creds_json = os.environ.get("FIREBASE_CREDENTIALS_JSON")
+        creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
 
         if creds_json:
             cred = credentials.Certificate(json.loads(creds_json))
         elif creds_path:
             cred = credentials.Certificate(creds_path)
         else:
-            logger.info("Firebase credentials not set — email will use Django fallback.")
+            logger.info(
+                "Firebase credentials not set — email will use Django fallback."
+            )
             return None
 
         if not firebase_admin._apps:
@@ -69,13 +72,15 @@ def _get_firebase_app():
         return _firebase_app
 
     except Exception as exc:
-        logger.warning("Firebase Admin SDK init failed — falling back to Django email: %s", exc)
+        logger.warning(
+            "Firebase Admin SDK init failed — falling back to Django email: %s", exc
+        )
         return None
 
 
 def _get_web_api_key() -> Optional[str]:
     """Get the Firebase Web API Key (required for Identity Toolkit REST API)."""
-    return os.environ.get('FIREBASE_WEB_API_KEY', '')
+    return os.environ.get("FIREBASE_WEB_API_KEY", "")
 
 
 def _firebase_available() -> bool:
@@ -86,7 +91,7 @@ def _firebase_available() -> bool:
 # ── Core email sending via Firebase Identity Toolkit ──────────────────────────
 
 
-def _ensure_firebase_user(email: str, display_name: str = '') -> Optional[str]:
+def _ensure_firebase_user(email: str, display_name: str = "") -> Optional[str]:
     """
     Create or get a Firebase Auth user for the given email.
     Returns the Firebase UID, or None on failure.
@@ -102,10 +107,12 @@ def _ensure_firebase_user(email: str, display_name: str = '') -> Optional[str]:
         except fb_auth.UserNotFoundError:
             fb_user = fb_auth.create_user(
                 email=email,
-                display_name=display_name or email.split('@')[0],
+                display_name=display_name or email.split("@")[0],
                 email_verified=False,
             )
-            logger.info("Created Firebase Auth user for %s (uid=%s)", email, fb_user.uid)
+            logger.info(
+                "Created Firebase Auth user for %s (uid=%s)", email, fb_user.uid
+            )
             return fb_user.uid
     except Exception as exc:
         logger.warning("Failed to ensure Firebase user for %s: %s", email, exc)
@@ -142,35 +149,47 @@ def send_verification_email_firebase(user) -> bool:
         # Use Firebase Identity Toolkit REST API to send the verification email
         # This sends a real email using Firebase's free email service
         # First, get a custom token for the user
-        custom_token = fb_auth.create_custom_token(uid).decode('utf-8')
+        custom_token = fb_auth.create_custom_token(uid).decode("utf-8")
 
         # Exchange custom token for an ID token via REST API
         exchange_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key={api_key}"
-        exchange_resp = http_requests.post(exchange_url, json={
-            'token': custom_token,
-            'returnSecureToken': True,
-        }, timeout=10)
+        exchange_resp = http_requests.post(
+            exchange_url,
+            json={
+                "token": custom_token,
+                "returnSecureToken": True,
+            },
+            timeout=10,
+        )
 
         if exchange_resp.status_code != 200:
-            logger.warning("Firebase token exchange failed: %s", exchange_resp.text[:200])
+            logger.warning(
+                "Firebase token exchange failed: %s", exchange_resp.text[:200]
+            )
             return False
 
-        id_token = exchange_resp.json().get('idToken')
+        id_token = exchange_resp.json().get("idToken")
         if not id_token:
             return False
 
         # Now send the verification email via Firebase REST API
         send_url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
-        send_resp = http_requests.post(send_url, json={
-            'requestType': 'VERIFY_EMAIL',
-            'idToken': id_token,
-        }, timeout=10)
+        send_resp = http_requests.post(
+            send_url,
+            json={
+                "requestType": "VERIFY_EMAIL",
+                "idToken": id_token,
+            },
+            timeout=10,
+        )
 
         if send_resp.status_code == 200:
             logger.info("Firebase verification email sent to %s", user.email)
             return True
         else:
-            logger.warning("Firebase verification email failed: %s", send_resp.text[:200])
+            logger.warning(
+                "Firebase verification email failed: %s", send_resp.text[:200]
+            )
             return False
 
     except Exception as exc:
@@ -202,10 +221,14 @@ def send_password_reset_firebase(email: str) -> bool:
 
         # Send password reset email via Firebase REST API
         url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
-        resp = http_requests.post(url, json={
-            'requestType': 'PASSWORD_RESET',
-            'email': email,
-        }, timeout=10)
+        resp = http_requests.post(
+            url,
+            json={
+                "requestType": "PASSWORD_RESET",
+                "email": email,
+            },
+            timeout=10,
+        )
 
         if resp.status_code == 200:
             logger.info("Firebase password reset email sent to %s", email)
@@ -230,7 +253,7 @@ def send_verification_email(user) -> None:
     It first tries Firebase (free email delivery), then falls back to
     Django's send_mail() (which uses whatever EMAIL_BACKEND is configured).
     """
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
     token = str(user.email_verification_token)
     verify_url = f"{frontend_url}/verify-email?token={token}"
 
@@ -239,7 +262,7 @@ def send_verification_email(user) -> None:
     if _firebase_available():
         sent = _send_branded_email_via_firebase(
             to_email=user.email,
-            subject='Verify your SYNAPSE email address',
+            subject="Verify your SYNAPSE email address",
             html_body=_verification_html(user, verify_url),
             text_body=_verification_text(user, verify_url),
         )
@@ -247,9 +270,11 @@ def send_verification_email(user) -> None:
             return
 
     # ── Attempt 2: Django send_mail fallback ───────────────────────────────
-    logger.info("Using Django send_mail fallback for verification email to %s", user.email)
+    logger.info(
+        "Using Django send_mail fallback for verification email to %s", user.email
+    )
     django_send_mail(
-        subject='Verify your SYNAPSE email address',
+        subject="Verify your SYNAPSE email address",
         message=_verification_text(user, verify_url),
         html_message=_verification_html(user, verify_url),
         from_email=settings.DEFAULT_FROM_EMAIL,
@@ -268,7 +293,7 @@ def send_password_reset_email(user, reset_url: str) -> None:
     if _firebase_available():
         sent = _send_branded_email_via_firebase(
             to_email=user.email,
-            subject='Reset your SYNAPSE password',
+            subject="Reset your SYNAPSE password",
             html_body=_reset_html(user, reset_url),
             text_body=_reset_text(user, reset_url),
         )
@@ -278,7 +303,7 @@ def send_password_reset_email(user, reset_url: str) -> None:
     # ── Attempt 2: Django send_mail fallback ───────────────────────────────
     logger.info("Using Django send_mail fallback for reset email to %s", user.email)
     django_send_mail(
-        subject='Reset your SYNAPSE password',
+        subject="Reset your SYNAPSE password",
         message=_reset_text(user, reset_url),
         html_message=_reset_html(user, reset_url),
         from_email=settings.DEFAULT_FROM_EMAIL,
@@ -304,8 +329,8 @@ def _send_branded_email_via_firebase(
     but with the Firebase SMTP credentials automatically configured.
     """
     # If Django email backend is already configured for real SMTP, use it
-    current_backend = getattr(settings, 'EMAIL_BACKEND', '')
-    if 'smtp' in current_backend.lower():
+    current_backend = getattr(settings, "EMAIL_BACKEND", "")
+    if "smtp" in current_backend.lower():
         try:
             django_send_mail(
                 subject=subject,

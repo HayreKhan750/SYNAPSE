@@ -15,6 +15,7 @@ Tests cover:
 
 Phase 5.3 — Project Builder (Week 15)
 """
+
 from __future__ import annotations
 
 import os
@@ -25,10 +26,10 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-
 # ---------------------------------------------------------------------------
 # Helper base class — redirect MEDIA_ROOT to a temp dir
 # ---------------------------------------------------------------------------
+
 
 class ProjectToolTestCase(TestCase):
     def setUp(self):
@@ -39,10 +40,12 @@ class ProjectToolTestCase(TestCase):
     def tearDown(self):
         self.env_patch.stop()
         import shutil
+
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _run(self, project_type: str, name: str = "test-project", features=None):
         from ai_engine.agents.project_tools import _create_project
+
         return _create_project(
             project_type=project_type,
             name=name,
@@ -64,6 +67,7 @@ class ProjectToolTestCase(TestCase):
 # ===========================================================================
 # 1. Django template
 # ===========================================================================
+
 
 class TestDjangoTemplate(ProjectToolTestCase):
 
@@ -127,6 +131,7 @@ class TestDjangoTemplate(ProjectToolTestCase):
 # 2. FastAPI template
 # ===========================================================================
 
+
 class TestFastAPITemplate(ProjectToolTestCase):
 
     def test_generates_zip(self):
@@ -178,6 +183,7 @@ class TestFastAPITemplate(ProjectToolTestCase):
 # ===========================================================================
 # 3. Next.js template
 # ===========================================================================
+
 
 class TestNextJSTemplate(ProjectToolTestCase):
 
@@ -237,6 +243,7 @@ class TestNextJSTemplate(ProjectToolTestCase):
 # 4. Data Science template
 # ===========================================================================
 
+
 class TestDataScienceTemplate(ProjectToolTestCase):
 
     def test_generates_zip(self):
@@ -289,6 +296,7 @@ class TestDataScienceTemplate(ProjectToolTestCase):
 # 5. React Library template
 # ===========================================================================
 
+
 class TestReactLibTemplate(ProjectToolTestCase):
 
     def test_generates_zip(self):
@@ -334,6 +342,7 @@ class TestReactLibTemplate(ProjectToolTestCase):
 # 6. Error handling & validation
 # ===========================================================================
 
+
 class TestCreateProjectErrors(ProjectToolTestCase):
 
     def test_invalid_project_type_returns_error(self):
@@ -355,23 +364,29 @@ class TestCreateProjectErrors(ProjectToolTestCase):
         for pt in ["django", "fastapi", "nextjs", "datascience", "react_lib"]:
             with self.subTest(project_type=pt):
                 result = self._run(pt, f"test-{pt}")
-                self.assertIn("Project scaffold generated successfully", result,
-                              msg=f"Failed for project_type={pt}: {result}")
+                self.assertIn(
+                    "Project scaffold generated successfully",
+                    result,
+                    msg=f"Failed for project_type={pt}: {result}",
+                )
 
 
 # ===========================================================================
 # 7. Tool metadata
 # ===========================================================================
 
+
 class TestCreateProjectTool(TestCase):
 
     def test_tool_name(self):
         from ai_engine.agents.project_tools import make_create_project_tool
+
         tool = make_create_project_tool()
         self.assertEqual(tool.name, "create_project")
 
     def test_tool_description_mentions_types(self):
         from ai_engine.agents.project_tools import make_create_project_tool
+
         tool = make_create_project_tool()
         desc = tool.description.lower()
         for t in ["django", "fastapi", "nextjs"]:
@@ -379,6 +394,7 @@ class TestCreateProjectTool(TestCase):
 
     def test_input_schema_required_fields(self):
         from ai_engine.agents.project_tools import CreateProjectInput
+
         schema = CreateProjectInput.schema()
         required = schema.get("required", [])
         self.assertIn("project_type", required)
@@ -386,6 +402,7 @@ class TestCreateProjectTool(TestCase):
 
     def test_input_schema_features_not_required(self):
         from ai_engine.agents.project_tools import CreateProjectInput
+
         schema = CreateProjectInput.schema()
         required = schema.get("required", [])
         self.assertNotIn("features", required)
@@ -395,11 +412,12 @@ class TestCreateProjectTool(TestCase):
 # 8. Registry includes create_project (10 tools total)
 # ===========================================================================
 
+
 class TestRegistryIncludesProjectTool(TestCase):
 
     def test_registry_has_create_project(self):
-        from ai_engine.agents.registry import AgentToolRegistry
         from ai_engine.agents.project_tools import make_create_project_tool
+        from ai_engine.agents.registry import AgentToolRegistry
 
         registry = AgentToolRegistry()
         tool = make_create_project_tool()
@@ -410,6 +428,7 @@ class TestRegistryIncludesProjectTool(TestCase):
 
     def test_create_project_tool_name_correct(self):
         from ai_engine.agents.project_tools import make_create_project_tool
+
         self.assertEqual(make_create_project_tool().name, "create_project")
 
 
@@ -417,20 +436,24 @@ class TestRegistryIncludesProjectTool(TestCase):
 # 9. Helpers
 # ===========================================================================
 
+
 class TestProjectHelpers(ProjectToolTestCase):
 
     def test_project_dir_creates_directory(self):
         from ai_engine.agents.project_tools import _project_dir
+
         d = _project_dir("user_99")
         self.assertTrue(d.exists())
         self.assertTrue(str(d).endswith("user_99"))
 
     def test_project_dir_returns_path(self):
         from ai_engine.agents.project_tools import _project_dir
+
         self.assertIsInstance(_project_dir("u"), Path)
 
     def test_rel_path_strips_media_root(self):
         from ai_engine.agents.project_tools import _rel_path
+
         abs_path = Path(self.tmp) / "projects" / "user" / "file.zip"
         result = _rel_path(abs_path)
         self.assertNotIn(self.tmp, result)
@@ -438,6 +461,7 @@ class TestProjectHelpers(ProjectToolTestCase):
 
     def test_pack_zip_creates_valid_archive(self):
         from ai_engine.agents.project_tools import _pack_zip
+
         files = {"hello.txt": "Hello, world!", "sub/dir/file.py": "print('hi')"}
         zip_path = Path(self.tmp) / "test.zip"
         size = _pack_zip(files, zip_path)
@@ -454,10 +478,12 @@ class TestProjectHelpers(ProjectToolTestCase):
 # 10. Serializer validation
 # ===========================================================================
 
+
 class TestProjectGenerateSerializer(TestCase):
 
     def _serialize(self, data):
         from apps.documents.serializers import ProjectGenerateSerializer
+
         s = ProjectGenerateSerializer(data=data)
         return s.is_valid(), s.validated_data if s.is_valid() else s.errors
 
@@ -468,9 +494,9 @@ class TestProjectGenerateSerializer(TestCase):
         self.assertEqual(data["name"], "my-api")
 
     def test_valid_with_features(self):
-        ok, data = self._serialize({
-            "project_type": "fastapi", "name": "svc", "features": ["auth", "testing"]
-        })
+        ok, data = self._serialize(
+            {"project_type": "fastapi", "name": "svc", "features": ["auth", "testing"]}
+        )
         self.assertTrue(ok)
         self.assertIn("auth", data["features"])
 
@@ -490,9 +516,9 @@ class TestProjectGenerateSerializer(TestCase):
         self.assertIn("name", errors)
 
     def test_invalid_feature_flag_rejected(self):
-        ok, errors = self._serialize({
-            "project_type": "django", "name": "my-api", "features": ["invalid_flag"]
-        })
+        ok, errors = self._serialize(
+            {"project_type": "django", "name": "my-api", "features": ["invalid_flag"]}
+        )
         self.assertFalse(ok)
         self.assertIn("features", errors)
 

@@ -1,25 +1,28 @@
 from __future__ import annotations
 
 from typing import List, Tuple
-from pgvector.django import CosineDistance
 
 from apps.articles.models import Article
+from apps.core.models import UserActivity
 from apps.papers.models import ResearchPaper
 from apps.repositories.models import Repository
-from apps.core.models import UserActivity
+from pgvector.django import CosineDistance
 
 
-def _get_recent_vectors(user, max_items: int = 20) -> tuple[list[list[float]], set, set, set]:
+def _get_recent_vectors(
+    user, max_items: int = 20
+) -> tuple[list[list[float]], set, set, set]:
     """Collect embeddings from the user's most recent bookmark/view activities.
-    
+
     Optimised: single DB query for activities + select_related for content_type,
     then batch-fetch embeddings per model type instead of N individual queries.
     """
     activities = list(
-        UserActivity.objects
-        .filter(user=user, interaction_type__in=["bookmark", "view"])
-        .select_related('content_type')          # eliminates N content_type lookups
-        .order_by('-timestamp')[:max_items]
+        UserActivity.objects.filter(
+            user=user, interaction_type__in=["bookmark", "view"]
+        )
+        .select_related("content_type")  # eliminates N content_type lookups
+        .order_by("-timestamp")[:max_items]
     )
 
     # Group object_ids by model to do 3 batch queries instead of N individual ones
@@ -31,11 +34,11 @@ def _get_recent_vectors(user, max_items: int = 20) -> tuple[list[list[float]], s
         if not act.content_type_id or not act.object_id:
             continue
         model = act.content_type.model
-        if model == 'article':
+        if model == "article":
             article_ids.append(act.object_id)
-        elif model in ('researchpaper', 'paper', 'research_paper'):
+        elif model in ("researchpaper", "paper", "research_paper"):
             paper_ids.append(act.object_id)
-        elif model == 'repository':
+        elif model == "repository":
             repo_ids.append(act.object_id)
 
     vectors: list[list[float]] = []
@@ -45,19 +48,21 @@ def _get_recent_vectors(user, max_items: int = 20) -> tuple[list[list[float]], s
 
     # Batch fetch — 3 queries max instead of up to 20
     if article_ids:
-        for obj in Article.objects.filter(id__in=article_ids).only('id', 'embedding'):
+        for obj in Article.objects.filter(id__in=article_ids).only("id", "embedding"):
             if obj.embedding:
                 vectors.append(list(obj.embedding))
                 seen_articles.add(obj.id)
 
     if paper_ids:
-        for obj in ResearchPaper.objects.filter(id__in=paper_ids).only('id', 'embedding'):
+        for obj in ResearchPaper.objects.filter(id__in=paper_ids).only(
+            "id", "embedding"
+        ):
             if obj.embedding:
                 vectors.append(list(obj.embedding))
                 seen_papers.add(obj.id)
 
     if repo_ids:
-        for obj in Repository.objects.filter(id__in=repo_ids).only('id', 'embedding'):
+        for obj in Repository.objects.filter(id__in=repo_ids).only("id", "embedding"):
             if obj.embedding:
                 vectors.append(list(obj.embedding))
                 seen_repos.add(obj.id)
@@ -96,39 +101,38 @@ def recommend_for_user(user, limit: int = 12, offset: int = 0) -> dict:
     if not user or not user.is_authenticated:
         return results
 
-    vectors, seen_articles, seen_papers, seen_repos = _get_recent_vectors(user, max_items=20)
+    vectors, seen_articles, seen_papers, seen_repos = _get_recent_vectors(
+        user, max_items=20
+    )
     user_vec = _mean_vector(vectors)
     if not user_vec:
         return results
 
     # Articles
     art_qs = (
-        Article.objects
-        .filter(embedding__isnull=False)
+        Article.objects.filter(embedding__isnull=False)
         .exclude(id__in=list(seen_articles))
-        .annotate(similarity=CosineDistance('embedding', user_vec))
-        .order_by('similarity')
+        .annotate(similarity=CosineDistance("embedding", user_vec))
+        .order_by("similarity")
     )
-    results["articles"] = list(art_qs[offset: offset + limit])
+    results["articles"] = list(art_qs[offset : offset + limit])
 
     # Papers
     pap_qs = (
-        ResearchPaper.objects
-        .filter(embedding__isnull=False)
+        ResearchPaper.objects.filter(embedding__isnull=False)
         .exclude(id__in=list(seen_papers))
-        .annotate(similarity=CosineDistance('embedding', user_vec))
-        .order_by('similarity')
+        .annotate(similarity=CosineDistance("embedding", user_vec))
+        .order_by("similarity")
     )
-    results["papers"] = list(pap_qs[offset: offset + limit])
+    results["papers"] = list(pap_qs[offset : offset + limit])
 
     # Repositories
     rep_qs = (
-        Repository.objects
-        .filter(embedding__isnull=False)
+        Repository.objects.filter(embedding__isnull=False)
         .exclude(id__in=list(seen_repos))
-        .annotate(similarity=CosineDistance('embedding', user_vec))
-        .order_by('similarity')
+        .annotate(similarity=CosineDistance("embedding", user_vec))
+        .order_by("similarity")
     )
-    results["repos"] = list(rep_qs[offset: offset + limit])
+    results["repos"] = list(rep_qs[offset : offset + limit])
 
     return results

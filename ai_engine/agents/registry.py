@@ -9,6 +9,7 @@ for every capability it can invoke.
 
 Phase 5.1 — Agent Framework (Week 13)
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,25 +51,24 @@ class AgentToolRegistry:
         if self._built:
             return self
 
-        from ai_engine.agents.tools import (
-            make_search_knowledge_base_tool,
-            make_fetch_articles_tool,
-            make_analyze_trends_tool,
-            make_search_github_tool,
-            make_fetch_arxiv_papers_tool,
-            # TASK-303: new expanded tools
-            make_web_search_tool,
-            make_run_python_tool,
-            make_read_document_tool,
-            make_generate_chart_tool,
-        )
         from ai_engine.agents.doc_tools import (
+            make_generate_markdown_tool,
             make_generate_pdf_tool,
             make_generate_ppt_tool,
             make_generate_word_doc_tool,
-            make_generate_markdown_tool,
         )
         from ai_engine.agents.project_tools import make_create_project_tool
+        from ai_engine.agents.tools import (  # TASK-303: new expanded tools
+            make_analyze_trends_tool,
+            make_fetch_articles_tool,
+            make_fetch_arxiv_papers_tool,
+            make_generate_chart_tool,
+            make_read_document_tool,
+            make_run_python_tool,
+            make_search_github_tool,
+            make_search_knowledge_base_tool,
+            make_web_search_tool,
+        )
 
         tool_factories = [
             # Phase 5.1 — research & analysis tools
@@ -78,10 +78,10 @@ class AgentToolRegistry:
             make_search_github_tool,
             make_fetch_arxiv_papers_tool,
             # TASK-303 — expanded tools
-            make_web_search_tool,       # live web search via Tavily
-            make_run_python_tool,       # Python code execution sandbox
-            make_read_document_tool,    # PDF/document reader
-            make_generate_chart_tool,   # chart generator (bar, line, pie, scatter)
+            make_web_search_tool,  # live web search via Tavily
+            make_run_python_tool,  # Python code execution sandbox
+            make_read_document_tool,  # PDF/document reader
+            make_generate_chart_tool,  # chart generator (bar, line, pie, scatter)
             # Phase 5.2 — document generation tools
             make_generate_pdf_tool,
             make_generate_ppt_tool,
@@ -97,10 +97,16 @@ class AgentToolRegistry:
                 self._tools[tool.name] = tool
                 logger.info("Registered agent tool: %s", tool.name)
             except Exception as exc:
-                logger.error("Failed to register tool from %s: %s", factory.__name__, exc)
+                logger.error(
+                    "Failed to register tool from %s: %s", factory.__name__, exc
+                )
 
         self._built = True
-        logger.info("AgentToolRegistry built with %d tools: %s", len(self._tools), list(self._tools.keys()))
+        logger.info(
+            "AgentToolRegistry built with %d tools: %s",
+            len(self._tools),
+            list(self._tools.keys()),
+        )
         return self
 
     # ------------------------------------------------------------------
@@ -129,7 +135,11 @@ class AgentToolRegistry:
             if tool:
                 result.append(tool)
             else:
-                logger.warning("Tool '%s' not found in registry. Available: %s", name, list(self._tools.keys()))
+                logger.warning(
+                    "Tool '%s' not found in registry. Available: %s",
+                    name,
+                    list(self._tools.keys()),
+                )
         return result
 
     def register(self, tool: BaseTool) -> None:
@@ -148,8 +158,7 @@ class AgentToolRegistry:
         if not self._built:
             self.build()
         return [
-            {"name": t.name, "description": t.description}
-            for t in self._tools.values()
+            {"name": t.name, "description": t.description} for t in self._tools.values()
         ]
 
     def __len__(self) -> int:
@@ -164,6 +173,7 @@ class AgentToolRegistry:
 # ---------------------------------------------------------------------------
 # Module-level singleton accessor
 # ---------------------------------------------------------------------------
+
 
 def get_registry() -> AgentToolRegistry:
     """Return the module-level AgentToolRegistry singleton (built on first call)."""

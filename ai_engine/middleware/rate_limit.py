@@ -9,9 +9,9 @@ Plan limits (configurable via env):
   Team : AI_RATE_LIMIT_TEAM  req/min  | AI_BUDGET_TEAM_CENTS  USD-cents/day
 """
 
+import logging
 import os
 import time
-import logging
 from datetime import date
 from typing import Optional
 
@@ -20,12 +20,12 @@ import redis
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-RATE_LIMIT_FREE = int(os.environ.get("AI_RATE_LIMIT_FREE", "2"))   # req/min
-RATE_LIMIT_PRO  = int(os.environ.get("AI_RATE_LIMIT_PRO",  "20"))
+RATE_LIMIT_FREE = int(os.environ.get("AI_RATE_LIMIT_FREE", "2"))  # req/min
+RATE_LIMIT_PRO = int(os.environ.get("AI_RATE_LIMIT_PRO", "20"))
 RATE_LIMIT_TEAM = int(os.environ.get("AI_RATE_LIMIT_TEAM", "60"))
 
-BUDGET_FREE_CENTS = int(os.environ.get("AI_BUDGET_FREE_CENTS", "50"))    # $0.50
-BUDGET_PRO_CENTS  = int(os.environ.get("AI_BUDGET_PRO_CENTS",  "1000"))  # $10.00
+BUDGET_FREE_CENTS = int(os.environ.get("AI_BUDGET_FREE_CENTS", "50"))  # $0.50
+BUDGET_PRO_CENTS = int(os.environ.get("AI_BUDGET_PRO_CENTS", "1000"))  # $10.00
 BUDGET_TEAM_CENTS = int(os.environ.get("AI_BUDGET_TEAM_CENTS", "5000"))  # $50.00
 
 # Cost per 1000 tokens in USD-cents (approximate blended cost)
@@ -38,10 +38,11 @@ REDIS_RL_DB = int(os.environ.get("REDIS_RL_DB", "4"))
 
 class BudgetExceededError(Exception):
     """Raised when a user exceeds their daily AI spend budget."""
+
     def __init__(self, used_cents: int, limit_cents: int, reset_at: str):
-        self.used_cents  = used_cents
+        self.used_cents = used_cents
         self.limit_cents = limit_cents
-        self.reset_at    = reset_at
+        self.reset_at = reset_at
         super().__init__(
             f"Daily AI budget exceeded: {used_cents}/{limit_cents} cents used. Resets at {reset_at}."
         )
@@ -49,16 +50,24 @@ class BudgetExceededError(Exception):
 
 class RateLimitExceededError(Exception):
     """Raised when a user exceeds their per-minute request rate."""
+
     def __init__(self, limit: int, retry_after: int):
-        self.limit       = limit
+        self.limit = limit
         self.retry_after = retry_after
-        super().__init__(f"Rate limit exceeded: {limit} req/min. Retry after {retry_after}s.")
+        super().__init__(
+            f"Rate limit exceeded: {limit} req/min. Retry after {retry_after}s."
+        )
 
 
 def _get_redis() -> Optional[redis.Redis]:
     try:
-        client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_RL_DB,
-                             decode_responses=True, socket_connect_timeout=1)
+        client = redis.Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_RL_DB,
+            decode_responses=True,
+            socket_connect_timeout=1,
+        )
         client.ping()
         return client
     except Exception as exc:
@@ -94,10 +103,10 @@ def check_rate_limit(user_id: str, role: str = "user") -> None:
     if r is None:
         return
 
-    limit  = _plan_rate_limit(role)
-    now    = int(time.time())
+    limit = _plan_rate_limit(role)
+    now = int(time.time())
     window = 60  # seconds
-    key    = f"rl:ai:{user_id}:{now // window}"
+    key = f"rl:ai:{user_id}:{now // window}"
 
     try:
         pipe = r.pipeline()
@@ -125,12 +134,12 @@ def check_budget(user_id: str, role: str = "user") -> None:
         return
 
     budget_cents = _plan_budget_cents(role)
-    today        = date.today().isoformat()
-    key          = f"budget:{user_id}:{today}"
+    today = date.today().isoformat()
+    key = f"budget:{user_id}:{today}"
 
     try:
         used_str = r.get(key)
-        used     = int(used_str) if used_str else 0
+        used = int(used_str) if used_str else 0
 
         if used >= budget_cents:
             reset_at = f"{today}T23:59:59Z"
@@ -157,14 +166,19 @@ def record_token_usage(user_id: str, tokens_used: int) -> None:
         return
 
     today = date.today().isoformat()
-    key   = f"budget:{user_id}:{today}"
+    key = f"budget:{user_id}:{today}"
 
     try:
         pipe = r.pipeline()
         pipe.incrby(key, cost_cents)
         pipe.expire(key, 86400 + 3600)  # 25 hours TTL
         pipe.execute()
-        logger.debug("Recorded %d cents for user %s (today total: +%d)", cost_cents, user_id, cost_cents)
+        logger.debug(
+            "Recorded %d cents for user %s (today total: +%d)",
+            cost_cents,
+            user_id,
+            cost_cents,
+        )
     except Exception as exc:
         logger.warning("Failed to record token usage: %s", exc)
 
@@ -175,16 +189,20 @@ def get_budget_status(user_id: str, role: str = "user") -> dict:
     budget_cents = _plan_budget_cents(role)
 
     if r is None:
-        return {"used_cents": 0, "limit_cents": budget_cents, "remaining_cents": budget_cents}
+        return {
+            "used_cents": 0,
+            "limit_cents": budget_cents,
+            "remaining_cents": budget_cents,
+        }
 
-    today    = date.today().isoformat()
-    key      = f"budget:{user_id}:{today}"
+    today = date.today().isoformat()
+    key = f"budget:{user_id}:{today}"
     used_str = r.get(key)
-    used     = int(used_str) if used_str else 0
+    used = int(used_str) if used_str else 0
 
     return {
-        "used_cents":      used,
-        "limit_cents":     budget_cents,
+        "used_cents": used,
+        "limit_cents": budget_cents,
         "remaining_cents": max(0, budget_cents - used),
-        "reset_at":        f"{today}T23:59:59Z",
+        "reset_at": f"{today}T23:59:59Z",
     }

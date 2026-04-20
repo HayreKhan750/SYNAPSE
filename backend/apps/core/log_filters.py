@@ -12,7 +12,7 @@ Usage:
         'pii_redaction': {
             '()': 'apps.core.log_filters.PiiRedactionFilter',
         }
-    
+
     Add to handler definitions:
         'filters': ['pii_redaction'],
 """
@@ -27,26 +27,20 @@ class PiiRedactionFilter(logging.Filter):
 
     # Email pattern: user@domain.com → u***@***.com
     EMAIL_PATTERN = re.compile(
-        r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
-        re.IGNORECASE
+        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", re.IGNORECASE
     )
 
     # Credit card pattern: 16 consecutive digits → [REDACTED-CC]
     CREDIT_CARD_PATTERN = re.compile(
-        r'\b(?:\d[ -]*?){13}(?:\d[ -]*?){3}\b|\b\d{16}\b',
-        re.IGNORECASE
+        r"\b(?:\d[ -]*?){13}(?:\d[ -]*?){3}\b|\b\d{16}\b", re.IGNORECASE
     )
 
     # API key pattern: sk-syn-* → sk-syn-[REDACTED]
-    API_KEY_PATTERN = re.compile(
-        r'(sk-syn-)[A-Za-z0-9_-]+',
-        re.IGNORECASE
-    )
+    API_KEY_PATTERN = re.compile(r"(sk-syn-)[A-Za-z0-9_-]+", re.IGNORECASE)
 
     # JWT token pattern: eyJ... (base64-like) → [REDACTED-JWT]
     JWT_PATTERN = re.compile(
-        r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b',
-        re.IGNORECASE
+        r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", re.IGNORECASE
     )
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -65,14 +59,10 @@ class PiiRedactionFilter(logging.Filter):
         if record.args:
             if isinstance(record.args, dict):
                 record.args = {
-                    k: self._redact_pii(str(v))
-                    for k, v in record.args.items()
+                    k: self._redact_pii(str(v)) for k, v in record.args.items()
                 }
             elif isinstance(record.args, tuple):
-                record.args = tuple(
-                    self._redact_pii(str(arg))
-                    for arg in record.args
-                )
+                record.args = tuple(self._redact_pii(str(arg)) for arg in record.args)
 
         return True
 
@@ -94,13 +84,13 @@ class PiiRedactionFilter(logging.Filter):
         text = cls.EMAIL_PATTERN.sub(lambda m: cls._redact_email(m.group(0)), text)
 
         # Redact credit cards: 1234567890123456 → [REDACTED-CC]
-        text = cls.CREDIT_CARD_PATTERN.sub('[REDACTED-CC]', text)
+        text = cls.CREDIT_CARD_PATTERN.sub("[REDACTED-CC]", text)
 
         # Redact API keys: sk-syn-abc123xyz → sk-syn-[REDACTED]
-        text = cls.API_KEY_PATTERN.sub(r'\1[REDACTED]', text)
+        text = cls.API_KEY_PATTERN.sub(r"\1[REDACTED]", text)
 
         # Redact JWT tokens: eyJ... → [REDACTED-JWT]
-        text = cls.JWT_PATTERN.sub('[REDACTED-JWT]', text)
+        text = cls.JWT_PATTERN.sub("[REDACTED-JWT]", text)
 
         return text
 
@@ -118,22 +108,22 @@ class PiiRedactionFilter(logging.Filter):
         Returns:
             Redacted email
         """
-        if '@' not in email:
+        if "@" not in email:
             return email
 
-        local, domain = email.split('@', 1)
+        local, domain = email.split("@", 1)
 
         if not local:
             return email
 
         # Keep first character of local part
-        redacted_local = local[0] + '***'
+        redacted_local = local[0] + "***"
 
         # Keep only TLD (e.g., .com, .co.uk)
-        domain_parts = domain.split('.')
+        domain_parts = domain.split(".")
         if len(domain_parts) >= 2:
-            redacted_domain = '***.' + domain_parts[-1]
+            redacted_domain = "***." + domain_parts[-1]
         else:
-            redacted_domain = '***'
+            redacted_domain = "***"
 
-        return f'{redacted_local}@{redacted_domain}'
+        return f"{redacted_local}@{redacted_domain}"

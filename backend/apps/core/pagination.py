@@ -4,19 +4,21 @@ from rest_framework.response import Response
 
 class StandardPagination(PageNumberPagination):
     page_size = 20
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
     def get_paginated_response(self, data):
-        return Response({
-            'success': True,
-            'data': data,
-            'meta': {
-                'total': self.page.paginator.count,
-                'page': self.page.number,
-                'page_size': self.get_page_size(self.request),
-                'total_pages': self.page.paginator.num_pages,
-                'has_next': self.get_next_link() is not None,
-                'has_prev': self.get_previous_link() is not None,
+        return Response(
+            {
+                "success": True,
+                "data": data,
+                "meta": {
+                    "total": self.page.paginator.count,
+                    "page": self.page.number,
+                    "page_size": self.get_page_size(self.request),
+                    "total_pages": self.page.paginator.num_pages,
+                    "has_next": self.get_next_link() is not None,
+                    "has_prev": self.get_previous_link() is not None,
+                },
             }
-        })
+        )

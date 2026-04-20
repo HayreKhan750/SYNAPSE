@@ -11,6 +11,7 @@ Combines two complementary approaches:
 Results from both methods are merged, deduplicated, and returned ranked by
 relevance score (higher = more relevant).
 """
+
 import logging
 from typing import List, Tuple
 
@@ -40,13 +41,14 @@ def _extract_keybert(text: str, top_n: int) -> List[Tuple[str, float]]:
     """
     try:
         from keybert import KeyBERT  # noqa: PLC0415
+
         kw_model = KeyBERT(model="all-MiniLM-L6-v2")
         results = kw_model.extract_keywords(
             text,
             keyphrase_ngram_range=(MIN_NGRAM, MAX_NGRAM),
             stop_words="english",
             top_n=top_n,
-            use_mmr=True,        # Maximal Marginal Relevance for diversity
+            use_mmr=True,  # Maximal Marginal Relevance for diversity
             diversity=0.5,
         )
         return [(kw, round(score, 4)) for kw, score in results]
@@ -71,6 +73,7 @@ def _extract_yake(text: str, top_n: int) -> List[Tuple[str, float]]:
     """
     try:
         import yake  # noqa: PLC0415
+
         extractor = yake.KeywordExtractor(
             lan="en",
             n=MAX_NGRAM,

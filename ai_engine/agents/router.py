@@ -29,6 +29,7 @@ Usage:
         role="pro",
     )
 """
+
 from __future__ import annotations
 
 import logging
@@ -44,34 +45,34 @@ PROVIDERS = ("auto", "openai", "anthropic", "ollama", "gemini")
 
 # Primary model per role (OpenRouter / OpenAI)
 PRIMARY_MODELS: dict[str, str] = {
-    "user":       os.environ.get("MODEL_PRIMARY",  "gpt-4o"),
-    "pro":        os.environ.get("MODEL_PRO",       "gpt-4o"),
-    "enterprise": os.environ.get("MODEL_ENT",       "gpt-4o"),
-    "staff":      os.environ.get("MODEL_STAFF",     "gpt-4o"),
+    "user": os.environ.get("MODEL_PRIMARY", "gpt-4o"),
+    "pro": os.environ.get("MODEL_PRO", "gpt-4o"),
+    "enterprise": os.environ.get("MODEL_ENT", "gpt-4o"),
+    "staff": os.environ.get("MODEL_STAFF", "gpt-4o"),
 }
 
 # Fallback model (used when 80%+ budget consumed)
 FALLBACK_MODELS: dict[str, str] = {
-    "user":       os.environ.get("MODEL_FALLBACK",       "gpt-4o-mini"),
-    "pro":        os.environ.get("MODEL_FALLBACK_PRO",   "gpt-4o-mini"),
-    "enterprise": os.environ.get("MODEL_FALLBACK_ENT",   "gpt-4o-mini"),
-    "staff":      os.environ.get("MODEL_FALLBACK_STAFF", "gpt-4o-mini"),
+    "user": os.environ.get("MODEL_FALLBACK", "gpt-4o-mini"),
+    "pro": os.environ.get("MODEL_FALLBACK_PRO", "gpt-4o-mini"),
+    "enterprise": os.environ.get("MODEL_FALLBACK_ENT", "gpt-4o-mini"),
+    "staff": os.environ.get("MODEL_FALLBACK_STAFF", "gpt-4o-mini"),
 }
 
 # Anthropic Claude models
-CLAUDE_PRIMARY  = os.environ.get("CLAUDE_MODEL_PRIMARY",  "claude-3-5-sonnet-20241022")
+CLAUDE_PRIMARY = os.environ.get("CLAUDE_MODEL_PRIMARY", "claude-3-5-sonnet-20241022")
 CLAUDE_FALLBACK = os.environ.get("CLAUDE_MODEL_FALLBACK", "claude-3-haiku-20240307")
 
 # Ollama local models
-OLLAMA_DEFAULT  = os.environ.get("OLLAMA_MODEL", "llama3.2")
+OLLAMA_DEFAULT = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
 # Plan-gated model permissions — which plans can request each provider
 # Free users may only use cheap/local models; Pro and above can use all
 PLAN_ALLOWED_PROVIDERS: dict[str, list[str]] = {
-    "user":       ["auto", "openai", "gemini", "ollama"],   # no Anthropic for free tier
-    "pro":        ["auto", "openai", "gemini", "ollama", "anthropic"],
+    "user": ["auto", "openai", "gemini", "ollama"],  # no Anthropic for free tier
+    "pro": ["auto", "openai", "gemini", "ollama", "anthropic"],
     "enterprise": ["auto", "openai", "gemini", "ollama", "anthropic"],
-    "staff":      ["auto", "openai", "gemini", "ollama", "anthropic"],
+    "staff": ["auto", "openai", "gemini", "ollama", "anthropic"],
 }
 
 # Budget threshold at which to switch to fallback
@@ -80,11 +81,12 @@ FALLBACK_THRESHOLD = float(os.environ.get("BUDGET_FALLBACK_THRESHOLD", "0.80"))
 
 # ── Full provider+model resolution (TASK-302) ──────────────────────────────────
 
+
 def resolve_provider_model(
     requested_provider: Optional[str] = None,
-    requested_model:    Optional[str] = None,
-    user_id:            Optional[str] = None,
-    role:               str           = "user",
+    requested_model: Optional[str] = None,
+    user_id: Optional[str] = None,
+    role: str = "user",
 ) -> tuple[str, str]:
     """
     Resolve the final (provider, model) pair for a request.
@@ -105,13 +107,17 @@ def resolve_provider_model(
         (provider, model) tuple — both are non-empty strings.
     """
     provider = (requested_provider or "auto").lower().strip()
-    model    = requested_model or ""
+    model = requested_model or ""
 
     # ── Auto-detect provider from model name ──────────────────────────────
     if provider == "auto" and model:
         if model.startswith("claude-"):
             provider = "anthropic"
-        elif model.startswith("ollama/") or "/" not in model and not model.startswith("gpt"):
+        elif (
+            model.startswith("ollama/")
+            or "/" not in model
+            and not model.startswith("gpt")
+        ):
             # Heuristic: unqualified short names → try Ollama
             pass
         elif model.startswith("gemini"):
@@ -122,15 +128,21 @@ def resolve_provider_model(
     if provider not in allowed:
         logger.warning(
             "provider_gated role=%s requested_provider=%s allowed=%s — falling back to auto",
-            role, provider, allowed,
+            role,
+            provider,
+            allowed,
         )
         provider = "auto"
-        model    = ""
+        model = ""
 
     # ── Budget gating ─────────────────────────────────────────────────────
     budget_pct = _get_budget_percent(user_id, role) if user_id else 0.0
     if budget_pct >= 1.0:
-        from ai_engine.middleware.rate_limit import BudgetExceededError, get_budget_status
+        from ai_engine.middleware.rate_limit import (
+            BudgetExceededError,
+            get_budget_status,
+        )
+
         info = get_budget_status(user_id or "", role) if user_id else {}
         raise BudgetExceededError(
             used_cents=info.get("used_cents", 0),
@@ -160,13 +172,18 @@ def resolve_provider_model(
     if use_fallback:
         logger.info(
             "model_fallback user=%s role=%s budget_pct=%.0f%% provider=%s model=%s",
-            user_id, role, budget_pct * 100, provider, resolved_model,
+            user_id,
+            role,
+            budget_pct * 100,
+            provider,
+            resolved_model,
         )
 
     return provider, resolved_model
 
 
 # ── Available models catalogue (GET /models/) ──────────────────────────────────
+
 
 def get_available_models(role: str = "user") -> list[dict]:
     """
@@ -175,9 +192,9 @@ def get_available_models(role: str = "user") -> list[dict]:
     Used by the GET /models/ endpoint to populate the frontend model selector.
     """
     anthropic_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
-    ollama_url    = bool(os.environ.get("OLLAMA_BASE_URL"))
+    ollama_url = bool(os.environ.get("OLLAMA_BASE_URL"))
     openrouter_key = bool(os.environ.get("OPENROUTER_API_KEY"))
-    gemini_key    = bool(os.environ.get("GEMINI_API_KEY"))
+    gemini_key = bool(os.environ.get("GEMINI_API_KEY"))
 
     allowed_providers = PLAN_ALLOWED_PROVIDERS.get(role, PLAN_ALLOWED_PROVIDERS["user"])
 
@@ -257,23 +274,28 @@ def get_available_models(role: str = "user") -> list[dict]:
 
     # Ollama local models
     if "ollama" in allowed_providers and ollama_url:
-        ollama_models = os.environ.get("OLLAMA_AVAILABLE_MODELS", "llama3.2,mistral,codellama").split(",")
+        ollama_models = os.environ.get(
+            "OLLAMA_AVAILABLE_MODELS", "llama3.2,mistral,codellama"
+        ).split(",")
         for m in ollama_models:
             m = m.strip()
             if m:
-                catalogue.append({
-                    "id": m,
-                    "name": m.title().replace("-", " ").replace(".", " "),
-                    "provider": "ollama",
-                    "cost_tier": "free",
-                    "capabilities": ["chat", "code"],
-                    "available": True,
-                })
+                catalogue.append(
+                    {
+                        "id": m,
+                        "name": m.title().replace("-", " ").replace(".", " "),
+                        "provider": "ollama",
+                        "cost_tier": "free",
+                        "capabilities": ["chat", "code"],
+                        "available": True,
+                    }
+                )
 
     return catalogue
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
+
 
 def get_model_for_user(
     user_id: Optional[str] = None,
@@ -306,7 +328,11 @@ def get_model_for_user(
 
     if budget_pct >= 1.0:
         # Fully exhausted — raise with correct constructor signature
-        from ai_engine.middleware.rate_limit import BudgetExceededError, get_budget_status
+        from ai_engine.middleware.rate_limit import (
+            BudgetExceededError,
+            get_budget_status,
+        )
+
         info = get_budget_status(user_id, role)
         raise BudgetExceededError(
             used_cents=info.get("used_cents", 0),
@@ -318,14 +344,20 @@ def get_model_for_user(
         model = _fallback(role, provider)
         logger.info(
             "model_fallback user=%s role=%s budget_pct=%.0f%% model=%s",
-            user_id, role, budget_pct * 100, model,
+            user_id,
+            role,
+            budget_pct * 100,
+            model,
         )
         return model
 
     model = _primary(role, provider)
     logger.debug(
         "model_primary user=%s role=%s budget_pct=%.0f%% model=%s",
-        user_id, role, budget_pct * 100, model,
+        user_id,
+        role,
+        budget_pct * 100,
+        model,
     )
     return model
 
@@ -336,21 +368,22 @@ def get_model_info(user_id: Optional[str] = None, role: str = "user") -> dict:
     Useful for debugging and API responses.
     """
     budget_pct = _get_budget_percent(user_id, role) if user_id else 0.0
-    exhausted  = budget_pct >= 1.0
-    fallback   = budget_pct >= FALLBACK_THRESHOLD
+    exhausted = budget_pct >= 1.0
+    fallback = budget_pct >= FALLBACK_THRESHOLD
 
     return {
-        "model":         _fallback(role) if fallback else _primary(role),
-        "is_fallback":   fallback,
-        "is_exhausted":  exhausted,
+        "model": _fallback(role) if fallback else _primary(role),
+        "is_fallback": fallback,
+        "is_exhausted": exhausted,
         "budget_percent": round(budget_pct * 100, 1),
-        "threshold_pct":  int(FALLBACK_THRESHOLD * 100),
-        "primary_model":  _primary(role),
+        "threshold_pct": int(FALLBACK_THRESHOLD * 100),
+        "primary_model": _primary(role),
         "fallback_model": _fallback(role),
     }
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
 
 def _primary(role: str = "user", provider: str = "openai") -> str:
     if provider == "anthropic":
@@ -371,6 +404,7 @@ def _get_budget_percent(user_id: str, role: str) -> float:
     """
     try:
         from ai_engine.middleware.rate_limit import get_budget_status
+
         info = get_budget_status(user_id, role)
         if info.get("unlimited"):
             return 0.0
@@ -385,7 +419,8 @@ def _get_budget_percent(user_id: str, role: str) -> float:
 
 def _get_reset_time() -> str:
     """Return ISO-format UTC midnight (budget reset time)."""
-    from datetime import datetime, timezone, timedelta
-    now   = datetime.now(timezone.utc)
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
     reset = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return reset.isoformat()

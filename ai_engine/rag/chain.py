@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _extract_text(content: Any) -> str:
     """
     Safely extract a plain string from an LLM response's content field.
@@ -44,11 +45,11 @@ def _extract_text(content: Any) -> str:
                 parts.append(block)
             elif isinstance(block, dict):
                 # 'text' key is standard across Gemini / Anthropic block formats
-                parts.append(str(block.get('text', '')))
+                parts.append(str(block.get("text", "")))
             else:
                 parts.append(str(block))
-        return ''.join(parts)
-    return str(content) if content is not None else ''
+        return "".join(parts)
+    return str(content) if content is not None else ""
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +111,7 @@ def _format_context_with_sources(docs: List[Document]) -> str:
 # SynapseRAGChain
 # ---------------------------------------------------------------------------
 
+
 class SynapseRAGChain:
     """
     Wraps LangChain's ConversationalRetrievalChain with SYNAPSE-specific:
@@ -135,15 +137,17 @@ class SynapseRAGChain:
         self.max_tokens = max_tokens
         self.streaming = streaming
 
-        self._llm = self._build_llm(temperature=temperature, max_tokens=max_tokens, streaming=streaming)
+        self._llm = self._build_llm(
+            temperature=temperature, max_tokens=max_tokens, streaming=streaming
+        )
 
     @staticmethod
     def _build_llm(
         temperature: float = 0.2,
-        max_tokens:  int   = 1024,
-        streaming:   bool  = False,
-        provider:    str   = "auto",
-        model:       str   = "",
+        max_tokens: int = 1024,
+        streaming: bool = False,
+        provider: str = "auto",
+        model: str = "",
     ):
         """
         Build the RAG chain LLM.
@@ -153,6 +157,7 @@ class SynapseRAGChain:
         See llm_factory.py for the full provider selection order.
         """
         from ai_engine.agents.llm_factory import build_llm
+
         return build_llm(
             provider=provider,
             model=model,
@@ -200,7 +205,11 @@ class SynapseRAGChain:
 
         # Step 1: Retrieve docs
         docs = self.retriever.invoke(question)
-        context = _format_context_with_sources(docs) if docs else "No relevant documents found."
+        context = (
+            _format_context_with_sources(docs)
+            if docs
+            else "No relevant documents found."
+        )
 
         # Step 2: Condense question if there's history
         chat_history = memory.messages
@@ -212,20 +221,30 @@ class SynapseRAGChain:
         system_content = SYSTEM_PROMPT.format(context=context)
 
         from langchain_core.messages import SystemMessage
+
         messages = [SystemMessage(content=system_content)]
         messages.extend(chat_history)
         from langchain_core.messages import HumanMessage
+
         messages.append(HumanMessage(content=condensed_question))
 
         # Step 4: Call LLM — use per-request provider/model if different from default
-        llm = self._build_llm(
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            provider=provider,
-            model=model,
-        ) if (provider and provider != "auto") or model else self._llm
+        llm = (
+            self._build_llm(
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                provider=provider,
+                model=model,
+            )
+            if (provider and provider != "auto") or model
+            else self._llm
+        )
         response = llm.invoke(messages)
-        answer = _extract_text(response.content) if hasattr(response, "content") else str(response)
+        answer = (
+            _extract_text(response.content)
+            if hasattr(response, "content")
+            else str(response)
+        )
 
         # Persist
         self.memory_manager.save_turn(conversation_id, question, answer)
@@ -256,7 +275,11 @@ class SynapseRAGChain:
             self.retriever.content_types = content_types
 
         docs = self.retriever.invoke(question)
-        context = _format_context_with_sources(docs) if docs else "No relevant documents found."
+        context = (
+            _format_context_with_sources(docs)
+            if docs
+            else "No relevant documents found."
+        )
 
         chat_history = memory.messages
         condensed_question = question
@@ -265,7 +288,8 @@ class SynapseRAGChain:
 
         system_content = SYSTEM_PROMPT.format(context=context)
 
-        from langchain_core.messages import SystemMessage, HumanMessage
+        from langchain_core.messages import HumanMessage, SystemMessage
+
         messages = [SystemMessage(content=system_content)]
         messages.extend(chat_history)
         messages.append(HumanMessage(content=condensed_question))
@@ -280,7 +304,11 @@ class SynapseRAGChain:
 
         full_answer = []
         for chunk in streaming_llm.stream(messages):
-            token = _extract_text(chunk.content) if hasattr(chunk, "content") else str(chunk)
+            token = (
+                _extract_text(chunk.content)
+                if hasattr(chunk, "content")
+                else str(chunk)
+            )
             if token:
                 full_answer.append(token)
                 yield token
@@ -308,7 +336,11 @@ class SynapseRAGChain:
             )
             condensed_llm = self._build_llm(temperature=0, max_tokens=256)
             result = condensed_llm.invoke(prompt)
-            return _extract_text(result.content) if hasattr(result, "content") else question
+            return (
+                _extract_text(result.content)
+                if hasattr(result, "content")
+                else question
+            )
         except Exception as exc:
             logger.warning("Question condensation failed: %s", exc)
             return question
@@ -325,11 +357,17 @@ class SynapseRAGChain:
                 continue
             if url:
                 seen_urls.add(url)
-            sources.append({
-                "title": meta.get("title", meta.get("name", "Untitled")),
-                "url": url,
-                "content_type": meta.get("content_type", "document"),
-                "snippet": doc.page_content[:200].strip() + "..." if len(doc.page_content) > 200 else doc.page_content.strip(),
-                "similarity_score": meta.get("similarity_score", None),
-            })
+            sources.append(
+                {
+                    "title": meta.get("title", meta.get("name", "Untitled")),
+                    "url": url,
+                    "content_type": meta.get("content_type", "document"),
+                    "snippet": (
+                        doc.page_content[:200].strip() + "..."
+                        if len(doc.page_content) > 200
+                        else doc.page_content.strip()
+                    ),
+                    "similarity_score": meta.get("similarity_score", None),
+                }
+            )
         return sources

@@ -16,6 +16,7 @@ Design decisions:
   - Enterprise: unlimited.
   - Org slug is URL-safe identifier (unique).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -24,50 +25,53 @@ from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 
-
 # ── Constants ─────────────────────────────────────────────────────────────────
 
+
 class OrgRole(models.TextChoices):
-    OWNER   = "owner",   "Owner"
-    ADMIN   = "admin",   "Admin"
-    MEMBER  = "member",  "Member"
-    VIEWER  = "viewer",  "Viewer"
+    OWNER = "owner", "Owner"
+    ADMIN = "admin", "Admin"
+    MEMBER = "member", "Member"
+    VIEWER = "viewer", "Viewer"
 
 
 class OrgPlan(models.TextChoices):
-    FREE        = "free",       "Free"
-    PRO         = "pro",        "Pro"
-    ENTERPRISE  = "enterprise", "Enterprise"
+    FREE = "free", "Free"
+    PRO = "pro", "Pro"
+    ENTERPRISE = "enterprise", "Enterprise"
 
 
 # ── Organization ──────────────────────────────────────────────────────────────
 
+
 class Organization(models.Model):
     """A team workspace that can contain multiple members."""
 
-    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name        = models.CharField(max_length=100)
-    slug        = models.SlugField(max_length=110, unique=True, db_index=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=110, unique=True, db_index=True)
     description = models.TextField(blank=True, max_length=500)
-    logo_url    = models.URLField(blank=True, max_length=500)
-    website     = models.URLField(blank=True, max_length=500)
-    plan        = models.CharField(max_length=20, choices=OrgPlan.choices, default=OrgPlan.FREE)
-    owner       = models.ForeignKey(
+    logo_url = models.URLField(blank=True, max_length=500)
+    website = models.URLField(blank=True, max_length=500)
+    plan = models.CharField(
+        max_length=20, choices=OrgPlan.choices, default=OrgPlan.FREE
+    )
+    owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="owned_organizations",
     )
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     # Plan limits
     MAX_MEMBERS = {"free": 5, "pro": 25, "enterprise": -1}
-    MAX_ORGS    = {"free": 1, "pro": 3,  "enterprise": -1}
+    MAX_ORGS = {"free": 1, "pro": 3, "enterprise": -1}
 
     class Meta:
-        db_table   = "organizations"
+        db_table = "organizations"
         verbose_name = "Organization"
-        ordering   = ["-created_at"]
+        ordering = ["-created_at"]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.slug})"
@@ -116,6 +120,7 @@ class Organization(models.Model):
 
 # ── OrgAuditLog ───────────────────────────────────────────────────────────────
 
+
 class OrgAuditLog(models.Model):
     """
     TASK-006-B5: Immutable audit trail for organisation changes.
@@ -124,38 +129,39 @@ class OrgAuditLog(models.Model):
     """
 
     class Action(models.TextChoices):
-        ORG_CREATED       = "org_created",       "Org Created"
-        ORG_DELETED       = "org_deleted",       "Org Deleted"
-        SETTINGS_CHANGED  = "settings_changed",  "Settings Changed"
-        MEMBER_ADDED      = "member_added",      "Member Added"
-        MEMBER_REMOVED    = "member_removed",    "Member Removed"
-        ROLE_CHANGED      = "role_changed",      "Role Changed"
-        INVITE_SENT       = "invite_sent",       "Invite Sent"
-        INVITE_CANCELLED  = "invite_cancelled",  "Invite Cancelled"
-        INVITE_ACCEPTED   = "invite_accepted",   "Invite Accepted"
+        ORG_CREATED = "org_created", "Org Created"
+        ORG_DELETED = "org_deleted", "Org Deleted"
+        SETTINGS_CHANGED = "settings_changed", "Settings Changed"
+        MEMBER_ADDED = "member_added", "Member Added"
+        MEMBER_REMOVED = "member_removed", "Member Removed"
+        ROLE_CHANGED = "role_changed", "Role Changed"
+        INVITE_SENT = "invite_sent", "Invite Sent"
+        INVITE_CANCELLED = "invite_cancelled", "Invite Cancelled"
+        INVITE_ACCEPTED = "invite_accepted", "Invite Accepted"
 
-    id           = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="audit_logs"
     )
-    actor        = models.ForeignKey(
+    actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         on_delete=models.SET_NULL,
         related_name="org_audit_actions",
     )
-    action       = models.CharField(max_length=30, choices=Action.choices, db_index=True)
+    action = models.CharField(max_length=30, choices=Action.choices, db_index=True)
     # Human-readable label for the resource affected (e.g. email, username)
-    resource     = models.CharField(max_length=255, blank=True)
+    resource = models.CharField(max_length=255, blank=True)
     # Arbitrary JSON payload for extra context
-    metadata     = models.JSONField(default=dict, blank=True)
-    ip_address   = models.GenericIPAddressField(null=True, blank=True)
-    timestamp    = models.DateTimeField(auto_now_add=True, db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        db_table   = "org_audit_logs"
+        db_table = "org_audit_logs"
         verbose_name = "Org Audit Log"
-        ordering   = ["-timestamp"]
+        ordering = ["-timestamp"]
 
     def __str__(self) -> str:
         actor = self.actor.email if self.actor else "system"
@@ -164,28 +170,31 @@ class OrgAuditLog(models.Model):
 
 # ── Membership ────────────────────────────────────────────────────────────────
 
+
 class Membership(models.Model):
     """Links a User to an Organization with a specific role."""
 
-    id           = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="memberships"
     )
-    user         = models.ForeignKey(
+    user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="org_memberships",
     )
-    role         = models.CharField(max_length=20, choices=OrgRole.choices, default=OrgRole.MEMBER)
-    is_active    = models.BooleanField(default=True)
-    joined_at    = models.DateTimeField(auto_now_add=True)
-    updated_at   = models.DateTimeField(auto_now=True)
+    role = models.CharField(
+        max_length=20, choices=OrgRole.choices, default=OrgRole.MEMBER
+    )
+    is_active = models.BooleanField(default=True)
+    joined_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table           = "organization_memberships"
-        unique_together    = [("organization", "user")]
-        verbose_name       = "Membership"
-        ordering           = ["joined_at"]
+        db_table = "organization_memberships"
+        unique_together = [("organization", "user")]
+        verbose_name = "Membership"
+        ordering = ["joined_at"]
 
     def __str__(self) -> str:
         return f"{self.user.email} → {self.organization.name} ({self.role})"
@@ -193,33 +202,36 @@ class Membership(models.Model):
 
 # ── OrganizationInvite ────────────────────────────────────────────────────────
 
+
 class OrganizationInvite(models.Model):
     """
     A pending invite to join an organization.
     Sent to an email address; accepted by the invited user.
     """
 
-    id           = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="invites"
     )
-    invited_by   = models.ForeignKey(
+    invited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="sent_org_invites",
     )
-    email        = models.EmailField(db_index=True)
-    role         = models.CharField(max_length=20, choices=OrgRole.choices, default=OrgRole.MEMBER)
-    token        = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
-    is_accepted  = models.BooleanField(default=False)
-    accepted_at  = models.DateTimeField(null=True, blank=True)
-    expires_at   = models.DateTimeField(null=True, blank=True)
-    created_at   = models.DateTimeField(auto_now_add=True)
+    email = models.EmailField(db_index=True)
+    role = models.CharField(
+        max_length=20, choices=OrgRole.choices, default=OrgRole.MEMBER
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
+    is_accepted = models.BooleanField(default=False)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table   = "organization_invites"
+        db_table = "organization_invites"
         verbose_name = "Organization Invite"
-        ordering   = ["-created_at"]
+        ordering = ["-created_at"]
 
     def __str__(self) -> str:
         return f"Invite → {self.email} to {self.organization.name}"
@@ -229,4 +241,5 @@ class OrganizationInvite(models.Model):
         if not self.expires_at:
             return False
         from django.utils import timezone
+
         return timezone.now() > self.expires_at

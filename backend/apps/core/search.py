@@ -47,8 +47,8 @@ RRF_K = 60
 
 # ── Cross-encoder model (lazy-loaded, optional) ───────────────────────────────
 _reranker = None
-RERANKER_MODEL = os.environ.get('RERANKER_MODEL', 'BAAI/bge-reranker-base')
-RERANKER_ENABLED = os.environ.get('RERANKER_ENABLED', 'true').lower() == 'true'
+RERANKER_MODEL = os.environ.get("RERANKER_MODEL", "BAAI/bge-reranker-base")
+RERANKER_ENABLED = os.environ.get("RERANKER_ENABLED", "true").lower() == "true"
 
 
 def _get_reranker():
@@ -60,6 +60,7 @@ def _get_reranker():
         return None
     try:
         from sentence_transformers import CrossEncoder
+
         _reranker = CrossEncoder(RERANKER_MODEL, max_length=512)
         logger.info("Cross-encoder reranker loaded: %s", RERANKER_MODEL)
     except Exception as exc:
@@ -70,18 +71,20 @@ def _get_reranker():
 
 # ── Result dataclass ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class SearchResult:
     """Unified search result with provenance metadata."""
-    id:              str
-    content_type:    str          # 'article' | 'paper' | 'repo' | 'video'
-    title:           str
-    snippet:         str          # short text excerpt for reranker input
-    obj:             Any          # original Django model instance
-    bm25_rank:       int | None   = field(default=None)
-    semantic_rank:   int | None   = field(default=None)
-    rrf_score:       float        = field(default=0.0)
-    rerank_score:    float | None = field(default=None)
+
+    id: str
+    content_type: str  # 'article' | 'paper' | 'repo' | 'video'
+    title: str
+    snippet: str  # short text excerpt for reranker input
+    obj: Any  # original Django model instance
+    bm25_rank: int | None = field(default=None)
+    semantic_rank: int | None = field(default=None)
+    rrf_score: float = field(default=0.0)
+    rerank_score: float | None = field(default=None)
     similarity_score: float | None = field(default=None)
 
     @property
@@ -94,8 +97,9 @@ class SearchResult:
 
 # ── RRF merge ─────────────────────────────────────────────────────────────────
 
+
 def _rrf_merge(
-    bm25_results:     list[SearchResult],
+    bm25_results: list[SearchResult],
     semantic_results: list[SearchResult],
     k: int = RRF_K,
 ) -> list[SearchResult]:
@@ -111,7 +115,7 @@ def _rrf_merge(
         Merged list sorted by RRF score descending.
     """
     scores: dict[str, float] = {}
-    index:  dict[str, SearchResult] = {}
+    index: dict[str, SearchResult] = {}
 
     for rank, result in enumerate(bm25_results, start=1):
         scores[result.id] = scores.get(result.id, 0.0) + 1.0 / (k + rank)
@@ -136,6 +140,7 @@ def _rrf_merge(
 
 # ── Cross-encoder rerank ──────────────────────────────────────────────────────
 
+
 def _rerank(query: str, results: list[SearchResult], top_k: int) -> list[SearchResult]:
     """
     Rerank the top candidates using a cross-encoder model.
@@ -148,7 +153,7 @@ def _rerank(query: str, results: list[SearchResult], top_k: int) -> list[SearchR
         return results
 
     candidates = results[: top_k * 3]
-    pairs = [(query, r.title + '\n' + r.snippet) for r in candidates]
+    pairs = [(query, r.title + "\n" + r.snippet) for r in candidates]
 
     try:
         scores = reranker.predict(pairs)
@@ -158,19 +163,22 @@ def _rerank(query: str, results: list[SearchResult], top_k: int) -> list[SearchR
     except Exception as exc:
         logger.warning("Reranker inference failed: %s — falling back to RRF order", exc)
 
-    return candidates + results[top_k * 3:]
+    return candidates + results[top_k * 3 :]
 
 
 # ── Model-specific query helpers ──────────────────────────────────────────────
 
-def _article_to_result(article, bm25_rank=None, semantic_rank=None,
-                        similarity_score=None) -> SearchResult:
+
+def _article_to_result(
+    article, bm25_rank=None, semantic_rank=None, similarity_score=None
+) -> SearchResult:
     from apps.articles.models import Article  # noqa
+
     return SearchResult(
         id=str(article.pk),
-        content_type='article',
+        content_type="article",
         title=article.title,
-        snippet=(article.summary or article.content or '')[:300],
+        snippet=(article.summary or article.content or "")[:300],
         obj=article,
         bm25_rank=bm25_rank,
         semantic_rank=semantic_rank,
@@ -178,13 +186,14 @@ def _article_to_result(article, bm25_rank=None, semantic_rank=None,
     )
 
 
-def _paper_to_result(paper, bm25_rank=None, semantic_rank=None,
-                      similarity_score=None) -> SearchResult:
+def _paper_to_result(
+    paper, bm25_rank=None, semantic_rank=None, similarity_score=None
+) -> SearchResult:
     return SearchResult(
         id=str(paper.pk),
-        content_type='paper',
+        content_type="paper",
         title=paper.title,
-        snippet=(paper.abstract or paper.summary or '')[:300],
+        snippet=(paper.abstract or paper.summary or "")[:300],
         obj=paper,
         bm25_rank=bm25_rank,
         semantic_rank=semantic_rank,
@@ -192,13 +201,14 @@ def _paper_to_result(paper, bm25_rank=None, semantic_rank=None,
     )
 
 
-def _repo_to_result(repo, bm25_rank=None, semantic_rank=None,
-                     similarity_score=None) -> SearchResult:
+def _repo_to_result(
+    repo, bm25_rank=None, semantic_rank=None, similarity_score=None
+) -> SearchResult:
     return SearchResult(
         id=str(repo.pk),
-        content_type='repo',
+        content_type="repo",
         title=repo.name,
-        snippet=(repo.description or '')[:300],
+        snippet=(repo.description or "")[:300],
         obj=repo,
         bm25_rank=bm25_rank,
         semantic_rank=semantic_rank,
@@ -206,13 +216,14 @@ def _repo_to_result(repo, bm25_rank=None, semantic_rank=None,
     )
 
 
-def _video_to_result(video, bm25_rank=None, semantic_rank=None,
-                      similarity_score=None) -> SearchResult:
+def _video_to_result(
+    video, bm25_rank=None, semantic_rank=None, similarity_score=None
+) -> SearchResult:
     return SearchResult(
         id=str(video.pk),
-        content_type='video',
+        content_type="video",
         title=video.title,
-        snippet=(video.description or video.summary or '')[:300],
+        snippet=(video.description or video.summary or "")[:300],
         obj=video,
         bm25_rank=bm25_rank,
         semantic_rank=semantic_rank,
@@ -221,6 +232,7 @@ def _video_to_result(video, bm25_rank=None, semantic_rank=None,
 
 
 # ── BM25 (full-text) search ───────────────────────────────────────────────────
+
 
 def bm25_search(
     query: str,
@@ -247,115 +259,107 @@ def bm25_search(
     from django.db.models import F
 
     if content_types is None:
-        content_types = ['articles', 'papers', 'repos', 'videos']
+        content_types = ["articles", "papers", "repos", "videos"]
     filters = filters or {}
 
     # Use plainto_tsquery for multi-word queries, websearch_to_tsquery for
     # quoted phrases and boolean operators ("AND", "OR", "-" negation).
-    search_query = SearchQuery(query, search_type='websearch', config='english')
+    search_query = SearchQuery(query, search_type="websearch", config="english")
     results: dict[str, list[SearchResult]] = {}
 
     # ── Articles ──────────────────────────────────────────────────────────────
-    if 'articles' in content_types:
+    if "articles" in content_types:
         from apps.articles.models import Article
 
         sv = (
-            SearchVector('title',   weight='A', config='english') +
-            SearchVector('summary', weight='B', config='english') +
-            SearchVector('content', weight='C', config='english')
+            SearchVector("title", weight="A", config="english")
+            + SearchVector("summary", weight="B", config="english")
+            + SearchVector("content", weight="C", config="english")
         )
         qs = (
-            Article.objects
-            .annotate(search=sv, rank=SearchRank(sv, search_query))
+            Article.objects.annotate(search=sv, rank=SearchRank(sv, search_query))
             .filter(search=search_query)
-            .order_by('-rank')
+            .order_by("-rank")
         )
-        if filters.get('topic'):
-            qs = qs.filter(topic__iexact=filters['topic'])
-        if filters.get('source'):
-            qs = qs.filter(source__source_type__iexact=filters['source'])
+        if filters.get("topic"):
+            qs = qs.filter(topic__iexact=filters["topic"])
+        if filters.get("source"):
+            qs = qs.filter(source__source_type__iexact=filters["source"])
 
         articles = list(qs[:limit])
-        results['articles'] = [
-            _article_to_result(a, bm25_rank=i + 1)
-            for i, a in enumerate(articles)
+        results["articles"] = [
+            _article_to_result(a, bm25_rank=i + 1) for i, a in enumerate(articles)
         ]
 
     # ── Papers ────────────────────────────────────────────────────────────────
-    if 'papers' in content_types:
+    if "papers" in content_types:
         from apps.papers.models import ResearchPaper
 
         # authors is an ArrayField — exclude it from SearchVector to avoid type errors;
         # author names are searchable via title/abstract match in practice.
         sv = (
-            SearchVector('title',    weight='A', config='english') +
-            SearchVector('abstract', weight='B', config='english') +
-            SearchVector('summary',  weight='C', config='english')
+            SearchVector("title", weight="A", config="english")
+            + SearchVector("abstract", weight="B", config="english")
+            + SearchVector("summary", weight="C", config="english")
         )
         qs = (
-            ResearchPaper.objects
-            .annotate(search=sv, rank=SearchRank(sv, search_query))
+            ResearchPaper.objects.annotate(search=sv, rank=SearchRank(sv, search_query))
             .filter(search=search_query)
-            .order_by('-rank')
+            .order_by("-rank")
         )
-        if filters.get('category'):
-            qs = qs.filter(categories__icontains=filters['category'])
+        if filters.get("category"):
+            qs = qs.filter(categories__icontains=filters["category"])
 
         papers = list(qs[:limit])
-        results['papers'] = [
-            _paper_to_result(p, bm25_rank=i + 1)
-            for i, p in enumerate(papers)
+        results["papers"] = [
+            _paper_to_result(p, bm25_rank=i + 1) for i, p in enumerate(papers)
         ]
 
     # ── Repositories ──────────────────────────────────────────────────────────
-    if 'repos' in content_types:
+    if "repos" in content_types:
         from apps.repositories.models import Repository
 
-        sv = (
-            SearchVector('name',        weight='A', config='english') +
-            SearchVector('description', weight='B', config='english')
+        sv = SearchVector("name", weight="A", config="english") + SearchVector(
+            "description", weight="B", config="english"
         )
         qs = (
-            Repository.objects
-            .annotate(search=sv, rank=SearchRank(sv, search_query))
+            Repository.objects.annotate(search=sv, rank=SearchRank(sv, search_query))
             .filter(search=search_query)
-            .order_by('-rank')
+            .order_by("-rank")
         )
-        if filters.get('language'):
-            qs = qs.filter(language__iexact=filters['language'])
+        if filters.get("language"):
+            qs = qs.filter(language__iexact=filters["language"])
 
         repos = list(qs[:limit])
-        results['repos'] = [
-            _repo_to_result(r, bm25_rank=i + 1)
-            for i, r in enumerate(repos)
+        results["repos"] = [
+            _repo_to_result(r, bm25_rank=i + 1) for i, r in enumerate(repos)
         ]
 
     # ── Videos ────────────────────────────────────────────────────────────────
-    if 'videos' in content_types:
+    if "videos" in content_types:
         from apps.videos.models import Video
 
         sv = (
-            SearchVector('title',       weight='A', config='english') +
-            SearchVector('description', weight='B', config='english') +
-            SearchVector('summary',     weight='C', config='english')
+            SearchVector("title", weight="A", config="english")
+            + SearchVector("description", weight="B", config="english")
+            + SearchVector("summary", weight="C", config="english")
         )
         qs = (
-            Video.objects
-            .annotate(search=sv, rank=SearchRank(sv, search_query))
+            Video.objects.annotate(search=sv, rank=SearchRank(sv, search_query))
             .filter(search=search_query)
-            .order_by('-rank')
+            .order_by("-rank")
         )
 
         videos = list(qs[:limit])
-        results['videos'] = [
-            _video_to_result(v, bm25_rank=i + 1)
-            for i, v in enumerate(videos)
+        results["videos"] = [
+            _video_to_result(v, bm25_rank=i + 1) for i, v in enumerate(videos)
         ]
 
     return results
 
 
 # ── Semantic search ───────────────────────────────────────────────────────────
+
 
 def semantic_search_results(
     query_vector: list[float],
@@ -378,7 +382,7 @@ def semantic_search_results(
     from pgvector.django import CosineDistance
 
     if content_types is None:
-        content_types = ['articles', 'papers', 'repos', 'videos']
+        content_types = ["articles", "papers", "repos", "videos"]
     filters = filters or {}
     results: dict[str, list[SearchResult]] = {}
 
@@ -386,82 +390,90 @@ def semantic_search_results(
         """Convert CosineDistance (0=identical, 2=opposite) to 0-1 score."""
         return round(1 - (dist / 2), 4) if dist is not None else None
 
-    if 'articles' in content_types:
+    if "articles" in content_types:
         from apps.articles.models import Article
 
         qs = (
-            Article.objects
-            .filter(embedding__isnull=False)
-            .annotate(dist=CosineDistance('embedding', query_vector))
-            .order_by('dist')
+            Article.objects.filter(embedding__isnull=False)
+            .annotate(dist=CosineDistance("embedding", query_vector))
+            .order_by("dist")
         )
-        if filters.get('topic'):
-            qs = qs.filter(topic__iexact=filters['topic'])
-        if filters.get('source'):
-            qs = qs.filter(source__source_type__iexact=filters['source'])
-        if filters.get('date_from'):
-            qs = qs.filter(published_at__gte=filters['date_from'])
-        if filters.get('date_to'):
-            qs = qs.filter(published_at__lte=filters['date_to'])
+        if filters.get("topic"):
+            qs = qs.filter(topic__iexact=filters["topic"])
+        if filters.get("source"):
+            qs = qs.filter(source__source_type__iexact=filters["source"])
+        if filters.get("date_from"):
+            qs = qs.filter(published_at__gte=filters["date_from"])
+        if filters.get("date_to"):
+            qs = qs.filter(published_at__lte=filters["date_to"])
 
         articles = list(qs[:limit])
-        results['articles'] = [
-            _article_to_result(a, semantic_rank=i + 1,
-                                similarity_score=_similarity(getattr(a, 'dist', None)))
+        results["articles"] = [
+            _article_to_result(
+                a,
+                semantic_rank=i + 1,
+                similarity_score=_similarity(getattr(a, "dist", None)),
+            )
             for i, a in enumerate(articles)
         ]
 
-    if 'papers' in content_types:
+    if "papers" in content_types:
         from apps.papers.models import ResearchPaper
 
         qs = (
-            ResearchPaper.objects
-            .filter(embedding__isnull=False)
-            .annotate(dist=CosineDistance('embedding', query_vector))
-            .order_by('dist')
+            ResearchPaper.objects.filter(embedding__isnull=False)
+            .annotate(dist=CosineDistance("embedding", query_vector))
+            .order_by("dist")
         )
-        if filters.get('category'):
-            qs = qs.filter(categories__icontains=filters['category'])
+        if filters.get("category"):
+            qs = qs.filter(categories__icontains=filters["category"])
 
         papers = list(qs[:limit])
-        results['papers'] = [
-            _paper_to_result(p, semantic_rank=i + 1,
-                              similarity_score=_similarity(getattr(p, 'dist', None)))
+        results["papers"] = [
+            _paper_to_result(
+                p,
+                semantic_rank=i + 1,
+                similarity_score=_similarity(getattr(p, "dist", None)),
+            )
             for i, p in enumerate(papers)
         ]
 
-    if 'repos' in content_types:
+    if "repos" in content_types:
         from apps.repositories.models import Repository
 
         qs = (
-            Repository.objects
-            .filter(embedding__isnull=False)
-            .annotate(dist=CosineDistance('embedding', query_vector))
-            .order_by('dist')
+            Repository.objects.filter(embedding__isnull=False)
+            .annotate(dist=CosineDistance("embedding", query_vector))
+            .order_by("dist")
         )
-        if filters.get('language'):
-            qs = qs.filter(language__iexact=filters['language'])
+        if filters.get("language"):
+            qs = qs.filter(language__iexact=filters["language"])
 
         repos = list(qs[:limit])
-        results['repos'] = [
-            _repo_to_result(r, semantic_rank=i + 1,
-                             similarity_score=_similarity(getattr(r, 'dist', None)))
+        results["repos"] = [
+            _repo_to_result(
+                r,
+                semantic_rank=i + 1,
+                similarity_score=_similarity(getattr(r, "dist", None)),
+            )
             for i, r in enumerate(repos)
         ]
 
-    if 'videos' in content_types:
+    if "videos" in content_types:
         from apps.videos.models import Video
 
         qs = (
-            Video.objects
-            .filter(embedding__isnull=False)
-            .annotate(dist=CosineDistance('embedding', query_vector))
-            .order_by('dist')
+            Video.objects.filter(embedding__isnull=False)
+            .annotate(dist=CosineDistance("embedding", query_vector))
+            .order_by("dist")
         )
         videos = list(qs[:limit])
-        results['videos'] = [
-            _video_to_result(v, semantic_rank=i + 1,
-                              similarity_score=_similarity(getattr(v, 'dist', None)))
+        results["videos"] = [
+            _video_to_result(
+                v,
+                semantic_rank=i + 1,
+                similarity_score=_similarity(getattr(v, "dist", None)),
+            )
             for i, v in enumerate(videos)
         ]
 
@@ -469,6 +481,7 @@ def semantic_search_results(
 
 
 # ── Hybrid search (BM25 + Semantic + RRF + optional rerank) ──────────────────
+
 
 def hybrid_search(
     query: str,
@@ -494,19 +507,21 @@ def hybrid_search(
         Dict mapping content_type → list[SearchResult] sorted by final_score.
     """
     if content_types is None:
-        content_types = ['articles', 'papers', 'repos', 'videos']
+        content_types = ["articles", "papers", "repos", "videos"]
 
     # Fetch more candidates than needed so RRF + reranker have headroom
     fetch_limit = min(limit * 3, 50)
 
-    bm25_raw      = bm25_search(query, content_types, fetch_limit, filters)
-    semantic_raw  = semantic_search_results(query_vector, content_types, fetch_limit, filters)
+    bm25_raw = bm25_search(query, content_types, fetch_limit, filters)
+    semantic_raw = semantic_search_results(
+        query_vector, content_types, fetch_limit, filters
+    )
 
     merged: dict[str, list[SearchResult]] = {}
 
     all_types = set(list(bm25_raw.keys()) + list(semantic_raw.keys()))
     for ct in all_types:
-        bm25_list     = bm25_raw.get(ct, [])
+        bm25_list = bm25_raw.get(ct, [])
         semantic_list = semantic_raw.get(ct, [])
 
         fused = _rrf_merge(bm25_list, semantic_list)

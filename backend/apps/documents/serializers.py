@@ -5,14 +5,23 @@ DRF serializers for the GeneratedDocument model.
 
 Phase 5.2 — Document Generation (Week 14)
 """
+
 from rest_framework import serializers
+
 from .models import GeneratedDocument
 
 
 class ProjectGenerateSerializer(serializers.Serializer):
     """Input serializer for project scaffold generation requests (Phase 5.3)."""
 
-    VALID_PROJECT_TYPES = ["django", "fastapi", "nextjs", "datascience", "react_lib", "html_template"]
+    VALID_PROJECT_TYPES = [
+        "django",
+        "fastapi",
+        "nextjs",
+        "datascience",
+        "react_lib",
+        "html_template",
+    ]
     VALID_FEATURES = ["auth", "testing", "ci_cd"]
 
     project_type = serializers.ChoiceField(
@@ -44,10 +53,13 @@ class ProjectGenerateSerializer(serializers.Serializer):
     def validate_name(self, value: str) -> str:
         value = value.strip()
         if len(value) < 2:
-            raise serializers.ValidationError("Project name must be at least 2 characters.")
+            raise serializers.ValidationError(
+                "Project name must be at least 2 characters."
+            )
         # Allow alphanumeric, hyphens, underscores
         import re
-        if not re.match(r'^[a-zA-Z0-9_\-]+$', value):
+
+        if not re.match(r"^[a-zA-Z0-9_\-]+$", value):
             raise serializers.ValidationError(
                 "Project name may only contain letters, numbers, hyphens, and underscores."
             )
@@ -109,7 +121,9 @@ class DocumentGenerateSerializer(serializers.Serializer):
         ),
     )
     content_types = serializers.ListField(
-        child=serializers.ChoiceField(choices=["articles", "papers", "repositories", "videos"]),
+        child=serializers.ChoiceField(
+            choices=["articles", "papers", "repositories", "videos"]
+        ),
         required=False,
         allow_empty=True,
         default=list,
@@ -150,7 +164,7 @@ class GeneratedDocumentSerializer(serializers.ModelSerializer):
     """Full serializer for reading document records."""
 
     download_url = serializers.SerializerMethodField()
-    sources_used = serializers.JSONField(source='sources_metadata', read_only=True)
+    sources_used = serializers.JSONField(source="sources_metadata", read_only=True)
 
     class Meta:
         model = GeneratedDocument

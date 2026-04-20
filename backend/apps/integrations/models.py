@@ -6,14 +6,17 @@ Models for storing cloud integration tokens & connection state.
 Phase 6.1 — Google Drive Integration (Week 17)
 Phase 6.2 — AWS S3 Integration  (Week 18)
 """
+
 from __future__ import annotations
 
-import uuid
-from django.db import models
-from django.conf import settings
-from cryptography.fernet import Fernet
 import base64
 import hashlib
+import uuid
+
+from cryptography.fernet import Fernet
+
+from django.conf import settings
+from django.db import models
 
 
 def _fernet():
@@ -51,12 +54,14 @@ class GoogleDriveToken(models.Model):
     def set_credentials(self, credentials_dict: dict) -> None:
         """Encrypt and store credentials dict."""
         import json
+
         raw = json.dumps(credentials_dict).encode()
         self.encrypted_credentials = _fernet().encrypt(raw).decode()
 
     def get_credentials(self) -> dict:
         """Decrypt and return credentials dict."""
         import json
+
         raw = _fernet().decrypt(self.encrypted_credentials.encode())
         return json.loads(raw)
 

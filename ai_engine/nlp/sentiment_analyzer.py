@@ -8,6 +8,7 @@ The pipeline is loaded lazily and cached for the lifetime of the process.
 Texts longer than 512 tokens are split into chunks and the final sentiment
 is determined by the highest-confidence prediction across chunks.
 """
+
 import logging
 from typing import Dict, Optional, Tuple
 
@@ -26,7 +27,7 @@ LABEL_MAP: Dict[str, str] = {
     "LABEL_2": "POSITIVE",
     # Some model variants use descriptive names directly
     "negative": "NEGATIVE",
-    "neutral":  "NEUTRAL",
+    "neutral": "NEUTRAL",
     "positive": "POSITIVE",
 }
 
@@ -40,14 +41,16 @@ def _get_pipeline():
     if _sentiment_pipeline is None:
         try:
             import os
+
             from transformers import pipeline  # noqa: PLC0415
+
             model_name = os.environ.get("SENTIMENT_MODEL", DEFAULT_MODEL)
             logger.info("Loading sentiment pipeline: %s", model_name)
             _sentiment_pipeline = pipeline(
                 "sentiment-analysis",
                 model=model_name,
                 tokenizer=model_name,
-                device=-1,          # CPU; set to 0 for GPU
+                device=-1,  # CPU; set to 0 for GPU
                 truncation=True,
                 max_length=512,
             )

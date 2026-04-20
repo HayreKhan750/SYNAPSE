@@ -25,6 +25,7 @@ Usage examples:
   # Multiple categories (comma-separated)
   scrapy crawl arxiv -a categories=cs.AI,cs.CL,stat.ML -a max_papers=200
 """
+
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -44,15 +45,15 @@ ARXIV_ABS_BASE = "https://arxiv.org/abs"
 
 # Default AI / ML / CS categories that SYNAPSE tracks
 DEFAULT_CATEGORIES = [
-    "cs.AI",    # Artificial Intelligence
-    "cs.LG",    # Machine Learning
-    "cs.CL",    # Computation and Language (NLP)
-    "cs.CV",    # Computer Vision and Pattern Recognition
-    "cs.NE",    # Neural and Evolutionary Computing
-    "cs.SE",    # Software Engineering
-    "cs.DC",    # Distributed, Parallel, and Cluster Computing
-    "cs.IR",    # Information Retrieval
-    "cs.RO",    # Robotics
+    "cs.AI",  # Artificial Intelligence
+    "cs.LG",  # Machine Learning
+    "cs.CL",  # Computation and Language (NLP)
+    "cs.CV",  # Computer Vision and Pattern Recognition
+    "cs.NE",  # Neural and Evolutionary Computing
+    "cs.SE",  # Software Engineering
+    "cs.DC",  # Distributed, Parallel, and Cluster Computing
+    "cs.IR",  # Information Retrieval
+    "cs.RO",  # Robotics
     "stat.ML",  # Machine Learning (Statistics section)
 ]
 
@@ -67,6 +68,7 @@ DEFAULT_MAX_PAPERS = 500
 
 
 # ── Spider ───────────────────────────────────────────────────────────────────
+
 
 class ArXivSpider(scrapy.Spider):
     """Scrapy spider for the arXiv Atom API feed."""
@@ -123,11 +125,13 @@ class ArXivSpider(scrapy.Spider):
 
         # Accept "True"/"true"/"1" from CLI -a flag as well as Python True
         self.enrich_abstract_page = str(enrich_abstract_page).lower() in (
-            "true", "1", "yes",
+            "true",
+            "1",
+            "yes",
         )
-        
+
         # Store user_id for personalization
-        self.user_id = kwargs.get('user_id')
+        self.user_id = kwargs.get("user_id")
 
         # Compute the cutoff date once (UTC)
         self.cutoff_date = (
@@ -200,9 +204,7 @@ class ArXivSpider(scrapy.Spider):
         response.selector.remove_namespaces()
 
         # ── Feed-level metadata ───────────────────────────────────────────
-        total_results = int(
-            response.xpath("//feed/totalResults/text()").get("0") or 0
-        )
+        total_results = int(response.xpath("//feed/totalResults/text()").get("0") or 0)
         entries = response.xpath("//entry")
         fetched = len(entries)
 
@@ -302,14 +304,10 @@ class ArXivSpider(scrapy.Spider):
             return "", None, None
 
         # ── Title ─────────────────────────────────────────────────────────
-        title = self._clean_whitespace(
-            entry.xpath("title/text()").get("").strip()
-        )
+        title = self._clean_whitespace(entry.xpath("title/text()").get("").strip())
 
         # ── Abstract ─────────────────────────────────────────────────────
-        abstract = self._clean_whitespace(
-            entry.xpath("summary/text()").get("").strip()
-        )
+        abstract = self._clean_whitespace(entry.xpath("summary/text()").get("").strip())
 
         # ── Authors ───────────────────────────────────────────────────────
         authors = entry.xpath("author/name/text()").getall()
@@ -389,7 +387,9 @@ class ArXivSpider(scrapy.Spider):
 
             # ── Subject labels ────────────────────────────────────────────
             subject_spans = soup.select("span.primary-subject, td.subjects span")
-            subject_labels = [s.get_text(strip=True) for s in subject_spans if s.get_text(strip=True)]
+            subject_labels = [
+                s.get_text(strip=True) for s in subject_spans if s.get_text(strip=True)
+            ]
 
             # ── Journal reference ─────────────────────────────────────────
             journal_td = soup.find("td", class_="tablecell jref")
@@ -475,9 +475,11 @@ class ArXivSpider(scrapy.Spider):
             return None
         try:
             # Python 3.7+: fromisoformat doesn't handle trailing 'Z'
-            return datetime.fromisoformat(
-                date_str.replace("Z", "+00:00")
-            ).astimezone(timezone.utc).date()
+            return (
+                datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                .astimezone(timezone.utc)
+                .date()
+            )
         except (ValueError, TypeError):
             # Fall back: just take the first 10 chars (YYYY-MM-DD)
             try:

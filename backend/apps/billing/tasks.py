@@ -5,8 +5,10 @@ Celery tasks for async Stripe webhook processing.
 
 Phase 9.3 — Growth & Iteration
 """
-from celery import shared_task
+
 import structlog
+
+from celery import shared_task
 
 logger = structlog.get_logger(__name__)
 
@@ -14,8 +16,8 @@ WEBHOOK_HANDLERS = {
     "customer.subscription.created": "handle_subscription_created",
     "customer.subscription.updated": "handle_subscription_updated",
     "customer.subscription.deleted": "handle_subscription_deleted",
-    "invoice.payment_succeeded":     "handle_invoice_paid",
-    "invoice.payment_failed":        "handle_payment_failed",
+    "invoice.payment_succeeded": "handle_invoice_paid",
+    "invoice.payment_failed": "handle_payment_failed",
 }
 
 
@@ -33,6 +35,7 @@ def process_stripe_webhook(self, event_type: str, event_data: dict) -> None:
 
     try:
         from apps.billing import stripe_service
+
         handler = getattr(stripe_service, handler_name)
         handler(event_data)
         logger.info("stripe_webhook_processed", event_type=event_type)

@@ -13,7 +13,10 @@ Endpoints (mounted at /api/v1/auth/mfa/):
   POST /disable/         → disable MFA (requires password)
   GET  /status/          → MFA enabled status
 """
+
 from __future__ import annotations
+
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
@@ -21,26 +24,28 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
-from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class MFAVerifyThrottle(UserRateThrottle):
     """Strict rate limit for MFA endpoints — max 5 attempts per minute per user."""
-    rate = '5/minute'
-    scope = 'mfa_verify'
+
+    rate = "5/minute"
+    scope = "mfa_verify"
 
 
 class MFASetupThrottle(UserRateThrottle):
     """Rate limit for MFA setup — max 3 per minute."""
-    rate = '3/minute'
-    scope = 'mfa_setup'
+
+    rate = "3/minute"
+    scope = "mfa_setup"
+
 
 from .mfa import (
-    setup_totp_device,
-    verify_totp_token,
-    verify_backup_code,
     disable_mfa,
+    setup_totp_device,
     user_has_mfa_enabled,
+    verify_backup_code,
+    verify_totp_token,
 )
 
 
@@ -51,17 +56,25 @@ def mfa_setup(request: Request) -> Response:
     """Generate TOTP secret + QR code for the authenticated user."""
     try:
         data = setup_totp_device(request.user)
-        return Response({
-            "success":         True,
-            "qr_code":         f"data:image/png;base64,{data['qr_code_base64']}",
-            "otpauth_url":     data["otpauth_url"],
-            "backup_codes":    data["backup_codes"],
-            "message":         "Scan the QR code with your authenticator app, then confirm with /mfa/setup/confirm/",
-        })
+        return Response(
+            {
+                "success": True,
+                "qr_code": f"data:image/png;base64,{data['qr_code_base64']}",
+                "otpauth_url": data["otpauth_url"],
+                "backup_codes": data["backup_codes"],
+                "message": "Scan the QR code with your authenticator app, then confirm with /mfa/setup/confirm/",
+            }
+        )
     except RuntimeError as exc:
-        return Response({"success": False, "error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     except Exception as exc:
-        return Response({"success": False, "error": "MFA setup failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"success": False, "error": "MFA setup failed."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])
@@ -76,7 +89,12 @@ def mfa_setup_confirm(request: Request) -> Response:
         )
 
     if verify_totp_token(request.user, token):
-        return Response({"success": True, "message": "MFA enabled successfully. Keep your backup codes safe!"})
+        return Response(
+            {
+                "success": True,
+                "message": "MFA enabled successfully. Keep your backup codes safe!",
+            }
+        )
     return Response(
         {"success": False, "error": "Invalid token. Please try again."},
         status=status.HTTP_400_BAD_REQUEST,
@@ -100,11 +118,13 @@ def mfa_verify(request: Request) -> Response:
 
     if verify_totp_token(request.user, token):
         refresh = RefreshToken.for_user(request.user)
-        return Response({
-            "success": True,
-            "access":  str(refresh.access_token),
-            "refresh": str(refresh),
-        })
+        return Response(
+            {
+                "success": True,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            }
+        )
 
     return Response(
         {"success": False, "error": "Invalid or expired token."},
@@ -126,12 +146,14 @@ def mfa_verify_backup(request: Request) -> Response:
 
     if verify_backup_code(request.user, code):
         refresh = RefreshToken.for_user(request.user)
-        return Response({
-            "success": True,
-            "access":  str(refresh.access_token),
-            "refresh": str(refresh),
-            "message": "Backup code accepted. Consider re-generating backup codes.",
-        })
+        return Response(
+            {
+                "success": True,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "message": "Backup code accepted. Consider re-generating backup codes.",
+            }
+        )
 
     return Response(
         {"success": False, "error": "Invalid or already used backup code."},
@@ -160,7 +182,11 @@ def mfa_disable(request: Request) -> Response:
 def mfa_status(request: Request) -> Response:
     """Return MFA enabled status for the current user."""
     enabled = user_has_mfa_enabled(request.user)
-    return Response({
-        "mfa_enabled":     enabled,
-        "backup_codes_remaining": len(request.user.preferences.get("mfa_backup_codes", [])),
-    })
+    return Response(
+        {
+            "mfa_enabled": enabled,
+            "backup_codes_remaining": len(
+                request.user.preferences.get("mfa_backup_codes", [])
+            ),
+        }
+    )

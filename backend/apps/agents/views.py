@@ -15,6 +15,7 @@ Endpoints (Phase 5.1 + 5.4):
 Phase 5.1 — Agent Framework (Week 13)
 Phase 5.4 — Agent UI / SSE Streaming (Week 16)
 """
+
 from __future__ import annotations
 
 import json
@@ -23,11 +24,12 @@ import sys
 import time
 from pathlib import Path
 
+from apps.core.throttles import AgentRateThrottle
+
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from apps.core.throttles import AgentRateThrottle
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -54,6 +56,7 @@ logger = logging.getLogger(__name__)
 # Task list + create
 # ---------------------------------------------------------------------------
 
+
 class AgentTaskListCreateView(APIView):
     """
     GET  — Return paginated list of the authenticated user's agent tasks.
@@ -61,7 +64,7 @@ class AgentTaskListCreateView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
-    throttle_classes   = [AgentRateThrottle]   # TASK-501-B3
+    throttle_classes = [AgentRateThrottle]  # TASK-501-B3
 
     def get(self, request: Request) -> Response:
         qs = AgentTask.objects.filter(user=request.user).order_by("-created_at")
@@ -90,6 +93,7 @@ class AgentTaskListCreateView(APIView):
         raw_prompt = serializer.validated_data["prompt"]
         try:
             from apps.core.security import sanitise_text  # noqa: PLC0415
+
             safe_prompt = sanitise_text(raw_prompt)
         except Exception:
             safe_prompt = raw_prompt[:4000]  # hard cap if sanitiser unavailable
@@ -105,10 +109,13 @@ class AgentTaskListCreateView(APIView):
         # Queue the Celery task
         try:
             from .tasks import execute_agent_task
+
             celery_result = execute_agent_task.delay(str(task_obj.id))
             task_obj.celery_task_id = celery_result.id
             task_obj.save(update_fields=["celery_task_id"])
-            logger.info("Queued AgentTask %s → Celery %s", task_obj.id, celery_result.id)
+            logger.info(
+                "Queued AgentTask %s → Celery %s", task_obj.id, celery_result.id
+            )
         except Exception as exc:
             logger.error("Failed to queue AgentTask %s: %s", task_obj.id, exc)
             task_obj.status = AgentTask.TaskStatus.FAILED
@@ -129,6 +136,7 @@ class AgentTaskListCreateView(APIView):
 # Task detail
 # ---------------------------------------------------------------------------
 
+
 class AgentTaskDetailView(APIView):
     """GET /api/v1/agents/tasks/{id}/ — retrieve full task detail including result."""
 
@@ -143,13 +151,16 @@ class AgentTaskDetailView(APIView):
     def get(self, request: Request, task_id: str) -> Response:
         task_obj = self._get_task(task_id, request.user)
         if not task_obj:
-            return Response({"error": "Agent task not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Agent task not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         return Response(AgentTaskSerializer(task_obj).data)
 
 
 # ---------------------------------------------------------------------------
 # Task cancel
 # ---------------------------------------------------------------------------
+
 
 class AgentTaskCancelView(APIView):
     """POST /api/v1/agents/tasks/{id}/cancel/ — cancel a pending/processing task."""
@@ -160,9 +171,14 @@ class AgentTaskCancelView(APIView):
         try:
             task_obj = AgentTask.objects.get(id=task_id, user=request.user)
         except AgentTask.DoesNotExist:
-            return Response({"error": "Agent task not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Agent task not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
-        if task_obj.status in (AgentTask.TaskStatus.COMPLETED, AgentTask.TaskStatus.FAILED):
+        if task_obj.status in (
+            AgentTask.TaskStatus.COMPLETED,
+            AgentTask.TaskStatus.FAILED,
+        ):
             return Response(
                 {"error": f"Cannot cancel a task with status '{task_obj.status}'."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -170,8 +186,11 @@ class AgentTaskCancelView(APIView):
 
         try:
             from .tasks import cancel_agent_task
+
             cancel_agent_task.delay(str(task_obj.id), task_obj.celery_task_id)
-            return Response({"message": "Cancellation requested.", "task_id": str(task_obj.id)})
+            return Response(
+                {"message": "Cancellation requested.", "task_id": str(task_obj.id)}
+            )
         except Exception as exc:
             logger.error("Cancel failed for AgentTask %s: %s", task_obj.id, exc)
             return Response(
@@ -184,6 +203,7 @@ class AgentTaskCancelView(APIView):
 # Tool list
 # ---------------------------------------------------------------------------
 
+
 class AgentToolListView(APIView):
     """GET /api/v1/agents/tools/ — list all registered agent tools."""
 
@@ -192,6 +212,7 @@ class AgentToolListView(APIView):
     def get(self, request: Request) -> Response:
         try:
             from ai_engine.agents import get_executor
+
             executor = get_executor()
             tools = executor.list_tools()
         except Exception as exc:
@@ -205,6 +226,7 @@ class AgentToolListView(APIView):
 # ---------------------------------------------------------------------------
 # SSE streaming — real-time task progress (Phase 5.4)
 # ---------------------------------------------------------------------------
+
 
 def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
     """
@@ -239,9 +261,9 @@ def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
 
     if token_str:
         try:
-            from rest_framework_simplejwt.tokens import UntypedToken
-            from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
             from rest_framework_simplejwt.authentication import JWTAuthentication
+            from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+            from rest_framework_simplejwt.tokens import UntypedToken
 
             jwt_auth = JWTAuthentication()
             validated = jwt_auth.get_validated_token(token_str.encode())
@@ -265,7 +287,7 @@ def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
     def _event_stream():
         terminal = {AgentTask.TaskStatus.COMPLETED, AgentTask.TaskStatus.FAILED}
         poll_interval = 1.0
-        max_polls = 360              # give up after 6 minutes
+        max_polls = 360  # give up after 6 minutes
 
         for _ in range(max_polls):
             try:
@@ -278,23 +300,25 @@ def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
             serializer = AgentTaskSerializer(task_obj)
             data = serializer.data
             result_data = data.get("result") or {}
-            payload = json.dumps({
-                "status":             data.get("status"),
-                "answer":             data.get("answer") or "",
-                "tokens_used":        data.get("tokens_used", 0),
-                "cost_usd":           str(data.get("cost_usd", "0.000000")),
-                "execution_time_s":   data.get("execution_time_s"),
-                "intermediate_steps": data.get("intermediate_steps") or [],
-                "error_message":      data.get("error_message") or "",
-                "completed_at":       data.get("completed_at"),
-                "result": {
-                    "download_url":    result_data.get("download_url"),
-                    "file_name":       result_data.get("file_name"),
-                    "file_path":       result_data.get("file_path"),
-                    "file_size_bytes": result_data.get("file_size_bytes"),
-                    "file_list":       result_data.get("file_list"),
-                },
-            })
+            payload = json.dumps(
+                {
+                    "status": data.get("status"),
+                    "answer": data.get("answer") or "",
+                    "tokens_used": data.get("tokens_used", 0),
+                    "cost_usd": str(data.get("cost_usd", "0.000000")),
+                    "execution_time_s": data.get("execution_time_s"),
+                    "intermediate_steps": data.get("intermediate_steps") or [],
+                    "error_message": data.get("error_message") or "",
+                    "completed_at": data.get("completed_at"),
+                    "result": {
+                        "download_url": result_data.get("download_url"),
+                        "file_name": result_data.get("file_name"),
+                        "file_path": result_data.get("file_path"),
+                        "file_size_bytes": result_data.get("file_size_bytes"),
+                        "file_list": result_data.get("file_list"),
+                    },
+                }
+            )
             yield f"data: {payload}\n\n"
 
             if data.get("status") in terminal:
@@ -310,7 +334,7 @@ def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
         content_type="text/event-stream",
     )
     response["Cache-Control"] = "no-cache"
-    response["X-Accel-Buffering"] = "no"   # disable Nginx buffering
+    response["X-Accel-Buffering"] = "no"  # disable Nginx buffering
     return response
 
 
@@ -318,12 +342,14 @@ def agent_task_stream(request, task_id: str) -> StreamingHttpResponse:
 # Health check
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def agent_health(request: Request) -> Response:
     """GET /api/v1/agents/health/ — executor health check."""
     try:
         from ai_engine.agents import get_executor
+
         executor = get_executor()
         health_data = executor.health()
         return Response(health_data)
@@ -338,9 +364,9 @@ def agent_health(request: Request) -> Response:
 # ── TASK-306-B2: Prompt Library endpoints ────────────────────────────────────
 
 from .serializers import (  # noqa: E402 — local import after models
-    PromptTemplateSerializer,
-    PromptTemplateListSerializer,
     PromptTemplateCreateSerializer,
+    PromptTemplateListSerializer,
+    PromptTemplateSerializer,
 )
 
 
@@ -349,49 +375,59 @@ class PromptListCreateView(APIView):
     GET  /api/v1/agents/prompts/  — list public prompts
     POST /api/v1/agents/prompts/  — create a new prompt (auth required)
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        category = request.query_params.get('category', '').strip().lower()
-        sort     = request.query_params.get('sort', 'popular')  # popular | newest
+        category = request.query_params.get("category", "").strip().lower()
+        sort = request.query_params.get("sort", "popular")  # popular | newest
 
-        qs = PromptTemplate.objects.filter(is_public=True).select_related('author')
-        if category and category != 'all':
+        qs = PromptTemplate.objects.filter(is_public=True).select_related("author")
+        if category and category != "all":
             qs = qs.filter(category=category)
-        if sort == 'newest':
-            qs = qs.order_by('-created_at')
+        if sort == "newest":
+            qs = qs.order_by("-created_at")
         else:
-            qs = qs.order_by('-upvotes', '-use_count', '-created_at')
+            qs = qs.order_by("-upvotes", "-use_count", "-created_at")
 
         paginator = StandardPagination()
-        page      = paginator.paginate_queryset(qs, request)
+        page = paginator.paginate_queryset(qs, request)
         serializer = PromptTemplateListSerializer(
             page if page is not None else qs,
             many=True,
-            context={'request': request},
+            context={"request": request},
         )
         if page is not None:
             return paginator.get_paginated_response(serializer.data)
-        return Response({'success': True, 'data': serializer.data})
+        return Response({"success": True, "data": serializer.data})
 
     def post(self, request: Request) -> Response:
         serializer = PromptTemplateCreateSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         prompt = serializer.save(author=request.user)
         return Response(
-            {'success': True, 'data': PromptTemplateSerializer(prompt, context={'request': request}).data},
+            {
+                "success": True,
+                "data": PromptTemplateSerializer(
+                    prompt, context={"request": request}
+                ).data,
+            },
             status=status.HTTP_201_CREATED,
         )
 
 
 class PromptDetailView(APIView):
     """GET /api/v1/agents/prompts/{id}/ — get single prompt."""
+
     permission_classes = [IsAuthenticated]
 
     def _get_prompt(self, pk, user):
         try:
-            p = PromptTemplate.objects.select_related('author').get(pk=pk)
+            p = PromptTemplate.objects.select_related("author").get(pk=pk)
         except PromptTemplate.DoesNotExist:
             return None
         if not p.is_public and p.author != user:
@@ -401,55 +437,76 @@ class PromptDetailView(APIView):
     def get(self, request: Request, pk) -> Response:
         prompt = self._get_prompt(pk, request.user)
         if not prompt:
-            return Response({'success': False, 'error': 'Not found'}, status=404)
-        return Response({'success': True, 'data': PromptTemplateSerializer(prompt, context={'request': request}).data})
+            return Response({"success": False, "error": "Not found"}, status=404)
+        return Response(
+            {
+                "success": True,
+                "data": PromptTemplateSerializer(
+                    prompt, context={"request": request}
+                ).data,
+            }
+        )
 
 
 class PromptUseView(APIView):
     """POST /api/v1/agents/prompts/{id}/use/ — increment use_count, return content."""
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, pk) -> Response:
         try:
             prompt = PromptTemplate.objects.get(pk=pk)
         except PromptTemplate.DoesNotExist:
-            return Response({'success': False, 'error': 'Not found'}, status=404)
+            return Response({"success": False, "error": "Not found"}, status=404)
         if not prompt.is_public and prompt.author != request.user:
-            return Response({'success': False, 'error': 'Not found'}, status=404)
+            return Response({"success": False, "error": "Not found"}, status=404)
         PromptTemplate.objects.filter(pk=pk).update(use_count=prompt.use_count + 1)
-        return Response({'success': True, 'data': {'content': prompt.content, 'title': prompt.title}})
+        return Response(
+            {
+                "success": True,
+                "data": {"content": prompt.content, "title": prompt.title},
+            }
+        )
 
 
 class PromptUpvoteView(APIView):
     """POST /api/v1/agents/prompts/{id}/upvote/ — toggle upvote."""
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, pk) -> Response:
         try:
             prompt = PromptTemplate.objects.get(pk=pk)
         except PromptTemplate.DoesNotExist:
-            return Response({'success': False, 'error': 'Not found'}, status=404)
+            return Response({"success": False, "error": "Not found"}, status=404)
         existing = PromptUpvote.objects.filter(user=request.user, prompt=prompt).first()
         if existing:
             existing.delete()
-            PromptTemplate.objects.filter(pk=pk).update(upvotes=max(0, prompt.upvotes - 1))
+            PromptTemplate.objects.filter(pk=pk).update(
+                upvotes=max(0, prompt.upvotes - 1)
+            )
             upvoted = False
         else:
             PromptUpvote.objects.create(user=request.user, prompt=prompt)
             PromptTemplate.objects.filter(pk=pk).update(upvotes=prompt.upvotes + 1)
             upvoted = True
         prompt.refresh_from_db()
-        return Response({'success': True, 'data': {'upvoted': upvoted, 'upvotes': prompt.upvotes}})
+        return Response(
+            {"success": True, "data": {"upvoted": upvoted, "upvotes": prompt.upvotes}}
+        )
 
 
 class MyPromptsView(APIView):
     """GET /api/v1/agents/prompts/my/ — list user's own prompts."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        qs = PromptTemplate.objects.filter(author=request.user).select_related('author')
-        serializer = PromptTemplateSerializer(qs, many=True, context={'request': request})
-        return Response({'success': True, 'data': serializer.data})
+        qs = PromptTemplate.objects.filter(author=request.user).select_related("author")
+        serializer = PromptTemplateSerializer(
+            qs, many=True, context={"request": request}
+        )
+        return Response({"success": True, "data": serializer.data})
 
 
 # ── TASK-601-B3: Research Session endpoints ───────────────────────────────────
@@ -462,46 +519,56 @@ class ResearchSessionListCreateView(APIView):
     GET  /api/v1/agents/research/  — list user's research sessions
     POST /api/v1/agents/research/  — start a new research session
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        qs = ResearchSession.objects.filter(user=request.user).order_by('-created_at')[:20]
+        qs = ResearchSession.objects.filter(user=request.user).order_by("-created_at")[
+            :20
+        ]
         data = [
             {
-                'id':           str(s.id),
-                'query':        s.query,
-                'status':       s.status,
-                'sub_questions': s.sub_questions,
-                'created_at':   s.created_at.isoformat(),
-                'completed_at': s.completed_at.isoformat() if s.completed_at else None,
+                "id": str(s.id),
+                "query": s.query,
+                "status": s.status,
+                "sub_questions": s.sub_questions,
+                "created_at": s.created_at.isoformat(),
+                "completed_at": s.completed_at.isoformat() if s.completed_at else None,
             }
             for s in qs
         ]
-        return Response({'success': True, 'data': data})
+        return Response({"success": True, "data": data})
 
     def post(self, request: Request) -> Response:
-        query = (request.data.get('query') or '').strip()
+        query = (request.data.get("query") or "").strip()
         if not query:
-            return Response({'success': False, 'error': 'query is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"success": False, "error": "query is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if len(query) > 2000:
-            return Response({'success': False, 'error': 'query too long (max 2000 chars)'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"success": False, "error": "query too long (max 2000 chars)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         session = ResearchSession.objects.create(user=request.user, query=query)
 
         # Enqueue background research task (best-effort — no blocking)
         try:
             from apps.core.tasks import run_research_session  # noqa: PLC0415
+
             run_research_session.delay(str(session.id))
         except Exception as exc:
             logger.warning("Could not enqueue research task: %s", exc)
 
         return Response(
             {
-                'success': True,
-                'data': {
-                    'id':     str(session.id),
-                    'query':  session.query,
-                    'status': session.status,
+                "success": True,
+                "data": {
+                    "id": str(session.id),
+                    "query": session.query,
+                    "status": session.status,
                 },
             },
             status=status.HTTP_201_CREATED,
@@ -510,24 +577,31 @@ class ResearchSessionListCreateView(APIView):
 
 class ResearchSessionDetailView(APIView):
     """GET /api/v1/agents/research/{id}/ — get session status + report."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, pk) -> Response:
         try:
             session = ResearchSession.objects.get(pk=pk, user=request.user)
         except ResearchSession.DoesNotExist:
-            return Response({'success': False, 'error': 'Not found'}, status=404)
+            return Response({"success": False, "error": "Not found"}, status=404)
 
-        return Response({
-            'success': True,
-            'data': {
-                'id':            str(session.id),
-                'query':         session.query,
-                'status':        session.status,
-                'report':        session.report,
-                'sources':       session.sources,
-                'sub_questions': session.sub_questions,
-                'created_at':    session.created_at.isoformat(),
-                'completed_at':  session.completed_at.isoformat() if session.completed_at else None,
-            },
-        })
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "id": str(session.id),
+                    "query": session.query,
+                    "status": session.status,
+                    "report": session.report,
+                    "sources": session.sources,
+                    "sub_questions": session.sub_questions,
+                    "created_at": session.created_at.isoformat(),
+                    "completed_at": (
+                        session.completed_at.isoformat()
+                        if session.completed_at
+                        else None
+                    ),
+                },
+            }
+        )

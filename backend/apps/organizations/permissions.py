@@ -7,6 +7,7 @@ Usage:
     class MyView(APIView):
         permission_classes = [IsAuthenticated, IsOrgMember]
 """
+
 from __future__ import annotations
 
 from rest_framework.permissions import BasePermission
@@ -24,6 +25,7 @@ class IsOrgMember(BasePermission):
     Allow access only to active members of the organization (any role).
     Expects the view to set `self.org` or to pass `org` via kwargs.
     """
+
     message = "You must be a member of this organization."
 
     def has_object_permission(self, request, view, obj):
@@ -32,6 +34,7 @@ class IsOrgMember(BasePermission):
 
 class IsOrgAdminOrOwner(BasePermission):
     """Allow access only to admins and owners."""
+
     message = "Admin or owner role required."
 
     def has_object_permission(self, request, view, obj):
@@ -40,6 +43,7 @@ class IsOrgAdminOrOwner(BasePermission):
 
 class IsOrgOwner(BasePermission):
     """Allow access only to the organization owner."""
+
     message = "Only the organization owner can perform this action."
 
     def has_object_permission(self, request, view, obj):

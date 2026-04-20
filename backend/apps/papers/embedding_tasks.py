@@ -5,6 +5,7 @@ Tasks:
   generate_paper_embedding          — Embed a single ResearchPaper
   generate_pending_paper_embeddings — Batch-queue unembedded ResearchPapers
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,6 +26,7 @@ def _get_embedder():
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
     from ai_engine.embeddings import get_embedder  # noqa: PLC0415
+
     return get_embedder()
 
 
@@ -81,7 +83,12 @@ def generate_paper_embedding(self, paper_id: str) -> Dict:
 
         elapsed = round(time.time() - start_time, 2)
         logger.info("[%s] Embedded paper %s in %.2fs", task_id, paper_id, elapsed)
-        return {"status": "success", "paper_id": paper_id, "dimensions": len(vector), "elapsed_seconds": elapsed}
+        return {
+            "status": "success",
+            "paper_id": paper_id,
+            "dimensions": len(vector),
+            "elapsed_seconds": elapsed,
+        }
 
     except Exception as exc:
         logger.error("[%s] Error embedding paper %s: %s", task_id, paper_id, exc)
@@ -101,8 +108,9 @@ def generate_pending_paper_embeddings(self, batch_size: int = 100) -> Dict:
         from apps.papers.models import ResearchPaper  # noqa: PLC0415
 
         pending_ids = list(
-            ResearchPaper.objects.filter(embedding__isnull=True)
-            .values_list("id", flat=True)[:batch_size]
+            ResearchPaper.objects.filter(embedding__isnull=True).values_list(
+                "id", flat=True
+            )[:batch_size]
         )
         for paper_id in pending_ids:
             generate_paper_embedding.delay(str(paper_id))

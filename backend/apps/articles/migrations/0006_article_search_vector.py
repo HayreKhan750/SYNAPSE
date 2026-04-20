@@ -15,7 +15,6 @@ Weight mapping:
 """
 from django.db import migrations
 
-
 # Raw SQL for the trigger + function (DB-level, not managed by Django ORM)
 TRIGGER_SQL = """
 -- Function: recompute search_vector on every article write

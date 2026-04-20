@@ -14,14 +14,15 @@ Endpoints:
   POST /api/v1/ai/embed/video/{id}       — Trigger embedding for a specific video
   POST /api/v1/ai/embed/batch/           — Trigger batch embedding for all pending items
 """
-import logging
-import sys
-import os
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
+import logging
+import os
+import sys
+
 from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ def _ensure_ai_engine_path():
 
 
 # ── Summarize on demand ───────────────────────────────────────────────────────
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -70,26 +72,31 @@ def summarize_text(request):
 
     try:
         _ensure_ai_engine_path()
-        from ai_engine.nlp.cleaner import clean_text       # noqa: PLC0415
-        from ai_engine.nlp.summarizer import summarize     # noqa: PLC0415
+        from ai_engine.nlp.cleaner import clean_text  # noqa: PLC0415
+        from ai_engine.nlp.summarizer import summarize  # noqa: PLC0415
 
         clean = clean_text(text, strip_html=True)
         summary = summarize(clean, max_length=max_length, min_length=min_length)
 
         if summary is None:
             return Response(
-                {"success": False, "error": {"message": "Summarisation model unavailable."}},
+                {
+                    "success": False,
+                    "error": {"message": "Summarisation model unavailable."},
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        return Response({
-            "success": True,
-            "data": {
-                "summary": summary,
-                "original_word_count": len(clean.split()),
-                "summary_word_count": len(summary.split()),
-            },
-        })
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "summary": summary,
+                    "original_word_count": len(clean.split()),
+                    "summary_word_count": len(summary.split()),
+                },
+            }
+        )
 
     except ImportError as exc:
         logger.error("ai_engine import failed: %s", exc)
@@ -100,12 +107,16 @@ def summarize_text(request):
     except Exception as exc:
         logger.error("summarize_text error: %s", exc)
         return Response(
-            {"success": False, "error": {"message": "Summarisation failed.", "detail": str(exc)}},
+            {
+                "success": False,
+                "error": {"message": "Summarisation failed.", "detail": str(exc)},
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
 # ── Full NLP pipeline on demand ───────────────────────────────────────────────
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -142,29 +153,34 @@ def analyze_text(request):
 
     try:
         _ensure_ai_engine_path()
-        from ai_engine.nlp.pipeline import run_pipeline   # noqa: PLC0415
+        from ai_engine.nlp.pipeline import run_pipeline  # noqa: PLC0415
 
         result = run_pipeline(text=text, title=title)
 
         if result.skipped:
-            return Response({
-                "success": False,
-                "error": {"message": f"Text skipped: {result.skip_reason}"},
-            }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            return Response(
+                {
+                    "success": False,
+                    "error": {"message": f"Text skipped: {result.skip_reason}"},
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
 
-        return Response({
-            "success": True,
-            "data": {
-                "language": result.language,
-                "language_confidence": result.language_confidence,
-                "keywords": result.keywords,
-                "topic": result.topic,
-                "topic_confidence": result.topic_confidence,
-                "sentiment_label": result.sentiment_label,
-                "sentiment_score": result.sentiment_score,
-                "entities": result.entities,
-            },
-        })
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "language": result.language,
+                    "language_confidence": result.language_confidence,
+                    "keywords": result.keywords,
+                    "topic": result.topic,
+                    "topic_confidence": result.topic_confidence,
+                    "sentiment_label": result.sentiment_label,
+                    "sentiment_score": result.sentiment_score,
+                    "entities": result.entities,
+                },
+            }
+        )
 
     except ImportError as exc:
         logger.error("ai_engine import failed: %s", exc)
@@ -175,12 +191,16 @@ def analyze_text(request):
     except Exception as exc:
         logger.error("analyze_text error: %s", exc)
         return Response(
-            {"success": False, "error": {"message": "NLP analysis failed.", "detail": str(exc)}},
+            {
+                "success": False,
+                "error": {"message": "NLP analysis failed.", "detail": str(exc)},
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
 # ── Trigger NLP for a specific article ───────────────────────────────────────
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -195,8 +215,8 @@ def trigger_article_nlp(request, article_id):
         {"success": true, "data": {"task_id": "...", "article_id": "..."}}
     """
     try:
-        from apps.articles.models import Article                          # noqa: PLC0415
-        from apps.articles.tasks import process_article_nlp              # noqa: PLC0415
+        from apps.articles.models import Article  # noqa: PLC0415
+        from apps.articles.tasks import process_article_nlp  # noqa: PLC0415
 
         try:
             article = Article.objects.get(pk=article_id)
@@ -218,12 +238,19 @@ def trigger_article_nlp(request, article_id):
     except Exception as exc:
         logger.error("trigger_article_nlp error: %s", exc)
         return Response(
-            {"success": False, "error": {"message": "Failed to dispatch NLP task.", "detail": str(exc)}},
+            {
+                "success": False,
+                "error": {
+                    "message": "Failed to dispatch NLP task.",
+                    "detail": str(exc),
+                },
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
 # ── Phase 2.3 — Embedding trigger endpoints ───────────────────────────────────
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -238,8 +265,10 @@ def trigger_article_embedding(request, article_id):
         {"success": true, "data": {"task_id": "...", "article_id": "..."}}
     """
     try:
-        from apps.articles.models import Article                                    # noqa: PLC0415
-        from apps.articles.embedding_tasks import generate_article_embedding       # noqa: PLC0415
+        from apps.articles.embedding_tasks import (  # noqa: PLC0415
+            generate_article_embedding,
+        )
+        from apps.articles.models import Article  # noqa: PLC0415
 
         try:
             article = Article.objects.get(pk=article_id)
@@ -251,14 +280,23 @@ def trigger_article_embedding(request, article_id):
 
         task = generate_article_embedding.delay(str(article.id))
         return Response(
-            {"success": True, "data": {"task_id": task.id, "article_id": str(article.id)}},
+            {
+                "success": True,
+                "data": {"task_id": task.id, "article_id": str(article.id)},
+            },
             status=status.HTTP_202_ACCEPTED,
         )
 
     except Exception as exc:
         logger.error("trigger_article_embedding error: %s", exc)
         return Response(
-            {"success": False, "error": {"message": "Failed to dispatch embedding task.", "detail": str(exc)}},
+            {
+                "success": False,
+                "error": {
+                    "message": "Failed to dispatch embedding task.",
+                    "detail": str(exc),
+                },
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -273,8 +311,10 @@ def trigger_paper_embedding(request, paper_id):
         paper_id (UUID) — The research paper to embed.
     """
     try:
-        from apps.papers.models import ResearchPaper                               # noqa: PLC0415
-        from apps.papers.embedding_tasks import generate_paper_embedding           # noqa: PLC0415
+        from apps.papers.embedding_tasks import (  # noqa: PLC0415
+            generate_paper_embedding,
+        )
+        from apps.papers.models import ResearchPaper  # noqa: PLC0415
 
         try:
             paper = ResearchPaper.objects.get(pk=paper_id)
@@ -293,7 +333,13 @@ def trigger_paper_embedding(request, paper_id):
     except Exception as exc:
         logger.error("trigger_paper_embedding error: %s", exc)
         return Response(
-            {"success": False, "error": {"message": "Failed to dispatch embedding task.", "detail": str(exc)}},
+            {
+                "success": False,
+                "error": {
+                    "message": "Failed to dispatch embedding task.",
+                    "detail": str(exc),
+                },
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -308,8 +354,10 @@ def trigger_repo_embedding(request, repo_id):
         repo_id (UUID) — The repository to embed.
     """
     try:
-        from apps.repositories.models import Repository                            # noqa: PLC0415
-        from apps.repositories.embedding_tasks import generate_repo_embedding     # noqa: PLC0415
+        from apps.repositories.embedding_tasks import (  # noqa: PLC0415
+            generate_repo_embedding,
+        )
+        from apps.repositories.models import Repository  # noqa: PLC0415
 
         try:
             repo = Repository.objects.get(pk=repo_id)
@@ -328,7 +376,13 @@ def trigger_repo_embedding(request, repo_id):
     except Exception as exc:
         logger.error("trigger_repo_embedding error: %s", exc)
         return Response(
-            {"success": False, "error": {"message": "Failed to dispatch embedding task.", "detail": str(exc)}},
+            {
+                "success": False,
+                "error": {
+                    "message": "Failed to dispatch embedding task.",
+                    "detail": str(exc),
+                },
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -343,8 +397,10 @@ def trigger_video_embedding(request, video_id):
         video_id (UUID) — The video to embed.
     """
     try:
-        from apps.videos.models import Video                                       # noqa: PLC0415
-        from apps.videos.embedding_tasks import generate_video_embedding           # noqa: PLC0415
+        from apps.videos.embedding_tasks import (  # noqa: PLC0415
+            generate_video_embedding,
+        )
+        from apps.videos.models import Video  # noqa: PLC0415
 
         try:
             video = Video.objects.get(pk=video_id)
@@ -363,7 +419,13 @@ def trigger_video_embedding(request, video_id):
     except Exception as exc:
         logger.error("trigger_video_embedding error: %s", exc)
         return Response(
-            {"success": False, "error": {"message": "Failed to dispatch embedding task.", "detail": str(exc)}},
+            {
+                "success": False,
+                "error": {
+                    "message": "Failed to dispatch embedding task.",
+                    "detail": str(exc),
+                },
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -398,22 +460,34 @@ def trigger_batch_embeddings(request):
 
     try:
         if "articles" in types:
-            from apps.articles.embedding_tasks import generate_pending_article_embeddings  # noqa: PLC0415
+            from apps.articles.embedding_tasks import (  # noqa: PLC0415
+                generate_pending_article_embeddings,
+            )
+
             result = generate_pending_article_embeddings(batch_size=batch_size)
             results["articles"] = {"queued": result.get("queued", 0)}
 
         if "papers" in types:
-            from apps.papers.embedding_tasks import generate_pending_paper_embeddings      # noqa: PLC0415
+            from apps.papers.embedding_tasks import (  # noqa: PLC0415
+                generate_pending_paper_embeddings,
+            )
+
             result = generate_pending_paper_embeddings(batch_size=batch_size)
             results["papers"] = {"queued": result.get("queued", 0)}
 
         if "repos" in types:
-            from apps.repositories.embedding_tasks import generate_pending_repo_embeddings  # noqa: PLC0415
+            from apps.repositories.embedding_tasks import (  # noqa: PLC0415
+                generate_pending_repo_embeddings,
+            )
+
             result = generate_pending_repo_embeddings(batch_size=batch_size)
             results["repos"] = {"queued": result.get("queued", 0)}
 
         if "videos" in types:
-            from apps.videos.embedding_tasks import generate_pending_video_embeddings      # noqa: PLC0415
+            from apps.videos.embedding_tasks import (  # noqa: PLC0415
+                generate_pending_video_embeddings,
+            )
+
             result = generate_pending_video_embeddings(batch_size=batch_size)
             results["videos"] = {"queued": result.get("queued", 0)}
 
@@ -426,6 +500,12 @@ def trigger_batch_embeddings(request):
     except Exception as exc:
         logger.error("trigger_batch_embeddings error: %s", exc)
         return Response(
-            {"success": False, "error": {"message": "Batch embedding dispatch failed.", "detail": str(exc)}},
+            {
+                "success": False,
+                "error": {
+                    "message": "Batch embedding dispatch failed.",
+                    "detail": str(exc),
+                },
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

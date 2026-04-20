@@ -1,121 +1,185 @@
 """
 Serializers for the Automation app.
 """
+
 from rest_framework import serializers
+
 from .models import AutomationWorkflow, WorkflowRun
 
 # ── Action parameter schemas (used for UI documentation / validation) ──────────
 
 ACTION_PARAM_SCHEMAS = {
-    'scrape_tweets': {
-        'queries': {
-            'type': 'textarea',
-            'label': 'Search Queries (one per line)',
-            'default': 'AI machine learning\nPython programming\nWeb development trends\nCybersecurity news\nCloud computing\nDevOps automation',
-            'help': 'Each line is a separate X/Twitter search query. Leave blank to use defaults.',
+    "scrape_tweets": {
+        "queries": {
+            "type": "textarea",
+            "label": "Search Queries (one per line)",
+            "default": "AI machine learning\nPython programming\nWeb development trends\nCybersecurity news\nCloud computing\nDevOps automation",
+            "help": "Each line is a separate X/Twitter search query. Leave blank to use defaults.",
         },
-        'max_results': {
-            'type': 'number',
-            'label': 'Max Tweets to Fetch',
-            'default': 100,
-            'min': 10,
-            'max': 500,
+        "max_results": {
+            "type": "number",
+            "label": "Max Tweets to Fetch",
+            "default": 100,
+            "min": 10,
+            "max": 500,
         },
-        'topics': {
-            'type': 'multiselect',
-            'label': 'Topic Categories',
-            'default': ['AI', 'Web Dev', 'Security', 'Cloud', 'Research', 'Programming', 'Tech'],
-            'options': ['AI', 'Web Dev', 'Security', 'Cloud', 'Research', 'Programming', 'Tech'],
-        },
-    },
-    'scrape_videos': {
-        'queries': {
-            'type': 'textarea',
-            'label': 'Search Queries (one per line)',
-            'default': 'machine learning tutorial\nAI agents explained\nLLM fine-tuning\nPython data science',
-            'help': 'Each line is a separate YouTube search query. Leave blank to use defaults.',
-        },
-        'max_results': {
-            'type': 'number',
-            'label': 'Max Videos to Fetch',
-            'default': 20,
-            'min': 5,
-            'max': 100,
-        },
-        'days_back': {
-            'type': 'number',
-            'label': 'Days Back (recency filter)',
-            'default': 30,
-            'min': 1,
-            'max': 365,
-        },
-        'categories': {
-            'type': 'multiselect',
-            'label': 'Topic Categories',
-            'default': ['AI / ML', 'Programming'],
-            'options': ['AI / ML', 'Programming', 'DevOps', 'Data Science', 'Web Dev', 'Security', 'Cloud', 'Open Source'],
+        "topics": {
+            "type": "multiselect",
+            "label": "Topic Categories",
+            "default": [
+                "AI",
+                "Web Dev",
+                "Security",
+                "Cloud",
+                "Research",
+                "Programming",
+                "Tech",
+            ],
+            "options": [
+                "AI",
+                "Web Dev",
+                "Security",
+                "Cloud",
+                "Research",
+                "Programming",
+                "Tech",
+            ],
         },
     },
-    'collect_news': {  # noqa: E501 — keep sources/items/days params then add youtube_queries
-        'sources': {
-            'type': 'multiselect',
-            'label': 'Sources',
-            'options': ['hackernews', 'github', 'arxiv', 'youtube', 'twitter'],
-            'default': ['hackernews', 'github', 'arxiv', 'youtube', 'twitter'],
+    "scrape_videos": {
+        "queries": {
+            "type": "textarea",
+            "label": "Search Queries (one per line)",
+            "default": "machine learning tutorial\nAI agents explained\nLLM fine-tuning\nPython data science",
+            "help": "Each line is a separate YouTube search query. Leave blank to use defaults.",
         },
-        'items_per_source': {'type': 'number', 'label': 'Items per source (1–500)', 'default': 100, 'min': 1, 'max': 500},
-        'days_back': {'type': 'number', 'label': 'Days back (1–30)', 'default': 7, 'min': 1, 'max': 30},
-        'story_type': {
-            'type': 'select',
-            'label': 'HN Story Type',
-            'options': ['top', 'new', 'best'],
-            'default': 'top',
+        "max_results": {
+            "type": "number",
+            "label": "Max Videos to Fetch",
+            "default": 20,
+            "min": 5,
+            "max": 100,
         },
-        'youtube_queries': {
-            'type': 'textarea',
-            'label': 'YouTube Search Queries (one per line)',
-            'default': '',
-            'help': 'Optional — only used when YouTube is selected as a source. Leave blank to use smart defaults (AI, programming, tech topics).',
+        "days_back": {
+            "type": "number",
+            "label": "Days Back (recency filter)",
+            "default": 30,
+            "min": 1,
+            "max": 365,
         },
-        'twitter_queries': {
-            'type': 'textarea',
-            'label': 'X/Twitter Search Queries (one per line)',
-            'default': '',
-            'help': 'Optional — only used when X/Twitter is selected as a source. Leave blank to use default tech/AI queries.',
+        "categories": {
+            "type": "multiselect",
+            "label": "Topic Categories",
+            "default": ["AI / ML", "Programming"],
+            "options": [
+                "AI / ML",
+                "Programming",
+                "DevOps",
+                "Data Science",
+                "Web Dev",
+                "Security",
+                "Cloud",
+                "Open Source",
+            ],
         },
     },
-    'summarize_content': {
-        'batch_size': {'type': 'number', 'label': 'Batch size', 'default': 20, 'min': 1, 'max': 200},
+    "collect_news": {  # noqa: E501 — keep sources/items/days params then add youtube_queries
+        "sources": {
+            "type": "multiselect",
+            "label": "Sources",
+            "options": ["hackernews", "github", "arxiv", "youtube", "twitter"],
+            "default": ["hackernews", "github", "arxiv", "youtube", "twitter"],
+        },
+        "items_per_source": {
+            "type": "number",
+            "label": "Items per source (1–500)",
+            "default": 100,
+            "min": 1,
+            "max": 500,
+        },
+        "days_back": {
+            "type": "number",
+            "label": "Days back (1–30)",
+            "default": 7,
+            "min": 1,
+            "max": 30,
+        },
+        "story_type": {
+            "type": "select",
+            "label": "HN Story Type",
+            "options": ["top", "new", "best"],
+            "default": "top",
+        },
+        "youtube_queries": {
+            "type": "textarea",
+            "label": "YouTube Search Queries (one per line)",
+            "default": "",
+            "help": "Optional — only used when YouTube is selected as a source. Leave blank to use smart defaults (AI, programming, tech topics).",
+        },
+        "twitter_queries": {
+            "type": "textarea",
+            "label": "X/Twitter Search Queries (one per line)",
+            "default": "",
+            "help": "Optional — only used when X/Twitter is selected as a source. Leave blank to use default tech/AI queries.",
+        },
     },
-    'generate_pdf': {
-        'title': {'type': 'text', 'label': 'Report Title', 'default': 'SYNAPSE Report'},
-        'subtitle': {'type': 'text', 'label': 'Subtitle', 'default': 'Auto-generated by SYNAPSE'},
-        'author': {'type': 'text', 'label': 'Author', 'default': 'SYNAPSE Automation'},
-        'topic': {'type': 'text', 'label': 'Topic Filter (optional)', 'default': ''},
-        'article_limit': {'type': 'number', 'label': 'Max articles to include', 'default': 5, 'min': 1, 'max': 20},
+    "summarize_content": {
+        "batch_size": {
+            "type": "number",
+            "label": "Batch size",
+            "default": 20,
+            "min": 1,
+            "max": 200,
+        },
     },
-    'send_email': {
-        'subject': {'type': 'text', 'label': 'Email Subject', 'default': ''},
-        'body': {'type': 'textarea', 'label': 'Email Body', 'default': ''},
+    "generate_pdf": {
+        "title": {"type": "text", "label": "Report Title", "default": "SYNAPSE Report"},
+        "subtitle": {
+            "type": "text",
+            "label": "Subtitle",
+            "default": "Auto-generated by SYNAPSE",
+        },
+        "author": {"type": "text", "label": "Author", "default": "SYNAPSE Automation"},
+        "topic": {"type": "text", "label": "Topic Filter (optional)", "default": ""},
+        "article_limit": {
+            "type": "number",
+            "label": "Max articles to include",
+            "default": 5,
+            "min": 1,
+            "max": 20,
+        },
     },
-    'upload_to_drive': {
-        'file_path': {'type': 'text', 'label': 'File Path', 'default': ''},
-        'folder_name': {'type': 'text', 'label': 'Drive Folder Name', 'default': 'SYNAPSE'},
+    "send_email": {
+        "subject": {"type": "text", "label": "Email Subject", "default": ""},
+        "body": {"type": "textarea", "label": "Email Body", "default": ""},
     },
-    'ai_digest': {
-        'topic': {'type': 'text', 'label': 'Research Topic', 'default': 'latest AI research and tech news'},
+    "upload_to_drive": {
+        "file_path": {"type": "text", "label": "File Path", "default": ""},
+        "folder_name": {
+            "type": "text",
+            "label": "Drive Folder Name",
+            "default": "SYNAPSE",
+        },
+    },
+    "ai_digest": {
+        "topic": {
+            "type": "text",
+            "label": "Research Topic",
+            "default": "latest AI research and tech news",
+        },
     },
 }
 
 EVENT_TYPE_CHOICES = [
-    ('new_article', 'New Article Published'),
-    ('trending_spike', 'Trending Topic Spike'),
-    ('new_paper', 'New Research Paper'),
-    ('new_repo', 'New Repository Trending'),
+    ("new_article", "New Article Published"),
+    ("trending_spike", "Trending Topic Spike"),
+    ("new_paper", "New Research Paper"),
+    ("new_repo", "New Repository Trending"),
 ]
 
 
 # ── WorkflowRun serializer ─────────────────────────────────────────────────────
+
 
 class WorkflowRunSerializer(serializers.ModelSerializer):
     duration_seconds = serializers.SerializerMethodField()
@@ -123,8 +187,16 @@ class WorkflowRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkflowRun
         fields = [
-            'id', 'workflow', 'status', 'celery_task_id', 'trigger_event',
-            'started_at', 'completed_at', 'result', 'error_message', 'duration_seconds',
+            "id",
+            "workflow",
+            "status",
+            "celery_task_id",
+            "trigger_event",
+            "started_at",
+            "completed_at",
+            "result",
+            "error_message",
+            "duration_seconds",
         ]
         read_only_fields = fields
 
@@ -136,23 +208,42 @@ class WorkflowRunSerializer(serializers.ModelSerializer):
 
 # ── Full workflow serializer ───────────────────────────────────────────────────
 
+
 class AutomationWorkflowSerializer(serializers.ModelSerializer):
-    user       = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     runs_count = serializers.SerializerMethodField()
-    last_run   = serializers.SerializerMethodField()
+    last_run = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationWorkflow
         fields = [
-            'id', 'user', 'name', 'description', 'trigger_type',
-            'cron_expression', 'event_config', 'actions',
-            'is_active', 'status',
-            'last_run_at', 'next_run_at', 'run_count',
-            'created_at', 'updated_at', 'runs_count', 'last_run',
+            "id",
+            "user",
+            "name",
+            "description",
+            "trigger_type",
+            "cron_expression",
+            "event_config",
+            "actions",
+            "is_active",
+            "status",
+            "last_run_at",
+            "next_run_at",
+            "run_count",
+            "created_at",
+            "updated_at",
+            "runs_count",
+            "last_run",
         ]
         read_only_fields = [
-            'id', 'last_run_at', 'next_run_at', 'run_count',
-            'created_at', 'updated_at', 'runs_count', 'last_run',
+            "id",
+            "last_run_at",
+            "next_run_at",
+            "run_count",
+            "created_at",
+            "updated_at",
+            "runs_count",
+            "last_run",
         ]
 
     def get_runs_count(self, obj):
@@ -175,7 +266,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
     def validate_event_config(self, value):
         if not isinstance(value, dict):
             raise serializers.ValidationError("event_config must be an object.")
-        event_type = value.get('event_type', '')
+        event_type = value.get("event_type", "")
         if event_type:
             valid = [c[0] for c in EVENT_TYPE_CHOICES]
             if event_type not in valid:
@@ -193,48 +284,77 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
         for i, action in enumerate(value):
             if not isinstance(action, dict):
                 raise serializers.ValidationError(f"Action {i} must be an object.")
-            if 'type' not in action:
-                raise serializers.ValidationError(f"Action {i} must have a 'type' field.")
-            if action['type'] not in valid_action_types:
+            if "type" not in action:
+                raise serializers.ValidationError(
+                    f"Action {i} must have a 'type' field."
+                )
+            if action["type"] not in valid_action_types:
                 raise serializers.ValidationError(
                     f"Action {i} has invalid type '{action['type']}'. "
                     f"Valid types: {valid_action_types}"
                 )
             # Ensure params is always a dict
-            if 'params' in action and not isinstance(action['params'], dict):
-                raise serializers.ValidationError(f"Action {i} 'params' must be an object.")
+            if "params" in action and not isinstance(action["params"], dict):
+                raise serializers.ValidationError(
+                    f"Action {i} 'params' must be an object."
+                )
         return value
 
     def validate(self, attrs):
-        trigger_type = attrs.get('trigger_type', AutomationWorkflow.TriggerType.SCHEDULE)
-        cron_expression = attrs.get('cron_expression', '')
-        event_config = attrs.get('event_config', {})
+        trigger_type = attrs.get(
+            "trigger_type", AutomationWorkflow.TriggerType.SCHEDULE
+        )
+        cron_expression = attrs.get("cron_expression", "")
+        event_config = attrs.get("event_config", {})
 
-        if trigger_type == AutomationWorkflow.TriggerType.SCHEDULE and not cron_expression:
+        if (
+            trigger_type == AutomationWorkflow.TriggerType.SCHEDULE
+            and not cron_expression
+        ):
             raise serializers.ValidationError(
-                {'cron_expression': 'Cron expression is required for scheduled workflows.'}
+                {
+                    "cron_expression": "Cron expression is required for scheduled workflows."
+                }
             )
-        if trigger_type == AutomationWorkflow.TriggerType.EVENT and not event_config.get('event_type'):
+        if (
+            trigger_type == AutomationWorkflow.TriggerType.EVENT
+            and not event_config.get("event_type")
+        ):
             raise serializers.ValidationError(
-                {'event_config': 'event_config.event_type is required for event-triggered workflows.'}
+                {
+                    "event_config": "event_config.event_type is required for event-triggered workflows."
+                }
             )
         return attrs
 
 
 # ── Lightweight list serializer ────────────────────────────────────────────────
 
+
 class AutomationWorkflowListSerializer(serializers.ModelSerializer):
-    runs_count      = serializers.SerializerMethodField()
+    runs_count = serializers.SerializerMethodField()
     last_run_status = serializers.SerializerMethodField()
-    last_run_id     = serializers.SerializerMethodField()
+    last_run_id = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationWorkflow
         fields = [
-            'id', 'name', 'description', 'trigger_type', 'cron_expression',
-            'event_config', 'actions', 'is_active', 'status',
-            'last_run_at', 'next_run_at', 'run_count',
-            'created_at', 'runs_count', 'last_run_status', 'last_run_id',
+            "id",
+            "name",
+            "description",
+            "trigger_type",
+            "cron_expression",
+            "event_config",
+            "actions",
+            "is_active",
+            "status",
+            "last_run_at",
+            "next_run_at",
+            "run_count",
+            "created_at",
+            "runs_count",
+            "last_run_status",
+            "last_run_id",
         ]
 
     def get_runs_count(self, obj):
@@ -250,6 +370,7 @@ class AutomationWorkflowListSerializer(serializers.ModelSerializer):
 
 
 # ── Action schema endpoint helper ──────────────────────────────────────────────
+
 
 def get_action_schemas():
     """Return ACTION_PARAM_SCHEMAS for use in the API."""

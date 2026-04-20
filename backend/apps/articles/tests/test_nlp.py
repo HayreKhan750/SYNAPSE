@@ -5,14 +5,17 @@ Tests cover each NLP module independently using mocks so that heavy
 ML dependencies (transformers, spaCy, KeyBERT) are not required at
 test-run time.
 """
-import sys
+
 import os
+import sys
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 # Ensure ai_engine is importable
 PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    )
 )
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -20,10 +23,17 @@ if PROJECT_ROOT not in sys.path:
 
 # ── Cleaner tests ─────────────────────────────────────────────────────────────
 
+
 class TestCleaner(unittest.TestCase):
 
     def setUp(self):
-        from ai_engine.nlp.cleaner import clean_html, normalize_whitespace, normalize_unicode, clean_text
+        from ai_engine.nlp.cleaner import (
+            clean_html,
+            clean_text,
+            normalize_unicode,
+            normalize_whitespace,
+        )
+
         self.clean_html = clean_html
         self.normalize_whitespace = normalize_whitespace
         self.normalize_unicode = normalize_unicode
@@ -89,10 +99,12 @@ class TestCleaner(unittest.TestCase):
 
 # ── Language detector tests ───────────────────────────────────────────────────
 
+
 class TestLanguageDetector(unittest.TestCase):
 
     def setUp(self):
         from ai_engine.nlp.language_detector import detect_language, is_english
+
         self.detect_language = detect_language
         self.is_english = is_english
 
@@ -107,12 +119,14 @@ class TestLanguageDetector(unittest.TestCase):
     @patch("ai_engine.nlp.language_detector.detect_language", return_value=("en", 0.99))
     def test_is_english_true(self, mock_detect):
         from ai_engine.nlp import language_detector as ld
+
         result = ld.is_english("This is an English sentence about machine learning.")
         self.assertIsInstance(result, bool)
 
     @patch("ai_engine.nlp.language_detector.detect_language", return_value=("fr", 0.98))
     def test_is_english_false_for_french(self, mock_detect):
         from ai_engine.nlp import language_detector as ld
+
         result = ld.is_english("Ceci est une phrase en français.")
         self.assertFalse(result)
 
@@ -120,29 +134,53 @@ class TestLanguageDetector(unittest.TestCase):
         """Should return unknown gracefully if langdetect is unavailable."""
         with patch.dict("sys.modules", {"langdetect": None}):
             # The function should not raise
-            lang, conf = self.detect_language("Some text here to test detection fallback")
+            lang, conf = self.detect_language(
+                "Some text here to test detection fallback"
+            )
             self.assertIsInstance(lang, str)
             self.assertIsInstance(conf, float)
 
 
 # ── Keyword extractor tests ───────────────────────────────────────────────────
 
+
 class TestKeywordExtractor(unittest.TestCase):
 
     def setUp(self):
         from ai_engine.nlp.keyword_extractor import extract_keywords
+
         self.extract_keywords = extract_keywords
 
     def test_returns_list(self):
-        with patch("ai_engine.nlp.keyword_extractor._extract_keybert", return_value=[("machine learning", 0.9)]), \
-             patch("ai_engine.nlp.keyword_extractor._extract_yake", return_value=[("deep learning", 0.85)]):
-            result = self.extract_keywords("Machine learning and deep learning are popular AI topics.", top_n=5)
+        with (
+            patch(
+                "ai_engine.nlp.keyword_extractor._extract_keybert",
+                return_value=[("machine learning", 0.9)],
+            ),
+            patch(
+                "ai_engine.nlp.keyword_extractor._extract_yake",
+                return_value=[("deep learning", 0.85)],
+            ),
+        ):
+            result = self.extract_keywords(
+                "Machine learning and deep learning are popular AI topics.", top_n=5
+            )
             self.assertIsInstance(result, list)
 
     def test_returns_strings(self):
-        with patch("ai_engine.nlp.keyword_extractor._extract_keybert", return_value=[("neural networks", 0.8)]), \
-             patch("ai_engine.nlp.keyword_extractor._extract_yake", return_value=[("deep learning", 0.75)]):
-            result = self.extract_keywords("Neural networks power modern deep learning systems.", top_n=5)
+        with (
+            patch(
+                "ai_engine.nlp.keyword_extractor._extract_keybert",
+                return_value=[("neural networks", 0.8)],
+            ),
+            patch(
+                "ai_engine.nlp.keyword_extractor._extract_yake",
+                return_value=[("deep learning", 0.75)],
+            ),
+        ):
+            result = self.extract_keywords(
+                "Neural networks power modern deep learning systems.", top_n=5
+            )
             for kw in result:
                 self.assertIsInstance(kw, str)
 
@@ -155,65 +193,101 @@ class TestKeywordExtractor(unittest.TestCase):
         self.assertEqual(result, [])
 
     def test_respects_top_n(self):
-        with patch("ai_engine.nlp.keyword_extractor._extract_keybert",
-                   return_value=[(f"keyword{i}", 0.9 - i * 0.05) for i in range(10)]), \
-             patch("ai_engine.nlp.keyword_extractor._extract_yake", return_value=[]):
+        with (
+            patch(
+                "ai_engine.nlp.keyword_extractor._extract_keybert",
+                return_value=[(f"keyword{i}", 0.9 - i * 0.05) for i in range(10)],
+            ),
+            patch("ai_engine.nlp.keyword_extractor._extract_yake", return_value=[]),
+        ):
             result = self.extract_keywords("some long text " * 20, top_n=3)
             self.assertLessEqual(len(result), 3)
 
     def test_keybert_failure_falls_back_to_yake(self):
-        with patch("ai_engine.nlp.keyword_extractor._extract_keybert", return_value=[]), \
-             patch("ai_engine.nlp.keyword_extractor._extract_yake",
-                   return_value=[("open source", 0.8), ("python", 0.7)]):
-            result = self.extract_keywords("open source python machine learning project " * 5)
+        with (
+            patch("ai_engine.nlp.keyword_extractor._extract_keybert", return_value=[]),
+            patch(
+                "ai_engine.nlp.keyword_extractor._extract_yake",
+                return_value=[("open source", 0.8), ("python", 0.7)],
+            ),
+        ):
+            result = self.extract_keywords(
+                "open source python machine learning project " * 5
+            )
             self.assertGreater(len(result), 0)
 
     def test_deduplication(self):
         """Same keyword from both extractors should appear only once."""
-        with patch("ai_engine.nlp.keyword_extractor._extract_keybert",
-                   return_value=[("machine learning", 0.9)]), \
-             patch("ai_engine.nlp.keyword_extractor._extract_yake",
-                   return_value=[("machine learning", 0.85)]):
+        with (
+            patch(
+                "ai_engine.nlp.keyword_extractor._extract_keybert",
+                return_value=[("machine learning", 0.9)],
+            ),
+            patch(
+                "ai_engine.nlp.keyword_extractor._extract_yake",
+                return_value=[("machine learning", 0.85)],
+            ),
+        ):
             result = self.extract_keywords("machine learning is the future " * 10)
             self.assertEqual(result.count("machine learning"), 1)
 
 
 # ── Topic classifier tests ────────────────────────────────────────────────────
 
+
 class TestTopicClassifier(unittest.TestCase):
 
     def setUp(self):
-        from ai_engine.nlp.topic_classifier import classify_topic, classify_topic_scores, TECH_TOPICS
+        from ai_engine.nlp.topic_classifier import (
+            TECH_TOPICS,
+            classify_topic,
+            classify_topic_scores,
+        )
+
         self.classify_topic = classify_topic
         self.classify_topic_scores = classify_topic_scores
         self.TECH_TOPICS = TECH_TOPICS
 
     def test_returns_tuple(self):
-        mock_pipeline = MagicMock(return_value={
-            "labels": ["Machine Learning", "Data Science"],
-            "scores": [0.87, 0.10],
-        })
-        with patch("ai_engine.nlp.topic_classifier._get_classifier", return_value=mock_pipeline):
-            topic, score = self.classify_topic("Deep learning model training on GPU clusters.")
+        mock_pipeline = MagicMock(
+            return_value={
+                "labels": ["Machine Learning", "Data Science"],
+                "scores": [0.87, 0.10],
+            }
+        )
+        with patch(
+            "ai_engine.nlp.topic_classifier._get_classifier", return_value=mock_pipeline
+        ):
+            topic, score = self.classify_topic(
+                "Deep learning model training on GPU clusters."
+            )
             self.assertIsInstance(topic, str)
             self.assertIsInstance(score, float)
 
     def test_returns_correct_topic(self):
-        mock_pipeline = MagicMock(return_value={
-            "labels": ["Machine Learning", "Web Development"],
-            "scores": [0.91, 0.05],
-        })
-        with patch("ai_engine.nlp.topic_classifier._get_classifier", return_value=mock_pipeline):
+        mock_pipeline = MagicMock(
+            return_value={
+                "labels": ["Machine Learning", "Web Development"],
+                "scores": [0.91, 0.05],
+            }
+        )
+        with patch(
+            "ai_engine.nlp.topic_classifier._get_classifier", return_value=mock_pipeline
+        ):
             topic, score = self.classify_topic("Training neural networks with PyTorch.")
             self.assertEqual(topic, "Machine Learning")
             self.assertAlmostEqual(score, 0.91)
 
     def test_low_confidence_returns_technology(self):
-        mock_pipeline = MagicMock(return_value={
-            "labels": ["Machine Learning"],
-            "scores": [0.10],  # Below MIN_CONFIDENCE
-        })
-        with patch("ai_engine.nlp.topic_classifier._get_classifier", return_value=mock_pipeline):
+        mock_pipeline = MagicMock(
+            return_value={
+                "labels": ["Machine Learning"],
+                "scores": [0.10],  # Below MIN_CONFIDENCE
+            }
+        )
+        with patch(
+            "ai_engine.nlp.topic_classifier._get_classifier", return_value=mock_pipeline
+        ):
             topic, score = self.classify_topic("Some vague text about stuff.")
             self.assertEqual(topic, "Technology")
 
@@ -231,48 +305,69 @@ class TestTopicClassifier(unittest.TestCase):
         self.assertGreater(len(self.TECH_TOPICS), 5)
 
     def test_classify_topic_scores_returns_list(self):
-        mock_pipeline = MagicMock(return_value={
-            "labels": ["Machine Learning", "Data Science", "Cloud Computing"],
-            "scores": [0.80, 0.12, 0.08],
-        })
-        with patch("ai_engine.nlp.topic_classifier._get_classifier", return_value=mock_pipeline):
-            results = self.classify_topic_scores("AI and machine learning are transforming the world of technology.")
+        mock_pipeline = MagicMock(
+            return_value={
+                "labels": ["Machine Learning", "Data Science", "Cloud Computing"],
+                "scores": [0.80, 0.12, 0.08],
+            }
+        )
+        with patch(
+            "ai_engine.nlp.topic_classifier._get_classifier", return_value=mock_pipeline
+        ):
+            results = self.classify_topic_scores(
+                "AI and machine learning are transforming the world of technology."
+            )
             self.assertIsInstance(results, list)
             self.assertGreater(len(results), 0)
 
 
 # ── Sentiment analyzer tests ──────────────────────────────────────────────────
 
+
 class TestSentimentAnalyzer(unittest.TestCase):
 
     def setUp(self):
-        from ai_engine.nlp.sentiment_analyzer import analyze_sentiment, sentiment_to_score
+        from ai_engine.nlp.sentiment_analyzer import (
+            analyze_sentiment,
+            sentiment_to_score,
+        )
+
         self.analyze_sentiment = analyze_sentiment
         self.sentiment_to_score = sentiment_to_score
 
     def test_returns_tuple(self):
         mock_pipe = MagicMock(return_value=[{"label": "LABEL_2", "score": 0.95}])
-        with patch("ai_engine.nlp.sentiment_analyzer._get_pipeline", return_value=mock_pipe):
+        with patch(
+            "ai_engine.nlp.sentiment_analyzer._get_pipeline", return_value=mock_pipe
+        ):
             label, score = self.analyze_sentiment("This is an amazing breakthrough!")
             self.assertIsInstance(label, str)
             self.assertIsInstance(score, float)
 
     def test_positive_sentiment(self):
         mock_pipe = MagicMock(return_value=[{"label": "LABEL_2", "score": 0.95}])
-        with patch("ai_engine.nlp.sentiment_analyzer._get_pipeline", return_value=mock_pipe):
+        with patch(
+            "ai_engine.nlp.sentiment_analyzer._get_pipeline", return_value=mock_pipe
+        ):
             label, score = self.analyze_sentiment("Great progress in AI research!")
             self.assertEqual(label, "POSITIVE")
             self.assertGreater(score, 0.5)
 
     def test_negative_sentiment(self):
         mock_pipe = MagicMock(return_value=[{"label": "LABEL_0", "score": 0.88}])
-        with patch("ai_engine.nlp.sentiment_analyzer._get_pipeline", return_value=mock_pipe):
-            label, score = self.analyze_sentiment("This bug is terrible and broke production.")
+        with patch(
+            "ai_engine.nlp.sentiment_analyzer._get_pipeline", return_value=mock_pipe
+        ):
+            label, score = self.analyze_sentiment(
+                "This bug is terrible and broke production."
+            )
             self.assertEqual(label, "NEGATIVE")
 
     def test_neutral_sentiment(self):
         mock_pipe = MagicMock(return_value=[{"label": "LABEL_1", "score": 0.76}])
-        with patch("ai_engine.nlp.sentiment_analyzer._get_pipeline", return_value=mock_pipe):
+        with patch(
+            "ai_engine.nlp.sentiment_analyzer._get_pipeline", return_value=mock_pipe
+        ):
             label, score = self.analyze_sentiment("Python 3.12 was released last week.")
             self.assertEqual(label, "NEUTRAL")
 
@@ -311,10 +406,12 @@ class TestSentimentAnalyzer(unittest.TestCase):
 
 # ── NER tests ─────────────────────────────────────────────────────────────────
 
+
 class TestNER(unittest.TestCase):
 
     def setUp(self):
         from ai_engine.nlp.ner import extract_entities, extract_tech_terms
+
         self.extract_entities = extract_entities
         self.extract_tech_terms = extract_tech_terms
 
@@ -333,17 +430,13 @@ class TestNER(unittest.TestCase):
         return nlp
 
     def test_returns_list(self):
-        mock_nlp = self._make_mock_nlp([
-            self._make_mock_ent("OpenAI", "ORG", 0, 6)
-        ])
+        mock_nlp = self._make_mock_nlp([self._make_mock_ent("OpenAI", "ORG", 0, 6)])
         with patch("ai_engine.nlp.ner._get_nlp", return_value=mock_nlp):
             result = self.extract_entities("OpenAI released a new model.")
             self.assertIsInstance(result, list)
 
     def test_extracts_org_entity(self):
-        mock_nlp = self._make_mock_nlp([
-            self._make_mock_ent("Google", "ORG", 0, 6)
-        ])
+        mock_nlp = self._make_mock_nlp([self._make_mock_ent("Google", "ORG", 0, 6)])
         with patch("ai_engine.nlp.ner._get_nlp", return_value=mock_nlp):
             result = self.extract_entities("Google announced a new AI model.")
             self.assertTrue(any(e["text"] == "Google" for e in result))
@@ -351,10 +444,12 @@ class TestNER(unittest.TestCase):
 
     def test_filters_irrelevant_entity_types(self):
         # CARDINAL (numbers) should be filtered out
-        mock_nlp = self._make_mock_nlp([
-            self._make_mock_ent("42", "CARDINAL", 0, 2),
-            self._make_mock_ent("OpenAI", "ORG", 5, 11),
-        ])
+        mock_nlp = self._make_mock_nlp(
+            [
+                self._make_mock_ent("42", "CARDINAL", 0, 2),
+                self._make_mock_ent("OpenAI", "ORG", 5, 11),
+            ]
+        )
         with patch("ai_engine.nlp.ner._get_nlp", return_value=mock_nlp):
             result = self.extract_entities("42 OpenAI researchers.")
             labels = [e["label"] for e in result]
@@ -362,10 +457,12 @@ class TestNER(unittest.TestCase):
             self.assertIn("ORG", labels)
 
     def test_deduplication(self):
-        mock_nlp = self._make_mock_nlp([
-            self._make_mock_ent("OpenAI", "ORG", 0, 6),
-            self._make_mock_ent("OpenAI", "ORG", 20, 26),
-        ])
+        mock_nlp = self._make_mock_nlp(
+            [
+                self._make_mock_ent("OpenAI", "ORG", 0, 6),
+                self._make_mock_ent("OpenAI", "ORG", 20, 26),
+            ]
+        )
         with patch("ai_engine.nlp.ner._get_nlp", return_value=mock_nlp):
             result = self.extract_entities("OpenAI is great. OpenAI released GPT.")
             openai_entities = [e for e in result if e["text"] == "OpenAI"]
@@ -381,10 +478,12 @@ class TestNER(unittest.TestCase):
             self.assertEqual(result, [])
 
     def test_extract_tech_terms_returns_strings(self):
-        mock_nlp = self._make_mock_nlp([
-            self._make_mock_ent("Python", "LANGUAGE", 0, 6),
-            self._make_mock_ent("GitHub", "ORG", 10, 16),
-        ])
+        mock_nlp = self._make_mock_nlp(
+            [
+                self._make_mock_ent("Python", "LANGUAGE", 0, 6),
+                self._make_mock_ent("GitHub", "ORG", 10, 16),
+            ]
+        )
         with patch("ai_engine.nlp.ner._get_nlp", return_value=mock_nlp):
             result = self.extract_tech_terms("Python on GitHub is popular.")
             self.assertIsInstance(result, list)
@@ -394,10 +493,12 @@ class TestNER(unittest.TestCase):
 
 # ── Summarizer tests ──────────────────────────────────────────────────────────
 
+
 class TestSummarizer(unittest.TestCase):
 
     def setUp(self):
-        from ai_engine.nlp.summarizer import summarize, MIN_WORDS
+        from ai_engine.nlp.summarizer import MIN_WORDS, summarize
+
         self.summarize = summarize
         self.MIN_WORDS = MIN_WORDS
 
@@ -411,7 +512,9 @@ class TestSummarizer(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_summarizes_long_text(self):
-        mock_pipe = MagicMock(return_value=[{"summary_text": "AI systems achieved new milestones."}])
+        mock_pipe = MagicMock(
+            return_value=[{"summary_text": "AI systems achieved new milestones."}]
+        )
         with patch("ai_engine.nlp.summarizer._get_summarizer", return_value=mock_pipe):
             long_text = "Artificial intelligence " * 60
             result = self.summarize(long_text)
@@ -436,38 +539,75 @@ class TestSummarizer(unittest.TestCase):
 
 # ── Pipeline integration tests ────────────────────────────────────────────────
 
+
 class TestNLPPipeline(unittest.TestCase):
 
     def setUp(self):
-        from ai_engine.nlp.pipeline import run_pipeline, NLPResult
+        from ai_engine.nlp.pipeline import NLPResult, run_pipeline
+
         self.run_pipeline = run_pipeline
         self.NLPResult = NLPResult
 
     def test_returns_nlp_result(self):
-        with patch("ai_engine.nlp.pipeline.clean_text", return_value="clean text about AI " * 10), \
-             patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)), \
-             patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["machine learning", "AI"]), \
-             patch("ai_engine.nlp.pipeline.classify_topic", return_value=("Machine Learning", 0.88)), \
-             patch("ai_engine.nlp.pipeline.analyze_sentiment", return_value=("POSITIVE", 0.92)), \
-             patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.92), \
-             patch("ai_engine.nlp.pipeline.extract_entities", return_value=[{"text": "OpenAI", "label": "ORG"}]):
-            result = self.run_pipeline("Machine learning is transforming AI.", title="AI News")
+        with (
+            patch(
+                "ai_engine.nlp.pipeline.clean_text",
+                return_value="clean text about AI " * 10,
+            ),
+            patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)),
+            patch(
+                "ai_engine.nlp.pipeline.extract_keywords",
+                return_value=["machine learning", "AI"],
+            ),
+            patch(
+                "ai_engine.nlp.pipeline.classify_topic",
+                return_value=("Machine Learning", 0.88),
+            ),
+            patch(
+                "ai_engine.nlp.pipeline.analyze_sentiment",
+                return_value=("POSITIVE", 0.92),
+            ),
+            patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.92),
+            patch(
+                "ai_engine.nlp.pipeline.extract_entities",
+                return_value=[{"text": "OpenAI", "label": "ORG"}],
+            ),
+        ):
+            result = self.run_pipeline(
+                "Machine learning is transforming AI.", title="AI News"
+            )
             self.assertIsInstance(result, self.NLPResult)
 
     def test_english_text_not_skipped(self):
-        with patch("ai_engine.nlp.pipeline.clean_text", return_value="machine learning ai " * 10), \
-             patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)), \
-             patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ml"]), \
-             patch("ai_engine.nlp.pipeline.classify_topic", return_value=("Machine Learning", 0.9)), \
-             patch("ai_engine.nlp.pipeline.analyze_sentiment", return_value=("POSITIVE", 0.8)), \
-             patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.8), \
-             patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]):
+        with (
+            patch(
+                "ai_engine.nlp.pipeline.clean_text",
+                return_value="machine learning ai " * 10,
+            ),
+            patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)),
+            patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ml"]),
+            patch(
+                "ai_engine.nlp.pipeline.classify_topic",
+                return_value=("Machine Learning", 0.9),
+            ),
+            patch(
+                "ai_engine.nlp.pipeline.analyze_sentiment",
+                return_value=("POSITIVE", 0.8),
+            ),
+            patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.8),
+            patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]),
+        ):
             result = self.run_pipeline("Machine learning is transforming AI research.")
             self.assertFalse(result.skipped)
 
     def test_non_english_text_skipped(self):
-        with patch("ai_engine.nlp.pipeline.clean_text", return_value="Ceci est une phrase française " * 5), \
-             patch("ai_engine.nlp.pipeline.detect_language", return_value=("fr", 0.97)):
+        with (
+            patch(
+                "ai_engine.nlp.pipeline.clean_text",
+                return_value="Ceci est une phrase française " * 5,
+            ),
+            patch("ai_engine.nlp.pipeline.detect_language", return_value=("fr", 0.97)),
+        ):
             result = self.run_pipeline("Ceci est une phrase française sur l'IA.")
             self.assertTrue(result.skipped)
             self.assertIn("fr", result.skip_reason)
@@ -477,13 +617,29 @@ class TestNLPPipeline(unittest.TestCase):
         self.assertTrue(result.skipped)
 
     def test_pipeline_fields_populated(self):
-        with patch("ai_engine.nlp.pipeline.clean_text", return_value="ai ml cloud devops " * 10), \
-             patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)), \
-             patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ai", "cloud"]), \
-             patch("ai_engine.nlp.pipeline.classify_topic", return_value=("Cloud Computing", 0.85)), \
-             patch("ai_engine.nlp.pipeline.analyze_sentiment", return_value=("NEUTRAL", 0.70)), \
-             patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.0), \
-             patch("ai_engine.nlp.pipeline.extract_entities", return_value=[{"text": "AWS", "label": "ORG"}]):
+        with (
+            patch(
+                "ai_engine.nlp.pipeline.clean_text",
+                return_value="ai ml cloud devops " * 10,
+            ),
+            patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)),
+            patch(
+                "ai_engine.nlp.pipeline.extract_keywords", return_value=["ai", "cloud"]
+            ),
+            patch(
+                "ai_engine.nlp.pipeline.classify_topic",
+                return_value=("Cloud Computing", 0.85),
+            ),
+            patch(
+                "ai_engine.nlp.pipeline.analyze_sentiment",
+                return_value=("NEUTRAL", 0.70),
+            ),
+            patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.0),
+            patch(
+                "ai_engine.nlp.pipeline.extract_entities",
+                return_value=[{"text": "AWS", "label": "ORG"}],
+            ),
+        ):
             result = self.run_pipeline("AI and cloud computing with DevOps.")
             self.assertEqual(result.topic, "Cloud Computing")
             self.assertIn("ai", result.keywords)
@@ -493,13 +649,28 @@ class TestNLPPipeline(unittest.TestCase):
 
     def test_selective_steps(self):
         """Pipeline should respect run_* flags."""
-        with patch("ai_engine.nlp.pipeline.clean_text", return_value="python programming " * 10), \
-             patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)), \
-             patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["python"]) as mock_kw, \
-             patch("ai_engine.nlp.pipeline.classify_topic", return_value=("Programming", 0.9)) as mock_topic, \
-             patch("ai_engine.nlp.pipeline.analyze_sentiment", return_value=("POSITIVE", 0.8)) as mock_sent, \
-             patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.8), \
-             patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]) as mock_ner:
+        with (
+            patch(
+                "ai_engine.nlp.pipeline.clean_text",
+                return_value="python programming " * 10,
+            ),
+            patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)),
+            patch(
+                "ai_engine.nlp.pipeline.extract_keywords", return_value=["python"]
+            ) as mock_kw,
+            patch(
+                "ai_engine.nlp.pipeline.classify_topic",
+                return_value=("Programming", 0.9),
+            ) as mock_topic,
+            patch(
+                "ai_engine.nlp.pipeline.analyze_sentiment",
+                return_value=("POSITIVE", 0.8),
+            ) as mock_sent,
+            patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.8),
+            patch(
+                "ai_engine.nlp.pipeline.extract_entities", return_value=[]
+            ) as mock_ner,
+        ):
             result = self.run_pipeline(
                 "Python is great.",
                 run_keywords=False,
@@ -515,14 +686,25 @@ class TestNLPPipeline(unittest.TestCase):
     def test_summarization_included_in_pipeline(self):
         """Phase 2.2 — pipeline should populate result.summary via BART."""
         expected_summary = "AI systems are transforming modern technology."
-        with patch("ai_engine.nlp.pipeline.clean_text", return_value="ai machine learning " * 15), \
-             patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)), \
-             patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ai"]), \
-             patch("ai_engine.nlp.pipeline.classify_topic", return_value=("Machine Learning", 0.9)), \
-             patch("ai_engine.nlp.pipeline.analyze_sentiment", return_value=("POSITIVE", 0.85)), \
-             patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.85), \
-             patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]), \
-             patch("ai_engine.nlp.summarizer.summarize", return_value=expected_summary):
+        with (
+            patch(
+                "ai_engine.nlp.pipeline.clean_text",
+                return_value="ai machine learning " * 15,
+            ),
+            patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)),
+            patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ai"]),
+            patch(
+                "ai_engine.nlp.pipeline.classify_topic",
+                return_value=("Machine Learning", 0.9),
+            ),
+            patch(
+                "ai_engine.nlp.pipeline.analyze_sentiment",
+                return_value=("POSITIVE", 0.85),
+            ),
+            patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.85),
+            patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]),
+            patch("ai_engine.nlp.summarizer.summarize", return_value=expected_summary),
+        ):
             result = self.run_pipeline(
                 "AI machine learning is transforming modern technology in remarkable ways.",
                 run_summarization=True,
@@ -531,13 +713,24 @@ class TestNLPPipeline(unittest.TestCase):
 
     def test_summarization_disabled_by_flag(self):
         """Phase 2.2 — run_summarization=False must skip summarization."""
-        with patch("ai_engine.nlp.pipeline.clean_text", return_value="ai machine learning " * 15), \
-             patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)), \
-             patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ai"]), \
-             patch("ai_engine.nlp.pipeline.classify_topic", return_value=("Machine Learning", 0.9)), \
-             patch("ai_engine.nlp.pipeline.analyze_sentiment", return_value=("POSITIVE", 0.85)), \
-             patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.85), \
-             patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]):
+        with (
+            patch(
+                "ai_engine.nlp.pipeline.clean_text",
+                return_value="ai machine learning " * 15,
+            ),
+            patch("ai_engine.nlp.pipeline.detect_language", return_value=("en", 0.99)),
+            patch("ai_engine.nlp.pipeline.extract_keywords", return_value=["ai"]),
+            patch(
+                "ai_engine.nlp.pipeline.classify_topic",
+                return_value=("Machine Learning", 0.9),
+            ),
+            patch(
+                "ai_engine.nlp.pipeline.analyze_sentiment",
+                return_value=("POSITIVE", 0.85),
+            ),
+            patch("ai_engine.nlp.pipeline.sentiment_to_score", return_value=0.85),
+            patch("ai_engine.nlp.pipeline.extract_entities", return_value=[]),
+        ):
             result = self.run_pipeline(
                 "AI machine learning research.",
                 run_summarization=False,
@@ -553,6 +746,7 @@ class TestNLPPipeline(unittest.TestCase):
 
 # ── Summarization Celery task tests ───────────────────────────────────────────
 
+
 class TestSummarizeArticleTask(unittest.TestCase):
     """
     Phase 2.2 — unit tests for the summarize_article Celery task logic.
@@ -565,7 +759,7 @@ class TestSummarizeArticleTask(unittest.TestCase):
         article = MagicMock()
         article.id = "test-uuid-1234"
         article.content = content
-        article.title = title          # explicit str — MagicMock would be truthy!
+        article.title = title  # explicit str — MagicMock would be truthy!
         article.summary = summary
         article.nlp_processed = nlp_processed
         article.save = MagicMock()
@@ -595,8 +789,10 @@ class TestSummarizeArticleTask(unittest.TestCase):
         mock_article_cls.objects.get.return_value = article
         mock_article_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
 
-        import apps.articles.tasks as tasks_mod
         import builtins
+
+        import apps.articles.tasks as tasks_mod
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -607,7 +803,9 @@ class TestSummarizeArticleTask(unittest.TestCase):
             return real_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
-            result = self._call_task(tasks_mod.summarize_article, str(article.id), False)
+            result = self._call_task(
+                tasks_mod.summarize_article, str(article.id), False
+            )
             self.assertEqual(result["status"], "skipped")
             self.assertEqual(result["reason"], "already_summarized")
 
@@ -619,8 +817,10 @@ class TestSummarizeArticleTask(unittest.TestCase):
         mock_article_cls.objects.get.return_value = article
         mock_article_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
 
-        import apps.articles.tasks as tasks_mod
         import builtins
+
+        import apps.articles.tasks as tasks_mod
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -631,7 +831,9 @@ class TestSummarizeArticleTask(unittest.TestCase):
             return real_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
-            result = self._call_task(tasks_mod.summarize_article, str(article.id), False)
+            result = self._call_task(
+                tasks_mod.summarize_article, str(article.id), False
+            )
             self.assertEqual(result["status"], "skipped")
             # The task may return "no_content" or "no_text" depending on which
             # guard fires first (title-less vs. content-less path)

@@ -1,17 +1,19 @@
 """
 TASK-003-T1 — Unit tests for plan limit enforcement.
 """
+
 from unittest.mock import MagicMock, patch
-from django.test import TestCase
-from django.core.exceptions import PermissionDenied
 
 from apps.billing.limits import (
     check_plan_limit,
-    user_has_feature,
-    get_user_plan,
     get_plan_limit,
+    get_user_plan,
     plan_limit_response,
+    user_has_feature,
 )
+
+from django.core.exceptions import PermissionDenied
+from django.test import TestCase
 
 
 def _make_user(plan="free", status="active"):

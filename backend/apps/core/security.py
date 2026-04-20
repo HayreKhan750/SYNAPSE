@@ -9,6 +9,7 @@ Implements:
   - rate_limit decorator: per-view, per-user rate limiting
   - SecurityHeadersMiddleware: additional security headers
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -18,8 +19,8 @@ from typing import Callable
 from django.http import HttpRequest, HttpResponse
 from rest_framework.permissions import BasePermission
 
-
 # ── Content Security Policy Middleware ─────────────────────────────────────────
+
 
 class ContentSecurityPolicyMiddleware:
     """
@@ -47,38 +48,43 @@ class ContentSecurityPolicyMiddleware:
 
         if is_render:
             # Permissive CSP for iframe-embedded document viewer
-            csp = "; ".join([
-                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-                "font-src 'self' data: https://fonts.gstatic.com",
-                "img-src 'self' data: https: blob:",
-                "connect-src 'self' wss: https:",
-                "frame-ancestors 'self'",   # allow same-origin iframe embedding
-                "base-uri 'self'",
-            ])
+            csp = "; ".join(
+                [
+                    "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                    "font-src 'self' data: https://fonts.gstatic.com",
+                    "img-src 'self' data: https: blob:",
+                    "connect-src 'self' wss: https:",
+                    "frame-ancestors 'self'",  # allow same-origin iframe embedding
+                    "base-uri 'self'",
+                ]
+            )
             # Allow iframe embedding from same origin
             response["X-Frame-Options"] = "SAMEORIGIN"
         else:
-            csp = "; ".join([
-                "default-src 'self'",
-                f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net",
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-                "font-src 'self' https://fonts.gstatic.com",
-                "img-src 'self' data: https:",
-                "connect-src 'self' wss: https:",
-                "frame-ancestors 'none'",
-                "base-uri 'self'",
-                "form-action 'self'",
-                "object-src 'none'",
-                "upgrade-insecure-requests",
-            ])
+            csp = "; ".join(
+                [
+                    "default-src 'self'",
+                    f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net",
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                    "font-src 'self' https://fonts.gstatic.com",
+                    "img-src 'self' data: https:",
+                    "connect-src 'self' wss: https:",
+                    "frame-ancestors 'none'",
+                    "base-uri 'self'",
+                    "form-action 'self'",
+                    "object-src 'none'",
+                    "upgrade-insecure-requests",
+                ]
+            )
 
         response["Content-Security-Policy"] = csp
         return response
 
 
 # ── Security Headers Middleware ────────────────────────────────────────────────
+
 
 class SecurityHeadersMiddleware:
     """
@@ -111,30 +117,32 @@ class SecurityHeadersMiddleware:
         is_render = "/render/" in request.path
         if is_render:
             # Relaxed cross-origin policies for iframe-embedded document viewer
-            response["Cross-Origin-Opener-Policy"]  = "same-origin-allow-popups"
+            response["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
             response["Cross-Origin-Embedder-Policy"] = "unsafe-none"
             response["Cross-Origin-Resource-Policy"] = "same-site"
         else:
             # same-origin-allow-popups required for Google OAuth popup to work
             # (the popup needs to call window.close() and the opener checks window.closed)
-            response["Cross-Origin-Opener-Policy"]   = "same-origin-allow-popups"
+            response["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
             # credentialless allows cross-origin resources (fonts, images) while
             # still providing isolation for same-origin scripts
-            response["Cross-Origin-Embedder-Policy"]  = "credentialless"
-            response["Cross-Origin-Resource-Policy"]  = "same-origin"
+            response["Cross-Origin-Embedder-Policy"] = "credentialless"
+            response["Cross-Origin-Resource-Policy"] = "same-origin"
 
         # Cache control for API responses (no caching of sensitive data)
         if request.path.startswith("/api/") and not is_render:
             response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
-            response["Pragma"]        = "no-cache"
+            response["Pragma"] = "no-cache"
 
         return response
 
 
 # ── RBAC Permissions ───────────────────────────────────────────────────────────
 
+
 class IsAdminUser(BasePermission):
     """Allow access only to users with role=admin."""
+
     message = "Admin role required."
 
     def has_permission(self, request, view) -> bool:
@@ -147,6 +155,7 @@ class IsAdminUser(BasePermission):
 
 class IsPremiumUser(BasePermission):
     """Allow access to premium and admin users."""
+
     message = "Premium subscription required."
 
     def has_permission(self, request, view) -> bool:
@@ -159,6 +168,7 @@ class IsPremiumUser(BasePermission):
 
 class IsOwnerOrAdmin(BasePermission):
     """Object-level permission: owner or admin."""
+
     message = "You do not have permission to access this resource."
 
     def has_object_permission(self, request, view, obj) -> bool:
@@ -173,11 +183,13 @@ class IsOwnerOrAdmin(BasePermission):
 
 # ── MFA enforcement for admin views ───────────────────────────────────────────
 
+
 class MFARequiredPermission(BasePermission):
     """
     Require MFA to be enabled for admin/staff users accessing sensitive endpoints.
     Regular users can access without MFA.
     """
+
     message = "MFA is required for admin accounts. Please enable TOTP at /api/v1/auth/mfa/setup/"
 
     def has_permission(self, request, view) -> bool:
@@ -189,13 +201,15 @@ class MFARequiredPermission(BasePermission):
             return True
 
         from apps.users.mfa import user_has_mfa_enabled
+
         return user_has_mfa_enabled(request.user)
 
 
 # ── Input sanitisation utilities ───────────────────────────────────────────────
 
-import re
 import html
+import re
+
 
 def sanitise_text(text: str, max_length: int = 10000) -> str:
     """
@@ -220,6 +234,7 @@ def sanitise_filename(filename: str) -> str:
     Keeps only alphanumeric, dots, dashes, underscores.
     """
     import os
+
     # Get basename only (no path components)
     filename = os.path.basename(filename)
     # Replace dangerous characters

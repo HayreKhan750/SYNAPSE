@@ -5,6 +5,7 @@ Tasks:
   generate_video_embedding          — Embed a single Video
   generate_pending_video_embeddings — Batch-queue unembedded Videos
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,6 +26,7 @@ def _get_embedder():
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
     from ai_engine.embeddings import get_embedder  # noqa: PLC0415
+
     return get_embedder()
 
 
@@ -81,7 +83,12 @@ def generate_video_embedding(self, video_id: str) -> Dict:
 
         elapsed = round(time.time() - start_time, 2)
         logger.info("[%s] Embedded video %s in %.2fs", task_id, video_id, elapsed)
-        return {"status": "success", "video_id": video_id, "dimensions": len(vector), "elapsed_seconds": elapsed}
+        return {
+            "status": "success",
+            "video_id": video_id,
+            "dimensions": len(vector),
+            "elapsed_seconds": elapsed,
+        }
 
     except Exception as exc:
         logger.error("[%s] Error embedding video %s: %s", task_id, video_id, exc)
@@ -101,8 +108,9 @@ def generate_pending_video_embeddings(self, batch_size: int = 100) -> Dict:
         from apps.videos.models import Video  # noqa: PLC0415
 
         pending_ids = list(
-            Video.objects.filter(embedding__isnull=True)
-            .values_list("id", flat=True)[:batch_size]
+            Video.objects.filter(embedding__isnull=True).values_list("id", flat=True)[
+                :batch_size
+            ]
         )
         for video_id in pending_ids:
             generate_video_embedding.delay(str(video_id))

@@ -12,13 +12,13 @@ Flow:
     4. Result saved → status=completed | failed
     5. Optional notification sent to user
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from celery import shared_task
@@ -41,15 +41,18 @@ def _extract_file_meta(answer: str, task_type: str) -> dict:
     # Look for "Path: /absolute/path/to/file.ext" or "File: relative/path"
     path_match = re.search(r"Path:\s*(.+?)(?:\n|$)", answer)
     file_match = re.search(r"File:\s*(.+?)(?:\n|$)", answer)
-    raw_path = (path_match or file_match)
+    raw_path = path_match or file_match
     if raw_path:
         p = Path(raw_path.group(1).strip())
         meta["file_path"] = str(p)
         meta["file_name"] = p.name
 
         # Build a media-relative download URL
-        media_root = Path(os.environ.get("DJANGO_MEDIA_ROOT") or
-                          os.environ.get("MEDIA_ROOT") or "media")
+        media_root = Path(
+            os.environ.get("DJANGO_MEDIA_ROOT")
+            or os.environ.get("MEDIA_ROOT")
+            or "media"
+        )
         try:
             rel = p.relative_to(media_root)
             meta["download_url"] = f"/media/{rel}"
@@ -95,22 +98,23 @@ def _build_user_context(user) -> dict:
 
     try:
         # ── User profile ──────────────────────────────────────────
-        name = getattr(user, 'first_name', '') or user.email
+        name = getattr(user, "first_name", "") or user.email
         ctx["User"] = f"{name} (plan: {getattr(user, 'role', 'free')})"
 
-        prefs = getattr(user, 'preferences', {}) or {}
-        interests = prefs.get('interests') or prefs.get('topics') or []
+        prefs = getattr(user, "preferences", {}) or {}
+        interests = prefs.get("interests") or prefs.get("topics") or []
         if interests:
             ctx["Interests"] = ", ".join(interests[:10])
 
         # ── Onboarding preferences ────────────────────────────────
         try:
             from apps.users.models import OnboardingPreferences
+
             op = OnboardingPreferences.objects.filter(user=user, completed=True).first()
             if op:
                 if op.interests:
                     ctx["Onboarding Interests"] = ", ".join(op.interests[:10])
-                if getattr(op, 'experience_level', None):
+                if getattr(op, "experience_level", None):
                     ctx["Experience Level"] = op.experience_level
         except Exception:
             pass
@@ -118,9 +122,11 @@ def _build_user_context(user) -> dict:
         # ── Active automations ────────────────────────────────────
         try:
             from apps.automation.models import Workflow
+
             active_wfs = list(
-                Workflow.objects.filter(user=user, is_active=True)
-                .values_list('name', flat=True)[:10]
+                Workflow.objects.filter(user=user, is_active=True).values_list(
+                    "name", flat=True
+                )[:10]
             )
             if active_wfs:
                 ctx["Active Automations"] = ", ".join(active_wfs)
@@ -129,16 +135,25 @@ def _build_user_context(user) -> dict:
 
         # ── Feed statistics ───────────────────────────────────────
         try:
-            from apps.tweets.models import Tweet
             from apps.articles.models import Article
-            from apps.repositories.models import Repository
             from apps.papers.models import ResearchPaper
+            from apps.repositories.models import Repository
+            from apps.tweets.models import Tweet
+
             from django.db.models import Q
 
-            tweet_count = Tweet.objects.filter(Q(user=user) | Q(user__isnull=True)).count()
-            article_count = Article.objects.filter(Q(user=user) | Q(user__isnull=True)).count()
-            repo_count = Repository.objects.filter(Q(user=user) | Q(user__isnull=True)).count()
-            paper_count = ResearchPaper.objects.filter(Q(user=user) | Q(user__isnull=True)).count()
+            tweet_count = Tweet.objects.filter(
+                Q(user=user) | Q(user__isnull=True)
+            ).count()
+            article_count = Article.objects.filter(
+                Q(user=user) | Q(user__isnull=True)
+            ).count()
+            repo_count = Repository.objects.filter(
+                Q(user=user) | Q(user__isnull=True)
+            ).count()
+            paper_count = ResearchPaper.objects.filter(
+                Q(user=user) | Q(user__isnull=True)
+            ).count()
             ctx["Feed Data"] = (
                 f"{tweet_count} tweets, {article_count} articles, "
                 f"{repo_count} repositories, {paper_count} papers"
@@ -148,27 +163,32 @@ def _build_user_context(user) -> dict:
 
         # ── Configured integrations ───────────────────────────────
         integrations = []
-        if prefs.get('scitely_api_key'):
+        if prefs.get("scitely_api_key"):
             integrations.append("Scitely")
-        if prefs.get('openrouter_api_key'):
+        if prefs.get("openrouter_api_key"):
             integrations.append("OpenRouter")
-        if prefs.get('gemini_api_key'):
+        if prefs.get("gemini_api_key"):
             integrations.append("Gemini")
-        if prefs.get('x_api_key'):
+        if prefs.get("x_api_key"):
             integrations.append("X/Twitter")
-        if prefs.get('github_token'):
+        if prefs.get("github_token"):
             integrations.append("GitHub")
         if integrations:
             ctx["Configured Integrations"] = ", ".join(integrations)
         else:
-            ctx["Configured Integrations"] = "None — suggest user to configure in Settings → AI Engine"
+            ctx["Configured Integrations"] = (
+                "None — suggest user to configure in Settings → AI Engine"
+            )
 
         # ── Subscription / billing ────────────────────────────────
         try:
             from apps.billing.models import Subscription
-            sub = Subscription.objects.filter(user=user, status='active').first()
+
+            sub = Subscription.objects.filter(user=user, status="active").first()
             if sub:
-                ctx["Subscription"] = f"{sub.plan} (active, renews {sub.current_period_end})"
+                ctx["Subscription"] = (
+                    f"{sub.plan} (active, renews {sub.current_period_end})"
+                )
             else:
                 ctx["Subscription"] = "Free tier"
         except Exception:
@@ -177,10 +197,11 @@ def _build_user_context(user) -> dict:
         # ── Recent bookmarks ──────────────────────────────────────
         try:
             from apps.core.models import UserActivity
+
             bookmarks = list(
-                UserActivity.objects.filter(user=user, interaction_type='bookmark')
-                .order_by('-created_at')
-                .values_list('object_id', flat=True)[:5]
+                UserActivity.objects.filter(user=user, interaction_type="bookmark")
+                .order_by("-created_at")
+                .values_list("object_id", flat=True)[:5]
             )
             if bookmarks:
                 ctx["Recent Bookmarks"] = f"{len(bookmarks)} items bookmarked"
@@ -199,7 +220,7 @@ def _build_user_context(user) -> dict:
     queue="agents",
     max_retries=2,
     default_retry_delay=30,
-    soft_time_limit=330,   # 5 min 30 s — slightly above agent max_execution_time
+    soft_time_limit=330,  # 5 min 30 s — slightly above agent max_execution_time
     time_limit=360,
 )
 def execute_agent_task(self, agent_task_id: str) -> dict:
@@ -229,15 +250,21 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
 
     # ── Resolve tool subset from task_type ────────────────────────────
     tool_map: dict[str, list[str] | None] = {
-        "research":  ["search_knowledge_base", "fetch_articles", "fetch_arxiv_papers"],
-        "trends":    ["analyze_trends", "fetch_articles", "search_github"],
-        "github":    ["search_github"],
-        "arxiv":     ["fetch_arxiv_papers"],
-        "tweets":    ["search_knowledge_base", "fetch_articles", "analyze_trends"],
-        "document":  ["generate_pdf", "generate_ppt", "generate_word_doc", "generate_markdown",
-                      "search_knowledge_base", "fetch_articles"],
-        "project":   ["create_project"],
-        "general":   None,  # all tools
+        "research": ["search_knowledge_base", "fetch_articles", "fetch_arxiv_papers"],
+        "trends": ["analyze_trends", "fetch_articles", "search_github"],
+        "github": ["search_github"],
+        "arxiv": ["fetch_arxiv_papers"],
+        "tweets": ["search_knowledge_base", "fetch_articles", "analyze_trends"],
+        "document": [
+            "generate_pdf",
+            "generate_ppt",
+            "generate_word_doc",
+            "generate_markdown",
+            "search_knowledge_base",
+            "fetch_articles",
+        ],
+        "project": ["create_project"],
+        "general": None,  # all tools
     }
     tool_names = tool_map.get(task_obj.task_type, None)
 
@@ -280,35 +307,39 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
         "general": "",
     }
     context_prefix = task_context.get(task_obj.task_type, "")
-    augmented_prompt = f"{context_prefix}{task_obj.prompt}" if context_prefix else task_obj.prompt
+    augmented_prompt = (
+        f"{context_prefix}{task_obj.prompt}" if context_prefix else task_obj.prompt
+    )
 
     # ── Resolve per-user API keys (user prefs → env vars → Django settings) ──
     scitely_api_key = None
     openrouter_api_key = None
     gemini_api_key = None
     try:
-        prefs = getattr(task_obj.user, 'preferences', {}) or {}
-        scitely_api_key = prefs.get('scitely_api_key') or None
-        openrouter_api_key = prefs.get('openrouter_api_key') or None
-        gemini_api_key = prefs.get('gemini_api_key') or None
+        prefs = getattr(task_obj.user, "preferences", {}) or {}
+        scitely_api_key = prefs.get("scitely_api_key") or None
+        openrouter_api_key = prefs.get("openrouter_api_key") or None
+        gemini_api_key = prefs.get("gemini_api_key") or None
     except Exception:
         pass
 
     # Fall back to environment / Django settings if user has no personal key
     if not scitely_api_key:
-        scitely_api_key = os.environ.get('SCITELY_API_KEY') or None
+        scitely_api_key = os.environ.get("SCITELY_API_KEY") or None
     if not openrouter_api_key:
         from django.conf import settings as django_settings
+
         openrouter_api_key = (
-            os.environ.get('OPENROUTER_API_KEY')
-            or getattr(django_settings, 'OPENROUTER_API_KEY', None)
+            os.environ.get("OPENROUTER_API_KEY")
+            or getattr(django_settings, "OPENROUTER_API_KEY", None)
             or None
         )
     if not gemini_api_key:
         from django.conf import settings as django_settings
+
         gemini_api_key = (
-            os.environ.get('GEMINI_API_KEY')
-            or getattr(django_settings, 'GEMINI_API_KEY', None)
+            os.environ.get("GEMINI_API_KEY")
+            or getattr(django_settings, "GEMINI_API_KEY", None)
             or None
         )
 
@@ -334,7 +365,8 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
 
         # ── Save result ───────────────────────────────────────────────
         task_obj.status = (
-            AgentTask.TaskStatus.COMPLETED if result["success"]
+            AgentTask.TaskStatus.COMPLETED
+            if result["success"]
             else AgentTask.TaskStatus.FAILED
         )
 
@@ -353,10 +385,16 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
         task_obj.cost_usd = result.get("cost_usd", 0.0)
         task_obj.error_message = result.get("error") or ""
         task_obj.completed_at = datetime.now(tz=timezone.utc)
-        task_obj.save(update_fields=[
-            "status", "result", "tokens_used", "cost_usd",
-            "error_message", "completed_at",
-        ])
+        task_obj.save(
+            update_fields=[
+                "status",
+                "result",
+                "tokens_used",
+                "cost_usd",
+                "error_message",
+                "completed_at",
+            ]
+        )
 
         logger.info(
             "AgentTask %s — %s (tokens=%d cost=$%.6f time=%.2fs)",
@@ -371,7 +409,9 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
         try:
             _notify_user(task_obj, result["success"])
         except Exception as notify_exc:
-            logger.warning("Notification failed for AgentTask %s: %s", agent_task_id, notify_exc)
+            logger.warning(
+                "Notification failed for AgentTask %s: %s", agent_task_id, notify_exc
+            )
 
         return {
             "success": result["success"],
@@ -429,7 +469,9 @@ def cancel_agent_task(agent_task_id: str, celery_task_id: str) -> dict:
         celery_task_id: Celery task ID to revoke.
     """
     from apps.agents.models import AgentTask
+
     from celery.app.control import Control
+
     from config.celery import app as celery_app
 
     try:
@@ -449,5 +491,7 @@ def cancel_agent_task(agent_task_id: str, celery_task_id: str) -> dict:
     task_obj.completed_at = datetime.now(tz=timezone.utc)
     task_obj.save(update_fields=["status", "error_message", "completed_at"])
 
-    logger.info("AgentTask %s cancelled (celery_task_id=%s)", agent_task_id, celery_task_id)
+    logger.info(
+        "AgentTask %s cancelled (celery_task_id=%s)", agent_task_id, celery_task_id
+    )
     return {"success": True, "agent_task_id": agent_task_id}

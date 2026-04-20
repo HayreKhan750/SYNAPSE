@@ -13,8 +13,8 @@ Exports:
 """
 
 from .base import SynapseAgent
-from .registry import AgentToolRegistry, get_registry
 from .executor import SynapseAgentExecutor, get_executor
+from .registry import AgentToolRegistry, get_registry
 
 __all__ = [
     "SynapseAgent",

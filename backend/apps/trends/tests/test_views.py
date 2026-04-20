@@ -5,14 +5,15 @@ Covers:
   - GET /api/v1/trends/          (trend_list)
   - GET /api/v1/trends/<pk>/     (trend_detail)
 """
+
 import datetime
 import uuid
 
-from django.test import TestCase
-from rest_framework.test import APIClient
-from rest_framework import status
-
 from apps.trends.models import TechnologyTrend
+
+from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APIClient
 
 
 def _make_trend(name="Python", date=None, score=75.0, category="language"):
@@ -105,7 +106,15 @@ class TrendListViewTests(TestCase):
         resp = self.client.get(self.url)
         if resp.data["results"]:
             r = resp.data["results"][0]
-            for field in ["id", "technology_name", "trend_score", "mention_count", "category", "date", "sources"]:
+            for field in [
+                "id",
+                "technology_name",
+                "trend_score",
+                "mention_count",
+                "category",
+                "date",
+                "sources",
+            ]:
                 self.assertIn(field, r)
 
     def test_unauthenticated_allowed(self):
@@ -134,7 +143,15 @@ class TrendDetailViewTests(TestCase):
 
     def test_detail_fields_present(self):
         resp = self.client.get(self._url(self.trend.pk))
-        for field in ["id", "technology_name", "trend_score", "mention_count", "category", "date", "sources"]:
+        for field in [
+            "id",
+            "technology_name",
+            "trend_score",
+            "mention_count",
+            "category",
+            "date",
+            "sources",
+        ]:
             self.assertIn(field, resp.data)
 
     def test_unauthenticated_allowed(self):

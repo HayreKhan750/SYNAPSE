@@ -7,6 +7,7 @@ Phase 9.3 — Growth & Iteration
 
 Reward: 1 month Pro for referrer when referee makes first payment.
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,6 +15,7 @@ from datetime import timedelta
 from typing import Optional
 
 import structlog
+
 from django.utils import timezone
 
 logger = structlog.get_logger(__name__)
@@ -22,17 +24,24 @@ logger = structlog.get_logger(__name__)
 def get_or_create_referral_code(user) -> str:
     """Get or create a referral code for the user. Returns the code string."""
     from apps.billing.models import ReferralCode
+
     code_obj, created = ReferralCode.objects.get_or_create(
         owner=user,
         defaults={},
     )
     if created:
         # Generate code if new
-        import secrets, string
+        import secrets
+        import string
+
         alphabet = string.ascii_uppercase + string.digits
         for _ in range(10):
             code = "".join(secrets.choice(alphabet) for _ in range(8))
-            if not ReferralCode.objects.filter(code=code).exclude(pk=code_obj.pk).exists():
+            if (
+                not ReferralCode.objects.filter(code=code)
+                .exclude(pk=code_obj.pk)
+                .exists()
+            ):
                 code_obj.code = code
                 code_obj.save(update_fields=["code"])
                 break
@@ -74,7 +83,9 @@ def use_referral_code(referee_user, code: str) -> bool:
     code_obj.uses += 1
     code_obj.save(update_fields=["uses"])
 
-    logger.info("referral_code_used", referee=referee_user.email, referrer=code_obj.owner.email)
+    logger.info(
+        "referral_code_used", referee=referee_user.email, referrer=code_obj.owner.email
+    )
     return True
 
 
@@ -83,6 +94,7 @@ def grant_referral_reward(referral_use) -> None:
     Grant 1-month Pro to the referrer when the referee makes their first payment.
     """
     from apps.billing.models import Subscription
+
     referrer = referral_use.code.owner
 
     try:
@@ -95,7 +107,7 @@ def grant_referral_reward(referral_use) -> None:
 
         # Upgrade to pro if currently free
         if sub.plan == "free":
-            sub.plan   = "pro"
+            sub.plan = "pro"
             sub.status = "active"
             referrer.role = "premium"
             referrer.save(update_fields=["role"])

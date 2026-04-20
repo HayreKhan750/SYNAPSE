@@ -11,7 +11,6 @@ Weight mapping:
 """
 from django.db import migrations
 
-
 TRIGGER_SQL = """
 CREATE OR REPLACE FUNCTION papers_search_vector_update()
 RETURNS trigger AS $$

@@ -26,6 +26,7 @@ Usage from server-side (e.g. tasks.py):
         }
     )
 """
+
 import json
 import logging
 
@@ -50,7 +51,11 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self.group_name = f"notifications_{self.user_id}"
             await self.channel_layer.group_add(self.group_name, self.channel_name)
             await self.accept()
-            logger.info("WS connected (session): user=%s group=%s", self.user_id, self.group_name)
+            logger.info(
+                "WS connected (session): user=%s group=%s",
+                self.user_id,
+                self.group_name,
+            )
         else:
             # Accept temporarily — wait for auth message with token
             await self.accept()
@@ -61,7 +66,11 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
-        logger.info("WS disconnected: user=%s code=%s", getattr(self, "user_id", "?"), close_code)
+        logger.info(
+            "WS disconnected: user=%s code=%s",
+            getattr(self, "user_id", "?"),
+            close_code,
+        )
 
     async def receive(self, text_data=None, bytes_data=None):
         """Handle auth token message and ping/pong keepalive."""
@@ -76,15 +85,16 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
         # ── Auth via first message ────────────────────────────────────────────
         if msg_type == "auth":
-            if getattr(self, '_authenticated', False) or self.user_id:
+            if getattr(self, "_authenticated", False) or self.user_id:
                 return  # already authed
             token_str = msg.get("token", "")
             if not token_str:
                 await self.close(code=4001)
                 return
             try:
-                from rest_framework_simplejwt.authentication import JWTAuthentication
                 from channels.db import database_sync_to_async
+                from rest_framework_simplejwt.authentication import JWTAuthentication
+
                 jwt_auth = JWTAuthentication()
                 validated = jwt_auth.get_validated_token(token_str.encode())
                 user = await database_sync_to_async(jwt_auth.get_user)(validated)
@@ -110,7 +120,11 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def notify(self, event):
         """Relay a notification pushed from the server to this WebSocket."""
-        await self.send(text_data=json.dumps({
-            "type": "notification",
-            "data": event.get("data", {}),
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "notification",
+                    "data": event.get("data", {}),
+                }
+            )
+        )

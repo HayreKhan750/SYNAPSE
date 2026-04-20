@@ -3,16 +3,17 @@ Tests for Phase 6 — Cloud Integrations (Google Drive + AWS S3).
 
 These tests mock external API calls so they run without real credentials.
 """
+
 from __future__ import annotations
 
 import uuid
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
-from django.contrib.auth import get_user_model
-
 from apps.integrations.models import GoogleDriveToken
 from apps.integrations.s3 import get_presigned_url, upload_to_s3
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
 
 User = get_user_model()
 
@@ -64,6 +65,7 @@ class DriveStatusAPITest(TestCase):
             password="testpass123",
         )
         from rest_framework_simplejwt.tokens import RefreshToken
+
         refresh = RefreshToken.for_user(self.user)
         self.token = str(refresh.access_token)
 
@@ -76,7 +78,9 @@ class DriveStatusAPITest(TestCase):
         self.assertFalse(resp.json()["is_connected"])
 
     def test_drive_status_connected(self):
-        t = GoogleDriveToken.objects.create(user=self.user, google_email="user@gmail.com")
+        t = GoogleDriveToken.objects.create(
+            user=self.user, google_email="user@gmail.com"
+        )
         t.set_credentials({"token": "x", "refresh_token": "y"})
         t.save()
 
@@ -121,6 +125,7 @@ class DriveConnectAPITest(TestCase):
             password="testpass123",
         )
         from rest_framework_simplejwt.tokens import RefreshToken
+
         refresh = RefreshToken.for_user(self.user)
         self.token = str(refresh.access_token)
 
@@ -128,10 +133,14 @@ class DriveConnectAPITest(TestCase):
         # Patch module-level credentials in google_drive (the view imports them
         # from there via `from .google_drive import GOOGLE_CLIENT_ID, ...`) and
         # stub the URL builder so the test never contacts Google's servers.
-        with patch("apps.integrations.google_drive.GOOGLE_CLIENT_ID", "fake-client-id"), \
-             patch("apps.integrations.google_drive.GOOGLE_CLIENT_SECRET", "fake-secret"), \
-             patch("apps.integrations.google_drive.get_oauth2_authorization_url",
-                   return_value="https://accounts.google.com/o/oauth2/auth?fake=1"):
+        with (
+            patch("apps.integrations.google_drive.GOOGLE_CLIENT_ID", "fake-client-id"),
+            patch("apps.integrations.google_drive.GOOGLE_CLIENT_SECRET", "fake-secret"),
+            patch(
+                "apps.integrations.google_drive.get_oauth2_authorization_url",
+                return_value="https://accounts.google.com/o/oauth2/auth?fake=1",
+            ),
+        ):
             resp = self.client.get(
                 "/api/v1/integrations/drive/connect/",
                 HTTP_AUTHORIZATION=f"Bearer {self.token}",

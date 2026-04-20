@@ -5,14 +5,24 @@ DRF serializers for the AgentTask model.
 
 Phase 5.1 — Agent Framework (Week 13)
 """
+
 from rest_framework import serializers
+
 from .models import AgentTask, PromptTemplate
 
 
 class AgentTaskCreateSerializer(serializers.ModelSerializer):
     """Used when a user creates a new agent task via POST /api/v1/agents/tasks/."""
 
-    VALID_TASK_TYPES = ["research", "trends", "github", "arxiv", "general", "document", "project"]
+    VALID_TASK_TYPES = [
+        "research",
+        "trends",
+        "github",
+        "arxiv",
+        "general",
+        "document",
+        "project",
+    ]
 
     class Meta:
         model = AgentTask
@@ -107,31 +117,51 @@ class AgentTaskListSerializer(serializers.ModelSerializer):
 
 class AgentToolDescriptionSerializer(serializers.Serializer):
     """Describes a single registered agent tool."""
+
     name = serializers.CharField()
     description = serializers.CharField()
 
 
 # ── TASK-306 Prompt Library serializers ──────────────────────────────────────
 
+
 class PromptTemplateSerializer(serializers.ModelSerializer):
     """Full serializer — used for detail and create responses."""
-    author_name  = serializers.SerializerMethodField()
-    has_upvoted  = serializers.SerializerMethodField()
+
+    author_name = serializers.SerializerMethodField()
+    has_upvoted = serializers.SerializerMethodField()
 
     class Meta:
-        model  = PromptTemplate
+        model = PromptTemplate
         fields = [
-            'id', 'title', 'description', 'content', 'category',
-            'author_name', 'is_public', 'use_count', 'upvotes',
-            'has_upvoted', 'created_at', 'updated_at',
+            "id",
+            "title",
+            "description",
+            "content",
+            "category",
+            "author_name",
+            "is_public",
+            "use_count",
+            "upvotes",
+            "has_upvoted",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'author_name', 'use_count', 'upvotes', 'has_upvoted', 'created_at', 'updated_at']
+        read_only_fields = [
+            "id",
+            "author_name",
+            "use_count",
+            "upvotes",
+            "has_upvoted",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_author_name(self, obj):
         return obj.author.get_full_name() or obj.author.email
 
     def get_has_upvoted(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return False
         return obj.upvote_records.filter(user=request.user).exists()
@@ -139,21 +169,29 @@ class PromptTemplateSerializer(serializers.ModelSerializer):
 
 class PromptTemplateListSerializer(serializers.ModelSerializer):
     """Lightweight list serializer — no full content."""
+
     author_name = serializers.SerializerMethodField()
     has_upvoted = serializers.SerializerMethodField()
 
     class Meta:
-        model  = PromptTemplate
+        model = PromptTemplate
         fields = [
-            'id', 'title', 'description', 'category',
-            'author_name', 'use_count', 'upvotes', 'has_upvoted', 'created_at',
+            "id",
+            "title",
+            "description",
+            "category",
+            "author_name",
+            "use_count",
+            "upvotes",
+            "has_upvoted",
+            "created_at",
         ]
 
     def get_author_name(self, obj):
         return obj.author.get_full_name() or obj.author.email
 
     def get_has_upvoted(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return False
         return obj.upvote_records.filter(user=request.user).exists()
@@ -161,9 +199,10 @@ class PromptTemplateListSerializer(serializers.ModelSerializer):
 
 class PromptTemplateCreateSerializer(serializers.ModelSerializer):
     """Used for POST /api/prompts/."""
+
     class Meta:
-        model  = PromptTemplate
-        fields = ['title', 'description', 'content', 'category', 'is_public']
+        model = PromptTemplate
+        fields = ["title", "description", "content", "category", "is_public"]
 
     def validate_title(self, v):
         if len(v.strip()) < 3:
@@ -172,7 +211,11 @@ class PromptTemplateCreateSerializer(serializers.ModelSerializer):
 
     def validate_content(self, v):
         if len(v.strip()) < 10:
-            raise serializers.ValidationError("Prompt content must be at least 10 characters.")
+            raise serializers.ValidationError(
+                "Prompt content must be at least 10 characters."
+            )
         if len(v) > 8000:
-            raise serializers.ValidationError("Prompt content cannot exceed 8000 characters.")
+            raise serializers.ValidationError(
+                "Prompt content cannot exceed 8000 characters."
+            )
         return v.strip()

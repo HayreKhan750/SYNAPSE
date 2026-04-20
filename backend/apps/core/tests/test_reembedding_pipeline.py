@@ -2,11 +2,13 @@
 TASK-005-T1 — Integration tests for re-embedding pipeline.
 TASK-005-T2 — Search quality regression tests (BGE-large vs MiniLM).
 """
+
 from __future__ import annotations
 
 import os
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from django.test import TestCase
 
 
@@ -21,6 +23,7 @@ def _add_ai_engine_to_path():
 
 def _make_source(name="test_src"):
     from apps.articles.models import Source
+
     src, _ = Source.objects.get_or_create(
         name=name,
         defaults={"url": f"https://example.com/{name}", "source_type": "news"},
@@ -30,10 +33,12 @@ def _make_source(name="test_src"):
 
 # ── TASK-005-T1: Re-embedding pipeline tests ──────────────────────────────────
 
+
 class TestReembedArticlesPipeline(TestCase):
 
     def _make_articles(self, n=3):
         from apps.articles.models import Article
+
         src = _make_source("reembed_src")
         articles = []
         for i in range(n):
@@ -74,7 +79,9 @@ class TestReembedArticlesPipeline(TestCase):
 
         self._make_articles(2)
 
-        with patch.object(rt.httpx, "post", side_effect=Exception("Connection refused")):
+        with patch.object(
+            rt.httpx, "post", side_effect=Exception("Connection refused")
+        ):
             result = reembed_all_articles.run(batch_size=10)
 
         self.assertIsInstance(result, dict)
@@ -82,15 +89,17 @@ class TestReembedArticlesPipeline(TestCase):
 
     def test_reembed_skips_articles_without_content(self):
         """Queryset filter should exclude articles with no content."""
-        from apps.articles.models import Article
         import apps.articles.reembed_tasks as rt
+        from apps.articles.models import Article
         from apps.articles.reembed_tasks import reembed_all_articles
 
         src = _make_source("skip_src")
         # This article HAS content and WILL be included
         Article.objects.create(
-            title="Has content", url="https://example.com/has-content",
-            content="Real content here.", source=src,
+            title="Has content",
+            url="https://example.com/has-content",
+            content="Real content here.",
+            source=src,
         )
 
         fake_embedding = [0.01] * 1024
@@ -107,8 +116,8 @@ class TestReembedArticlesPipeline(TestCase):
 
     def test_reembed_saves_embeddings_to_db(self):
         """After re-embedding, articles should have the returned embedding stored."""
-        from apps.articles.models import Article
         import apps.articles.reembed_tasks as rt
+        from apps.articles.models import Article
         from apps.articles.reembed_tasks import reembed_all_articles
 
         fake_embedding = [float(i) / 1024 for i in range(1024)]
@@ -128,12 +137,19 @@ class TestReembedArticlesPipeline(TestCase):
 
 # ── TASK-005-T2: Embedder unit tests ─────────────────────────────────────────
 
+
 class TestEmbedderDimensions(TestCase):
 
     def test_embedder_source_references_bge_large(self):
         """The embedder source code default should reference BAAI/bge-large."""
         import pathlib
-        src_path = pathlib.Path(__file__).parents[4] / "ai_engine" / "embeddings" / "embedder.py"
+
+        src_path = (
+            pathlib.Path(__file__).parents[4]
+            / "ai_engine"
+            / "embeddings"
+            / "embedder.py"
+        )
         self.assertTrue(src_path.exists(), "embedder.py not found")
         content = src_path.read_text()
         self.assertIn("bge-large", content.lower())
@@ -143,6 +159,7 @@ class TestEmbedderDimensions(TestCase):
         """embed() should return a vector of exactly `dimensions` length."""
         _add_ai_engine_to_path()
         import numpy as np
+
         from ai_engine.embeddings.embedder import SynapseEmbedder
 
         fake_vec = np.array([[0.1] * 1024])
@@ -173,7 +190,8 @@ class TestEmbedderDimensions(TestCase):
         """embed_query() should prepend BGE query prefix for BGE models."""
         _add_ai_engine_to_path()
         import numpy as np
-        from ai_engine.embeddings.embedder import SynapseEmbedder, _BGE_QUERY_PREFIX
+
+        from ai_engine.embeddings.embedder import _BGE_QUERY_PREFIX, SynapseEmbedder
 
         captured = []
 
@@ -191,14 +209,15 @@ class TestEmbedderDimensions(TestCase):
 
         self.assertTrue(
             any(_BGE_QUERY_PREFIX in inp for inp in captured),
-            f"BGE prefix '{_BGE_QUERY_PREFIX}' not found in: {captured}"
+            f"BGE prefix '{_BGE_QUERY_PREFIX}' not found in: {captured}",
         )
 
     def test_embed_document_no_bge_prefix(self):
         """embed() for documents should NOT prepend the BGE query prefix."""
         _add_ai_engine_to_path()
         import numpy as np
-        from ai_engine.embeddings.embedder import SynapseEmbedder, _BGE_QUERY_PREFIX
+
+        from ai_engine.embeddings.embedder import _BGE_QUERY_PREFIX, SynapseEmbedder
 
         captured = []
 
@@ -216,13 +235,14 @@ class TestEmbedderDimensions(TestCase):
 
         self.assertFalse(
             any(_BGE_QUERY_PREFIX in inp for inp in captured),
-            f"BGE prefix should NOT appear in document embedding: {captured}"
+            f"BGE prefix should NOT appear in document embedding: {captured}",
         )
 
     def test_embed_batch_returns_list_of_vectors(self):
         """embed_batch() should return exactly one vector per input text."""
         _add_ai_engine_to_path()
         import numpy as np
+
         from ai_engine.embeddings.embedder import SynapseEmbedder
 
         texts = ["text one", "text two", "text three"]
@@ -242,12 +262,16 @@ class TestEmbedderDimensions(TestCase):
 
 # ── Migration dimension checks ────────────────────────────────────────────────
 
+
 class TestMigrationDimensions(TestCase):
     """Verify that all 0005 migration files target vector(1024)."""
 
     def _read_migration(self, app, filename):
         import pathlib
-        path = pathlib.Path(__file__).parents[3] / "apps" / app / "migrations" / filename
+
+        path = (
+            pathlib.Path(__file__).parents[3] / "apps" / app / "migrations" / filename
+        )
         self.assertTrue(path.exists(), f"Migration not found: {path}")
         return path.read_text()
 
@@ -260,7 +284,9 @@ class TestMigrationDimensions(TestCase):
         self.assertIn("1024", content)
 
     def test_repositories_migration_targets_1024(self):
-        content = self._read_migration("repositories", "0005_repository_embedding_1024.py")
+        content = self._read_migration(
+            "repositories", "0005_repository_embedding_1024.py"
+        )
         self.assertIn("1024", content)
 
     def test_videos_migration_targets_1024(self):

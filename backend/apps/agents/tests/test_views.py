@@ -9,20 +9,21 @@ Patch notes:
   - get_executor is imported inside view methods from ai_engine.agents,
     so we patch: ai_engine.agents.get_executor
 """
+
 import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-from rest_framework import status
-from rest_framework.test import APIClient
-
 from apps.agents.models import AgentTask
 from apps.users.models import User
 
+from rest_framework import status
+from rest_framework.test import APIClient
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_user(email="agentview@test.com", password="testpass123"):
     return User.objects.create_user(
@@ -40,6 +41,7 @@ def auth_client(user):
 # AgentTaskListCreateView — GET
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 class TestAgentTaskListView:
 
@@ -51,13 +53,19 @@ class TestAgentTaskListView:
     def _get_total(self, resp):
         """Extract total count from StandardPagination response."""
         body = resp.json()
-        return body.get("meta", {}).get("total", body.get("count", len(self._get_items(resp))))
+        return body.get("meta", {}).get(
+            "total", body.get("count", len(self._get_items(resp)))
+        )
 
     def test_list_returns_user_tasks_only(self):
         user_a = make_user("a@test.com")
         user_b = make_user("b@test.com")
-        AgentTask.objects.create(user=user_a, task_type="research", prompt="User A task prompt here ok")
-        AgentTask.objects.create(user=user_b, task_type="general", prompt="User B task prompt here ok")
+        AgentTask.objects.create(
+            user=user_a, task_type="research", prompt="User A task prompt here ok"
+        )
+        AgentTask.objects.create(
+            user=user_b, task_type="general", prompt="User B task prompt here ok"
+        )
 
         resp = auth_client(user_a).get("/api/v1/agents/tasks/")
         assert resp.status_code == status.HTTP_200_OK
@@ -72,12 +80,14 @@ class TestAgentTaskListView:
     def test_list_filter_by_status(self):
         user = make_user("filter@test.com")
         AgentTask.objects.create(
-            user=user, task_type="research",
+            user=user,
+            task_type="research",
             prompt="Pending task here for filtering test",
             status="pending",
         )
         AgentTask.objects.create(
-            user=user, task_type="general",
+            user=user,
+            task_type="general",
             prompt="Completed task here for filtering test",
             status="completed",
         )
@@ -106,13 +116,21 @@ class TestAgentTaskListView:
         items = self._get_items(resp)
         assert len(items) > 0
         item = items[0]
-        for field in ["id", "task_type", "prompt", "status", "tokens_used", "created_at"]:
+        for field in [
+            "id",
+            "task_type",
+            "prompt",
+            "status",
+            "tokens_used",
+            "created_at",
+        ]:
             assert field in item, f"Missing field: {field}"
 
 
 # ---------------------------------------------------------------------------
 # AgentTaskListCreateView — POST
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 class TestAgentTaskCreateView:
@@ -122,10 +140,15 @@ class TestAgentTaskCreateView:
         mock_result = MagicMock()
         mock_result.id = "fake-celery-id-123"
 
-        with patch("apps.agents.tasks.execute_agent_task.delay", return_value=mock_result):
+        with patch(
+            "apps.agents.tasks.execute_agent_task.delay", return_value=mock_result
+        ):
             resp = auth_client(user).post(
                 "/api/v1/agents/tasks/",
-                {"task_type": "research", "prompt": "What are the latest trends in AI?"},
+                {
+                    "task_type": "research",
+                    "prompt": "What are the latest trends in AI?",
+                },
                 format="json",
             )
         assert resp.status_code == status.HTTP_201_CREATED
@@ -175,10 +198,15 @@ class TestAgentTaskCreateView:
         mock_result = MagicMock()
         mock_result.id = "celery-xyz-789"
 
-        with patch("apps.agents.tasks.execute_agent_task.delay", return_value=mock_result):
+        with patch(
+            "apps.agents.tasks.execute_agent_task.delay", return_value=mock_result
+        ):
             resp = auth_client(user).post(
                 "/api/v1/agents/tasks/",
-                {"task_type": "github", "prompt": "Find top starred Python repos today"},
+                {
+                    "task_type": "github",
+                    "prompt": "Find top starred Python repos today",
+                },
                 format="json",
             )
         assert resp.status_code == status.HTTP_201_CREATED
@@ -192,19 +220,26 @@ class TestAgentTaskCreateView:
         for i, tt in enumerate(["research", "trends", "github", "arxiv", "general"]):
             mock_result = MagicMock()
             mock_result.id = f"celery-{i}"
-            with patch("apps.agents.tasks.execute_agent_task.delay", return_value=mock_result):
+            with patch(
+                "apps.agents.tasks.execute_agent_task.delay", return_value=mock_result
+            ):
                 resp = client.post(
                     "/api/v1/agents/tasks/",
-                    {"task_type": tt, "prompt": f"Valid prompt for task type {tt} number {i}"},
+                    {
+                        "task_type": tt,
+                        "prompt": f"Valid prompt for task type {tt} number {i}",
+                    },
                     format="json",
                 )
-            assert resp.status_code == status.HTTP_201_CREATED, \
-                f"task_type={tt!r} should be valid, got {resp.status_code}"
+            assert (
+                resp.status_code == status.HTTP_201_CREATED
+            ), f"task_type={tt!r} should be valid, got {resp.status_code}"
 
 
 # ---------------------------------------------------------------------------
 # AgentTaskDetailView
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 class TestAgentTaskDetailView:
@@ -212,10 +247,15 @@ class TestAgentTaskDetailView:
     def test_get_task_detail(self):
         user = make_user("detail@test.com")
         task = AgentTask.objects.create(
-            user=user, task_type="research",
+            user=user,
+            task_type="research",
             prompt="Detailed task prompt for retrieval test",
             status="completed",
-            result={"answer": "Here is my answer.", "intermediate_steps": [], "execution_time_s": 1.0},
+            result={
+                "answer": "Here is my answer.",
+                "intermediate_steps": [],
+                "execution_time_s": 1.0,
+            },
             tokens_used=300,
         )
         resp = auth_client(user).get(f"/api/v1/agents/tasks/{task.id}/")
@@ -234,8 +274,9 @@ class TestAgentTaskDetailView:
         user_a = make_user("owner@test.com")
         user_b = make_user("other@test.com")
         task = AgentTask.objects.create(
-            user=user_a, task_type="research",
-            prompt="Owner task prompt that B should not see at all"
+            user=user_a,
+            task_type="research",
+            prompt="Owner task prompt that B should not see at all",
         )
         resp = auth_client(user_b).get(f"/api/v1/agents/tasks/{task.id}/")
         assert resp.status_code == status.HTTP_404_NOT_FOUND
@@ -243,11 +284,14 @@ class TestAgentTaskDetailView:
     def test_detail_includes_intermediate_steps(self):
         user = make_user("steps@test.com")
         task = AgentTask.objects.create(
-            user=user, task_type="research",
+            user=user,
+            task_type="research",
             prompt="Research prompt for intermediate steps test ok",
             result={
                 "answer": "Answer text",
-                "intermediate_steps": [{"tool": "search_knowledge_base", "observation": "ok"}],
+                "intermediate_steps": [
+                    {"tool": "search_knowledge_base", "observation": "ok"}
+                ],
                 "execution_time_s": 2.0,
             },
         )
@@ -261,18 +305,22 @@ class TestAgentTaskDetailView:
 # AgentTaskCancelView
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 class TestAgentTaskCancelView:
 
     def test_cancel_pending_task(self):
         user = make_user("cancel@test.com")
         task = AgentTask.objects.create(
-            user=user, task_type="general",
+            user=user,
+            task_type="general",
             prompt="Long running task that needs cancellation now ok",
             status="pending",
             celery_task_id="celery-cancel-123",
         )
-        with patch("apps.agents.tasks.cancel_agent_task.delay", return_value=MagicMock()):
+        with patch(
+            "apps.agents.tasks.cancel_agent_task.delay", return_value=MagicMock()
+        ):
             resp = auth_client(user).post(f"/api/v1/agents/tasks/{task.id}/cancel/")
         assert resp.status_code == status.HTTP_200_OK
         assert "Cancellation requested" in resp.json()["message"]
@@ -280,7 +328,8 @@ class TestAgentTaskCancelView:
     def test_cannot_cancel_completed_task(self):
         user = make_user("cancel2@test.com")
         task = AgentTask.objects.create(
-            user=user, task_type="general",
+            user=user,
+            task_type="general",
             prompt="Already completed task cannot be cancelled now",
             status="completed",
         )
@@ -290,7 +339,8 @@ class TestAgentTaskCancelView:
     def test_cannot_cancel_failed_task(self):
         user = make_user("cancel3@test.com")
         task = AgentTask.objects.create(
-            user=user, task_type="general",
+            user=user,
+            task_type="general",
             prompt="Already failed task cannot be cancelled now ok",
             status="failed",
         )
@@ -307,13 +357,17 @@ class TestAgentTaskCancelView:
 # AgentToolListView
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 class TestAgentToolListView:
 
     def test_list_tools_returns_tools(self):
         mock_executor = MagicMock()
         mock_executor.list_tools.return_value = [
-            {"name": "search_knowledge_base", "description": "Search the knowledge base."},
+            {
+                "name": "search_knowledge_base",
+                "description": "Search the knowledge base.",
+            },
             {"name": "fetch_articles", "description": "Fetch articles."},
             {"name": "analyze_trends", "description": "Analyze trends."},
             {"name": "search_github", "description": "Search GitHub."},
@@ -331,7 +385,9 @@ class TestAgentToolListView:
 
     def test_list_tools_graceful_error(self):
         user = make_user("toolserr@test.com")
-        with patch("ai_engine.agents.get_executor", side_effect=Exception("Registry error")):
+        with patch(
+            "ai_engine.agents.get_executor", side_effect=Exception("Registry error")
+        ):
             resp = auth_client(user).get("/api/v1/agents/tools/")
         assert resp.status_code == status.HTTP_200_OK
         assert resp.json()["count"] == 0
@@ -344,6 +400,7 @@ class TestAgentToolListView:
 # ---------------------------------------------------------------------------
 # Agent Health View
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 class TestAgentHealthView:
@@ -368,7 +425,9 @@ class TestAgentHealthView:
 
     def test_health_error_returns_503(self):
         user = make_user("health2@test.com")
-        with patch("ai_engine.agents.get_executor", side_effect=Exception("LLM unavailable")):
+        with patch(
+            "ai_engine.agents.get_executor", side_effect=Exception("LLM unavailable")
+        ):
             resp = auth_client(user).get("/api/v1/agents/health/")
         assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert resp.json()["status"] == "error"

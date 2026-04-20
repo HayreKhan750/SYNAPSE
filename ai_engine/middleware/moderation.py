@@ -11,6 +11,7 @@ Usage:
 
     check_moderation(text, user_id="user-123")  # raises ModerationFlaggedError if harmful
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,11 +31,14 @@ except ImportError:  # pragma: no cover
 # Read at call time (not module level) so that environment variable overrides
 # (e.g. in tests using patch.dict) take effect correctly.
 
+
 def _is_moderation_enabled() -> bool:
     return os.environ.get("MODERATION_ENABLED", "true").lower() == "true"
 
+
 def _get_openai_api_key() -> str:
     return os.environ.get("OPENAI_API_KEY", "")
+
 
 # Categories we treat as hard-block (refuse + log)
 HARD_BLOCK_CATEGORIES = {
@@ -66,14 +70,12 @@ class ModerationFlaggedError(Exception):
         hard_block: bool = False,
         user_id: Optional[str] = None,
     ):
-        self.categories  = categories
-        self.scores      = scores
-        self.hard_block  = hard_block
-        self.user_id     = user_id
-        flagged_cats     = [k for k, v in categories.items() if v]
-        super().__init__(
-            f"Content flagged by moderation: {', '.join(flagged_cats)}"
-        )
+        self.categories = categories
+        self.scores = scores
+        self.hard_block = hard_block
+        self.user_id = user_id
+        flagged_cats = [k for k, v in categories.items() if v]
+        super().__init__(f"Content flagged by moderation: {', '.join(flagged_cats)}")
 
 
 def check_moderation(text: str, user_id: Optional[str] = None) -> dict:
@@ -112,22 +114,27 @@ def check_moderation(text: str, user_id: Optional[str] = None) -> dict:
         result = response.results[0]
 
         categories: dict = dict(result.categories)
-        scores: dict     = dict(result.category_scores)
-        flagged: bool    = result.flagged
+        scores: dict = dict(result.category_scores)
+        flagged: bool = result.flagged
 
         if not flagged:
-            return {"flagged": False, "categories": categories, "scores": scores, "hard_block": False}
+            return {
+                "flagged": False,
+                "categories": categories,
+                "scores": scores,
+                "hard_block": False,
+            }
 
         # Determine if any hard-block category is flagged
-        hard_block = any(
-            categories.get(cat, False)
-            for cat in HARD_BLOCK_CATEGORIES
-        )
+        hard_block = any(categories.get(cat, False) for cat in HARD_BLOCK_CATEGORIES)
 
         flagged_cats = [k for k, v in categories.items() if v]
         logger.warning(
             "moderation_flagged user=%s categories=%s hard_block=%s input_excerpt='%.80s'",
-            user_id, flagged_cats, hard_block, text,
+            user_id,
+            flagged_cats,
+            hard_block,
+            text,
         )
 
         raise ModerationFlaggedError(
@@ -150,7 +157,8 @@ def check_moderation(text: str, user_id: Optional[str] = None) -> dict:
         # appropriate UX (e.g. "Service temporarily unavailable" vs "Blocked").
         logger.error(
             "moderation_api_error user=%s error=%s — blocking request (fail-closed)",
-            user_id, exc,
+            user_id,
+            exc,
         )
         raise ModerationFlaggedError(
             categories={"service_unavailable": True},

@@ -10,6 +10,7 @@ Provides two delivery methods:
 Phase 4.2 implementation.
 Phase 2 (TASK-201): Weekly AI digest email.
 """
+
 import logging
 
 from django.conf import settings
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 # ── Plain Django send_mail (SMTP / console) ───────────────────────────────────
+
 
 def send_notification_email(
     to_email: str,
@@ -60,7 +62,9 @@ def send_notification_email(
         return False
 
 
-def send_workflow_completion_email(user, workflow_name: str, run_status: str, run_id: str) -> bool:
+def send_workflow_completion_email(
+    user, workflow_name: str, run_status: str, run_id: str
+) -> bool:
     """
     Send a workflow completion email notification.
 
@@ -73,8 +77,8 @@ def send_workflow_completion_email(user, workflow_name: str, run_status: str, ru
     Returns:
         True if sent successfully
     """
-    emoji = '✅' if run_status == 'success' else '❌'
-    status_label = 'completed successfully' if run_status == 'success' else 'failed'
+    emoji = "✅" if run_status == "success" else "❌"
+    status_label = "completed successfully" if run_status == "success" else "failed"
 
     subject = f"{emoji} Workflow '{workflow_name}' {status_label}"
     message = (
@@ -115,6 +119,7 @@ def send_welcome_email(user) -> bool:
 
 # ── Weekly AI Digest (TASK-201) ───────────────────────────────────────────────
 
+
 def send_weekly_digest_email(user, articles: list, papers: list, repos: list) -> bool:
     """
     Send the weekly AI digest email to a single user.
@@ -128,7 +133,7 @@ def send_weekly_digest_email(user, articles: list, papers: list, repos: list) ->
     Returns:
         True if delivered successfully, False on error.
     """
-    name = user.first_name or user.email.split('@')[0]
+    name = user.first_name or user.email.split("@")[0]
     subject = "⚡ Your Weekly SYNAPSE Digest"
     plain_lines = [
         f"Hi {name},",
@@ -165,11 +170,14 @@ def send_weekly_digest_email(user, articles: list, papers: list, repos: list) ->
     ]
 
     plain_message = "\n".join(plain_lines)
-    html_message = _build_digest_html(user=user, articles=articles, papers=papers, repos=repos)
+    html_message = _build_digest_html(
+        user=user, articles=articles, papers=papers, repos=repos
+    )
     return send_notification_email(user.email, subject, plain_message, html_message)
 
 
 # ── SendGrid SDK (optional, direct API) ──────────────────────────────────────
+
 
 def send_via_sendgrid_sdk(
     to_email: str,
@@ -195,43 +203,47 @@ def send_via_sendgrid_sdk(
     Returns:
         True if sent successfully
     """
-    api_key = getattr(settings, 'SENDGRID_API_KEY', '')
+    api_key = getattr(settings, "SENDGRID_API_KEY", "")
     if not api_key:
-        logger.warning("SENDGRID_API_KEY not set — falling back to Django email backend")
+        logger.warning(
+            "SENDGRID_API_KEY not set — falling back to Django email backend"
+        )
         return send_notification_email(
-            to_email, subject,
-            plain_content or strip_tags(html_content),
-            html_content
+            to_email, subject, plain_content or strip_tags(html_content), html_content
         )
 
     try:
         import sendgrid
-        from sendgrid.helpers.mail import Mail, Email, To, Content
+        from sendgrid.helpers.mail import Content, Email, Mail, To
 
         sg = sendgrid.SendGridAPIClient(api_key=api_key)
         mail = Mail(
             from_email=Email(settings.DEFAULT_FROM_EMAIL),
             to_emails=To(to_email),
             subject=subject,
-            html_content=Content('text/html', html_content),
+            html_content=Content("text/html", html_content),
         )
         if plain_content:
-            mail.add_content(Content('text/plain', plain_content))
+            mail.add_content(Content("text/plain", plain_content))
 
         response = sg.send(mail)
         success = 200 <= response.status_code < 300
         if success:
-            logger.info(f"SendGrid SDK: email sent to {to_email} (status {response.status_code})")
+            logger.info(
+                f"SendGrid SDK: email sent to {to_email} (status {response.status_code})"
+            )
         else:
-            logger.error(f"SendGrid SDK: failed for {to_email} (status {response.status_code})")
+            logger.error(
+                f"SendGrid SDK: failed for {to_email} (status {response.status_code})"
+            )
         return success
 
     except ImportError:
-        logger.warning("sendgrid package not installed — falling back to Django email backend")
+        logger.warning(
+            "sendgrid package not installed — falling back to Django email backend"
+        )
         return send_notification_email(
-            to_email, subject,
-            plain_content or strip_tags(html_content),
-            html_content
+            to_email, subject, plain_content or strip_tags(html_content), html_content
         )
     except Exception as exc:
         logger.error(f"SendGrid SDK error for {to_email}: {exc}")
@@ -240,12 +252,13 @@ def send_via_sendgrid_sdk(
 
 # ── HTML templates (inline, no template files needed) ────────────────────────
 
+
 def _build_digest_html(user, articles: list, papers: list, repos: list) -> str:
     """Build the weekly digest HTML email."""
     from django.conf import settings as _settings
 
-    name = user.first_name or user.email.split('@')[0]
-    frontend_url = getattr(_settings, 'FRONTEND_URL', 'https://synapse.ai')
+    name = user.first_name or user.email.split("@")[0]
+    frontend_url = getattr(_settings, "FRONTEND_URL", "https://synapse.ai")
     settings_url = f"{frontend_url}/settings"
     feed_url = f"{frontend_url}/feed"
 
@@ -254,20 +267,21 @@ def _build_digest_html(user, articles: list, papers: list, repos: list) -> str:
             return '<p style="color:#64748b;font-size:14px;margin:0;">No articles this week.</p>'
         rows = []
         for item in items[:limit]:
-            topic = getattr(item, 'topic', '') or ''
+            topic = getattr(item, "topic", "") or ""
             badge = (
                 f'<span style="background:#6366f1;color:#fff;font-size:10px;'
                 f'border-radius:4px;padding:2px 6px;margin-left:8px;">{topic.upper()}</span>'
-                if topic else ''
+                if topic
+                else ""
             )
-            summary = getattr(item, 'summary', '') or ''
-            short = summary[:120] + '…' if len(summary) > 120 else summary
+            summary = getattr(item, "summary", "") or ""
+            short = summary[:120] + "…" if len(summary) > 120 else summary
             rows.append(
                 f'<tr><td style="padding:12px 0;border-bottom:1px solid #1e293b;">'
                 f'<p style="margin:0 0 4px;color:#e2e8f0;font-size:14px;font-weight:500;">'
-                f'{item.title}{badge}</p>'
+                f"{item.title}{badge}</p>"
                 f'<p style="margin:0;color:#64748b;font-size:12px;">{short}</p>'
-                f'</td></tr>'
+                f"</td></tr>"
             )
         return f'<table width="100%" style="border-collapse:collapse;">{"".join(rows)}</table>'
 
@@ -276,14 +290,14 @@ def _build_digest_html(user, articles: list, papers: list, repos: list) -> str:
             return '<p style="color:#64748b;font-size:14px;margin:0;">No papers this week.</p>'
         rows = []
         for item in items[:limit]:
-            authors = getattr(item, 'authors', '') or ''
-            short_authors = authors[:60] + '…' if len(authors) > 60 else authors
+            authors = getattr(item, "authors", "") or ""
+            short_authors = authors[:60] + "…" if len(authors) > 60 else authors
             rows.append(
                 f'<tr><td style="padding:12px 0;border-bottom:1px solid #1e293b;">'
                 f'<p style="margin:0 0 4px;color:#e2e8f0;font-size:14px;font-weight:500;">'
-                f'{item.title}</p>'
+                f"{item.title}</p>"
                 f'<p style="margin:0;color:#64748b;font-size:12px;">{short_authors}</p>'
-                f'</td></tr>'
+                f"</td></tr>"
             )
         return f'<table width="100%" style="border-collapse:collapse;">{"".join(rows)}</table>'
 
@@ -292,32 +306,33 @@ def _build_digest_html(user, articles: list, papers: list, repos: list) -> str:
             return '<p style="color:#64748b;font-size:14px;margin:0;">No repositories this week.</p>'
         rows = []
         for item in items[:limit]:
-            stars = getattr(item, 'stars', 0) or 0
-            language = getattr(item, 'language', '') or ''
+            stars = getattr(item, "stars", 0) or 0
+            language = getattr(item, "language", "") or ""
             lang_badge = (
                 f'<span style="background:#0f172a;color:#94a3b8;font-size:10px;'
                 f'border-radius:4px;padding:2px 6px;margin-left:8px;">{language}</span>'
-                if language else ''
+                if language
+                else ""
             )
             rows.append(
                 f'<tr><td style="padding:12px 0;border-bottom:1px solid #1e293b;">'
                 f'<p style="margin:0 0 4px;color:#e2e8f0;font-size:14px;font-weight:500;">'
-                f'{item.name}{lang_badge}'
+                f"{item.name}{lang_badge}"
                 f'<span style="color:#f59e0b;font-size:12px;margin-left:8px;">⭐ {stars:,}</span>'
-                f'</p>'
+                f"</p>"
                 f'<p style="margin:0;color:#64748b;font-size:12px;">'
                 f'{(getattr(item, "description", "") or "")[:100]}</p>'
-                f'</td></tr>'
+                f"</td></tr>"
             )
         return f'<table width="100%" style="border-collapse:collapse;">{"".join(rows)}</table>'
 
     section_style = (
-        'background:#1e293b;border-radius:10px;border:1px solid #334155;'
-        'padding:20px 24px;margin-bottom:20px;'
+        "background:#1e293b;border-radius:10px;border:1px solid #334155;"
+        "padding:20px 24px;margin-bottom:20px;"
     )
     section_title_style = (
-        'margin:0 0 16px;color:#e2e8f0;font-size:15px;font-weight:600;'
-        'border-bottom:1px solid #334155;padding-bottom:10px;'
+        "margin:0 0 16px;color:#e2e8f0;font-size:15px;font-weight:600;"
+        "border-bottom:1px solid #334155;padding-bottom:10px;"
     )
 
     return f"""
@@ -405,9 +420,10 @@ def _build_digest_html(user, articles: list, papers: list, repos: list) -> str:
 </body>
 </html>"""
 
+
 def _build_html(subject: str, body: str) -> str:
     """Build a simple branded HTML email."""
-    body_html = body.replace('\n', '<br>')
+    body_html = body.replace("\n", "<br>")
     return f"""
 <!DOCTYPE html>
 <html>
@@ -445,12 +461,16 @@ def _build_html(subject: str, body: str) -> str:
 
 
 def _build_workflow_html(
-    user, workflow_name: str, run_status: str,
-    run_id: str, emoji: str, status_label: str
+    user,
+    workflow_name: str,
+    run_status: str,
+    run_id: str,
+    emoji: str,
+    status_label: str,
 ) -> str:
     """Build a workflow completion HTML email."""
-    color = '#22c55e' if run_status == 'success' else '#ef4444'
-    bg = 'rgba(34,197,94,0.1)' if run_status == 'success' else 'rgba(239,68,68,0.1)'
+    color = "#22c55e" if run_status == "success" else "#ef4444"
+    bg = "rgba(34,197,94,0.1)" if run_status == "success" else "rgba(239,68,68,0.1)"
     return f"""
 <!DOCTYPE html>
 <html>

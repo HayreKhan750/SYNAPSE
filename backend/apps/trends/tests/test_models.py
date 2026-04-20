@@ -1,13 +1,14 @@
 """
 Tests for the Trends app models.
 """
+
 import datetime
 import uuid
 
-from django.test import TestCase
-from django.db import IntegrityError
-
 from apps.trends.models import TechnologyTrend
+
+from django.db import IntegrityError
+from django.test import TestCase
 
 
 class TechnologyTrendModelTests(TestCase):

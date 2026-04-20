@@ -11,22 +11,23 @@ Covers:
   - Category inference
   - Summary dict structure and counts
 """
+
 from __future__ import annotations
 
 import datetime
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
-from django.utils import timezone
-
 from apps.trends.models import TechnologyTrend
 from apps.trends.tasks import (
-    analyze_trends_task,
+    TRACKED_TECHNOLOGIES,
+    _build_source_list,
     _infer_category,
     _score_technology,
-    _build_source_list,
-    TRACKED_TECHNOLOGIES,
+    analyze_trends_task,
 )
+
+from django.test import TestCase
+from django.utils import timezone
 
 
 class CategoryInferenceTests(TestCase):
@@ -103,7 +104,9 @@ class AnalyzeTrendsTaskTests(TestCase):
     @patch("apps.trends.tasks._score_technology")
     def test_skips_zero_mention_technologies(self, mock_score):
         """Technologies with zero mentions should not create DB records."""
-        mock_score.return_value = self._mock_score(mention_count=0, trend_score=0.0, sources=[])
+        mock_score.return_value = self._mock_score(
+            mention_count=0, trend_score=0.0, sources=[]
+        )
 
         result = analyze_trends_task(technologies=["COBOL"])
 
@@ -138,6 +141,7 @@ class AnalyzeTrendsTaskTests(TestCase):
     @patch("apps.trends.tasks._score_technology")
     def test_handles_per_technology_errors_gracefully(self, mock_score):
         """An error scoring one technology should not abort the rest."""
+
         def side_effect(tech, since):
             if tech == "Rust":
                 raise Exception("DB error")
@@ -150,7 +154,9 @@ class AnalyzeTrendsTaskTests(TestCase):
         self.assertEqual(result["errors"], 1)
         self.assertEqual(result["created"], 1)
         # Python should still be created
-        self.assertTrue(TechnologyTrend.objects.filter(technology_name="Python").exists())
+        self.assertTrue(
+            TechnologyTrend.objects.filter(technology_name="Python").exists()
+        )
 
     @patch("apps.trends.tasks._score_technology")
     def test_returns_correct_summary_structure(self, mock_score):
@@ -159,7 +165,14 @@ class AnalyzeTrendsTaskTests(TestCase):
 
         result = analyze_trends_task(technologies=["Python"])
 
-        for key in ("date", "technologies_analyzed", "created", "updated", "skipped", "errors"):
+        for key in (
+            "date",
+            "technologies_analyzed",
+            "created",
+            "updated",
+            "skipped",
+            "errors",
+        ):
             self.assertIn(key, result)
 
     @patch("apps.trends.tasks._score_technology")
@@ -209,6 +222,7 @@ class ScoreTechnologyTests(TestCase):
     def setUp(self):
         from apps.articles.models import Article
         from apps.repositories.models import Repository
+
         today = datetime.date.today()
         # Create one article mentioning Python (source is nullable FK)
         Article.objects.create(

@@ -3,11 +3,14 @@ Tests for AgentTask model.
 
 Phase 5.1 — Agent Framework (Week 13)
 """
+
 import uuid
+
 import pytest
-from django.utils import timezone
 from apps.agents.models import AgentTask
 from apps.users.models import User
+
+from django.utils import timezone
 
 
 @pytest.mark.django_db
@@ -126,7 +129,9 @@ class TestAgentTaskModel:
         task.save()
         refreshed = AgentTask.objects.get(pk=task.pk)
         assert len(refreshed.result["intermediate_steps"]) == 2
-        assert refreshed.result["intermediate_steps"][0]["tool"] == "search_knowledge_base"
+        assert (
+            refreshed.result["intermediate_steps"][0]["tool"] == "search_knowledge_base"
+        )
 
     def test_db_table_name(self):
         assert AgentTask._meta.db_table == "agent_tasks"

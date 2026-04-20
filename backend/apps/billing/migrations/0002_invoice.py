@@ -3,10 +3,11 @@ Migration: add Invoice model to billing app.
 
 TASK-003-B1
 """
-from django.conf import settings
-import django.db.models.deletion
-from django.db import migrations, models
 import uuid
+
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

@@ -5,19 +5,19 @@ Tests the chat API endpoints and RAG pipeline components with mocked Gemini/Lang
 
 import json
 import uuid
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
+
+from apps.core.models import Conversation
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.core.models import Conversation
-
-
 # ---------------------------------------------------------------------------
 # Helpers / Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _make_mock_pipeline(answer="Test answer from RAG", sources=None):
     """Return a mock RAGPipeline instance."""
@@ -41,7 +41,12 @@ def _make_mock_pipeline(answer="Test answer from RAG", sources=None):
         {"human": "What is LangChain?", "ai": "LangChain is a framework..."},
     ]
     mock_pipeline.stream_chat.return_value = iter(
-        ["Hello", " world", "__SOURCES__:" + json.dumps({"sources": sources, "conversation_id": "test-conv-id"})]
+        [
+            "Hello",
+            " world",
+            "__SOURCES__:"
+            + json.dumps({"sources": sources, "conversation_id": "test-conv-id"}),
+        ]
     )
     mock_pipeline.delete_conversation.return_value = None
     return mock_pipeline
@@ -50,6 +55,7 @@ def _make_mock_pipeline(answer="Test answer from RAG", sources=None):
 # ---------------------------------------------------------------------------
 # Conversation Model Tests
 # ---------------------------------------------------------------------------
+
 
 class ConversationModelTests(TestCase):
 
@@ -101,6 +107,7 @@ class ConversationModelTests(TestCase):
         cid = str(uuid.uuid4())
         Conversation.objects.create(conversation_id=cid)
         from django.db import IntegrityError
+
         with self.assertRaises(IntegrityError):
             Conversation.objects.create(conversation_id=cid)
 
@@ -108,6 +115,7 @@ class ConversationModelTests(TestCase):
 # ---------------------------------------------------------------------------
 # Chat API Tests
 # ---------------------------------------------------------------------------
+
 
 class ChatViewTests(TestCase):
 
@@ -171,9 +179,7 @@ class ChatViewTests(TestCase):
     @patch("apps.core.views_chat._get_pipeline")
     def test_chat_pipeline_unavailable(self, mock_get_pipeline):
         mock_get_pipeline.return_value = None
-        response = self.client.post(
-            self.url, {"question": "test"}, format="json"
-        )
+        response = self.client.post(self.url, {"question": "test"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
 
     @patch("apps.core.views_chat._get_pipeline")
@@ -193,15 +199,14 @@ class ChatViewTests(TestCase):
         mock_pipeline = MagicMock()
         mock_pipeline.chat.side_effect = RuntimeError("LLM error")
         mock_get_pipeline.return_value = mock_pipeline
-        response = self.client.post(
-            self.url, {"question": "test"}, format="json"
-        )
+        response = self.client.post(self.url, {"question": "test"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ---------------------------------------------------------------------------
 # Conversation History Tests
 # ---------------------------------------------------------------------------
+
 
 class ConversationHistoryViewTests(TestCase):
 
@@ -247,6 +252,7 @@ class ConversationHistoryViewTests(TestCase):
 # Conversation Delete Tests
 # ---------------------------------------------------------------------------
 
+
 class ConversationDeleteViewTests(TestCase):
 
     def setUp(self):
@@ -274,6 +280,7 @@ class ConversationDeleteViewTests(TestCase):
 # ---------------------------------------------------------------------------
 # SSE Streaming Tests
 # ---------------------------------------------------------------------------
+
 
 class ChatStreamViewTests(TestCase):
 
@@ -316,6 +323,7 @@ class ChatStreamViewTests(TestCase):
 # These tests mock langchain so they run without heavy ML deps installed.
 # ---------------------------------------------------------------------------
 
+
 class ConversationMemoryManagerTests(TestCase):
 
     def _make_mgr(self):
@@ -326,8 +334,11 @@ class ConversationMemoryManagerTests(TestCase):
         # Provide stub modules for langchain deps if not installed
         stubs = {}
         for mod in [
-            "langchain", "langchain.memory", "langchain_core",
-            "langchain_core.messages", "langchain_community",
+            "langchain",
+            "langchain.memory",
+            "langchain_core",
+            "langchain_core.messages",
+            "langchain_community",
             "langchain_community.vectorstores",
         ]:
             if mod not in sys.modules:
@@ -346,6 +357,7 @@ class ConversationMemoryManagerTests(TestCase):
         if "ai_engine.rag.memory" in sys.modules:
             del sys.modules["ai_engine.rag.memory"]
         from ai_engine.rag import memory as mem_module
+
         return mem_module.ConversationMemoryManager, stubs
 
     def test_new_conversation_id_is_unique(self):
@@ -385,6 +397,7 @@ class ConversationMemoryManagerTests(TestCase):
 # RAG Pipeline Health Check
 # ---------------------------------------------------------------------------
 
+
 class RAGPipelineHealthTests(TestCase):
 
     def test_health_check_structure(self):
@@ -394,12 +407,20 @@ class RAGPipelineHealthTests(TestCase):
 
         # Stub out all langchain/pgvector deps
         for mod in [
-            "langchain", "langchain.memory", "langchain.chains",
-            "langchain.text_splitter", "langchain_core", "langchain_core.messages",
-            "langchain_core.documents", "langchain_core.prompts",
-            "langchain_core.retrievers", "langchain_core.callbacks",
+            "langchain",
+            "langchain.memory",
+            "langchain.chains",
+            "langchain.text_splitter",
+            "langchain_core",
+            "langchain_core.messages",
+            "langchain_core.documents",
+            "langchain_core.prompts",
+            "langchain_core.retrievers",
+            "langchain_core.callbacks",
             "langchain_community",
-            "langchain_community.vectorstores", "pgvector", "pgvector.django",
+            "langchain_community.vectorstores",
+            "pgvector",
+            "pgvector.django",
         ]:
             if mod not in sys.modules:
                 sys.modules[mod] = MagicMock()
@@ -409,10 +430,13 @@ class RAGPipelineHealthTests(TestCase):
             if mod.startswith("ai_engine.rag"):
                 del sys.modules[mod]
 
-        with patch("ai_engine.rag.pipeline.SynapseRetriever", MagicMock()), \
-             patch("ai_engine.rag.pipeline.SynapseRAGChain", MagicMock()), \
-             patch("ai_engine.rag.pipeline.ConversationMemoryManager", MagicMock()):
+        with (
+            patch("ai_engine.rag.pipeline.SynapseRetriever", MagicMock()),
+            patch("ai_engine.rag.pipeline.SynapseRAGChain", MagicMock()),
+            patch("ai_engine.rag.pipeline.ConversationMemoryManager", MagicMock()),
+        ):
             from ai_engine.rag.pipeline import RAGPipeline
+
             pipeline = RAGPipeline()
             health = pipeline.health_check()
             self.assertIn("status", health)

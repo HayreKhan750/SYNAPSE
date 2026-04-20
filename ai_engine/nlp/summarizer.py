@@ -8,6 +8,7 @@ cached for the lifetime of the process.
 Long articles are split into chunks, each chunk is summarised, and the
 partial summaries are combined into a final summary.
 """
+
 import logging
 import os
 from typing import Optional
@@ -38,12 +39,13 @@ def _get_summarizer():
     if _summarizer is None:
         try:
             from transformers import pipeline  # noqa: PLC0415
+
             model_name = os.environ.get("SUMMARIZER_MODEL", DEFAULT_MODEL)
             logger.info("Loading summarizer: %s", model_name)
             _summarizer = pipeline(
                 "summarization",
                 model=model_name,
-                device=-1,          # CPU; set to 0 for GPU
+                device=-1,  # CPU; set to 0 for GPU
                 truncation=True,
             )
             logger.info("Summarizer loaded successfully.")
@@ -104,7 +106,9 @@ def summarize(
 
     word_count = len(text.split())
     if word_count < MIN_WORDS:
-        logger.debug("Text too short to summarise (%d words); returning as-is.", word_count)
+        logger.debug(
+            "Text too short to summarise (%d words); returning as-is.", word_count
+        )
         return text.strip()
 
     pipe = _get_summarizer()

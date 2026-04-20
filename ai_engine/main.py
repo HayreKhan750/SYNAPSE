@@ -10,6 +10,7 @@ Industry best practices applied:
   ✓ CORS configured from env (not wildcard in production)
   ✓ Request ID middleware for distributed tracing
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,8 +32,8 @@ _SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 if _SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.fastapi import FastApiIntegration
-    from sentry_sdk.integrations.starlette import StarletteIntegration
     from sentry_sdk.integrations.logging import LoggingIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
 
     sentry_sdk.init(
         dsn=_SENTRY_DSN,
@@ -50,6 +51,7 @@ if _SENTRY_DSN:
 
 # ── Lifespan — warm up singletons at startup ──────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -62,12 +64,15 @@ async def lifespan(app: FastAPI):
     if _OTEL_ENABLED:
         try:
             from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
             _otel_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
             FastAPIInstrumentor.instrument_app(app)
             logger.info("otel_enabled", endpoint=_otel_endpoint)
         except ImportError:
-            logger.warning("otel_instrumentation_not_installed",
-                          message="Install opentelemetry-instrumentation-fastapi to enable tracing")
+            logger.warning(
+                "otel_instrumentation_not_installed",
+                message="Install opentelemetry-instrumentation-fastapi to enable tracing",
+            )
         except Exception as exc:
             logger.warning("otel_instrumentation_failed", error=str(exc))
 
@@ -76,6 +81,7 @@ async def lifespan(app: FastAPI):
     # ── Redis health check (TASK-004-B9) ─────────────────────────────────────
     try:
         import redis as _redis
+
         _r = _redis.Redis(
             host=os.environ.get("REDIS_HOST", "localhost"),
             port=int(os.environ.get("REDIS_PORT", "6379")),
@@ -85,20 +91,29 @@ async def lifespan(app: FastAPI):
         _r.ping()
         logger.info("redis_ready", host=os.environ.get("REDIS_HOST", "localhost"))
     except Exception as exc:
-        logger.critical("redis_unavailable", error=str(exc),
-                        message="Rate limiting and budget tracking will be disabled.")
+        logger.critical(
+            "redis_unavailable",
+            error=str(exc),
+            message="Rate limiting and budget tracking will be disabled.",
+        )
 
     # Warm up embedder
     try:
         from ai_engine.embeddings import get_embedder
+
         embedder = get_embedder()
-        logger.info("embedder_ready", model=os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2"), dims=embedder.dimensions)
+        logger.info(
+            "embedder_ready",
+            model=os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
+            dims=embedder.dimensions,
+        )
     except Exception as exc:
         logger.warning("embedder_warmup_failed", error=str(exc))
 
     # Warm up RAG pipeline (connects to DB, Redis)
     try:
         from ai_engine.rag import get_rag_pipeline
+
         pipeline = get_rag_pipeline()
         logger.info("rag_pipeline_ready", model=pipeline.model_name)
     except Exception as exc:
@@ -107,6 +122,7 @@ async def lifespan(app: FastAPI):
     # Warm up agent executor
     try:
         from ai_engine.agents import get_executor
+
         executor = get_executor()
         logger.info("agent_executor_ready", tools=len(executor.list_tools()))
     except Exception as exc:
@@ -131,10 +147,12 @@ app = FastAPI(
 # ── CORS ───────────────────────────────────────────────────────────────────────
 
 _allowed_origins = [
-    o.strip() for o in os.environ.get(
+    o.strip()
+    for o in os.environ.get(
         "CORS_ALLOWED_ORIGINS",
         "http://localhost:3000,http://localhost:8000",
-    ).split(",") if o.strip()
+    ).split(",")
+    if o.strip()
 ]
 
 app.add_middleware(
@@ -147,6 +165,7 @@ app.add_middleware(
 
 # ── Request ID middleware (for distributed tracing) ───────────────────────────
 
+
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
@@ -154,12 +173,13 @@ async def add_request_id(request: Request, call_next):
     response.headers["X-Request-ID"] = request_id
     return response
 
+
 # ── Rate limiting (SlowAPI — token bucket per IP) ─────────────────────────────
 
 try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
-    from slowapi.util import get_remote_address
     from slowapi.errors import RateLimitExceeded
+    from slowapi.util import get_remote_address
 
     limiter = Limiter(key_func=get_remote_address)
     app.state.limiter = limiter
@@ -172,34 +192,40 @@ except ImportError:
 
 # ── Pydantic models ────────────────────────────────────────────────────────────
 
+
 class AgentRunRequest(BaseModel):
-    task:   str  = Field(..., min_length=1, max_length=4000)
+    task: str = Field(..., min_length=1, max_length=4000)
     stream: bool = False
 
 
 class ChatRequest(BaseModel):
-    question:        str            = Field(..., min_length=1, max_length=2000)
-    conversation_id: Optional[str]  = None
-    content_types:   Optional[List[str]] = None
-    stream:          bool           = False
+    question: str = Field(..., min_length=1, max_length=2000)
+    conversation_id: Optional[str] = None
+    content_types: Optional[List[str]] = None
+    stream: bool = False
     # TASK-302: per-request model/provider override
-    provider:        Optional[str]  = Field(None, description="LLM provider: auto|openai|anthropic|ollama|gemini")
-    model:           Optional[str]  = Field(None, description="Model name override, e.g. claude-3-5-sonnet-20241022")
-    user_id:         Optional[str]  = None   # passed from Django backend for budget routing
-    role:            Optional[str]  = "user" # user plan role for model gating
+    provider: Optional[str] = Field(
+        None, description="LLM provider: auto|openai|anthropic|ollama|gemini"
+    )
+    model: Optional[str] = Field(
+        None, description="Model name override, e.g. claude-3-5-sonnet-20241022"
+    )
+    user_id: Optional[str] = None  # passed from Django backend for budget routing
+    role: Optional[str] = "user"  # user plan role for model gating
 
 
 class EmbedRequest(BaseModel):
-    texts:      List[str] = Field(..., min_length=1, max_length=100)
-    batch_size: int       = Field(32, ge=1, le=128)
+    texts: List[str] = Field(..., min_length=1, max_length=100)
+    batch_size: int = Field(32, ge=1, le=128)
 
 
 class HealthResponse(BaseModel):
-    status:     str
+    status: str
     components: Dict[str, Any] = {}
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────
+
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health() -> Dict[str, Any]:
@@ -207,6 +233,7 @@ async def health() -> Dict[str, Any]:
     redis_status = "unavailable"
     try:
         import redis as _redis
+
         _r = _redis.Redis(
             host=os.environ.get("REDIS_HOST", "localhost"),
             port=int(os.environ.get("REDIS_PORT", "6379")),
@@ -224,6 +251,7 @@ async def health() -> Dict[str, Any]:
 async def health_rag() -> Dict[str, Any]:
     try:
         from ai_engine.rag import get_rag_pipeline
+
         return get_rag_pipeline().health_check()
     except Exception as exc:
         logger.exception("rag_health_check_failed", error=str(exc))
@@ -232,10 +260,12 @@ async def health_rag() -> Dict[str, Any]:
 
 # ── Agents ─────────────────────────────────────────────────────────────────────
 
+
 @app.get("/agents/tools", tags=["Agents"])
 async def list_tools() -> Dict[str, Any]:
     try:
         from ai_engine.agents import get_executor
+
         executor = get_executor()
         tools = executor.list_tools()
         return {"tools": tools, "count": len(tools)}
@@ -247,11 +277,14 @@ async def list_tools() -> Dict[str, Any]:
 @app.post("/agents/run", tags=["Agents"])
 async def run_agent(request: AgentRunRequest) -> Any:
     from ai_engine.agents import get_executor
+
     executor = get_executor()
 
     if request.stream:
+
         def _stream() -> Iterator[str]:
             import json
+
             try:
                 for chunk in executor.stream(request.task):
                     yield json.dumps({"token": chunk}) + "\n"
@@ -270,6 +303,7 @@ async def run_agent(request: AgentRunRequest) -> Any:
 
 # ── Chat / RAG ─────────────────────────────────────────────────────────────────
 
+
 @app.get("/models", tags=["Models"])
 async def list_models(role: str = "user") -> Dict[str, Any]:
     """
@@ -286,11 +320,12 @@ async def list_models(role: str = "user") -> Dict[str, Any]:
     """
     try:
         from ai_engine.agents.router import get_available_models
+
         models = get_available_models(role=role)
         return {
-            "models":           models,
+            "models": models,
             "default_provider": os.environ.get("DEFAULT_PROVIDER", "auto"),
-            "default_model":    os.environ.get("OPENROUTER_MODEL", "gpt-4o"),
+            "default_model": os.environ.get("OPENROUTER_MODEL", "gpt-4o"),
         }
     except Exception as exc:
         logger.exception("list_models_failed")
@@ -305,12 +340,12 @@ async def chat(request: ChatRequest) -> Any:
     TASK-302: Now supports per-request provider/model selection with plan
     gating and budget-aware fallback via resolve_provider_model().
     """
-    from ai_engine.rag import get_rag_pipeline
     from ai_engine.agents.router import resolve_provider_model
+    from ai_engine.rag import get_rag_pipeline
 
     pipeline = get_rag_pipeline()
     # uuid is already imported at module level — no need for local alias
-    conv_id  = request.conversation_id or str(uuid.uuid4())
+    conv_id = request.conversation_id or str(uuid.uuid4())
 
     # Resolve provider + model (plan gating + budget routing)
     try:
@@ -330,6 +365,7 @@ async def chat(request: ChatRequest) -> Any:
         # Each line must be a valid JSON object so clients can parse incrementally.
         def _stream() -> Iterator[str]:
             import json
+
             try:
                 for chunk in pipeline.stream_chat(
                     question=request.question,
@@ -338,7 +374,9 @@ async def chat(request: ChatRequest) -> Any:
                     provider=provider,
                     model=model,
                 ):
-                    yield json.dumps({"token": chunk, "conversation_id": conv_id}) + "\n"
+                    yield json.dumps(
+                        {"token": chunk, "conversation_id": conv_id}
+                    ) + "\n"
             except Exception as exc:
                 logger.exception("rag_stream_failed")
                 yield json.dumps({"error": str(exc)}) + "\n"
@@ -360,17 +398,19 @@ async def chat(request: ChatRequest) -> Any:
 
 # ── Embeddings ─────────────────────────────────────────────────────────────────
 
+
 @app.post("/embeddings", tags=["Embeddings"])
 async def embed_texts(request: EmbedRequest) -> Dict[str, Any]:
     try:
         from ai_engine.embeddings import get_embedder
-        embedder   = get_embedder()
+
+        embedder = get_embedder()
         embeddings = embedder.embed_batch(request.texts, batch_size=request.batch_size)
         return {
             "embeddings": embeddings,
-            "model":      "all-MiniLM-L6-v2",
+            "model": "all-MiniLM-L6-v2",
             "dimensions": embedder.dimensions,
-            "count":      len(embeddings),
+            "count": len(embeddings),
         }
     except Exception as exc:
         logger.exception("embedding_failed")

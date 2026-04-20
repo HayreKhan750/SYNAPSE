@@ -8,10 +8,11 @@ When a new Article/ResearchPaper/Repository is saved or a trending topic spikes,
 
 Signal connections are registered in AutomationConfig.ready().
 """
+
 import logging
 
 from django.db.models.signals import post_save
-from django.dispatch import receiver, Signal
+from django.dispatch import Signal, receiver
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ def _fire_event(event_type: str, payload: dict) -> None:
     """Queue the dispatch task asynchronously — never blocks the caller."""
     try:
         from .tasks import dispatch_event_trigger
+
         dispatch_event_trigger.delay(event_type, payload)
     except Exception as exc:
         logger.warning("_fire_event: could not dispatch '%s': %s", event_type, exc)
@@ -30,53 +32,69 @@ def _fire_event(event_type: str, payload: dict) -> None:
 
 # ── New Article ────────────────────────────────────────────────────────────────
 
+
 def _on_new_article(sender, instance, created, **kwargs):
     if not created:
         return
-    _fire_event('new_article', {
-        'article_id': str(instance.id),
-        'title':      instance.title,
-        'source':     getattr(instance, 'source', ''),
-        'topic':      getattr(instance, 'topic', '') or '',
-        'url':        getattr(instance, 'url', ''),
-    })
+    _fire_event(
+        "new_article",
+        {
+            "article_id": str(instance.id),
+            "title": instance.title,
+            "source": getattr(instance, "source", ""),
+            "topic": getattr(instance, "topic", "") or "",
+            "url": getattr(instance, "url", ""),
+        },
+    )
 
 
 # ── New Research Paper ────────────────────────────────────────────────────────
 
+
 def _on_new_paper(sender, instance, created, **kwargs):
     if not created:
         return
-    _fire_event('new_paper', {
-        'paper_id': str(instance.id),
-        'title':    instance.title,
-        'topic':    getattr(instance, 'topic', '') or '',
-        'url':      getattr(instance, 'url', ''),
-    })
+    _fire_event(
+        "new_paper",
+        {
+            "paper_id": str(instance.id),
+            "title": instance.title,
+            "topic": getattr(instance, "topic", "") or "",
+            "url": getattr(instance, "url", ""),
+        },
+    )
 
 
 # ── New Trending Repository ───────────────────────────────────────────────────
 
+
 def _on_new_repo(sender, instance, created, **kwargs):
     if not created:
         return
-    _fire_event('new_repo', {
-        'repo_id':  str(instance.id),
-        'name':     instance.name,
-        'language': getattr(instance, 'language', ''),
-        'topic':    getattr(instance, 'topic', '') or '',
-        'url':      getattr(instance, 'url', ''),
-    })
+    _fire_event(
+        "new_repo",
+        {
+            "repo_id": str(instance.id),
+            "name": instance.name,
+            "language": getattr(instance, "language", ""),
+            "topic": getattr(instance, "topic", "") or "",
+            "url": getattr(instance, "url", ""),
+        },
+    )
 
 
 # ── Trending Spike (custom signal) ────────────────────────────────────────────
 
-def _on_trending_spike(sender, topic, score, language='', **kwargs):
-    _fire_event('trending_spike', {
-        'topic':    topic,
-        'score':    score,
-        'language': language,
-    })
+
+def _on_trending_spike(sender, topic, score, language="", **kwargs):
+    _fire_event(
+        "trending_spike",
+        {
+            "topic": topic,
+            "score": score,
+            "language": language,
+        },
+    )
 
 
 def connect_signals():
@@ -86,28 +104,44 @@ def connect_signals():
     """
     try:
         from apps.articles.models import Article
-        post_save.connect(_on_new_article, sender=Article, weak=False,
-                          dispatch_uid='automation_new_article')
+
+        post_save.connect(
+            _on_new_article,
+            sender=Article,
+            weak=False,
+            dispatch_uid="automation_new_article",
+        )
         logger.debug("automation: connected new_article signal")
     except Exception as exc:
         logger.warning("automation signals: could not connect Article: %s", exc)
 
     try:
         from apps.papers.models import ResearchPaper
-        post_save.connect(_on_new_paper, sender=ResearchPaper, weak=False,
-                          dispatch_uid='automation_new_paper')
+
+        post_save.connect(
+            _on_new_paper,
+            sender=ResearchPaper,
+            weak=False,
+            dispatch_uid="automation_new_paper",
+        )
         logger.debug("automation: connected new_paper signal")
     except Exception as exc:
         logger.warning("automation signals: could not connect ResearchPaper: %s", exc)
 
     try:
         from apps.repositories.models import Repository
-        post_save.connect(_on_new_repo, sender=Repository, weak=False,
-                          dispatch_uid='automation_new_repo')
+
+        post_save.connect(
+            _on_new_repo,
+            sender=Repository,
+            weak=False,
+            dispatch_uid="automation_new_repo",
+        )
         logger.debug("automation: connected new_repo signal")
     except Exception as exc:
         logger.warning("automation signals: could not connect Repository: %s", exc)
 
-    trending_spike_signal.connect(_on_trending_spike, weak=False,
-                                  dispatch_uid='automation_trending_spike')
+    trending_spike_signal.connect(
+        _on_trending_spike, weak=False, dispatch_uid="automation_trending_spike"
+    )
     logger.debug("automation: connected trending_spike signal")

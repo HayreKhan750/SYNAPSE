@@ -8,38 +8,38 @@ Covers:
   B4 — 429 responses include X-RateLimit-* headers + structured JSON body
   F1 — api.ts dispatches 'synapse:rate_limit_exceeded' event (validated by middleware test)
 """
+
 import time
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-
 from apps.core.throttles import (
-    ChatRateThrottle,
-    AgentRateThrottle,
-    APIRateThrottle,
-    CHAT_LIMITS,
     AGENT_LIMITS,
     API_LIMITS,
+    CHAT_LIMITS,
+    AgentRateThrottle,
+    APIRateThrottle,
+    ChatRateThrottle,
 )
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def make_request(user_plan='FREE', user_id=1):
+
+def make_request(user_plan="FREE", user_id=1):
     """Build a minimal mock request with an authenticated user."""
     user = MagicMock()
     user.is_authenticated = True
     user.pk = user_id
     request = MagicMock()
     request.user = user
-    with patch('apps.core.throttles.get_user_plan', return_value=user_plan):
+    with patch("apps.core.throttles.get_user_plan", return_value=user_plan):
         return request, user
 
 
-def make_throttle(cls, user_plan='FREE', user_id=1):
+def make_throttle(cls, user_plan="FREE", user_id=1):
     """Instantiate throttle with a mock DjangoCacheClient."""
     throttle = cls()
-    throttle.cache = {}   # plain dict acts as cache
+    throttle.cache = {}  # plain dict acts as cache
     # Override cache methods to use dict
     throttle.cache = _DictCache()
     return throttle
@@ -47,6 +47,7 @@ def make_throttle(cls, user_plan='FREE', user_id=1):
 
 class _DictCache:
     """Minimal in-memory cache compatible with SimpleRateThrottle.cache interface."""
+
     def __init__(self):
         self._store: dict = {}
 
@@ -63,50 +64,52 @@ class _DictCache:
 
 # ── B1: Throttle classes configuration ───────────────────────────────────────
 
+
 class TestThrottleConfig:
     def test_chat_free_limit(self):
-        limit, window = CHAT_LIMITS['FREE']
+        limit, window = CHAT_LIMITS["FREE"]
         assert limit == 5
         assert window == 86400  # 1 day
 
     def test_chat_pro_limit(self):
-        limit, window = CHAT_LIMITS['PRO']
+        limit, window = CHAT_LIMITS["PRO"]
         assert limit == 200
         assert window == 86400
 
     def test_chat_enterprise_limit(self):
-        limit, window = CHAT_LIMITS['ENTERPRISE']
+        limit, window = CHAT_LIMITS["ENTERPRISE"]
         assert limit == 1000
 
     def test_agent_free_limit(self):
-        limit, window = AGENT_LIMITS['FREE']
+        limit, window = AGENT_LIMITS["FREE"]
         assert limit == 1
         assert window == 86400
 
     def test_agent_pro_limit(self):
-        limit, window = AGENT_LIMITS['PRO']
+        limit, window = AGENT_LIMITS["PRO"]
         assert limit == 50
 
     def test_api_free_limit(self):
-        limit, window = API_LIMITS['FREE']
+        limit, window = API_LIMITS["FREE"]
         assert limit == 100
         assert window == 3600  # 1 hour
 
     def test_scope_names(self):
-        assert ChatRateThrottle.scope  == 'chat'
-        assert AgentRateThrottle.scope == 'agent'
-        assert APIRateThrottle.scope   == 'api'
+        assert ChatRateThrottle.scope == "chat"
+        assert AgentRateThrottle.scope == "agent"
+        assert APIRateThrottle.scope == "api"
 
     def test_limit_tables(self):
-        assert ChatRateThrottle.limit_table  is CHAT_LIMITS
+        assert ChatRateThrottle.limit_table is CHAT_LIMITS
         assert AgentRateThrottle.limit_table is AGENT_LIMITS
-        assert APIRateThrottle.limit_table   is API_LIMITS
+        assert APIRateThrottle.limit_table is API_LIMITS
 
 
 # ── B2: ChatRateThrottle ──────────────────────────────────────────────────────
 
+
 class TestChatRateThrottle:
-    def _make(self, plan='FREE', user_id=1):
+    def _make(self, plan="FREE", user_id=1):
         throttle = ChatRateThrottle()
         throttle.cache = _DictCache()
         request = MagicMock()
@@ -114,27 +117,29 @@ class TestChatRateThrottle:
         return throttle, request, plan
 
     def _allow(self, throttle, request, plan, view=None):
-        with patch('apps.core.throttles.get_user_plan', return_value=plan):
+        with patch("apps.core.throttles.get_user_plan", return_value=plan):
             return throttle.allow_request(request, view or MagicMock())
 
     def test_free_allows_first_5(self):
-        throttle, req, plan = self._make('FREE')
+        throttle, req, plan = self._make("FREE")
         for i in range(5):
-            assert self._allow(throttle, req, plan) is True, f"Request {i+1} should be allowed"
+            assert (
+                self._allow(throttle, req, plan) is True
+            ), f"Request {i+1} should be allowed"
 
     def test_free_blocks_6th(self):
-        throttle, req, plan = self._make('FREE')
+        throttle, req, plan = self._make("FREE")
         for _ in range(5):
             self._allow(throttle, req, plan)
         assert self._allow(throttle, req, plan) is False
 
     def test_pro_allows_more(self):
-        throttle, req, plan = self._make('PRO')
+        throttle, req, plan = self._make("PRO")
         for i in range(200):
             assert self._allow(throttle, req, plan) is True
 
     def test_pro_blocks_201st(self):
-        throttle, req, plan = self._make('PRO')
+        throttle, req, plan = self._make("PRO")
         for _ in range(200):
             self._allow(throttle, req, plan)
         assert self._allow(throttle, req, plan) is False
@@ -147,7 +152,7 @@ class TestChatRateThrottle:
         req2 = MagicMock()
         req2.user = MagicMock(is_authenticated=True, pk=2)
         view = MagicMock()
-        with patch('apps.core.throttles.get_user_plan', return_value='FREE'):
+        with patch("apps.core.throttles.get_user_plan", return_value="FREE"):
             # Use all 5 for user 1
             for _ in range(5):
                 throttle.allow_request(req1, view)
@@ -158,27 +163,31 @@ class TestChatRateThrottle:
         throttle, _, _ = self._make()
         req = MagicMock()
         req.user = MagicMock(is_authenticated=False)
-        with patch('apps.core.throttles.get_user_plan', return_value='FREE'):
+        with patch("apps.core.throttles.get_user_plan", return_value="FREE"):
             assert throttle.allow_request(req, MagicMock()) is True
 
     def test_remaining_decrements(self):
-        throttle, req, plan = self._make('FREE')
+        throttle, req, plan = self._make("FREE")
         view = MagicMock()
-        with patch('apps.core.throttles.get_user_plan', return_value=plan):
-            throttle.allow_request(req, view)   # 1st: count was 0 → remaining = 5 - 0 - 1 = 4
+        with patch("apps.core.throttles.get_user_plan", return_value=plan):
+            throttle.allow_request(
+                req, view
+            )  # 1st: count was 0 → remaining = 5 - 0 - 1 = 4
             assert throttle._remaining == 4
-            throttle.allow_request(req, view)   # 2nd: count was 1 → remaining = 5 - 1 - 1 = 3
+            throttle.allow_request(
+                req, view
+            )  # 2nd: count was 1 → remaining = 5 - 1 - 1 = 3
             assert throttle._remaining == 3
 
     def test_reset_at_is_future(self):
-        throttle, req, plan = self._make('FREE')
-        with patch('apps.core.throttles.get_user_plan', return_value=plan):
+        throttle, req, plan = self._make("FREE")
+        with patch("apps.core.throttles.get_user_plan", return_value=plan):
             throttle.allow_request(req, MagicMock())
             assert throttle._reset_at > time.time()
 
     def test_wait_returns_positive(self):
-        throttle, req, plan = self._make('FREE')
-        with patch('apps.core.throttles.get_user_plan', return_value=plan):
+        throttle, req, plan = self._make("FREE")
+        with patch("apps.core.throttles.get_user_plan", return_value=plan):
             for _ in range(5):
                 throttle.allow_request(req, MagicMock())
             throttle.allow_request(req, MagicMock())  # blocked
@@ -186,34 +195,35 @@ class TestChatRateThrottle:
             assert wait is not None and wait > 0
 
     def test_throttle_failure_response_structure(self):
-        throttle, req, plan = self._make('FREE')
-        with patch('apps.core.throttles.get_user_plan', return_value=plan):
+        throttle, req, plan = self._make("FREE")
+        with patch("apps.core.throttles.get_user_plan", return_value=plan):
             for _ in range(6):
                 throttle.allow_request(req, MagicMock())
         resp = throttle.throttle_failure_response()
-        assert resp['error']       == 'rate_limit_exceeded'
-        assert resp['limit']       == 5
-        assert resp['remaining']   == 0
-        assert 'reset_at'     in resp
-        assert 'upgrade_url'  in resp
-        assert 'message'      in resp
+        assert resp["error"] == "rate_limit_exceeded"
+        assert resp["limit"] == 5
+        assert resp["remaining"] == 0
+        assert "reset_at" in resp
+        assert "upgrade_url" in resp
+        assert "message" in resp
 
     def test_get_headers_keys(self):
-        throttle, req, plan = self._make('FREE')
-        with patch('apps.core.throttles.get_user_plan', return_value=plan):
+        throttle, req, plan = self._make("FREE")
+        with patch("apps.core.throttles.get_user_plan", return_value=plan):
             throttle.allow_request(req, MagicMock())
         headers = throttle.get_headers()
-        assert 'X-RateLimit-Limit'     in headers
-        assert 'X-RateLimit-Remaining' in headers
-        assert 'X-RateLimit-Reset'     in headers
-        assert 'Retry-After'           in headers
+        assert "X-RateLimit-Limit" in headers
+        assert "X-RateLimit-Remaining" in headers
+        assert "X-RateLimit-Reset" in headers
+        assert "Retry-After" in headers
 
 
 # ── B3: AgentRateThrottle ─────────────────────────────────────────────────────
 
+
 class TestAgentRateThrottle:
     def _allow(self, throttle, request, plan, view=None):
-        with patch('apps.core.throttles.get_user_plan', return_value=plan):
+        with patch("apps.core.throttles.get_user_plan", return_value=plan):
             return throttle.allow_request(request, view or MagicMock())
 
     def test_free_allows_1(self):
@@ -221,15 +231,15 @@ class TestAgentRateThrottle:
         t.cache = _DictCache()
         req = MagicMock()
         req.user = MagicMock(is_authenticated=True, pk=42)
-        assert self._allow(t, req, 'FREE') is True
+        assert self._allow(t, req, "FREE") is True
 
     def test_free_blocks_2nd(self):
         t = AgentRateThrottle()
         t.cache = _DictCache()
         req = MagicMock()
         req.user = MagicMock(is_authenticated=True, pk=42)
-        self._allow(t, req, 'FREE')
-        assert self._allow(t, req, 'FREE') is False
+        self._allow(t, req, "FREE")
+        assert self._allow(t, req, "FREE") is False
 
     def test_pro_allows_50(self):
         t = AgentRateThrottle()
@@ -237,61 +247,75 @@ class TestAgentRateThrottle:
         req = MagicMock()
         req.user = MagicMock(is_authenticated=True, pk=99)
         for i in range(50):
-            assert self._allow(t, req, 'PRO') is True
+            assert self._allow(t, req, "PRO") is True
 
 
 # ── B4: Middleware (RateLimitHeaderMiddleware) ────────────────────────────────
 
+
 class TestRateLimitHeaderMiddleware:
     def _make_middleware(self, response):
         from apps.core.rate_limit_middleware import RateLimitHeaderMiddleware
+
         mw = RateLimitHeaderMiddleware(get_response=lambda r: response)
         return mw
 
     def test_non_api_path_untouched(self):
-        from django.test import RequestFactory
         from django.http import HttpResponse
+        from django.test import RequestFactory
+
         resp = HttpResponse("ok", status=200)
         mw = self._make_middleware(resp)
-        req = RequestFactory().get('/admin/')
+        req = RequestFactory().get("/admin/")
         result = mw(req)
         assert result.status_code == 200
 
     def test_api_path_passes_through(self):
-        from django.test import RequestFactory
         from django.http import HttpResponse
+        from django.test import RequestFactory
+
         resp = HttpResponse("ok", status=200)
         mw = self._make_middleware(resp)
-        req = RequestFactory().get('/api/v1/health/')
+        req = RequestFactory().get("/api/v1/health/")
         result = mw(req)
         assert result.status_code == 200
 
     def test_429_plain_text_converted_to_json(self):
-        from django.test import RequestFactory
-        from django.http import HttpResponse
         import json
-        resp = HttpResponse("Too Many Requests", status=429, content_type='text/plain')
-        resp['Retry-After'] = '60'
-        resp['X-RateLimit-Limit'] = '5'
+
+        from django.http import HttpResponse
+        from django.test import RequestFactory
+
+        resp = HttpResponse("Too Many Requests", status=429, content_type="text/plain")
+        resp["Retry-After"] = "60"
+        resp["X-RateLimit-Limit"] = "5"
         mw = self._make_middleware(resp)
-        req = RequestFactory().post('/api/v1/ai/chat/')
+        req = RequestFactory().post("/api/v1/ai/chat/")
         result = mw(req)
         assert result.status_code == 429
         body = json.loads(result.content)
-        assert body['error'] == 'rate_limit_exceeded'
-        assert 'reset_at'     in body
-        assert 'upgrade_url'  in body
+        assert body["error"] == "rate_limit_exceeded"
+        assert "reset_at" in body
+        assert "upgrade_url" in body
 
     def test_429_already_json_not_double_wrapped(self):
-        from django.test import RequestFactory
-        from django.http import JsonResponse
         import json
-        body = {'error': 'rate_limit_exceeded', 'limit': 5, 'remaining': 0,
-                'reset_at': '2026-04-04T07:00:00Z', 'upgrade_url': '/pricing', 'message': 'x'}
+
+        from django.http import JsonResponse
+        from django.test import RequestFactory
+
+        body = {
+            "error": "rate_limit_exceeded",
+            "limit": 5,
+            "remaining": 0,
+            "reset_at": "2026-04-04T07:00:00Z",
+            "upgrade_url": "/pricing",
+            "message": "x",
+        }
         resp = JsonResponse(body, status=429)
         mw = self._make_middleware(resp)
-        req = RequestFactory().post('/api/v1/ai/chat/')
+        req = RequestFactory().post("/api/v1/ai/chat/")
         result = mw(req)
         assert result.status_code == 429
         parsed = json.loads(result.content)
-        assert parsed['error'] == 'rate_limit_exceeded'
+        assert parsed["error"] == "rate_limit_exceeded"

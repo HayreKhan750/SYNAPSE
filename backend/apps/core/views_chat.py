@@ -8,15 +8,15 @@ import logging
 import uuid
 from typing import Any, Dict, Optional
 
+from apps.core.models import Conversation
+from apps.core.throttles import ChatRateThrottle
+
 from django.http import StreamingHttpResponse
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from apps.core.throttles import ChatRateThrottle
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.core.models import Conversation
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +35,11 @@ def _extract_text_content(content) -> str:
             if isinstance(block, str):
                 parts.append(block)
             elif isinstance(block, dict):
-                parts.append(str(block.get('text', '')))
+                parts.append(str(block.get("text", "")))
             else:
                 parts.append(str(block))
-        return ''.join(parts)
-    return str(content) if content is not None else ''
+        return "".join(parts)
+    return str(content) if content is not None else ""
 
 
 # ─── Explain endpoint (Phase 3.2) ────────────────────────────────────────────
@@ -52,28 +52,39 @@ class MessageDeleteView(APIView):
     Removes the human message at *index* (0-based) and the AI reply below it.
     Used by the frontend Edit/Delete buttons on user bubbles.
     """
+
     permission_classes = [IsAuthenticated]
 
     def delete(self, request: Request, conversation_id: str, index: int) -> Response:
         try:
             # SECURITY: filter by user to prevent IDOR
-            conv = Conversation.objects.get(conversation_id=conversation_id, user=request.user)
+            conv = Conversation.objects.get(
+                conversation_id=conversation_id, user=request.user
+            )
         except Conversation.DoesNotExist:
-            return Response({"error": "Conversation not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Conversation not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         deleted = conv.delete_message_pair(index)
         if not deleted:
-            return Response({"error": "Message index out of range"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Message index out of range"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Also drop from Redis memory so the LLM context stays consistent
         try:
             from ai_engine.rag.memory import ConversationMemoryManager
+
             mgr = ConversationMemoryManager()
             mgr.delete_conversation(conversation_id)
             # Re-seed Redis from the updated DB messages
             if conv.messages:
                 mem = mgr.get_or_create(conversation_id)
-                from langchain_core.messages import HumanMessage as LCHuman, AIMessage as LCAi
+                from langchain_core.messages import AIMessage as LCAi
+                from langchain_core.messages import HumanMessage as LCHuman
+
                 for m in conv.messages:
                     if m.get("role") == "human":
                         mem.chat_memory.add_message(LCHuman(content=m["content"]))
@@ -102,34 +113,39 @@ class ExplainView(APIView):
 
     Response: same shape as ChatView — {answer, sources, conversation_id}
     """
+
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:
-        content_type = request.data.get('content_type', '').strip()
-        content_id = request.data.get('content_id', '').strip()
-        title = request.data.get('title', '').strip()
-        conversation_id = request.data.get('conversation_id') or str(uuid.uuid4())
+        content_type = request.data.get("content_type", "").strip()
+        content_id = request.data.get("content_id", "").strip()
+        title = request.data.get("title", "").strip()
+        conversation_id = request.data.get("conversation_id") or str(uuid.uuid4())
 
         if not content_type or not content_id:
             return Response(
-                {'error': 'content_type and content_id are required'},
+                {"error": "content_type and content_id are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Build a focused question
-        type_label = {'article': 'article', 'paper': 'research paper', 'repository': 'GitHub repository'}.get(
-            content_type, content_type
-        )
+        type_label = {
+            "article": "article",
+            "paper": "research paper",
+            "repository": "GitHub repository",
+        }.get(content_type, content_type)
         if title:
             question = f'Explain this {type_label}: "{title}"'
         else:
-            question = f'Explain the {type_label} with ID {content_id}'
+            question = f"Explain the {type_label} with ID {content_id}"
 
         explain_user = request.user if request.user.is_authenticated else None
         pipeline = _get_pipeline(user=explain_user)
         if pipeline is None:
             return Response(
-                {'error': 'AI pipeline is temporarily unavailable. Please configure your API keys in Settings → AI Engine.'},
+                {
+                    "error": "AI pipeline is temporarily unavailable. Please configure your API keys in Settings → AI Engine."
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -142,7 +158,7 @@ class ExplainView(APIView):
         except Exception as exc:
             logger.error("RAG explain error: %s", exc)
             return Response(
-                {'error': 'Failed to process explain request. Please try again.'},
+                {"error": "Failed to process explain request. Please try again."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -150,15 +166,17 @@ class ExplainView(APIView):
         try:
             user = request.user if request.user.is_authenticated else None
             conv = _get_or_create_conversation(conversation_id, user=user)
-            conv.add_message('human', question)
-            conv.add_message('ai', result['answer'])
+            conv.add_message("human", question)
+            conv.add_message("ai", result["answer"])
             if not conv.title and title:
-                conv.title = f'Explain: {title}'[:100]
+                conv.title = f"Explain: {title}"[:100]
             conv.save()
         except Exception as exc:
             logger.warning("Failed to persist explain conversation: %s", exc)
 
-        return Response({**result, 'conversation_id': conversation_id}, status=status.HTTP_200_OK)
+        return Response(
+            {**result, "conversation_id": conversation_id}, status=status.HTTP_200_OK
+        )
 
 
 def _get_user_keys(user) -> tuple:
@@ -167,9 +185,13 @@ def _get_user_keys(user) -> tuple:
     Returns ('', '', '') if user is not authenticated or has no keys configured.
     """
     if user and user.is_authenticated:
-        prefs = getattr(user, 'preferences', {}) or {}
-        return prefs.get('scitely_api_key', ''), prefs.get('openrouter_api_key', ''), prefs.get('gemini_api_key', '')
-    return '', '', ''
+        prefs = getattr(user, "preferences", {}) or {}
+        return (
+            prefs.get("scitely_api_key", ""),
+            prefs.get("openrouter_api_key", ""),
+            prefs.get("gemini_api_key", ""),
+        )
+    return "", "", ""
 
 
 def _is_valid_key(key: str, prefix: str = "") -> bool:
@@ -178,7 +200,9 @@ def _is_valid_key(key: str, prefix: str = "") -> bool:
         return False
     bad = ("your-", "test", "fake", "placeholder", "example", "sk-or-test", "xxx")
     low = key.lower()
-    if any(low.startswith(b) for b in bad) or any(b in low for b in ("test-key", "fake-key", "12345")):
+    if any(low.startswith(b) for b in bad) or any(
+        b in low for b in ("test-key", "fake-key", "12345")
+    ):
         return False
     if len(key) < 20:
         return False
@@ -188,9 +212,10 @@ def _is_valid_key(key: str, prefix: str = "") -> bool:
 def _get_scitely_key(user=None) -> str:
     """Return the Scitely API key — valid user key takes priority over env var."""
     import os
+
     if user and user.is_authenticated:
-        prefs = getattr(user, 'preferences', {}) or {}
-        user_key = prefs.get('scitely_api_key', '')
+        prefs = getattr(user, "preferences", {}) or {}
+        user_key = prefs.get("scitely_api_key", "")
         if _is_valid_key(user_key):
             return user_key
     key = os.environ.get("SCITELY_API_KEY", "")
@@ -202,9 +227,10 @@ def _get_scitely_key(user=None) -> str:
 def _get_openrouter_key(user=None) -> str:
     """Return the OpenRouter API key — valid user key takes priority over env var."""
     import os
+
     if user and user.is_authenticated:
-        prefs = getattr(user, 'preferences', {}) or {}
-        user_key = prefs.get('openrouter_api_key', '')
+        prefs = getattr(user, "preferences", {}) or {}
+        user_key = prefs.get("openrouter_api_key", "")
         if _is_valid_key(user_key):
             return user_key
     key = os.environ.get("OPENROUTER_API_KEY", "")
@@ -220,11 +246,12 @@ def _get_gemini_keys(user=None) -> list:
     GEMINI_API_KEY (primary) + GEMINI_API_KEY_1 … GEMINI_API_KEY_10.
     """
     import os
+
     keys = []
     # Check user's own key first
     if user and user.is_authenticated:
-        prefs = getattr(user, 'preferences', {}) or {}
-        user_key = prefs.get('gemini_api_key', '')
+        prefs = getattr(user, "preferences", {}) or {}
+        user_key = prefs.get("gemini_api_key", "")
         if user_key:
             keys.append(user_key)
             return keys  # User has their own key — use only that
@@ -241,6 +268,7 @@ def _get_gemini_keys(user=None) -> list:
 
 # Thread-safe rotation index for chat key rotation
 import threading as _threading
+
 _chat_key_lock = _threading.Lock()
 _chat_key_index = 0
 
@@ -255,20 +283,20 @@ def _next_chat_key(keys: list) -> str:
 
 # Canonical pluralization for content_type filter values
 _CONTENT_TYPE_PLURAL = {
-    'article': 'articles',
-    'articles': 'articles',
-    'paper': 'papers',
-    'papers': 'papers',
-    'repository': 'repositories',
-    'repositories': 'repositories',
-    'video': 'videos',
-    'videos': 'videos',
+    "article": "articles",
+    "articles": "articles",
+    "paper": "papers",
+    "papers": "papers",
+    "repository": "repositories",
+    "repositories": "repositories",
+    "video": "videos",
+    "videos": "videos",
 }
 
 
 def _pluralize_content_type(ct: str) -> str:
     """Normalize a singular or plural content_type to the plural form used by the retriever."""
-    return _CONTENT_TYPE_PLURAL.get(ct.lower().strip(), ct + 's')
+    return _CONTENT_TYPE_PLURAL.get(ct.lower().strip(), ct + "s")
 
 
 def _get_pipeline(model: str = None, user=None):
@@ -287,16 +315,28 @@ def _get_pipeline(model: str = None, user=None):
     openrouter_key = _get_openrouter_key(user=user)
     gemini_keys = _get_gemini_keys(user=user)
 
-    default_model = os.environ.get("SCITELY_MODEL", os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "deepseek-v3")))
+    default_model = os.environ.get(
+        "SCITELY_MODEL",
+        os.environ.get(
+            "OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "deepseek-v3")
+        ),
+    )
     resolved_model = model or default_model
 
     if not scitely_key and not openrouter_key and not gemini_keys:
-        logger.error("No LLM API key configured (SCITELY_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY) — chat unavailable.")
+        logger.error(
+            "No LLM API key configured (SCITELY_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY) — chat unavailable."
+        )
         return None
 
-    logger.info("_get_pipeline: using model=%s scitely=%s openrouter=%s gemini_keys=%d user_keys=%s",
-                resolved_model, bool(scitely_key), bool(openrouter_key), len(gemini_keys),
-                bool(user and user.is_authenticated))
+    logger.info(
+        "_get_pipeline: using model=%s scitely=%s openrouter=%s gemini_keys=%d user_keys=%s",
+        resolved_model,
+        bool(scitely_key),
+        bool(openrouter_key),
+        len(gemini_keys),
+        bool(user and user.is_authenticated),
+    )
 
     # Try the full RAG pipeline first (pgvector + embeddings + retrieval)
     # Only use RAG when no user-specific model override and no per-user key
@@ -307,22 +347,28 @@ def _get_pipeline(model: str = None, user=None):
     if not model and not has_user_key:
         try:
             from ai_engine.rag import get_rag_pipeline
+
             return get_rag_pipeline()
         except Exception as exc:
-            logger.warning("Full RAG pipeline unavailable (%s). Falling back to direct LLM.", exc)
+            logger.warning(
+                "Full RAG pipeline unavailable (%s). Falling back to direct LLM.", exc
+            )
 
     # Fallback: direct LLM pipeline (no retrieval, still useful for chat)
     # Priority: Scitely → OpenRouter → Gemini
     if scitely_key:
         return _OpenRouterDirectPipeline(
-            api_key=scitely_key, model=resolved_model,
-            base_url="https://api.scitely.com/v1"
+            api_key=scitely_key,
+            model=resolved_model,
+            base_url="https://api.scitely.com/v1",
         )
     elif openrouter_key:
         return _OpenRouterDirectPipeline(api_key=openrouter_key, model=resolved_model)
     else:
         api_key = _next_chat_key(gemini_keys)
-        return _GeminiDirectPipeline(api_key=api_key, model=resolved_model, all_keys=gemini_keys)
+        return _GeminiDirectPipeline(
+            api_key=api_key, model=resolved_model, all_keys=gemini_keys
+        )
 
 
 class _OpenRouterDirectPipeline:
@@ -333,13 +379,17 @@ class _OpenRouterDirectPipeline:
 
     def __init__(self, api_key: str, model: str, base_url: str = None) -> None:
         import os
+
         self._api_key = api_key
         self._model = model
-        self._base_url = base_url or os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        self._base_url = base_url or os.environ.get(
+            "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+        )
         self._histories: Dict[str, list] = {}
 
     def _build_llm(self, streaming: bool = False):
         from langchain_openai import ChatOpenAI
+
         return ChatOpenAI(
             model=self._model,
             temperature=0.7,
@@ -352,35 +402,58 @@ class _OpenRouterDirectPipeline:
             },
         )
 
-    def chat(self, question: str, conversation_id: str, content_types=None, files=None) -> dict:
+    def chat(
+        self, question: str, conversation_id: str, content_types=None, files=None
+    ) -> dict:
         from langchain_core.messages import HumanMessage, SystemMessage
+
         history = self._histories.get(conversation_id, [])
-        messages = [
-            SystemMessage(content=(
-                "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
-                "Answer questions clearly and concisely."
-            ))
-        ] + history + [HumanMessage(content=question)]
+        messages = (
+            [
+                SystemMessage(
+                    content=(
+                        "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
+                        "Answer questions clearly and concisely."
+                    )
+                )
+            ]
+            + history
+            + [HumanMessage(content=question)]
+        )
         response = self._build_llm().invoke(messages)
-        answer = _extract_text_content(response.content if hasattr(response, 'content') else response).strip()
+        answer = _extract_text_content(
+            response.content if hasattr(response, "content") else response
+        ).strip()
         self._histories.setdefault(conversation_id, [])
         self._histories[conversation_id].append(HumanMessage(content=question))
         self._histories[conversation_id].append(response)
         return {"answer": answer, "sources": [], "conversation_id": conversation_id}
 
-    def stream_chat(self, question: str, conversation_id: str, content_types=None, files=None):
+    def stream_chat(
+        self, question: str, conversation_id: str, content_types=None, files=None
+    ):
         import json
-        from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
         history = self._histories.get(conversation_id, [])
-        messages = [
-            SystemMessage(content=(
-                "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
-                "Answer questions clearly and concisely."
-            ))
-        ] + history + [HumanMessage(content=question)]
+        messages = (
+            [
+                SystemMessage(
+                    content=(
+                        "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
+                        "Answer questions clearly and concisely."
+                    )
+                )
+            ]
+            + history
+            + [HumanMessage(content=question)]
+        )
         full_answer = ""
         for chunk in self._build_llm(streaming=True).stream(messages):
-            token = _extract_text_content(chunk.content if hasattr(chunk, 'content') else chunk)
+            token = _extract_text_content(
+                chunk.content if hasattr(chunk, "content") else chunk
+            )
             if token:
                 full_answer += token
                 yield token
@@ -411,6 +484,7 @@ class _GeminiDirectPipeline:
 
     def _build_llm(self, api_key: str = None):
         from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
+
         return ChatGoogleGenerativeAI(
             model=self._model,
             temperature=0.7,
@@ -426,8 +500,14 @@ class _GeminiDirectPipeline:
                 return llm.invoke(messages)
             except Exception as exc:
                 exc_str = str(exc).lower()
-                if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
-                    logger.warning("Key quota exhausted, trying next key. Error: %s", exc)
+                if (
+                    "429" in exc_str
+                    or "resource_exhausted" in exc_str
+                    or "quota" in exc_str
+                ):
+                    logger.warning(
+                        "Key quota exhausted, trying next key. Error: %s", exc
+                    )
                     last_exc = exc
                     continue
                 raise  # non-quota error — raise immediately
@@ -443,8 +523,14 @@ class _GeminiDirectPipeline:
                 return
             except Exception as exc:
                 exc_str = str(exc).lower()
-                if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
-                    logger.warning("Key quota exhausted for streaming, trying next. Error: %s", exc)
+                if (
+                    "429" in exc_str
+                    or "resource_exhausted" in exc_str
+                    or "quota" in exc_str
+                ):
+                    logger.warning(
+                        "Key quota exhausted for streaming, trying next. Error: %s", exc
+                    )
                     last_exc = exc
                     continue
                 raise
@@ -455,8 +541,9 @@ class _GeminiDirectPipeline:
         Build a HumanMessage that includes any uploaded files as inline data parts.
         Supports images (sent as base64 inline) and text files (sent as text).
         """
-        from langchain_core.messages import HumanMessage  # noqa: PLC0415
         import base64  # noqa: PLC0415
+
+        from langchain_core.messages import HumanMessage  # noqa: PLC0415
 
         if not files:
             return HumanMessage(content=question)
@@ -464,21 +551,25 @@ class _GeminiDirectPipeline:
         # Build multipart content list for Gemini vision
         content_parts = []
         for f in files:
-            mime = f.content_type or 'application/octet-stream'
-            if mime.startswith('image/'):
-                data = base64.b64encode(f.read()).decode('utf-8')
-                content_parts.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:{mime};base64,{data}"},
-                })
+            mime = f.content_type or "application/octet-stream"
+            if mime.startswith("image/"):
+                data = base64.b64encode(f.read()).decode("utf-8")
+                content_parts.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime};base64,{data}"},
+                    }
+                )
             else:
                 # Text-based files — read and inject as text
                 try:
-                    text = f.read().decode('utf-8', errors='replace')
-                    content_parts.append({
-                        "type": "text",
-                        "text": f"[File: {f.name}]\n{text}",
-                    })
+                    text = f.read().decode("utf-8", errors="replace")
+                    content_parts.append(
+                        {
+                            "type": "text",
+                            "text": f"[File: {f.name}]\n{text}",
+                        }
+                    )
                 except Exception:
                     pass
 
@@ -487,44 +578,73 @@ class _GeminiDirectPipeline:
 
         return HumanMessage(content=content_parts)
 
-    def chat(self, question: str, conversation_id: str, content_types=None, files=None) -> dict:
+    def chat(
+        self, question: str, conversation_id: str, content_types=None, files=None
+    ) -> dict:
         from langchain_core.messages import HumanMessage, SystemMessage  # noqa: PLC0415
+
         history = self._histories.get(conversation_id, [])
         human_msg = self._build_human_message(question, files)
-        messages = [
-            SystemMessage(content=(
-                "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
-                "Answer questions clearly and concisely. When images are provided, describe and analyse them thoroughly."
-            ))
-        ] + history + [human_msg]
+        messages = (
+            [
+                SystemMessage(
+                    content=(
+                        "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
+                        "Answer questions clearly and concisely. When images are provided, describe and analyse them thoroughly."
+                    )
+                )
+            ]
+            + history
+            + [human_msg]
+        )
         response = self._invoke_with_rotation(messages)
-        raw = response.content if hasattr(response, 'content') else response
+        raw = response.content if hasattr(response, "content") else response
         answer = _extract_text_content(raw).strip()
         self._histories.setdefault(conversation_id, [])
         # Store only plain text version in history to avoid huge base64 in memory
-        self._histories[conversation_id].append(HumanMessage(content=question or '[image/file]'))
+        self._histories[conversation_id].append(
+            HumanMessage(content=question or "[image/file]")
+        )
         self._histories[conversation_id].append(response)
         return {"answer": answer, "sources": [], "conversation_id": conversation_id}
 
-    def stream_chat(self, question: str, conversation_id: str, content_types=None, files=None):
+    def stream_chat(
+        self, question: str, conversation_id: str, content_types=None, files=None
+    ):
         import json  # noqa: PLC0415
-        from langchain_core.messages import HumanMessage, SystemMessage, AIMessage  # noqa: PLC0415
+
+        from langchain_core.messages import (  # noqa: PLC0415
+            AIMessage,
+            HumanMessage,
+            SystemMessage,
+        )
+
         history = self._histories.get(conversation_id, [])
         human_msg = self._build_human_message(question, files)
-        messages = [
-            SystemMessage(content=(
-                "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
-                "Answer questions clearly and concisely. When images are provided, describe and analyse them thoroughly."
-            ))
-        ] + history + [human_msg]
+        messages = (
+            [
+                SystemMessage(
+                    content=(
+                        "You are SYNAPSE AI, a helpful assistant for developers and researchers. "
+                        "Answer questions clearly and concisely. When images are provided, describe and analyse them thoroughly."
+                    )
+                )
+            ]
+            + history
+            + [human_msg]
+        )
         full_answer = ""
         for chunk in self._stream_with_rotation(messages):
-            token = _extract_text_content(chunk.content if hasattr(chunk, 'content') else chunk)
+            token = _extract_text_content(
+                chunk.content if hasattr(chunk, "content") else chunk
+            )
             if token:
                 full_answer += token
                 yield token
         self._histories.setdefault(conversation_id, [])
-        self._histories[conversation_id].append(HumanMessage(content=question or '[image/file]'))
+        self._histories[conversation_id].append(
+            HumanMessage(content=question or "[image/file]")
+        )
         self._histories[conversation_id].append(AIMessage(content=full_answer))
         yield f"__SOURCES__:{json.dumps([])}"
 
@@ -539,7 +659,7 @@ def _get_or_create_conversation(conversation_id: str, user=None) -> Conversation
     """Get or create a Conversation DB record."""
     conv, _ = Conversation.objects.get_or_create(
         conversation_id=conversation_id,
-        defaults={'user': user if user and user.is_authenticated else None},
+        defaults={"user": user if user and user.is_authenticated else None},
     )
     return conv
 
@@ -564,26 +684,29 @@ class ChatView(APIView):  # TASK-501-B2: ChatRateThrottle applied
             "conversation_id": "uuid-..."
         }
     """
+
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:
-        question = request.data.get('question', '').strip()
+        question = request.data.get("question", "").strip()
         if not question:
             return Response(
-                {'error': 'question is required'},
+                {"error": "question is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        conversation_id = request.data.get('conversation_id') or str(uuid.uuid4())
-        content_types = request.data.get('content_types') or None
-        model = request.data.get('model', '').strip() or None
-        files = request.FILES.getlist('files') or []
+        conversation_id = request.data.get("conversation_id") or str(uuid.uuid4())
+        content_types = request.data.get("content_types") or None
+        model = request.data.get("model", "").strip() or None
+        files = request.FILES.getlist("files") or []
 
         user = request.user if request.user.is_authenticated else None
         pipeline = _get_pipeline(model=model, user=user)
         if pipeline is None:
             return Response(
-                {'error': 'AI pipeline is temporarily unavailable. Please configure your API keys in Settings → AI Engine.'},
+                {
+                    "error": "AI pipeline is temporarily unavailable. Please configure your API keys in Settings → AI Engine."
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -594,21 +717,21 @@ class ChatView(APIView):  # TASK-501-B2: ChatRateThrottle applied
                 "content_types": content_types,
             }
             # Only pass files to pipelines that support multimodal input
-            if files and hasattr(pipeline, '_build_human_message'):
+            if files and hasattr(pipeline, "_build_human_message"):
                 chat_kwargs["files"] = files
             result = pipeline.chat(**chat_kwargs)
         except Exception as exc:
             logger.error("RAG chat error: %s", exc, exc_info=True)
             return Response(
-                {'error': 'Failed to process question. Please try again.'},
+                {"error": "Failed to process question. Please try again."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         # Persist to DB
         try:
             conv = _get_or_create_conversation(conversation_id, user=user)
-            conv.add_message('human', question)
-            conv.add_message('ai', result['answer'])
+            conv.add_message("human", question)
+            conv.add_message("ai", result["answer"])
             if not conv.title and question:
                 conv.title = question[:100]
             conv.save()
@@ -625,27 +748,34 @@ class ChatStreamView(APIView):
     Server-Sent Events streaming endpoint. Same request body as ChatView.
     Streams tokens as SSE data events. Final event contains sources metadata.
     """
+
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> StreamingHttpResponse:
-        question = request.data.get('question', '').strip()
+        question = request.data.get("question", "").strip()
         if not question:
+
             def _error():
                 yield 'data: {"error": "question is required"}\n\n'
-            return StreamingHttpResponse(_error(), content_type='text/event-stream')
 
-        conversation_id = request.data.get('conversation_id') or str(uuid.uuid4())
-        content_types = request.data.get('content_types') or None
-        model = request.data.get('model', '').strip() or None
-        files = request.FILES.getlist('files') or []
+            return StreamingHttpResponse(_error(), content_type="text/event-stream")
+
+        conversation_id = request.data.get("conversation_id") or str(uuid.uuid4())
+        content_types = request.data.get("content_types") or None
+        model = request.data.get("model", "").strip() or None
+        files = request.FILES.getlist("files") or []
 
         user = request.user if request.user.is_authenticated else None
         pipeline = _get_pipeline(model=model, user=user)
         if pipeline is None:
+
             def _unavailable():
                 yield 'data: {"error": "AI pipeline unavailable. Please configure your API keys in Settings → AI Engine."}\n\n'
-            return StreamingHttpResponse(_unavailable(), content_type='text/event-stream')
-        use_files = files if hasattr(pipeline, '_build_human_message') else None
+
+            return StreamingHttpResponse(
+                _unavailable(), content_type="text/event-stream"
+            )
+        use_files = files if hasattr(pipeline, "_build_human_message") else None
 
         def _stream_generator():
             full_answer = ""
@@ -656,19 +786,27 @@ class ChatStreamView(APIView):
                     content_types=content_types,
                     **({"files": use_files} if use_files is not None else {}),
                 ):
-                    if token.startswith('__SOURCES__:'):
-                        meta = token[len('__SOURCES__:'):]
-                        yield f'event: sources\ndata: {meta}\n\n'
+                    if token.startswith("__SOURCES__:"):
+                        meta = token[len("__SOURCES__:") :]
+                        yield f"event: sources\ndata: {meta}\n\n"
                     else:
                         full_answer += token
                         safe = json.dumps(token)
-                        yield f'data: {safe}\n\n'
+                        yield f"data: {safe}\n\n"
             except Exception as exc:
                 exc_str = str(exc).lower()
                 logger.error("SSE stream error: %s", exc, exc_info=True)
-                if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
+                if (
+                    "429" in exc_str
+                    or "resource_exhausted" in exc_str
+                    or "quota" in exc_str
+                ):
                     msg = "All AI quota limits reached. Please try again in a few minutes or add more API keys."
-                elif "api_key" in exc_str or "invalid" in exc_str or "authentication" in exc_str:
+                elif (
+                    "api_key" in exc_str
+                    or "invalid" in exc_str
+                    or "authentication" in exc_str
+                ):
                     msg = "AI service authentication error. Please check your API key configuration."
                 else:
                     msg = "AI service temporarily unavailable. Please try again."
@@ -677,22 +815,22 @@ class ChatStreamView(APIView):
             # Persist conversation to DB after streaming completes
             try:
                 conv = _get_or_create_conversation(conversation_id, user=user)
-                conv.add_message('human', question)
-                conv.add_message('ai', full_answer)
+                conv.add_message("human", question)
+                conv.add_message("ai", full_answer)
                 if not conv.title and question:
                     conv.title = question[:100]
                 conv.save()
             except Exception as exc:
                 logger.warning("Failed to persist streamed conversation: %s", exc)
 
-            yield 'event: done\ndata: {}\n\n'
+            yield "event: done\ndata: {}\n\n"
 
         response = StreamingHttpResponse(
             _stream_generator(),
-            content_type='text/event-stream',
+            content_type="text/event-stream",
         )
-        response['Cache-Control'] = 'no-cache'
-        response['X-Accel-Buffering'] = 'no'
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
         return response
 
 
@@ -702,12 +840,15 @@ class ConversationHistoryView(APIView):
 
     Returns the full message history for a conversation.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, conversation_id: str) -> Response:
         try:
             # SECURITY: filter by user to prevent IDOR
-            conv = Conversation.objects.get(conversation_id=conversation_id, user=request.user)
+            conv = Conversation.objects.get(
+                conversation_id=conversation_id, user=request.user
+            )
         except Conversation.DoesNotExist:
             # Try fetching from pipeline memory (may exist there even if not in DB)
             pipeline = _get_pipeline()
@@ -718,27 +859,43 @@ class ConversationHistoryView(APIView):
                     # but the frontend expects {"role": ..., "content": ..., "ts": ...}
                     normalized = []
                     for turn in history:
-                        if 'role' in turn and 'content' in turn:
+                        if "role" in turn and "content" in turn:
                             # Already in the correct format
-                            normalized.append({
-                                'role': turn['role'],
-                                'content': str(turn['content']) if not isinstance(turn['content'], str) else turn['content'],
-                                'ts': turn.get('ts', 0),
-                            })
+                            normalized.append(
+                                {
+                                    "role": turn["role"],
+                                    "content": (
+                                        str(turn["content"])
+                                        if not isinstance(turn["content"], str)
+                                        else turn["content"]
+                                    ),
+                                    "ts": turn.get("ts", 0),
+                                }
+                            )
                         else:
                             # Convert from {"human": ..., "ai": ..., "ts": ...} format
-                            ts = turn.get('ts', 0)
-                            if 'human' in turn:
-                                normalized.append({'role': 'human', 'content': str(turn['human']), 'ts': ts})
-                            if 'ai' in turn:
-                                normalized.append({'role': 'ai', 'content': str(turn['ai']), 'ts': ts})
-                    return Response({
-                        'conversation_id': conversation_id,
-                        'messages': normalized,
-                        'title': '',
-                    })
+                            ts = turn.get("ts", 0)
+                            if "human" in turn:
+                                normalized.append(
+                                    {
+                                        "role": "human",
+                                        "content": str(turn["human"]),
+                                        "ts": ts,
+                                    }
+                                )
+                            if "ai" in turn:
+                                normalized.append(
+                                    {"role": "ai", "content": str(turn["ai"]), "ts": ts}
+                                )
+                    return Response(
+                        {
+                            "conversation_id": conversation_id,
+                            "messages": normalized,
+                            "title": "",
+                        }
+                    )
             return Response(
-                {'error': 'Conversation not found'},
+                {"error": "Conversation not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -746,18 +903,20 @@ class ConversationHistoryView(APIView):
         # have had a dict/object accidentally stored as content.
         safe_messages = []
         for m in conv.messages:
-            content = m.get('content', '')
+            content = m.get("content", "")
             if not isinstance(content, str):
                 content = str(content)
-            safe_messages.append({**m, 'content': content})
+            safe_messages.append({**m, "content": content})
 
-        return Response({
-            'conversation_id': conv.conversation_id,
-            'title': conv.get_title(),
-            'messages': safe_messages,
-            'created_at': conv.created_at.isoformat(),
-            'updated_at': conv.updated_at.isoformat(),
-        })
+        return Response(
+            {
+                "conversation_id": conv.conversation_id,
+                "title": conv.get_title(),
+                "messages": safe_messages,
+                "created_at": conv.created_at.isoformat(),
+                "updated_at": conv.updated_at.isoformat(),
+            }
+        )
 
 
 class ConversationListView(APIView):
@@ -766,21 +925,27 @@ class ConversationListView(APIView):
 
     Lists conversations for the authenticated user.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> Response:
         # SECURITY: always scope to authenticated user
-        conversations = Conversation.objects.filter(user=request.user).order_by('-updated_at')[:50]
+        conversations = Conversation.objects.filter(user=request.user).order_by(
+            "-updated_at"
+        )[:50]
 
-        data = [{
-            'conversation_id': c.conversation_id,
-            'title': c.get_title(),
-            'message_count': len(c.messages),
-            'created_at': c.created_at.isoformat(),
-            'updated_at': c.updated_at.isoformat(),
-        } for c in conversations]
+        data = [
+            {
+                "conversation_id": c.conversation_id,
+                "title": c.get_title(),
+                "message_count": len(c.messages),
+                "created_at": c.created_at.isoformat(),
+                "updated_at": c.updated_at.isoformat(),
+            }
+            for c in conversations
+        ]
 
-        return Response({'conversations': data})
+        return Response({"conversations": data})
 
 
 class TranscribeView(APIView):
@@ -800,12 +965,19 @@ class TranscribeView(APIView):
         400 — no file, oversized, unsupported format
         503 — Whisper not configured
     """
+
     permission_classes = [IsAuthenticated]
 
-    MAX_AUDIO_BYTES = 25 * 1024 * 1024   # 25 MB — OpenAI hard limit
+    MAX_AUDIO_BYTES = 25 * 1024 * 1024  # 25 MB — OpenAI hard limit
     SUPPORTED_FORMATS = {
-        "audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg",
-        "audio/wav", "audio/x-wav", "audio/m4a", "audio/x-m4a",
+        "audio/webm",
+        "audio/ogg",
+        "audio/mp4",
+        "audio/mpeg",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/m4a",
+        "audio/x-m4a",
         "video/webm",  # Chrome MediaRecorder outputs video/webm for audio-only recordings
     }
     SUPPORTED_EXTENSIONS = {".webm", ".ogg", ".mp4", ".mp3", ".wav", ".m4a", ".flac"}
@@ -816,23 +988,36 @@ class TranscribeView(APIView):
         audio_file = request.FILES.get("audio")
         if not audio_file:
             return Response(
-                {"error": "No audio file provided. Send 'audio' as multipart/form-data."},
+                {
+                    "error": "No audio file provided. Send 'audio' as multipart/form-data."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if audio_file.size > self.MAX_AUDIO_BYTES:
             return Response(
-                {"error": f"Audio file too large ({audio_file.size / (1024*1024):.1f} MB). Maximum is 25 MB."},
+                {
+                    "error": f"Audio file too large ({audio_file.size / (1024*1024):.1f} MB). Maximum is 25 MB."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         content_type = audio_file.content_type or ""
-        file_name    = audio_file.name or "audio.webm"
-        ext = ("." + file_name.rsplit(".", 1)[-1].lower()) if "." in file_name else ".webm"
+        file_name = audio_file.name or "audio.webm"
+        ext = (
+            ("." + file_name.rsplit(".", 1)[-1].lower())
+            if "." in file_name
+            else ".webm"
+        )
 
-        if content_type not in self.SUPPORTED_FORMATS and ext not in self.SUPPORTED_EXTENSIONS:
+        if (
+            content_type not in self.SUPPORTED_FORMATS
+            and ext not in self.SUPPORTED_EXTENSIONS
+        ):
             return Response(
-                {"error": f"Unsupported format '{content_type}'. Use: webm, ogg, mp4, mp3, wav, m4a"},
+                {
+                    "error": f"Unsupported format '{content_type}'. Use: webm, ogg, mp4, mp3, wav, m4a"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -843,6 +1028,7 @@ class TranscribeView(APIView):
         if openai_key:
             try:
                 import openai as _openai
+
                 client = _openai.OpenAI(api_key=openai_key)
                 audio_file.seek(0)
                 audio_bytes = audio_file.read()
@@ -852,11 +1038,13 @@ class TranscribeView(APIView):
                     language=language,
                     response_format="verbose_json",
                 )
-                return Response({
-                    "text":     transcript.text.strip(),
-                    "language": getattr(transcript, "language", language or "en"),
-                    "duration": getattr(transcript, "duration", None),
-                })
+                return Response(
+                    {
+                        "text": transcript.text.strip(),
+                        "language": getattr(transcript, "language", language or "en"),
+                        "duration": getattr(transcript, "duration", None),
+                    }
+                )
             except ImportError:
                 logger.warning("openai package not installed — cannot use Whisper API")
             except Exception as exc:
@@ -868,8 +1056,10 @@ class TranscribeView(APIView):
 
         # ── Local openai-whisper fallback ─────────────────────────────────────
         try:
+            import os as _os
+            import tempfile
+
             import whisper as _whisper  # type: ignore
-            import tempfile, os as _os
 
             audio_file.seek(0)
             with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
@@ -878,12 +1068,14 @@ class TranscribeView(APIView):
             try:
                 model_size = _os.environ.get("WHISPER_LOCAL_MODEL", "base")
                 wmodel = _whisper.load_model(model_size)
-                result  = wmodel.transcribe(tmp_path, language=language)
-                return Response({
-                    "text":     result["text"].strip(),
-                    "language": result.get("language", language or "en"),
-                    "duration": None,
-                })
+                result = wmodel.transcribe(tmp_path, language=language)
+                return Response(
+                    {
+                        "text": result["text"].strip(),
+                        "language": result.get("language", language or "en"),
+                        "duration": None,
+                    }
+                )
             finally:
                 _os.unlink(tmp_path)
         except ImportError:
@@ -896,7 +1088,9 @@ class TranscribeView(APIView):
             )
 
         return Response(
-            {"error": "Transcription not configured. Set OPENAI_API_KEY or install openai-whisper."},
+            {
+                "error": "Transcription not configured. Set OPENAI_API_KEY or install openai-whisper."
+            },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
@@ -907,6 +1101,7 @@ class ConversationDeleteView(APIView):
 
     Deletes a conversation from DB and pipeline memory.
     """
+
     permission_classes = [IsAuthenticated]
 
     def delete(self, request: Request, conversation_id: str) -> Response:
@@ -925,8 +1120,8 @@ class ConversationDeleteView(APIView):
 
         if deleted_count == 0:
             return Response(
-                {'error': 'Conversation not found'},
+                {"error": "Conversation not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return Response({'status': 'deleted', 'conversation_id': conversation_id})
+        return Response({"status": "deleted", "conversation_id": conversation_id})

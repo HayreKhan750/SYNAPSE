@@ -3,10 +3,11 @@ Initial migration for apps.integrations — GoogleDriveToken model.
 
 Phase 6.1 — Google Drive Integration (Week 17)
 """
-from django.conf import settings
-import django.db.models.deletion
-from django.db import migrations, models
 import uuid
+
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

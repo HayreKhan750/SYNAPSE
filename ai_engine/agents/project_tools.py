@@ -13,10 +13,17 @@ Templates implemented:
 
 Each template returns a Dict[filename, content] that is packed into a .zip file.
 """
+
 from __future__ import annotations
-import io, logging, os, uuid, zipfile
+
+import io
+import logging
+import os
+import uuid
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
@@ -26,27 +33,93 @@ VALID_PROJECT_TYPES = ["django", "fastapi", "nextjs", "datascience", "react_lib"
 # SEC-06: Allowed feature flags per template — prevents injection of arbitrary
 # strings into generated code via the features list.
 _ALLOWED_FEATURES: Dict[str, frozenset] = {
-    "django": frozenset({
-        "auth", "testing", "ci_cd", "payments", "stripe", "docker", "celery",
-        "redis", "rest_framework", "graphql", "channels", "s3", "postgres",
-        "admin", "api", "jwt",
-    }),
-    "fastapi": frozenset({
-        "auth", "testing", "ci_cd", "jwt", "oauth2", "docker", "celery",
-        "redis", "sqlalchemy", "postgres", "websockets", "prometheus", "sentry", "s3",
-    }),
-    "nextjs": frozenset({
-        "auth", "testing", "ci_cd", "tailwind", "shadcn", "stripe", "sentry",
-        "pwa", "i18n", "mdx", "prisma", "trpc", "zustand", "redux",
-    }),
-    "datascience": frozenset({
-        "pytorch", "tensorflow", "sklearn", "xgboost", "plotly", "testing",
-        "streamlit", "fastapi", "docker", "mlflow", "dvc", "ci_cd",
-    }),
-    "react_lib": frozenset({
-        "typescript", "storybook", "jest", "vitest", "rollup", "testing",
-        "vite", "tailwind", "emotion", "styled_components", "ci_cd",
-    }),
+    "django": frozenset(
+        {
+            "auth",
+            "testing",
+            "ci_cd",
+            "payments",
+            "stripe",
+            "docker",
+            "celery",
+            "redis",
+            "rest_framework",
+            "graphql",
+            "channels",
+            "s3",
+            "postgres",
+            "admin",
+            "api",
+            "jwt",
+        }
+    ),
+    "fastapi": frozenset(
+        {
+            "auth",
+            "testing",
+            "ci_cd",
+            "jwt",
+            "oauth2",
+            "docker",
+            "celery",
+            "redis",
+            "sqlalchemy",
+            "postgres",
+            "websockets",
+            "prometheus",
+            "sentry",
+            "s3",
+        }
+    ),
+    "nextjs": frozenset(
+        {
+            "auth",
+            "testing",
+            "ci_cd",
+            "tailwind",
+            "shadcn",
+            "stripe",
+            "sentry",
+            "pwa",
+            "i18n",
+            "mdx",
+            "prisma",
+            "trpc",
+            "zustand",
+            "redux",
+        }
+    ),
+    "datascience": frozenset(
+        {
+            "pytorch",
+            "tensorflow",
+            "sklearn",
+            "xgboost",
+            "plotly",
+            "testing",
+            "streamlit",
+            "fastapi",
+            "docker",
+            "mlflow",
+            "dvc",
+            "ci_cd",
+        }
+    ),
+    "react_lib": frozenset(
+        {
+            "typescript",
+            "storybook",
+            "jest",
+            "vitest",
+            "rollup",
+            "testing",
+            "vite",
+            "tailwind",
+            "emotion",
+            "styled_components",
+            "ci_cd",
+        }
+    ),
 }
 
 
@@ -56,9 +129,10 @@ def _project_dir(user_id: str = "anonymous") -> Path:
     SEC-06: Sanitise user_id to prevent path traversal attacks.
     """
     import re as _re
-    safe_user_id = _re.sub(r'[^a-zA-Z0-9_\-]', '_', str(user_id))
-    if not safe_user_id or safe_user_id in ('', '_', '__'):
-        safe_user_id = 'anonymous'
+
+    safe_user_id = _re.sub(r"[^a-zA-Z0-9_\-]", "_", str(user_id))
+    if not safe_user_id or safe_user_id in ("", "_", "__"):
+        safe_user_id = "anonymous"
 
     root = Path(os.environ.get("MEDIA_ROOT", "media")).resolve()
     d = root / "projects" / safe_user_id
@@ -93,16 +167,22 @@ def _pack_zip(files: Dict[str, str], zip_path: Path) -> int:
 # Template definitions
 # ---------------------------------------------------------------------------
 
+
 def _django_template(name: str, features: List[str]) -> Dict[str, str]:
     app = name.replace("-", "_").lower()
     auth_middleware = (
         "\n    'django.contrib.auth.middleware.AuthenticationMiddleware',"
-        if "auth" in features else ""
+        if "auth" in features
+        else ""
     )
     test_file = (
-        f"tests/test_{app}.py",
-        f"from django.test import TestCase\n\nclass {app.title()}Test(TestCase):\n    def test_placeholder(self):\n        self.assertTrue(True)\n",
-    ) if "testing" in features else None
+        (
+            f"tests/test_{app}.py",
+            f"from django.test import TestCase\n\nclass {app.title()}Test(TestCase):\n    def test_placeholder(self):\n        self.assertTrue(True)\n",
+        )
+        if "testing" in features
+        else None
+    )
 
     files = {
         "manage.py": f"""#!/usr/bin/env python
@@ -220,7 +300,9 @@ volumes:
     if test_file:
         files[test_file[0]] = test_file[1]
     if "ci_cd" in features:
-        files[".github/workflows/ci.yml"] = """name: CI
+        files[
+            ".github/workflows/ci.yml"
+        ] = """name: CI
 on: [push, pull_request]
 jobs:
   test:
@@ -261,14 +343,14 @@ app.include_router(health.router, tags=["Health"])
 app.include_router(items.router, prefix="/items", tags=["Items"])
 ''',
         f"{pkg}/routers/__init__.py": "",
-        f"{pkg}/routers/health.py": '''from fastapi import APIRouter
+        f"{pkg}/routers/health.py": """from fastapi import APIRouter
 router = APIRouter()
 
 @router.get("/health")
 async def health_check():
     return {"status": "ok"}
-''',
-        f"{pkg}/routers/items.py": '''from fastapi import APIRouter, HTTPException
+""",
+        f"{pkg}/routers/items.py": """from fastapi import APIRouter, HTTPException
 from typing import List
 from {pkg}.schemas import ItemCreate, ItemRead
 from {pkg}.database import get_db, SessionLocal
@@ -296,8 +378,10 @@ async def get_item(item_id: int, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
-'''.replace("{pkg}", pkg),
-        f"{pkg}/schemas.py": '''from pydantic import BaseModel
+""".replace(
+            "{pkg}", pkg
+        ),
+        f"{pkg}/schemas.py": """from pydantic import BaseModel
 from typing import Optional
 
 class ItemBase(BaseModel):
@@ -311,8 +395,8 @@ class ItemRead(ItemBase):
     id: int
     class Config:
         from_attributes = True
-''',
-        f"{pkg}/models.py": '''from sqlalchemy import Column, Integer, String, Text
+""",
+        f"{pkg}/models.py": """from sqlalchemy import Column, Integer, String, Text
 from {pkg}.database import Base
 
 class Item(Base):
@@ -320,8 +404,10 @@ class Item(Base):
     id          = Column(Integer, primary_key=True, index=True)
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-'''.replace("{pkg}", pkg),
-        f"{pkg}/database.py": '''from sqlalchemy import create_engine
+""".replace(
+            "{pkg}", pkg
+        ),
+        f"{pkg}/database.py": """from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
@@ -337,7 +423,7 @@ def get_db():
         yield db
     finally:
         db.close()
-''',
+""",
         "requirements.txt": "fastapi==0.111.0\nuvicorn[standard]==0.29.0\nsqlalchemy==2.0.30\nalembic==1.13.1\npydantic==2.7.1\npython-dotenv==1.0.1\nhttpx==0.27.0\n",
         "Dockerfile": f'FROM python:3.11-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nEXPOSE 8000\nCMD ["uvicorn", "{pkg}.main:app", "--host", "0.0.0.0", "--port", "8000"]\n',
         "docker-compose.yml": f'version: "3.8"\nservices:\n  api:\n    build: .\n    ports: ["8000:8000"]\n    environment:\n      - DATABASE_URL=sqlite:///./dev.db\n',
@@ -345,7 +431,7 @@ def get_db():
         ".gitignore": "__pycache__/\n*.py[cod]\n.env\n*.db\ndist/\n.venv/\n",
         "README.md": f"# {name}\n\nFastAPI microservice generated by SYNAPSE AI.\n\n## Quick Start\n\n```bash\npip install -r requirements.txt\nuvicorn {pkg}.main:app --reload\n```\n\nDocs available at http://localhost:8000/docs\n",
         f"tests/__init__.py": "",
-        f"tests/test_health.py": f'''from fastapi.testclient import TestClient
+        f"tests/test_health.py": f"""from fastapi.testclient import TestClient
 from {pkg}.main import app
 
 client = TestClient(app)
@@ -354,10 +440,12 @@ def test_health():
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json() == {{"status": "ok"}}
-''',
+""",
     }
     if "ci_cd" in features:
-        files[".github/workflows/ci.yml"] = "name: CI\non: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v4\n        with: {python-version: '3.11'}\n      - run: pip install -r requirements.txt pytest httpx\n      - run: pytest\n"
+        files[".github/workflows/ci.yml"] = (
+            "name: CI\non: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v4\n        with: {python-version: '3.11'}\n      - run: pip install -r requirements.txt pytest httpx\n      - run: pytest\n"
+        )
     return files
 
 
@@ -368,7 +456,7 @@ def _nextjs_template(name: str, features: List[str]) -> Dict[str, str]:
         "tsconfig.json": '{"compilerOptions": {"target": "es5", "lib": ["dom", "dom.iterable", "esnext"], "allowJs": true, "skipLibCheck": true, "strict": true, "noEmit": true, "esModuleInterop": true, "module": "esnext", "moduleResolution": "bundler", "resolveJsonModule": true, "isolatedModules": true, "jsx": "preserve", "incremental": true, "plugins": [{"name": "next"}], "paths": {"@/*": ["./src/*"]}}, "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"], "exclude": ["node_modules"]}',
         "next.config.mjs": "/** @type {import('next').NextConfig} */\nconst nextConfig = {};\nexport default nextConfig;\n",
         "tailwind.config.ts": 'import type { Config } from "tailwindcss";\nconst config: Config = { content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"], theme: { extend: { colors: { primary: "#4F46E5", secondary: "#06B6D4", accent: "#8B5CF6" } } }, plugins: [] };\nexport default config;\n',
-        "postcss.config.js": 'module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } };\n',
+        "postcss.config.js": "module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } };\n",
         ".env.local.example": "NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1\n",
         ".gitignore": "node_modules/\n.next/\nout/\nbuild/\n.env.local\n*.tsbuildinfo\n",
         f"README.md": f"# {name}\n\nNext.js 14 app generated by SYNAPSE AI.\n\n## Quick Start\n\n```bash\nnpm install\nnpm run dev\n```\n\nOpen http://localhost:3000\n",
@@ -377,12 +465,16 @@ def _nextjs_template(name: str, features: List[str]) -> Dict[str, str]:
         "src/app/page.tsx": f'export default function HomePage() {{\n  return (\n    <main className="flex min-h-screen flex-col items-center justify-center p-24">\n      <h1 className="text-4xl font-bold text-primary">{name}</h1>\n      <p className="mt-4 text-gray-600">Generated by SYNAPSE AI</p>\n    </main>\n  );\n}}\n',
         "src/utils/api.ts": 'import axios from "axios";\nconst api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || "/api", headers: { "Content-Type": "application/json" } });\napi.interceptors.request.use((config) => { const token = localStorage.getItem("access_token"); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });\nexport default api;\n',
         "src/store/authStore.ts": 'import { create } from "zustand";\ninterface AuthState { user: null | { id: string; email: string }; token: string | null; login: (user: AuthState["user"], token: string) => void; logout: () => void; }\nexport const useAuthStore = create<AuthState>((set) => ({ user: null, token: null, login: (user, token) => { localStorage.setItem("access_token", token); set({ user, token }); }, logout: () => { localStorage.removeItem("access_token"); set({ user: null, token: null }); } }));\n',
-        "src/types/index.ts": 'export interface User { id: string; email: string; username: string; }\nexport interface ApiError { detail: string; }\nexport interface PaginatedResponse<T> { count: number; next: string | null; previous: string | null; results: T[]; }\n',
+        "src/types/index.ts": "export interface User { id: string; email: string; username: string; }\nexport interface ApiError { detail: string; }\nexport interface PaginatedResponse<T> { count: number; next: string | null; previous: string | null; results: T[]; }\n",
     }
     if "testing" in features:
-        files["src/__tests__/page.test.tsx"] = 'import { render, screen } from "@testing-library/react";\nimport HomePage from "../app/page";\ndescribe("HomePage", () => { it("renders heading", () => { render(<HomePage />); expect(screen.getByRole("heading")).toBeInTheDocument(); }); });\n'
+        files["src/__tests__/page.test.tsx"] = (
+            'import { render, screen } from "@testing-library/react";\nimport HomePage from "../app/page";\ndescribe("HomePage", () => { it("renders heading", () => { render(<HomePage />); expect(screen.getByRole("heading")).toBeInTheDocument(); }); });\n'
+        )
     if "ci_cd" in features:
-        files[".github/workflows/ci.yml"] = "name: CI\non: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with: {node-version: '20'}\n      - run: npm ci\n      - run: npm run lint\n      - run: npm test\n      - run: npm run build\n"
+        files[".github/workflows/ci.yml"] = (
+            "name: CI\non: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with: {node-version: '20'}\n      - run: npm ci\n      - run: npm run lint\n      - run: npm test\n      - run: npm run build\n"
+        )
     return files
 
 
@@ -407,7 +499,9 @@ def _datascience_template(name: str, features: List[str]) -> Dict[str, str]:
     }
     if "testing" in features:
         files["tests/__init__.py"] = ""
-        files["tests/test_features.py"] = 'import pandas as pd\nimport pytest\nfrom src.features import encode_categoricals, scale_numerics\n\ndef test_encode_categoricals():\n    df = pd.DataFrame({"cat": ["a", "b", "a"]})\n    result = encode_categoricals(df, ["cat"])\n    assert result["cat"].dtype in [int, "int64", "int32"]\n\ndef test_scale_numerics():\n    df = pd.DataFrame({"num": [1.0, 2.0, 3.0]})\n    result = scale_numerics(df, ["num"])\n    assert abs(result["num"].mean()) < 1e-9\n'
+        files["tests/test_features.py"] = (
+            'import pandas as pd\nimport pytest\nfrom src.features import encode_categoricals, scale_numerics\n\ndef test_encode_categoricals():\n    df = pd.DataFrame({"cat": ["a", "b", "a"]})\n    result = encode_categoricals(df, ["cat"])\n    assert result["cat"].dtype in [int, "int64", "int32"]\n\ndef test_scale_numerics():\n    df = pd.DataFrame({"num": [1.0, 2.0, 3.0]})\n    result = scale_numerics(df, ["num"])\n    assert abs(result["num"].mean()) < 1e-9\n'
+        )
     return files
 
 
@@ -419,7 +513,7 @@ def _react_lib_template(name: str, features: List[str]) -> Dict[str, str]:
         "tsconfig.json": '{"compilerOptions": {"target": "ES2017", "module": "ESNext", "lib": ["ES2017", "DOM"], "jsx": "react", "declaration": true, "declarationDir": "dist", "outDir": "dist", "moduleResolution": "node", "strict": true, "esModuleInterop": true, "skipLibCheck": true}, "include": ["src"], "exclude": ["node_modules", "dist"]}',
         "rollup.config.js": 'import typescript from "@rollup/plugin-typescript";\nimport dts from "rollup-plugin-dts";\nconst config = [\n  { input: "src/index.ts", output: [{ file: "dist/index.js", format: "cjs", sourcemap: true }, { file: "dist/index.esm.js", format: "esm", sourcemap: true }], plugins: [typescript()], external: ["react", "react-dom"] },\n  { input: "src/index.ts", output: [{ file: "dist/index.d.ts", format: "esm" }], plugins: [dts()] },\n];\nexport default config;\n',
         ".gitignore": "node_modules/\ndist/\n.storybook-out/\n",
-        f"README.md": f"# {name}\n\nReact component library generated by SYNAPSE AI.\n\n## Quick Start\n\n```bash\nnpm install\nnpm run build\n```\n\n## Usage\n\n```tsx\nimport {{ Button }} from \"{name.lower()}\";\n\n<Button variant=\"primary\" onClick={{() => console.log(\"clicked\")}}>Click me</Button>\n```\n\n## Storybook\n\n```bash\nnpm run storybook\n```\n",
+        f"README.md": f'# {name}\n\nReact component library generated by SYNAPSE AI.\n\n## Quick Start\n\n```bash\nnpm install\nnpm run build\n```\n\n## Usage\n\n```tsx\nimport {{ Button }} from "{name.lower()}";\n\n<Button variant="primary" onClick={{() => console.log("clicked")}}>Click me</Button>\n```\n\n## Storybook\n\n```bash\nnpm run storybook\n```\n',
         "src/index.ts": "export { Button } from './components/Button';\nexport { Card } from './components/Card';\nexport { Badge } from './components/Badge';\n",
         "src/components/Button.tsx": 'import React from "react";\n\nexport interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {\n  variant?: "primary" | "secondary" | "ghost" | "destructive";\n  size?: "sm" | "md" | "lg";\n  children: React.ReactNode;\n}\n\nconst variantStyles: Record<string, string> = {\n  primary: "background:#4F46E5;color:#fff;",\n  secondary: "background:#06B6D4;color:#fff;",\n  ghost: "background:transparent;border:1px solid #4F46E5;color:#4F46E5;",\n  destructive: "background:#EF4444;color:#fff;",\n};\n\nconst sizeStyles: Record<string, string> = {\n  sm: "padding:4px 10px;font-size:12px;",\n  md: "padding:8px 16px;font-size:14px;",\n  lg: "padding:12px 24px;font-size:16px;",\n};\n\nexport const Button: React.FC<ButtonProps> = ({ variant = "primary", size = "md", children, style, ...props }) => (\n  <button style={{ ...(Object.fromEntries(variantStyles[variant].split(";").filter(Boolean).map(s => s.split(":") as [string,string]))), ...(Object.fromEntries(sizeStyles[size].split(";").filter(Boolean).map(s => s.split(":") as [string,string]))), borderRadius: 6, cursor: "pointer", border: "none", ...style }} {...props}>\n    {children}\n  </button>\n);\n',
         "src/components/Card.tsx": 'import React from "react";\n\nexport interface CardProps { children: React.ReactNode; className?: string; style?: React.CSSProperties; }\n\nexport const Card: React.FC<CardProps> = ({ children, style }) => (\n  <div style={{ background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.08)", padding: 20, ...style }}>\n    {children}\n  </div>\n);\n',
@@ -435,11 +529,11 @@ def _react_lib_template(name: str, features: List[str]) -> Dict[str, str]:
 # ---------------------------------------------------------------------------
 
 TEMPLATE_MAP = {
-    "django":      _django_template,
-    "fastapi":     _fastapi_template,
-    "nextjs":      _nextjs_template,
+    "django": _django_template,
+    "fastapi": _fastapi_template,
+    "nextjs": _nextjs_template,
     "datascience": _datascience_template,
-    "react_lib":   _react_lib_template,
+    "react_lib": _react_lib_template,
 }
 
 
@@ -479,7 +573,9 @@ class CreateProjectInput(BaseModel):
             "Included verbatim in the generated README.md under the 'About' section."
         ),
     )
-    user_id: str = Field(default="anonymous", description="User ID for file storage path.")
+    user_id: str = Field(
+        default="anonymous", description="User ID for file storage path."
+    )
 
 
 def _create_project(
@@ -503,6 +599,7 @@ def _create_project(
 
         # SEC-06: Validate and sanitise feature flags
         import re as _re
+
         allowed = _ALLOWED_FEATURES.get(project_type, frozenset())
         invalid = [f for f in features if f not in allowed]
         if invalid:
@@ -513,7 +610,7 @@ def _create_project(
 
         # Sanitise project name — must start with letter, alphanumeric/hyphens/underscores only
         name = name.strip() or "my-project"
-        if not _re.match(r'^[a-zA-Z][a-zA-Z0-9_\-]{0,63}$', name):
+        if not _re.match(r"^[a-zA-Z][a-zA-Z0-9_\-]{0,63}$", name):
             return (
                 "Project name must start with a letter, contain only alphanumeric "
                 "characters, hyphens or underscores, and be 1–64 characters long."
@@ -525,7 +622,9 @@ def _create_project(
 
         # Inject user description into README if provided
         if description and description.strip():
-            readme_key = next((k for k in files if k.lower().endswith("readme.md")), None)
+            readme_key = next(
+                (k for k in files if k.lower().endswith("readme.md")), None
+            )
             if readme_key:
                 about_block = f"\n## About\n\n{description.strip()}\n"
                 # Insert after the first heading line (# Project Name)

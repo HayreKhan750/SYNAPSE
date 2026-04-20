@@ -2,10 +2,11 @@
 Initial migration for Organizations app — TASK-006.
 Creates: organizations, organization_memberships, organization_invites tables.
 """
+import uuid
+
+import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
-import django.db.models.deletion
-import uuid
 
 
 class Migration(migrations.Migration):

@@ -7,24 +7,28 @@ Covers:
   - GET /api/v1/trending/   endpoint
   - GET /api/v1/recommendations/ endpoint
 """
+
 import uuid
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
-from django.contrib.contenttypes.models import ContentType
-from rest_framework.test import APIClient
-from rest_framework import status
-
-from apps.users.models import User
 from apps.articles.models import Article
 from apps.core.models import UserActivity
-from apps.core.trending import get_trending, _accumulate_scores
 from apps.core.recommendations import recommend_for_user
+from apps.core.trending import _accumulate_scores, get_trending
+from apps.users.models import User
+
+from django.contrib.contenttypes.models import ContentType
+from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APIClient
 
 
 def _make_user(email=None):
     email = email or f"trending_{uuid.uuid4().hex[:6]}@test.com"
-    import uuid as _uuu; uname = 'user_' + _uuu.uuid4().hex[:8]; return User.objects.create_user(username=uname, email=email, password='pass12345')
+    import uuid as _uuu
+
+    uname = "user_" + _uuu.uuid4().hex[:8]
+    return User.objects.create_user(username=uname, email=email, password="pass12345")
 
 
 def _make_article(title="Test Article", score=0.5):
@@ -39,22 +43,28 @@ def _make_article(title="Test Article", score=0.5):
 class AccumulateScoresTests(TestCase):
 
     def test_returns_dict(self):
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
         since = timezone.now() - timedelta(hours=48)
         result = _accumulate_scores(since)
         self.assertIsInstance(result, dict)
 
     def test_empty_when_no_activity(self):
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
         since = timezone.now() - timedelta(hours=1)
         result = _accumulate_scores(since)
         self.assertEqual(result, {})
 
     def test_accumulates_bookmark_weight(self):
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
         user = _make_user()
         article = _make_article()
         ct = ContentType.objects.get_for_model(Article)
@@ -72,14 +82,26 @@ class AccumulateScoresTests(TestCase):
         self.assertIn(str(article.id), ids)
 
     def test_unbookmark_reduces_score(self):
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
         user = _make_user()
         article = _make_article()
         ct = ContentType.objects.get_for_model(Article)
         # bookmark (+3) + unbookmark (-1.5) = net 1.5
-        UserActivity.objects.create(user=user, content_type=ct, object_id=str(article.id), interaction_type="bookmark")
-        UserActivity.objects.create(user=user, content_type=ct, object_id=str(article.id), interaction_type="unbookmark")
+        UserActivity.objects.create(
+            user=user,
+            content_type=ct,
+            object_id=str(article.id),
+            interaction_type="bookmark",
+        )
+        UserActivity.objects.create(
+            user=user,
+            content_type=ct,
+            object_id=str(article.id),
+            interaction_type="unbookmark",
+        )
         since = timezone.now() - timedelta(hours=1)
         result = _accumulate_scores(since)
         model_label = ct.model
@@ -100,11 +122,16 @@ class GetTrendingTests(TestCase):
         self.assertIsInstance(result.get("articles", []), list)
         self.assertIsInstance(result.get("papers", []), list)
         self.assertIsInstance(result.get("repos", []), list)
-        for v in (result.get("articles", []), result.get("papers", []), result.get("repos", [])):
+        for v in (
+            result.get("articles", []),
+            result.get("papers", []),
+            result.get("repos", []),
+        ):
             self.assertEqual(v, [])
 
     def test_returns_articles_when_bookmarked(self):
         from django.utils import timezone
+
         user = _make_user()
         article = _make_article("Trending Article")
         ct = ContentType.objects.get_for_model(Article)
@@ -156,7 +183,9 @@ class TrendingEndpointTests(TestCase):
     def test_unauthenticated_returns_401_or_200(self):
         """Trending may be public or auth-required depending on config."""
         resp = APIClient().get(self.url)
-        self.assertIn(resp.status_code, [status.HTTP_200_OK, status.HTTP_401_UNAUTHORIZED])
+        self.assertIn(
+            resp.status_code, [status.HTTP_200_OK, status.HTTP_401_UNAUTHORIZED]
+        )
 
 
 class RecommendationsEndpointTests(TestCase):

@@ -8,6 +8,7 @@ loaded once and cached for the lifetime of the process.
 Predefined topics match the categories used across the platform (articles,
 papers, repositories, videos).
 """
+
 import logging
 from typing import Dict, List, Optional, Tuple
 
@@ -49,7 +50,9 @@ def _get_classifier():
     if _classifier is None:
         try:
             import os
+
             from transformers import pipeline  # noqa: PLC0415
+
             model_name = os.environ.get("TOPIC_MODEL", DEFAULT_MODEL)
             logger.info("Loading zero-shot classifier: %s", model_name)
             _classifier = pipeline(

@@ -10,9 +10,9 @@ import os
 from typing import List, Optional
 
 from langchain_community.vectorstores import PGVector
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
-from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from pydantic import Field
 
 from ai_engine.embeddings import get_embedder
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Connection string helper
 # ---------------------------------------------------------------------------
+
 
 def _build_connection_string() -> str:
     """Build PostgreSQL connection string from environment variables."""
@@ -39,6 +40,7 @@ def _build_connection_string() -> str:
 # LangChain-compatible embedding wrapper
 # ---------------------------------------------------------------------------
 
+
 class SynapseEmbeddingWrapper:
     """Wraps SynapseEmbedder so it satisfies LangChain's Embeddings interface."""
 
@@ -47,6 +49,7 @@ class SynapseEmbeddingWrapper:
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         import numpy as np
+
         vectors = self._embedder.embed_batch(texts)
         if isinstance(vectors, np.ndarray):
             return vectors.tolist()
@@ -54,6 +57,7 @@ class SynapseEmbeddingWrapper:
 
     def embed_query(self, text: str) -> List[float]:
         import numpy as np
+
         vector = self._embedder.embed(text)
         if isinstance(vector, np.ndarray):
             return vector.tolist()
@@ -83,6 +87,7 @@ ALL_COLLECTIONS = list(COLLECTION_NAMES.values())
 # SynapseRetriever
 # ---------------------------------------------------------------------------
 
+
 class SynapseRetriever(BaseRetriever):
     """
     Retrieves the most relevant SYNAPSE knowledge-base documents for a query.
@@ -96,7 +101,9 @@ class SynapseRetriever(BaseRetriever):
     Searches across all content types (articles, papers, repositories, videos).
     """
 
-    k: int = Field(default=5, description="Number of documents to retrieve per collection")
+    k: int = Field(
+        default=5, description="Number of documents to retrieve per collection"
+    )
     score_threshold: float = Field(default=0.0, description="Minimum similarity score")
     content_types: List[str] = Field(
         default_factory=lambda: list(COLLECTION_NAMES.keys()),
@@ -104,7 +111,7 @@ class SynapseRetriever(BaseRetriever):
     )
     connection_string: str = Field(default_factory=_build_connection_string)
     mode: str = Field(
-        default='hybrid',
+        default="hybrid",
         description="Retrieval mode: 'semantic' | 'bm25' | 'hybrid'",
     )
     use_reranker: bool = Field(
@@ -137,9 +144,9 @@ class SynapseRetriever(BaseRetriever):
           bm25     — PostgreSQL full-text search only
           hybrid   — RRF(BM25 + semantic) + optional cross-encoder rerank
         """
-        if self.mode == 'bm25':
+        if self.mode == "bm25":
             return self._bm25_retrieve(query)
-        if self.mode == 'hybrid':
+        if self.mode == "hybrid":
             return self._hybrid_retrieve(query)
         # default: 'semantic'
         return self._semantic_retrieve(query)
@@ -155,7 +162,9 @@ class SynapseRetriever(BaseRetriever):
             try:
                 store = self._get_vectorstore(collection)
                 if self.score_threshold > 0:
-                    docs_with_scores = store.similarity_search_with_score(query, k=self.k)
+                    docs_with_scores = store.similarity_search_with_score(
+                        query, k=self.k
+                    )
                     for doc, score in docs_with_scores:
                         if score >= self.score_threshold:
                             doc.metadata["similarity_score"] = float(score)
@@ -171,9 +180,15 @@ class SynapseRetriever(BaseRetriever):
 
         seen: dict = {}
         for doc in all_docs:
-            key = doc.metadata.get("source") or doc.metadata.get("id") or doc.page_content[:80]
+            key = (
+                doc.metadata.get("source")
+                or doc.metadata.get("id")
+                or doc.page_content[:80]
+            )
             score = doc.metadata.get("similarity_score", 0.0)
-            if key not in seen or score > seen[key].metadata.get("similarity_score", 0.0):
+            if key not in seen or score > seen[key].metadata.get(
+                "similarity_score", 0.0
+            ):
                 seen[key] = doc
 
         merged = sorted(
@@ -187,29 +202,34 @@ class SynapseRetriever(BaseRetriever):
         """BM25 retrieval via Django ORM (requires DB access from AI engine)."""
         docs: List[Document] = []
         try:
-            import django
             import os as _os
-            if not _os.environ.get('DJANGO_SETTINGS_MODULE'):
-                _os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings.production'
+
+            import django
+
+            if not _os.environ.get("DJANGO_SETTINGS_MODULE"):
+                _os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.production"
             try:
                 django.setup()
             except RuntimeError:
                 pass  # already set up
 
             from apps.core.search import bm25_search
+
             raw = bm25_search(query, self.content_types, self.k)
 
             for ct, results in raw.items():
                 for r in results:
-                    docs.append(Document(
-                        page_content=f"{r.title}\n{r.snippet}",
-                        metadata={
-                            'id':           r.id,
-                            'content_type': ct,
-                            'title':        r.title,
-                            'bm25_rank':    r.bm25_rank,
-                        },
-                    ))
+                    docs.append(
+                        Document(
+                            page_content=f"{r.title}\n{r.snippet}",
+                            metadata={
+                                "id": r.id,
+                                "content_type": ct,
+                                "title": r.title,
+                                "bm25_rank": r.bm25_rank,
+                            },
+                        )
+                    )
         except Exception as exc:
             logger.warning("BM25 retrieval failed: %s — falling back to semantic", exc)
             return self._semantic_retrieve(query)
@@ -221,10 +241,12 @@ class SynapseRetriever(BaseRetriever):
         Falls back to semantic-only if Django ORM is unavailable.
         """
         try:
-            import django
             import os as _os
-            if not _os.environ.get('DJANGO_SETTINGS_MODULE'):
-                _os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings.production'
+
+            import django
+
+            if not _os.environ.get("DJANGO_SETTINGS_MODULE"):
+                _os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.production"
             try:
                 django.setup()
             except RuntimeError:
@@ -247,26 +269,31 @@ class SynapseRetriever(BaseRetriever):
             docs: List[Document] = []
             for ct, results in raw.items():
                 for r in results:
-                    docs.append(Document(
-                        page_content=f"{r.title}\n{r.snippet}",
-                        metadata={
-                            'id':              r.id,
-                            'content_type':    ct,
-                            'title':           r.title,
-                            'rrf_score':       r.rrf_score,
-                            'rerank_score':    r.rerank_score,
-                            'similarity_score': r.similarity_score,
-                            'bm25_rank':       r.bm25_rank,
-                            'semantic_rank':   r.semantic_rank,
-                        },
-                    ))
+                    docs.append(
+                        Document(
+                            page_content=f"{r.title}\n{r.snippet}",
+                            metadata={
+                                "id": r.id,
+                                "content_type": ct,
+                                "title": r.title,
+                                "rrf_score": r.rrf_score,
+                                "rerank_score": r.rerank_score,
+                                "similarity_score": r.similarity_score,
+                                "bm25_rank": r.bm25_rank,
+                                "semantic_rank": r.semantic_rank,
+                            },
+                        )
+                    )
             # Sort by final score (rerank > rrf)
             docs.sort(
-                key=lambda d: d.metadata.get('rerank_score') or d.metadata.get('rrf_score', 0.0),
+                key=lambda d: d.metadata.get("rerank_score")
+                or d.metadata.get("rrf_score", 0.0),
                 reverse=True,
             )
             return docs
 
         except Exception as exc:
-            logger.warning("Hybrid retrieval failed: %s — falling back to semantic", exc)
+            logger.warning(
+                "Hybrid retrieval failed: %s — falling back to semantic", exc
+            )
             return self._semantic_retrieve(query)

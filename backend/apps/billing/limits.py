@@ -15,10 +15,12 @@ Usage:
     if not user_has_feature(request.user, "api_access"):
         raise PermissionDenied(...)
 """
+
 from __future__ import annotations
 
-from django.core.exceptions import PermissionDenied
 import structlog
+
+from django.core.exceptions import PermissionDenied
 
 logger = structlog.get_logger(__name__)
 
@@ -27,67 +29,68 @@ logger = structlog.get_logger(__name__)
 
 PLAN_LIMITS = {
     "free": {
-        "ai_queries":   50,    # per month
-        "agent_runs":   5,     # per month
-        "automations":  5,
-        "documents":    10,
-        "bookmarks":    100,
+        "ai_queries": 50,  # per month
+        "agent_runs": 5,  # per month
+        "automations": 5,
+        "documents": 10,
+        "bookmarks": 100,
     },
     "pro": {
-        "ai_queries":   -1,    # unlimited
-        "agent_runs":   -1,
-        "automations":  -1,
-        "documents":    -1,
-        "bookmarks":    -1,
+        "ai_queries": -1,  # unlimited
+        "agent_runs": -1,
+        "automations": -1,
+        "documents": -1,
+        "bookmarks": -1,
     },
     "enterprise": {
-        "ai_queries":   -1,
-        "agent_runs":   -1,
-        "automations":  -1,
-        "documents":    -1,
-        "bookmarks":    -1,
+        "ai_queries": -1,
+        "agent_runs": -1,
+        "automations": -1,
+        "documents": -1,
+        "bookmarks": -1,
     },
 }
 
 # Features gated by plan
 PLAN_FEATURES = {
     "free": {
-        "semantic_search":    False,
-        "api_access":         False,
-        "google_drive":       False,
-        "private_repos":      False,
-        "teams":              False,
-        "custom_ai":          False,
-        "audit_logs":         False,
-        "sso":                False,
+        "semantic_search": False,
+        "api_access": False,
+        "google_drive": False,
+        "private_repos": False,
+        "teams": False,
+        "custom_ai": False,
+        "audit_logs": False,
+        "sso": False,
         "advanced_analytics": False,
     },
     "pro": {
-        "semantic_search":    True,
-        "api_access":         True,
-        "google_drive":       True,
-        "private_repos":      True,
-        "teams":              False,
-        "custom_ai":          False,
-        "audit_logs":         False,
-        "sso":                False,
+        "semantic_search": True,
+        "api_access": True,
+        "google_drive": True,
+        "private_repos": True,
+        "teams": False,
+        "custom_ai": False,
+        "audit_logs": False,
+        "sso": False,
         "advanced_analytics": True,
     },
     "enterprise": {
-        "semantic_search":    True,
-        "api_access":         True,
-        "google_drive":       True,
-        "private_repos":      True,
-        "teams":              True,
-        "custom_ai":          True,
-        "audit_logs":         True,
-        "sso":                True,
+        "semantic_search": True,
+        "api_access": True,
+        "google_drive": True,
+        "private_repos": True,
+        "teams": True,
+        "custom_ai": True,
+        "audit_logs": True,
+        "sso": True,
         "advanced_analytics": True,
     },
 }
 
 
 # ── Public helpers ─────────────────────────────────────────────────────────────
+
 
 def get_user_plan(user) -> str:
     """Return the user's current plan string (free/pro/enterprise)."""
@@ -125,7 +128,7 @@ def check_plan_limit(user, resource: str, current_usage: int | None = None) -> N
     If current_usage is None, the function attempts to auto-count from the DB.
     Otherwise pass the current count explicitly for performance.
     """
-    plan  = get_user_plan(user)
+    plan = get_user_plan(user)
     limit = get_plan_limit(plan, resource)
 
     if limit == -1:
@@ -149,25 +152,27 @@ def check_plan_limit(user, resource: str, current_usage: int | None = None) -> N
             f"({current_usage}/{limit}). Upgrade to Pro for unlimited access."
         )
         exc.error_code = "plan_limit_exceeded"  # type: ignore[attr-defined]
-        exc.resource   = resource                # type: ignore[attr-defined]
-        exc.plan       = plan                    # type: ignore[attr-defined]
-        exc.limit      = limit                   # type: ignore[attr-defined]
-        exc.usage      = current_usage           # type: ignore[attr-defined]
+        exc.resource = resource  # type: ignore[attr-defined]
+        exc.plan = plan  # type: ignore[attr-defined]
+        exc.limit = limit  # type: ignore[attr-defined]
+        exc.usage = current_usage  # type: ignore[attr-defined]
         raise exc
 
 
 def _count_usage(user, resource: str) -> int:
     """Auto-count resource usage from the DB for current billing period."""
-    from django.utils import timezone
     from datetime import timedelta
 
+    from django.utils import timezone
+
     # Use start of current calendar month as period start
-    now   = timezone.now()
+    now = timezone.now()
     start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     if resource == "ai_queries":
         try:
             from apps.core.models import Conversation
+
             return Conversation.objects.filter(user=user, created_at__gte=start).count()
         except Exception:
             return 0
@@ -175,6 +180,7 @@ def _count_usage(user, resource: str) -> int:
     if resource == "agent_runs":
         try:
             from apps.agents.models import AgentTask
+
             return AgentTask.objects.filter(user=user, created_at__gte=start).count()
         except Exception:
             return 0
@@ -182,6 +188,7 @@ def _count_usage(user, resource: str) -> int:
     if resource == "automations":
         try:
             from apps.automation.models import Workflow
+
             return Workflow.objects.filter(user=user).count()
         except Exception:
             return 0
@@ -189,13 +196,17 @@ def _count_usage(user, resource: str) -> int:
     if resource == "documents":
         try:
             from apps.documents.models import GeneratedDocument
-            return GeneratedDocument.objects.filter(user=user, created_at__gte=start).count()
+
+            return GeneratedDocument.objects.filter(
+                user=user, created_at__gte=start
+            ).count()
         except Exception:
             return 0
 
     if resource == "bookmarks":
         try:
             from apps.core.models import Bookmark
+
             return Bookmark.objects.filter(user=user).count()
         except Exception:
             return 0
@@ -204,6 +215,7 @@ def _count_usage(user, resource: str) -> int:
 
 
 # ── Aliases for backwards-compat / alternate naming conventions ───────────────
+
 
 def get_plan_limits(plan: str) -> dict:
     """Return the full limits dict for a plan. Falls back to free for unknown plans."""
@@ -225,17 +237,18 @@ def check_limit(plan: str, resource: str, current_usage: int) -> bool:
 
 # ── DRF-friendly exception handler helper ─────────────────────────────────────
 
+
 def plan_limit_response(exc) -> dict:
     """
     Convert a PermissionDenied(error_code='plan_limit_exceeded') into a
     JSON-serialisable dict for DRF responses.
     """
     return {
-        "error":      str(exc),
+        "error": str(exc),
         "error_code": getattr(exc, "error_code", "plan_limit_exceeded"),
-        "resource":   getattr(exc, "resource", None),
-        "plan":       getattr(exc, "plan", None),
-        "limit":      getattr(exc, "limit", None),
-        "usage":      getattr(exc, "usage", None),
+        "resource": getattr(exc, "resource", None),
+        "plan": getattr(exc, "plan", None),
+        "limit": getattr(exc, "limit", None),
+        "usage": getattr(exc, "usage", None),
         "upgrade_url": "/billing",
     }

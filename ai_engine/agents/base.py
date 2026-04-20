@@ -19,6 +19,7 @@ Uses LangGraph's create_react_agent (LangChain ≥ 0.3 / LangGraph ≥ 0.2).
 
 Phase 5.1 — Agent Framework (Week 13)
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,8 +27,8 @@ import os
 import time
 from typing import Any, Dict, Iterator, List, Optional
 
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import BaseTool
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
 # langchain_openai and langgraph are imported lazily inside methods so that
 # doc_tools.py (which only uses reportlab/pptx) can be imported without
@@ -35,13 +36,17 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 # the document generation tools.
 try:
     from langchain_openai import ChatOpenAI as _ChatOpenAI  # type: ignore
+
     _OPENAI_AVAILABLE = True
 except ImportError:
     _ChatOpenAI = None  # type: ignore
     _OPENAI_AVAILABLE = False
 
 try:
-    from langgraph.prebuilt import create_react_agent as _create_react_agent  # type: ignore
+    from langgraph.prebuilt import (
+        create_react_agent as _create_react_agent,  # type: ignore
+    )
+
     _LANGGRAPH_AVAILABLE = True
 except ImportError:
     _create_react_agent = None  # type: ignore
@@ -50,6 +55,7 @@ except ImportError:
 # TASK-302: Anthropic Claude
 try:
     from langchain_anthropic import ChatAnthropic as _ChatAnthropic  # type: ignore
+
     _ANTHROPIC_AVAILABLE = True
 except ImportError:
     _ChatAnthropic = None  # type: ignore
@@ -58,6 +64,7 @@ except ImportError:
 # TASK-302: Ollama local LLMs
 try:
     from langchain_ollama import ChatOllama as _ChatOllama  # type: ignore
+
     _OLLAMA_AVAILABLE = True
 except ImportError:
     _ChatOllama = None  # type: ignore
@@ -73,7 +80,6 @@ REACT_SYSTEM_PROMPT = (
     "You are SYNAPSE Agent, an intelligent AI assistant that autonomously completes tasks "
     "for the user WITHOUT asking for clarification or additional input. "
     "You must ALWAYS produce a complete result using your tools and your own knowledge.\n\n"
-
     "CRITICAL RULES:\n"
     "1. NEVER ask the user for more information — complete the task with what you have.\n"
     "2. For document/report generation: call the appropriate tool (generate_pdf, generate_ppt, "
@@ -94,6 +100,7 @@ REACT_SYSTEM_PROMPT = (
 # SynapseAgent
 # ---------------------------------------------------------------------------
 
+
 class SynapseAgent:
     """
     ReAct agent built on LangGraph's create_react_agent.
@@ -107,7 +114,7 @@ class SynapseAgent:
 
     # Safety defaults (from 13_AI_Agent_Spec.tex)
     MAX_ITERATIONS: int = 10
-    MAX_EXECUTION_TIME: int = 300          # seconds
+    MAX_EXECUTION_TIME: int = 300  # seconds
     MAX_TOKENS_PER_TASK: int = 10_000
 
     def __init__(
@@ -123,7 +130,7 @@ class SynapseAgent:
         openrouter_api_key: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
         # TASK-302: multi-provider support
-        provider: str = "auto",              # "auto"|"openai"|"anthropic"|"ollama"|"gemini"|"scitely"
+        provider: str = "auto",  # "auto"|"openai"|"anthropic"|"ollama"|"gemini"|"scitely"
         anthropic_api_key: Optional[str] = None,
         ollama_base_url: Optional[str] = None,
     ) -> None:
@@ -166,6 +173,7 @@ class SynapseAgent:
           6. provider="auto"       → tries Scitely → OpenRouter → Gemini → raises
         """
         from ai_engine.agents.llm_factory import build_llm
+
         return build_llm(
             provider=self.provider,
             model=self.model_name,
@@ -234,9 +242,7 @@ class SynapseAgent:
                 ctx_lines = [f"[{k}]: {v}" for k, v in extra_context.items() if v]
                 if ctx_lines:
                     ctx_block = "\n".join(ctx_lines)
-                    augmented_task = (
-                        f"=== USER CONTEXT ===\n{ctx_block}\n=== END CONTEXT ===\n\n{task}"
-                    )
+                    augmented_task = f"=== USER CONTEXT ===\n{ctx_block}\n=== END CONTEXT ===\n\n{task}"
 
             state = self.graph.invoke(
                 {"messages": [HumanMessage(content=augmented_task)]},
@@ -248,14 +254,20 @@ class SynapseAgent:
 
             for msg in messages:
                 if isinstance(msg, AIMessage) and msg.content:
-                    answer = msg.content if isinstance(msg.content, str) else str(msg.content)
+                    answer = (
+                        msg.content
+                        if isinstance(msg.content, str)
+                        else str(msg.content)
+                    )
                 elif isinstance(msg, ToolMessage):
-                    steps.append({
-                        "tool": getattr(msg, "name", "tool"),
-                        "tool_input": "",
-                        "observation": str(msg.content)[:2000],
-                        "thought": "",
-                    })
+                    steps.append(
+                        {
+                            "tool": getattr(msg, "name", "tool"),
+                            "tool_input": "",
+                            "observation": str(msg.content)[:2000],
+                            "thought": "",
+                        }
+                    )
 
             result["answer"] = answer
             result["intermediate_steps"] = steps
@@ -305,7 +317,11 @@ class SynapseAgent:
                                 }
                             }
                         elif isinstance(msg, AIMessage) and msg.content:
-                            answer = msg.content if isinstance(msg.content, str) else str(msg.content)
+                            answer = (
+                                msg.content
+                                if isinstance(msg.content, str)
+                                else str(msg.content)
+                            )
                             tokens = self._estimate_tokens(task, answer)
                             yield {
                                 "final": {
@@ -328,12 +344,14 @@ class SynapseAgent:
         """Convert raw step records to JSON-serialisable dicts."""
         serialized = []
         for action, observation in steps:
-            serialized.append({
-                "thought": getattr(action, "log", ""),
-                "tool": getattr(action, "tool", ""),
-                "tool_input": getattr(action, "tool_input", ""),
-                "observation": str(observation)[:2000],
-            })
+            serialized.append(
+                {
+                    "thought": getattr(action, "log", ""),
+                    "tool": getattr(action, "tool", ""),
+                    "tool_input": getattr(action, "tool_input", ""),
+                    "observation": str(observation)[:2000],
+                }
+            )
         return serialized
 
     @staticmethod

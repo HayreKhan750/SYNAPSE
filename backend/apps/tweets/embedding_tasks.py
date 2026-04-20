@@ -5,6 +5,7 @@ Tasks:
   generate_tweet_embedding          — Embed a single Tweet
   generate_pending_tweet_embeddings — Batch-queue unembedded Tweets
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,6 +26,7 @@ def _get_embedder():
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
     from ai_engine.embeddings import get_embedder  # noqa: PLC0415
+
     return get_embedder()
 
 
@@ -108,8 +110,9 @@ def generate_pending_tweet_embeddings(self, batch_size: int = 100) -> Dict:
         from apps.tweets.models import Tweet  # noqa: PLC0415
 
         pending_ids = list(
-            Tweet.objects.filter(embedding__isnull=True)
-            .values_list("id", flat=True)[:batch_size]
+            Tweet.objects.filter(embedding__isnull=True).values_list("id", flat=True)[
+                :batch_size
+            ]
         )
         for tid in pending_ids:
             generate_tweet_embedding.delay(str(tid))

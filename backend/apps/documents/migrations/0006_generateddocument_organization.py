@@ -1,8 +1,8 @@
 """
 TASK-006-B4: Add nullable organization FK to GeneratedDocument.
 """
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

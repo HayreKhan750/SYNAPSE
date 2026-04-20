@@ -1,8 +1,9 @@
 # Generated migration — Phase 2.3 Vector Search
 # Adds pgvector embedding column to Article model.
 
-from django.db import migrations
 import pgvector.django
+
+from django.db import migrations
 
 
 class Migration(migrations.Migration):

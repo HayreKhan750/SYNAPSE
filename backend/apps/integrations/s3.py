@@ -11,6 +11,7 @@ Tools implemented:
   - get_presigned_url(bucket, key, expiry_seconds)
   - delete_from_s3(bucket, key)
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,10 +27,12 @@ logger = logging.getLogger(__name__)
 
 # ── Configuration from environment ────────────────────────────────────────────
 
-AWS_ACCESS_KEY_ID     = os.environ.get("AWS_ACCESS_KEY_ID", "")
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
-AWS_REGION            = os.environ.get("AWS_S3_REGION_NAME", "us-east-1")
-AWS_S3_BUCKET_NAME    = os.environ.get("AWS_STORAGE_BUCKET_NAME") or os.environ.get("AWS_S3_BUCKET_NAME", "")
+AWS_REGION = os.environ.get("AWS_S3_REGION_NAME", "us-east-1")
+AWS_S3_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME") or os.environ.get(
+    "AWS_S3_BUCKET_NAME", ""
+)
 
 # Presigned URL expiry — default 1 hour (Phase 6.2 spec)
 DEFAULT_PRESIGNED_EXPIRY = int(os.environ.get("AWS_PRESIGNED_URL_EXPIRY", 3600))
@@ -39,12 +42,13 @@ def _s3_client():
     """Return a boto3 S3 client configured from env vars."""
     kwargs: dict = {"region_name": AWS_REGION}
     if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
-        kwargs["aws_access_key_id"]     = AWS_ACCESS_KEY_ID
+        kwargs["aws_access_key_id"] = AWS_ACCESS_KEY_ID
         kwargs["aws_secret_access_key"] = AWS_SECRET_ACCESS_KEY
     return boto3.client("s3", **kwargs)
 
 
 # ── Tool: upload_to_s3 ────────────────────────────────────────────────────────
+
 
 def upload_to_s3(
     file_path: str,
@@ -89,14 +93,15 @@ def upload_to_s3(
     presigned = get_presigned_url(bucket, object_key)
 
     return {
-        "bucket":        bucket,
-        "key":           object_key,
-        "url":           s3_url,
+        "bucket": bucket,
+        "key": object_key,
+        "url": s3_url,
         "presigned_url": presigned,
     }
 
 
 # ── Tool: download_from_s3 ────────────────────────────────────────────────────
+
 
 def download_from_s3(
     bucket: str,
@@ -124,6 +129,7 @@ def download_from_s3(
 
 # ── Tool: get_presigned_url ───────────────────────────────────────────────────
 
+
 def get_presigned_url(
     bucket: str,
     key: str,
@@ -149,7 +155,9 @@ def get_presigned_url(
         )
         logger.debug(
             "Generated presigned URL for s3://%s/%s (expires in %ds)",
-            bucket, key, expiry_seconds,
+            bucket,
+            key,
+            expiry_seconds,
         )
         return url
     except (ClientError, NoCredentialsError) as exc:
@@ -158,6 +166,7 @@ def get_presigned_url(
 
 
 # ── Tool: delete_from_s3 ──────────────────────────────────────────────────────
+
 
 def delete_from_s3(bucket: str, key: str) -> bool:
     """
@@ -176,6 +185,7 @@ def delete_from_s3(bucket: str, key: str) -> bool:
 
 
 # ── Utility: migrate local file to S3 ─────────────────────────────────────────
+
 
 def migrate_file_to_s3(
     local_path: str,

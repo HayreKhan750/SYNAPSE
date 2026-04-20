@@ -12,6 +12,7 @@ Stripe best practices:
   ✓ Async webhook processing via Celery (fast HTTP 200 response)
   ✓ Graceful degradation if Stripe is down
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,22 +23,24 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-STRIPE_SECRET_KEY       = os.environ.get("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET   = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PRO_PRICE_ID     = os.environ.get("STRIPE_PRO_PRICE_ID", "")
-STRIPE_ENT_PRICE_ID     = os.environ.get("STRIPE_ENT_PRICE_ID", "")
-FRONTEND_URL            = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PRO_PRICE_ID = os.environ.get("STRIPE_PRO_PRICE_ID", "")
+STRIPE_ENT_PRICE_ID = os.environ.get("STRIPE_ENT_PRICE_ID", "")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
 
 def _stripe():
     """Return configured stripe module."""
     import stripe as _s
+
     _s.api_key = STRIPE_SECRET_KEY
-    _s.api_version = "2024-04-10"   # pin API version
+    _s.api_version = "2024-04-10"  # pin API version
     return _s
 
 
 # ── Customer management ────────────────────────────────────────────────────────
+
 
 def get_or_create_customer(user) -> str:
     """
@@ -45,6 +48,7 @@ def get_or_create_customer(user) -> str:
     Returns the Stripe customer ID.
     """
     from apps.billing.models import Subscription
+
     stripe = _stripe()
 
     sub, _ = Subscription.objects.get_or_create(
@@ -70,6 +74,7 @@ def get_or_create_customer(user) -> str:
 
 # ── Checkout session ───────────────────────────────────────────────────────────
 
+
 def create_checkout_session(
     user,
     plan: str,
@@ -79,8 +84,8 @@ def create_checkout_session(
     Create a Stripe Checkout session for subscription.
     Returns the checkout URL.
     """
-    stripe     = _stripe()
-    price_id   = STRIPE_PRO_PRICE_ID if plan == "pro" else STRIPE_ENT_PRICE_ID
+    stripe = _stripe()
+    price_id = STRIPE_PRO_PRICE_ID if plan == "pro" else STRIPE_ENT_PRICE_ID
     customer_id = get_or_create_customer(user)
 
     metadata: dict = {"user_id": str(user.id), "plan": plan}
@@ -88,38 +93,41 @@ def create_checkout_session(
         metadata["referral_code"] = referral_code
 
     session = stripe.checkout.Session.create(
-        customer            = customer_id,
-        payment_method_types= ["card"],
-        line_items          = [{"price": price_id, "quantity": 1}],
-        mode                = "subscription",
-        allow_promotion_codes = True,
-        subscription_data   = {
-            "trial_period_days": 14,   # 14-day free trial
+        customer=customer_id,
+        payment_method_types=["card"],
+        line_items=[{"price": price_id, "quantity": 1}],
+        mode="subscription",
+        allow_promotion_codes=True,
+        subscription_data={
+            "trial_period_days": 14,  # 14-day free trial
             "metadata": metadata,
         },
-        success_url = f"{FRONTEND_URL}/dashboard?subscription=success&plan={plan}",
-        cancel_url  = f"{FRONTEND_URL}/pricing?subscription=canceled",
-        metadata    = metadata,
-        idempotency_key = f"checkout-{user.id}-{plan}",
+        success_url=f"{FRONTEND_URL}/dashboard?subscription=success&plan={plan}",
+        cancel_url=f"{FRONTEND_URL}/pricing?subscription=canceled",
+        metadata=metadata,
+        idempotency_key=f"checkout-{user.id}-{plan}",
     )
 
-    logger.info("checkout_session_created", user=user.email, plan=plan, session_id=session.id)
+    logger.info(
+        "checkout_session_created", user=user.email, plan=plan, session_id=session.id
+    )
     return session.url
 
 
 # ── Customer portal ────────────────────────────────────────────────────────────
+
 
 def create_portal_session(user) -> str:
     """
     Create a Stripe Customer Portal session for managing subscriptions.
     Returns the portal URL.
     """
-    stripe      = _stripe()
+    stripe = _stripe()
     customer_id = get_or_create_customer(user)
 
     session = stripe.billing_portal.Session.create(
-        customer   = customer_id,
-        return_url = f"{FRONTEND_URL}/dashboard/settings",
+        customer=customer_id,
+        return_url=f"{FRONTEND_URL}/dashboard/settings",
     )
 
     logger.info("portal_session_created", user=user.email)
@@ -128,15 +136,14 @@ def create_portal_session(user) -> str:
 
 # ── Webhook processing ─────────────────────────────────────────────────────────
 
+
 def construct_webhook_event(payload: bytes, sig_header: str):
     """
     Verify and parse a Stripe webhook event.
     Raises stripe.error.SignatureVerificationError on invalid signature.
     """
     stripe = _stripe()
-    return stripe.Webhook.construct_event(
-        payload, sig_header, STRIPE_WEBHOOK_SECRET
-    )
+    return stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
 
 
 def handle_subscription_created(event_data: dict) -> None:
@@ -152,15 +159,18 @@ def handle_subscription_updated(event_data: dict) -> None:
 def handle_subscription_deleted(event_data: dict) -> None:
     """Handle customer.subscription.deleted webhook — downgrade to free."""
     from apps.billing.models import Subscription
+
     stripe_sub = event_data["object"]
     customer_id = stripe_sub.get("customer")
 
     try:
         sub = Subscription.objects.get(stripe_customer_id=customer_id)
-        sub.plan   = "free"
+        sub.plan = "free"
         sub.status = "canceled"
         sub.stripe_subscription_id = ""
-        sub.save(update_fields=["plan", "status", "stripe_subscription_id", "updated_at"])
+        sub.save(
+            update_fields=["plan", "status", "stripe_subscription_id", "updated_at"]
+        )
 
         # Downgrade user role
         sub.user.role = "user"
@@ -168,16 +178,19 @@ def handle_subscription_deleted(event_data: dict) -> None:
 
         logger.info("subscription_canceled", user=sub.user.email)
     except Subscription.DoesNotExist:
-        logger.warning("subscription_not_found_for_cancellation", customer_id=customer_id)
+        logger.warning(
+            "subscription_not_found_for_cancellation", customer_id=customer_id
+        )
 
 
 def handle_invoice_paid(event_data: dict) -> None:
     """Handle invoice.payment_succeeded — grant Pro access + referral reward + create Invoice record."""
-    from apps.billing.models import Subscription, ReferralUse, Invoice
-    from apps.billing.referrals import grant_referral_reward
     import datetime
 
-    invoice     = event_data["object"]
+    from apps.billing.models import Invoice, ReferralUse, Subscription
+    from apps.billing.referrals import grant_referral_reward
+
+    invoice = event_data["object"]
     customer_id = invoice.get("customer")
 
     try:
@@ -185,35 +198,46 @@ def handle_invoice_paid(event_data: dict) -> None:
 
         # Record Invoice in DB
         stripe_inv_id = invoice.get("id", "")
-        if stripe_inv_id and not Invoice.objects.filter(stripe_invoice_id=stripe_inv_id).exists():
+        if (
+            stripe_inv_id
+            and not Invoice.objects.filter(stripe_invoice_id=stripe_inv_id).exists()
+        ):
             period_start = None
-            period_end   = None
+            period_end = None
             if invoice.get("period_start"):
-                period_start = datetime.datetime.fromtimestamp(invoice["period_start"], tz=datetime.timezone.utc)
+                period_start = datetime.datetime.fromtimestamp(
+                    invoice["period_start"], tz=datetime.timezone.utc
+                )
             if invoice.get("period_end"):
-                period_end = datetime.datetime.fromtimestamp(invoice["period_end"], tz=datetime.timezone.utc)
+                period_end = datetime.datetime.fromtimestamp(
+                    invoice["period_end"], tz=datetime.timezone.utc
+                )
 
             Invoice.objects.create(
-                user             = sub.user,
-                stripe_invoice_id= stripe_inv_id,
-                amount_paid      = invoice.get("amount_paid", 0),
-                currency         = invoice.get("currency", "usd"),
-                status           = invoice.get("status", "paid"),
-                pdf_url          = invoice.get("invoice_pdf", ""),
-                hosted_url       = invoice.get("hosted_invoice_url", ""),
-                period_start     = period_start,
-                period_end       = period_end,
+                user=sub.user,
+                stripe_invoice_id=stripe_inv_id,
+                amount_paid=invoice.get("amount_paid", 0),
+                currency=invoice.get("currency", "usd"),
+                status=invoice.get("status", "paid"),
+                pdf_url=invoice.get("invoice_pdf", ""),
+                hosted_url=invoice.get("hosted_invoice_url", ""),
+                period_start=period_start,
+                period_end=period_end,
             )
 
         # Check for first payment (new subscription) → grant referral reward
         if invoice.get("billing_reason") == "subscription_create":
             try:
-                referral_use = ReferralUse.objects.get(referee=sub.user, reward_given=False)
+                referral_use = ReferralUse.objects.get(
+                    referee=sub.user, reward_given=False
+                )
                 grant_referral_reward(referral_use)
             except ReferralUse.DoesNotExist:
                 pass
 
-        logger.info("invoice_paid", user=sub.user.email, amount=invoice.get("amount_paid"))
+        logger.info(
+            "invoice_paid", user=sub.user.email, amount=invoice.get("amount_paid")
+        )
     except Subscription.DoesNotExist:
         logger.warning("subscription_not_found_for_invoice", customer_id=customer_id)
 
@@ -221,11 +245,12 @@ def handle_invoice_paid(event_data: dict) -> None:
 def handle_payment_failed(event_data: dict) -> None:
     """Handle invoice.payment_failed — mark past_due."""
     from apps.billing.models import Subscription
-    invoice     = event_data["object"]
+
+    invoice = event_data["object"]
     customer_id = invoice.get("customer")
 
     try:
-        sub        = Subscription.objects.get(stripe_customer_id=customer_id)
+        sub = Subscription.objects.get(stripe_customer_id=customer_id)
         sub.status = "past_due"
         sub.save(update_fields=["status", "updated_at"])
         logger.warning("payment_failed", user=sub.user.email)
@@ -235,16 +260,19 @@ def handle_payment_failed(event_data: dict) -> None:
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
 
+
 def _update_subscription_from_stripe(stripe_sub: dict) -> None:
     """Sync local Subscription model from Stripe subscription object."""
-    from apps.billing.models import Subscription, Plan
-    from django.utils import timezone
     import datetime
 
+    from apps.billing.models import Plan, Subscription
+
+    from django.utils import timezone
+
     customer_id = stripe_sub.get("customer")
-    status      = stripe_sub.get("status", "active")
-    items       = stripe_sub.get("items", {}).get("data", [])
-    price_id    = items[0]["price"]["id"] if items else ""
+    status = stripe_sub.get("status", "active")
+    items = stripe_sub.get("items", {}).get("data", [])
+    price_id = items[0]["price"]["id"] if items else ""
 
     # Determine plan from price ID
     if price_id == STRIPE_PRO_PRICE_ID:
@@ -256,11 +284,11 @@ def _update_subscription_from_stripe(stripe_sub: dict) -> None:
 
     try:
         sub = Subscription.objects.get(stripe_customer_id=customer_id)
-        sub.plan                  = plan
-        sub.status                = status
-        sub.stripe_subscription_id= stripe_sub.get("id", "")
-        sub.stripe_price_id       = price_id
-        sub.cancel_at_period_end  = stripe_sub.get("cancel_at_period_end", False)
+        sub.plan = plan
+        sub.status = status
+        sub.stripe_subscription_id = stripe_sub.get("id", "")
+        sub.stripe_price_id = price_id
+        sub.cancel_at_period_end = stripe_sub.get("cancel_at_period_end", False)
 
         # Convert Unix timestamps
         if stripe_sub.get("current_period_start"):
@@ -278,6 +306,8 @@ def _update_subscription_from_stripe(stripe_sub: dict) -> None:
             sub.user.role = "premium" if plan == "pro" else "admin"
             sub.user.save(update_fields=["role"])
 
-        logger.info("subscription_synced", user=sub.user.email, plan=plan, status=status)
+        logger.info(
+            "subscription_synced", user=sub.user.email, plan=plan, status=status
+        )
     except Subscription.DoesNotExist:
         logger.warning("subscription_not_found", customer_id=customer_id)

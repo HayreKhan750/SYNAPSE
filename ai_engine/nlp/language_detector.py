@@ -5,6 +5,7 @@ Uses the ``langdetect`` library to identify the language of a piece of
 text. Articles that are not English are flagged so the pipeline can skip
 expensive NLP operations on them.
 """
+
 import logging
 from typing import Tuple
 
@@ -32,6 +33,7 @@ def detect_language(text: str) -> Tuple[str, float]:
 
     try:
         from langdetect import detect_langs  # lazy import — not always installed
+
         results = detect_langs(text[:2000])  # limit to first 2 000 chars for speed
         if results:
             top = results[0]

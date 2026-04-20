@@ -7,6 +7,7 @@ Celery task and the FastAPI AI service.
 
 Phase 5.1 — Agent Framework (Week 13)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -116,7 +117,9 @@ class SynapseAgentExecutor:
 
         tools = self.registry.get_tools(tool_names)
         if not tools:
-            logger.warning("No tools resolved for %s — falling back to all tools", tool_names)
+            logger.warning(
+                "No tools resolved for %s — falling back to all tools", tool_names
+            )
             tools = self.registry.get_tools()
 
         return SynapseAgent(
@@ -144,6 +147,7 @@ class SynapseAgentExecutor:
         """
         try:
             import tiktoken  # type: ignore
+
             enc = tiktoken.get_encoding("cl100k_base")
             return len(enc.encode(text))
         except ImportError:
@@ -167,7 +171,7 @@ class SynapseAgentExecutor:
 
         TASK-004-B3
         """
-        estimated_tokens   = self._estimate_tokens(task)
+        estimated_tokens = self._estimate_tokens(task)
         estimated_cost_usd = self._estimate_cost_usd(estimated_tokens)
 
         budget_status: Dict[str, Any] = {}
@@ -175,11 +179,16 @@ class SynapseAgentExecutor:
 
         if user_id:
             try:
-                from ai_engine.middleware.rate_limit import check_budget, get_budget_status
+                from ai_engine.middleware.rate_limit import (
+                    check_budget,
+                    get_budget_status,
+                )
+
                 check_budget(user_id, role)  # raises BudgetExceededError if over limit
                 budget_status = get_budget_status(user_id, role)
             except Exception as exc:
                 from ai_engine.middleware.rate_limit import BudgetExceededError
+
                 if isinstance(exc, BudgetExceededError):
                     can_run = False
                     budget_status = {
@@ -188,10 +197,10 @@ class SynapseAgentExecutor:
                     }
 
         return {
-            "estimated_tokens":   estimated_tokens,
+            "estimated_tokens": estimated_tokens,
             "estimated_cost_usd": estimated_cost_usd,
-            "can_run":            can_run,
-            "budget_status":      budget_status,
+            "can_run": can_run,
+            "budget_status": budget_status,
         }
 
     def run(
@@ -223,13 +232,16 @@ class SynapseAgentExecutor:
         import functools
 
         # Pre-run token estimation
-        estimated_tokens   = self._estimate_tokens(task)
+        estimated_tokens = self._estimate_tokens(task)
         estimated_cost_usd = self._estimate_cost_usd(estimated_tokens)
 
         agent = self._make_agent(tool_names)
         logger.info(
             "Running agent task (tools=%s, est_tokens=%d, est_cost=$%.4f): %s",
-            tool_names or "all", estimated_tokens, estimated_cost_usd, task[:120],
+            tool_names or "all",
+            estimated_tokens,
+            estimated_cost_usd,
+            task[:120],
         )
 
         # Execute with timeout using a thread (executor.run is sync)
@@ -243,28 +255,30 @@ class SynapseAgentExecutor:
                 except concurrent.futures.TimeoutError:
                     logger.error(
                         "agent_task_timeout user=%s timeout=%ds task='%.80s'",
-                        user_id, timeout_seconds, task,
+                        user_id,
+                        timeout_seconds,
+                        task,
                     )
                     return {
-                        "success":            False,
-                        "error":              f"Query took too long (>{timeout_seconds}s). Try a simpler question.",
-                        "answer":             "",
-                        "tokens_used":        0,
-                        "cost_usd":           0.0,
-                        "execution_time_s":   timeout_seconds,
-                        "estimated_tokens":   estimated_tokens,
+                        "success": False,
+                        "error": f"Query took too long (>{timeout_seconds}s). Try a simpler question.",
+                        "answer": "",
+                        "tokens_used": 0,
+                        "cost_usd": 0.0,
+                        "execution_time_s": timeout_seconds,
+                        "estimated_tokens": estimated_tokens,
                         "estimated_cost_usd": estimated_cost_usd,
                     }
         except Exception as exc:
             logger.error("agent_run_exception: %s", exc)
             return {
-                "success":            False,
-                "error":              str(exc),
-                "answer":             "",
-                "tokens_used":        0,
-                "cost_usd":           0.0,
-                "execution_time_s":   0.0,
-                "estimated_tokens":   estimated_tokens,
+                "success": False,
+                "error": str(exc),
+                "answer": "",
+                "tokens_used": 0,
+                "cost_usd": 0.0,
+                "execution_time_s": 0.0,
+                "estimated_tokens": estimated_tokens,
                 "estimated_cost_usd": estimated_cost_usd,
             }
 
@@ -272,11 +286,12 @@ class SynapseAgentExecutor:
         if user_id and result.get("tokens_used"):
             try:
                 from ai_engine.middleware.rate_limit import record_token_usage
+
                 record_token_usage(user_id, result["tokens_used"])
             except Exception:
                 pass
 
-        result["estimated_tokens"]   = estimated_tokens
+        result["estimated_tokens"] = estimated_tokens
         result["estimated_cost_usd"] = estimated_cost_usd
 
         logger.info(
@@ -304,7 +319,9 @@ class SynapseAgentExecutor:
           {"error": str}
         """
         agent = self._make_agent(tool_names)
-        logger.info("Streaming agent task (tools=%s): %s", tool_names or "all", task[:120])
+        logger.info(
+            "Streaming agent task (tools=%s): %s", tool_names or "all", task[:120]
+        )
         yield from agent.stream(task, extra_context=extra_context)
 
     async def astream(
@@ -326,7 +343,9 @@ class SynapseAgentExecutor:
                 await websocket.send_json(event)
         """
         agent = self._make_agent(tool_names)
-        logger.info("Async-streaming agent task (tools=%s): %s", tool_names or "all", task[:120])
+        logger.info(
+            "Async-streaming agent task (tools=%s): %s", tool_names or "all", task[:120]
+        )
 
         loop = asyncio.get_event_loop()
         sync_gen = agent.stream(task, extra_context=extra_context)
@@ -368,6 +387,7 @@ _SENTINEL = object()
 # ---------------------------------------------------------------------------
 # Module-level singleton accessor
 # ---------------------------------------------------------------------------
+
 
 def get_executor(
     scitely_api_key: Optional[str] = None,

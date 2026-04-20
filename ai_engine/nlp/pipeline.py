@@ -13,16 +13,17 @@ Orchestrates all NLP steps in sequence:
 Returns a structured NLPResult dataclass that the Celery task uses to
 update the Article model fields.
 """
+
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from .cleaner import clean_text
-from .language_detector import is_english, detect_language
 from .keyword_extractor import extract_keywords
-from .topic_classifier import classify_topic
-from .sentiment_analyzer import analyze_sentiment, sentiment_to_score
+from .language_detector import detect_language, is_english
 from .ner import extract_entities
+from .sentiment_analyzer import analyze_sentiment, sentiment_to_score
+from .topic_classifier import classify_topic
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class NLPResult:
     """Structured output from the NLP pipeline."""
+
     language: str = "unknown"
     language_confidence: float = 0.0
     is_english: bool = False
@@ -37,9 +39,9 @@ class NLPResult:
     topic: str = ""
     topic_confidence: float = 0.0
     sentiment_label: str = "NEUTRAL"
-    sentiment_score: Optional[float] = None   # signed float in [-1, 1]
+    sentiment_score: Optional[float] = None  # signed float in [-1, 1]
     entities: List[Dict] = field(default_factory=list)
-    summary: Optional[str] = None             # BART-generated summary (Phase 2.2)
+    summary: Optional[str] = None  # BART-generated summary (Phase 2.2)
     skipped: bool = False
     skip_reason: str = ""
     error: str = ""
@@ -99,14 +101,15 @@ def run_pipeline(
         lang, lang_conf = detect_language(clean[:1000])
         result.language = lang
         result.language_confidence = lang_conf
-        result.is_english = (lang == "en" and lang_conf >= 0.80)
+        result.is_english = lang == "en" and lang_conf >= 0.80
 
         if not result.is_english:
             result.skipped = True
             result.skip_reason = f"non_english:{lang}:{lang_conf}"
             logger.info(
                 "NLP pipeline: skipping non-English content (lang=%s, conf=%.2f).",
-                lang, lang_conf,
+                lang,
+                lang_conf,
             )
             return result
     except Exception as exc:
@@ -156,6 +159,7 @@ def run_pipeline(
     if run_summarization:
         try:
             from .summarizer import summarize  # noqa: PLC0415
+
             result.summary = summarize(clean)
             logger.debug(
                 "Summary generated (%d chars).",

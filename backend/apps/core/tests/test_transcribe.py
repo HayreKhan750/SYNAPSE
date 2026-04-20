@@ -10,15 +10,16 @@ Covers:
   - 503 when no transcription backend configured
   - Local whisper fallback (mocked)
 """
+
 import io
 import uuid
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
-from rest_framework.test import APIClient
+from apps.users.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.users.models import User
+from django.test import TestCase
+from rest_framework.test import APIClient
 
 
 def _make_user():
@@ -37,8 +38,11 @@ def _auth_client(user):
     return client
 
 
-def _make_audio_file(size_bytes: int = 1024, name: str = "recording.webm",
-                     content_type: str = "audio/webm"):
+def _make_audio_file(
+    size_bytes: int = 1024,
+    name: str = "recording.webm",
+    content_type: str = "audio/webm",
+):
     """Return a minimal fake audio file object."""
     data = io.BytesIO(b"\x00" * size_bytes)
     data.name = name
@@ -98,9 +102,12 @@ class TranscribeValidationTest(TestCase):
         with patch.dict("os.environ", {}, clear=False):
             # Ensure no OPENAI_API_KEY so we get 503 not 200
             import os
+
             env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
             with patch.dict("os.environ", env, clear=True):
-                response = self.client.post(URL, {"audio": video_webm}, format="multipart")
+                response = self.client.post(
+                    URL, {"audio": video_webm}, format="multipart"
+                )
         self.assertNotEqual(response.status_code, 400)
 
 
@@ -122,12 +129,15 @@ class TranscribeOpenAITest(TestCase):
         mock_openai = MagicMock()
         mock_client_instance = MagicMock()
         mock_openai.OpenAI.return_value = mock_client_instance
-        mock_client_instance.audio.transcriptions.create.return_value = \
+        mock_client_instance.audio.transcriptions.create.return_value = (
             self._make_whisper_response(text="This is the transcribed text")
+        )
 
         audio = _make_audio_file()
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}), \
-             patch.dict("sys.modules", {"openai": mock_openai}):
+        with (
+            patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}),
+            patch.dict("sys.modules", {"openai": mock_openai}),
+        ):
             response = self.client.post(URL, {"audio": audio}, format="multipart")
 
         self.assertEqual(response.status_code, 200)
@@ -139,12 +149,15 @@ class TranscribeOpenAITest(TestCase):
         mock_openai = MagicMock()
         mock_client_instance = MagicMock()
         mock_openai.OpenAI.return_value = mock_client_instance
-        mock_client_instance.audio.transcriptions.create.return_value = \
+        mock_client_instance.audio.transcriptions.create.return_value = (
             self._make_whisper_response(text="  Hello world  ")
+        )
 
         audio = _make_audio_file()
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}), \
-             patch.dict("sys.modules", {"openai": mock_openai}):
+        with (
+            patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}),
+            patch.dict("sys.modules", {"openai": mock_openai}),
+        ):
             response = self.client.post(URL, {"audio": audio}, format="multipart")
 
         self.assertEqual(response.data["text"], "Hello world")
@@ -154,12 +167,15 @@ class TranscribeOpenAITest(TestCase):
         mock_openai = MagicMock()
         mock_client_instance = MagicMock()
         mock_openai.OpenAI.return_value = mock_client_instance
-        mock_client_instance.audio.transcriptions.create.return_value = \
+        mock_client_instance.audio.transcriptions.create.return_value = (
             self._make_whisper_response()
+        )
 
         audio = _make_audio_file()
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}), \
-             patch.dict("sys.modules", {"openai": mock_openai}):
+        with (
+            patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}),
+            patch.dict("sys.modules", {"openai": mock_openai}),
+        ):
             response = self.client.post(
                 URL, {"audio": audio, "language": "fr"}, format="multipart"
             )
@@ -172,12 +188,15 @@ class TranscribeOpenAITest(TestCase):
         mock_openai = MagicMock()
         mock_client_instance = MagicMock()
         mock_openai.OpenAI.return_value = mock_client_instance
-        mock_client_instance.audio.transcriptions.create.side_effect = \
-            Exception("API rate limit exceeded")
+        mock_client_instance.audio.transcriptions.create.side_effect = Exception(
+            "API rate limit exceeded"
+        )
 
         audio = _make_audio_file()
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}), \
-             patch.dict("sys.modules", {"openai": mock_openai}):
+        with (
+            patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}),
+            patch.dict("sys.modules", {"openai": mock_openai}),
+        ):
             response = self.client.post(URL, {"audio": audio}, format="multipart")
 
         self.assertEqual(response.status_code, 503)
@@ -193,12 +212,14 @@ class TranscribeNoBackendTest(TestCase):
     def test_returns_503_when_no_backend_configured(self):
         """Returns 503 when neither OPENAI_API_KEY nor local whisper is available."""
         import os
-        env = {k: v for k, v in os.environ.items()
-               if k not in ("OPENAI_API_KEY",)}
+
+        env = {k: v for k, v in os.environ.items() if k not in ("OPENAI_API_KEY",)}
 
         audio = _make_audio_file()
-        with patch.dict("os.environ", env, clear=True), \
-             patch.dict("sys.modules", {"whisper": None}):
+        with (
+            patch.dict("os.environ", env, clear=True),
+            patch.dict("sys.modules", {"whisper": None}),
+        ):
             response = self.client.post(URL, {"audio": audio}, format="multipart")
 
         self.assertEqual(response.status_code, 503)
@@ -207,11 +228,14 @@ class TranscribeNoBackendTest(TestCase):
     def test_error_message_mentions_openai_key(self):
         """503 error message hints at OPENAI_API_KEY configuration."""
         import os
+
         env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
 
         audio = _make_audio_file()
-        with patch.dict("os.environ", env, clear=True), \
-             patch.dict("sys.modules", {"whisper": None}):
+        with (
+            patch.dict("os.environ", env, clear=True),
+            patch.dict("sys.modules", {"whisper": None}),
+        ):
             response = self.client.post(URL, {"audio": audio}, format="multipart")
 
         self.assertIn("OPENAI_API_KEY", response.data["error"])

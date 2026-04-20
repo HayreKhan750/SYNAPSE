@@ -9,9 +9,10 @@ so that the DatabasePipeline can still create the user ↔ item junction row.
 Only truly anonymous duplicates are dropped.
 """
 
-import os
-import logging
 import hashlib
+import logging
+import os
+
 import redis
 from scrapy.exceptions import DropItem
 
@@ -64,9 +65,7 @@ class DeduplicationPipeline:
         """
         try:
             # Get Redis URL from Scrapy settings
-            redis_url = spider.settings.get(
-                "REDIS_URL", "redis://localhost:6379/0"
-            )
+            redis_url = spider.settings.get("REDIS_URL", "redis://localhost:6379/0")
             self.redis_client = redis.from_url(redis_url, decode_responses=True)
             # Test connection
             self.redis_client.ping()
@@ -137,14 +136,14 @@ class DeduplicationPipeline:
             dedup_key = str(dedup_value)
 
         # Check if there is a user context for this scraping run
-        user_id = getattr(spider, 'user_id', None) or os.environ.get('SYNAPSE_USER_ID')
+        user_id = getattr(spider, "user_id", None) or os.environ.get("SYNAPSE_USER_ID")
 
         try:
             # Check if we've seen this before
             if self.redis_client.sismember(redis_key, dedup_key):
                 if user_id:
                     # Duplicate EXISTS but user needs linking → pass through
-                    item['_is_existing'] = True
+                    item["_is_existing"] = True
                     logger.debug(
                         f"Existing {item_type} ({dedup_field}={dedup_value}) "
                         f"— passing through for user {user_id} junction link"

@@ -4,9 +4,10 @@ Text cleaning utilities for the SYNAPSE NLP pipeline.
 Provides HTML stripping, Unicode normalization, and whitespace cleaning
 so that downstream NLP models receive clean, consistent plain text.
 """
+
+import logging
 import re
 import unicodedata
-import logging
 
 from bs4 import BeautifulSoup
 
@@ -50,8 +51,8 @@ def normalize_whitespace(text: str) -> str:
     Returns:
         Whitespace-normalised string.
     """
-    text = re.sub(r"[ \t]+", " ", text)       # collapse horizontal whitespace
-    text = re.sub(r"\n{3,}", "\n\n", text)     # max two consecutive newlines
+    text = re.sub(r"[ \t]+", " ", text)  # collapse horizontal whitespace
+    text = re.sub(r"\n{3,}", "\n\n", text)  # max two consecutive newlines
     return text.strip()
 
 
@@ -87,7 +88,9 @@ def remove_special_characters(text: str) -> str:
         String with control characters removed.
     """
     # Keep printable chars only (category starting with C = control / other)
-    return "".join(ch for ch in text if unicodedata.category(ch)[0] != "C" or ch in "\n\r\t")
+    return "".join(
+        ch for ch in text if unicodedata.category(ch)[0] != "C" or ch in "\n\r\t"
+    )
 
 
 def clean_text(text: str, strip_html: bool = True) -> str:

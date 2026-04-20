@@ -10,6 +10,7 @@ Tools implemented:
   - list_drive_files(folder_name)
   - create_drive_folder(folder_name)
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,15 +27,16 @@ SCOPES = [
     "openid",
 ]
 
-GOOGLE_CLIENT_ID     = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI  = os.environ.get(
+GOOGLE_REDIRECT_URI = os.environ.get(
     "GOOGLE_REDIRECT_URI",
     "http://localhost:8000/api/v1/integrations/drive/callback/",
 )
 
 
 # ── OAuth2 Flow ────────────────────────────────────────────────────────────────
+
 
 def get_oauth2_authorization_url(state: str = "") -> str:
     """
@@ -90,12 +92,12 @@ def exchange_code_for_credentials(code: str) -> dict:
 
     creds = flow.credentials
     return {
-        "token":         creds.token,
+        "token": creds.token,
         "refresh_token": creds.refresh_token,
-        "token_uri":     creds.token_uri,
-        "client_id":     creds.client_id,
+        "token_uri": creds.token_uri,
+        "client_id": creds.client_id,
         "client_secret": creds.client_secret,
-        "scopes":        list(creds.scopes) if creds.scopes else SCOPES,
+        "scopes": list(creds.scopes) if creds.scopes else SCOPES,
     }
 
 
@@ -116,15 +118,18 @@ def get_user_email(credentials_dict: dict) -> str:
 
 # ── Drive API helpers ──────────────────────────────────────────────────────────
 
+
 def _build_credentials(credentials_dict: dict):
     """Build a google.oauth2.credentials.Credentials from a stored dict."""
-    from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
 
     creds = Credentials(
         token=credentials_dict.get("token"),
         refresh_token=credentials_dict.get("refresh_token"),
-        token_uri=credentials_dict.get("token_uri", "https://oauth2.googleapis.com/token"),
+        token_uri=credentials_dict.get(
+            "token_uri", "https://oauth2.googleapis.com/token"
+        ),
         client_id=credentials_dict.get("client_id", GOOGLE_CLIENT_ID),
         client_secret=credentials_dict.get("client_secret", GOOGLE_CLIENT_SECRET),
         scopes=credentials_dict.get("scopes", SCOPES),
@@ -140,11 +145,13 @@ def _build_credentials(credentials_dict: dict):
 def _get_drive_service(credentials_dict: dict):
     """Return an authenticated Google Drive API service object."""
     from googleapiclient.discovery import build
+
     creds = _build_credentials(credentials_dict)
     return build("drive", "v3", credentials=creds)
 
 
 # ── Tool: create_drive_folder ──────────────────────────────────────────────────
+
 
 def create_drive_folder(folder_name: str, credentials_dict: dict) -> str:
     """
@@ -178,6 +185,7 @@ def create_drive_folder(folder_name: str, credentials_dict: dict) -> str:
 
 # ── Tool: upload_to_drive ──────────────────────────────────────────────────────
 
+
 def upload_to_drive(
     file_path: str,
     folder_name: str,
@@ -196,8 +204,9 @@ def upload_to_drive(
     Returns:
         dict with {id, name, webViewLink, webContentLink}
     """
-    from googleapiclient.http import MediaFileUpload
     import mimetypes
+
+    from googleapiclient.http import MediaFileUpload
 
     path = Path(file_path)
     if not path.exists():
@@ -237,6 +246,7 @@ def upload_to_drive(
 
 # ── Tool: list_drive_files ─────────────────────────────────────────────────────
 
+
 def list_drive_files(folder_name: str, credentials_dict: dict) -> list[dict]:
     """
     List files inside a named Google Drive folder.
@@ -273,6 +283,7 @@ def list_drive_files(folder_name: str, credentials_dict: dict) -> list[dict]:
 
 # ── Tool: export_as_google_doc ─────────────────────────────────────────────────
 
+
 def export_as_google_doc(
     file_path: str,
     folder_name: str,
@@ -283,14 +294,15 @@ def export_as_google_doc(
     Upload a DOCX/PDF file to Google Drive and convert it to a native Google Doc.
     Returns dict with {id, name, webViewLink}.
     """
-    from googleapiclient.http import MediaFileUpload
     import mimetypes
+
+    from googleapiclient.http import MediaFileUpload
 
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
 
-    service   = _get_drive_service(credentials_dict)
+    service = _get_drive_service(credentials_dict)
     folder_id = create_drive_folder(folder_name, credentials_dict)
 
     mime_type, _ = mimetypes.guess_type(str(path))
@@ -299,8 +311,8 @@ def export_as_google_doc(
     name = doc_title or path.stem
 
     metadata = {
-        "name":     name,
-        "parents":  [folder_id],
+        "name": name,
+        "parents": [folder_id],
         "mimeType": "application/vnd.google-apps.document",  # Convert to Google Doc
     }
 

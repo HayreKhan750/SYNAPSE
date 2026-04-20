@@ -14,6 +14,7 @@ Endpoints (Phase 5.2 + 5.3):
 Phase 5.2 — Document Generation (Week 14)
 Phase 5.3 — Project Builder (Week 15)
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,6 +24,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from apps.core.pagination import StandardPagination
+
 from django.conf import settings
 from django.http import FileResponse, Http404
 from rest_framework import status
@@ -31,8 +34,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.core.pagination import StandardPagination
 
 from .models import GeneratedDocument
 from .serializers import (
@@ -48,6 +49,7 @@ logger = logging.getLogger(__name__)
 # QA-16: Document LLM Builder — extracted from DocumentGenerateView
 # ---------------------------------------------------------------------------
 
+
 class _DocumentLLMBuilder:
     """
     Handles LLM provider selection and raw text invocation for document generation.
@@ -62,9 +64,9 @@ class _DocumentLLMBuilder:
     def invoke(
         system: str,
         user_msg: str,
-        openrouter_key: str = '',
-        gemini_key: str = '',
-        model_override: str = '',
+        openrouter_key: str = "",
+        gemini_key: str = "",
+        model_override: str = "",
     ) -> str | None:
         """
         Invoke the LLM and return the raw string response, or None on failure.
@@ -72,6 +74,7 @@ class _DocumentLLMBuilder:
         Provider selection: OpenRouter (preferred) → Gemini (fallback) → None.
         """
         import os
+
         try:
             from langchain_core.messages import HumanMessage, SystemMessage
         except ImportError:
@@ -82,7 +85,10 @@ class _DocumentLLMBuilder:
         if openrouter_key:
             try:
                 from langchain_openai import ChatOpenAI
-                model = model_override or os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+
+                model = model_override or os.environ.get(
+                    "OPENROUTER_MODEL", "openai/gpt-4o-mini"
+                )
                 llm = ChatOpenAI(
                     model=model,
                     openai_api_key=openrouter_key,
@@ -92,9 +98,15 @@ class _DocumentLLMBuilder:
                     temperature=0.7,
                     max_tokens=16000,
                 )
-                resp = llm.invoke([SystemMessage(content=system), HumanMessage(content=user_msg)])
-                raw = resp.content if isinstance(resp.content, str) else str(resp.content)
-                logger.info("_DocumentLLMBuilder: OpenRouter response (%d chars)", len(raw))
+                resp = llm.invoke(
+                    [SystemMessage(content=system), HumanMessage(content=user_msg)]
+                )
+                raw = (
+                    resp.content if isinstance(resp.content, str) else str(resp.content)
+                )
+                logger.info(
+                    "_DocumentLLMBuilder: OpenRouter response (%d chars)", len(raw)
+                )
                 return raw
             except Exception as exc:
                 logger.warning(
@@ -105,17 +117,21 @@ class _DocumentLLMBuilder:
         if gemini_key:
             try:
                 from langchain_google_genai import ChatGoogleGenerativeAI
+
                 llm = ChatGoogleGenerativeAI(
-                    model=model_override or os.environ.get(
-                        "GEMINI_MODEL", "gemini-1.5-flash-latest"
-                    ),
+                    model=model_override
+                    or os.environ.get("GEMINI_MODEL", "gemini-1.5-flash-latest"),
                     google_api_key=gemini_key,
                     temperature=0.7,
                     max_output_tokens=8192,
                     convert_system_message_to_human=True,
                 )
-                resp = llm.invoke([SystemMessage(content=system), HumanMessage(content=user_msg)])
-                raw = resp.content if isinstance(resp.content, str) else str(resp.content)
+                resp = llm.invoke(
+                    [SystemMessage(content=system), HumanMessage(content=user_msg)]
+                )
+                raw = (
+                    resp.content if isinstance(resp.content, str) else str(resp.content)
+                )
                 logger.info("_DocumentLLMBuilder: Gemini response (%d chars)", len(raw))
                 return raw
             except Exception as exc:
@@ -145,31 +161,33 @@ def _ensure_ai_engine_on_path() -> None:
             sys.path.insert(0, str(project_root))
             logger.debug("ai_engine: added %s to sys.path", project_root)
 
+
 _ensure_ai_engine_on_path()
 
 # MIME type map for document types
 _MIME_MAP = {
-    "pdf":      "application/pdf",
-    "ppt":      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "word":     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "pdf": "application/pdf",
+    "ppt": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "word": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "markdown": "text/markdown",
-    "html":     "text/html",
-    "project":  "application/zip",
+    "html": "text/html",
+    "project": "application/zip",
 }
 
 _EXT_MAP = {
-    "pdf":      ".pdf",
-    "ppt":      ".pptx",
-    "word":     ".docx",
+    "pdf": ".pdf",
+    "ppt": ".pptx",
+    "word": ".docx",
     "markdown": ".md",
-    "html":     ".html",
-    "project":  ".zip",
+    "html": ".html",
+    "project": ".zip",
 }
 
 
 # ---------------------------------------------------------------------------
 # Generate
 # ---------------------------------------------------------------------------
+
 
 class DocumentGenerateView(APIView):
     """
@@ -184,6 +202,7 @@ class DocumentGenerateView(APIView):
     If 'sections' is provided in the request, they are passed directly to the tool.
     Otherwise, a minimal single-section document is generated from the prompt.
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request) -> Response:
@@ -192,14 +211,14 @@ class DocumentGenerateView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
-        doc_type        = data["doc_type"]
-        title           = data["title"]
-        prompt          = data["prompt"]
-        sections        = data.get("sections") or []
-        subtitle        = data.get("subtitle", "")
-        author          = data.get("author", "") or "SYNAPSE AI"  # coerce empty string → default
-        user_id         = str(request.user.id)
-        content_types   = data.get("content_types") or []
+        doc_type = data["doc_type"]
+        title = data["title"]
+        prompt = data["prompt"]
+        sections = data.get("sections") or []
+        subtitle = data.get("subtitle", "")
+        author = data.get("author", "") or "SYNAPSE AI"  # coerce empty string → default
+        user_id = str(request.user.id)
+        content_types = data.get("content_types") or []
         source_item_ids = data.get("source_item_ids") or []
 
         # ── HTML pages: generate the actual HTML/CSS/JS directly from the prompt ──
@@ -207,6 +226,7 @@ class DocumentGenerateView(APIView):
             openrouter_key, gemini_key = self._get_llm_keys(request.user)
             try:
                 from ai_engine.agents.doc_tools import _generate_html_page_from_prompt
+
                 result_str = _generate_html_page_from_prompt(
                     title=title,
                     prompt=prompt,
@@ -215,7 +235,7 @@ class DocumentGenerateView(APIView):
                     user_id=user_id,
                     openrouter_key=openrouter_key,
                     gemini_key=gemini_key,
-                    model_override=data.get('model', ''),
+                    model_override=data.get("model", ""),
                 )
             except Exception as exc:
                 logger.error("HTML page generation failed: %s", exc)
@@ -233,9 +253,11 @@ class DocumentGenerateView(APIView):
             # Build sections from prompt if not provided — use LLM + RAG context
             if not sections:
                 sections, sources_used = self._expand_prompt_to_sections(
-                    prompt, title, doc_type,
+                    prompt,
+                    title,
+                    doc_type,
                     user=request.user,
-                    model_override=data.get('model', ''),
+                    model_override=data.get("model", ""),
                     content_types=content_types,
                     source_item_ids=source_item_ids,
                 )
@@ -307,8 +329,9 @@ class DocumentGenerateView(APIView):
         Always returns (openrouter_key, gemini_key) — OpenRouter is preferred.
         """
         import os
+
         openrouter_key = ""
-        gemini_key     = ""
+        gemini_key = ""
 
         # 1. Try user preferences first (keys saved via Settings page)
         if user is not None:
@@ -318,7 +341,7 @@ class DocumentGenerateView(APIView):
                 prefs = getattr(user, "preferences", {}) or {}
                 if isinstance(prefs, dict):
                     openrouter_key = prefs.get("openrouter_api_key", "").strip()
-                    gemini_key     = prefs.get("gemini_api_key", "").strip()
+                    gemini_key = prefs.get("gemini_api_key", "").strip()
             except Exception:
                 pass
 
@@ -352,73 +375,101 @@ class DocumentGenerateView(APIView):
         # ── Mode 1: pinned specific items ──────────────────────────────────────
         if source_item_ids:
             type_to_model = {
-                'article':    ('apps.articles.models',    'Article'),
-                'paper':      ('apps.papers.models',      'ResearchPaper'),
-                'repository': ('apps.repositories.models','Repository'),
-                'video':      ('apps.videos.models',      'Video'),
+                "article": ("apps.articles.models", "Article"),
+                "paper": ("apps.papers.models", "ResearchPaper"),
+                "repository": ("apps.repositories.models", "Repository"),
+                "video": ("apps.videos.models", "Video"),
             }
             for item in source_item_ids:
-                item_id   = item.get('id')
-                item_type = item.get('type', '').lower().rstrip('s')  # normalise "articles" → "article"
+                item_id = item.get("id")
+                item_type = (
+                    item.get("type", "").lower().rstrip("s")
+                )  # normalise "articles" → "article"
                 if not item_id or item_type not in type_to_model:
                     continue
                 module_path, model_name = type_to_model[item_type]
                 try:
                     import importlib
-                    mod   = importlib.import_module(module_path)
+
+                    mod = importlib.import_module(module_path)
                     Model = getattr(mod, model_name)
-                    obj   = Model.objects.get(pk=item_id)
-                    title_val   = getattr(obj, 'title', '') or getattr(obj, 'name', '') or str(obj)
-                    summary_val = (
-                        getattr(obj, 'summary', '')
-                        or getattr(obj, 'abstract', '')
-                        or getattr(obj, 'description', '')
-                        or getattr(obj, 'body', '')[:1000]
-                        or ''
+                    obj = Model.objects.get(pk=item_id)
+                    title_val = (
+                        getattr(obj, "title", "")
+                        or getattr(obj, "name", "")
+                        or str(obj)
                     )
-                    url_val = getattr(obj, 'url', '') or getattr(obj, 'html_url', '') or ''
+                    summary_val = (
+                        getattr(obj, "summary", "")
+                        or getattr(obj, "abstract", "")
+                        or getattr(obj, "description", "")
+                        or getattr(obj, "body", "")[:1000]
+                        or ""
+                    )
+                    url_val = (
+                        getattr(obj, "url", "") or getattr(obj, "html_url", "") or ""
+                    )
                     context_parts.append(
                         f"[{item_type.upper()}] {title_val}\n{summary_val}"
                     )
-                    sources.append({
-                        'id':           str(item_id),
-                        'content_type': item_type,
-                        'title':        title_val,
-                        'url':          url_val,
-                        'snippet':      summary_val[:300],
-                    })
+                    sources.append(
+                        {
+                            "id": str(item_id),
+                            "content_type": item_type,
+                            "title": title_val,
+                            "url": url_val,
+                            "snippet": summary_val[:300],
+                        }
+                    )
                 except Exception as exc:
-                    logger.warning("Could not fetch pinned item %s (%s): %s", item_id, item_type, exc)
+                    logger.warning(
+                        "Could not fetch pinned item %s (%s): %s",
+                        item_id,
+                        item_type,
+                        exc,
+                    )
 
         # ── Mode 2: vector search ──────────────────────────────────────────────
         else:
             try:
                 from ai_engine.rag.retriever import SynapseRetriever
+
                 retriever = SynapseRetriever(
                     k=4,
-                    mode='hybrid',
+                    mode="hybrid",
                     use_reranker=False,  # skip reranker for speed during doc generation
-                    content_types=content_types or list(
-                        __import__('ai_engine.rag.retriever', fromlist=['COLLECTION_NAMES']).COLLECTION_NAMES.keys()
+                    content_types=content_types
+                    or list(
+                        __import__(
+                            "ai_engine.rag.retriever", fromlist=["COLLECTION_NAMES"]
+                        ).COLLECTION_NAMES.keys()
                     ),
                 )
                 docs = retriever.invoke(f"{prompt} {title}")
                 for doc in docs[:8]:  # cap at 8 sources
-                    meta    = doc.metadata or {}
-                    title_v = meta.get('title', '')
-                    url_v   = meta.get('source', '') or meta.get('url', '')
-                    ct      = meta.get('content_type', 'unknown')
+                    meta = doc.metadata or {}
+                    title_v = meta.get("title", "")
+                    url_v = meta.get("source", "") or meta.get("url", "")
+                    ct = meta.get("content_type", "unknown")
                     snippet = doc.page_content[:300]
-                    context_parts.append(f"[{ct.upper()}] {title_v}\n{doc.page_content}")
-                    sources.append({
-                        'id':           str(meta.get('id', '')),
-                        'content_type': ct,
-                        'title':        title_v,
-                        'url':          url_v,
-                        'snippet':      snippet,
-                        'similarity_score': meta.get('rerank_score') or meta.get('rrf_score') or meta.get('similarity_score', 0.0),
-                    })
-                logger.info("RAG retrieved %d sources for document generation", len(sources))
+                    context_parts.append(
+                        f"[{ct.upper()}] {title_v}\n{doc.page_content}"
+                    )
+                    sources.append(
+                        {
+                            "id": str(meta.get("id", "")),
+                            "content_type": ct,
+                            "title": title_v,
+                            "url": url_v,
+                            "snippet": snippet,
+                            "similarity_score": meta.get("rerank_score")
+                            or meta.get("rrf_score")
+                            or meta.get("similarity_score", 0.0),
+                        }
+                    )
+                logger.info(
+                    "RAG retrieved %d sources for document generation", len(sources)
+                )
             except Exception as exc:
                 logger.warning("RAG retrieval failed (non-fatal): %s", exc)
 
@@ -431,7 +482,7 @@ class DocumentGenerateView(APIView):
         title: str,
         doc_type: str,
         user=None,
-        model_override: str = '',
+        model_override: str = "",
         content_types: list = None,
         source_item_ids: list = None,
     ) -> tuple:
@@ -445,7 +496,8 @@ class DocumentGenerateView(APIView):
 
         Returns (sections: list, sources_used: list[dict])
         """
-        import json, re
+        import json
+        import re
 
         # ── Step 1: Retrieve RAG context from user's knowledge base ───────────
         context_text, sources_used = DocumentGenerateView._retrieve_rag_context(
@@ -481,9 +533,12 @@ class DocumentGenerateView(APIView):
             "- Paragraphs separated by double newlines (\\n\\n).\n\n"
             "CONTENT REQUIREMENTS:\n"
             "- Write specifically about the EXACT topic given — not a generic template.\n"
-            + ("- Draw on and reference the knowledge base content provided above.\n"
-               "- Cite specific items from the knowledge base by their title where relevant.\n"
-               if rag_block else "")
+            + (
+                "- Draw on and reference the knowledge base content provided above.\n"
+                "- Cite specific items from the knowledge base by their title where relevant.\n"
+                if rag_block
+                else ""
+            )
             + "- Include real facts, statistics, named organisations, countries, dates, and figures.\n"
             "- Provide expert analysis: causation, trends, strategic implications, future scenarios.\n"
             "- Vary paragraph types: analytical, comparative, descriptive, prescriptive.\n"
@@ -503,7 +558,11 @@ class DocumentGenerateView(APIView):
             f"Topic: {title}\n"
             f"Document type: {doc_type}\n"
             f"User instruction: {prompt}\n\n"
-            + ("Use the knowledge base context provided in the system prompt as your primary source. " if rag_block else "")
+            + (
+                "Use the knowledge base context provided in the system prompt as your primary source. "
+                if rag_block
+                else ""
+            )
             + "Write a deeply researched, expert-level document SPECIFICALLY about the topic above. "
             "Do NOT use generic templates or placeholder text. Every sentence must be about this "
             "specific topic with real, concrete, topic-specific information. "
@@ -550,11 +609,11 @@ class DocumentGenerateView(APIView):
                             sanitised.append(ch)
                         else:
                             # Invalid escape: double-escape the backslash
-                            sanitised.append('\\')
+                            sanitised.append("\\")
                             sanitised.append(ch)
                         escape_next = False
                         continue
-                    if ch == '\\' and in_string:
+                    if ch == "\\" and in_string:
                         escape_next = True
                         sanitised.append(ch)
                         continue
@@ -562,17 +621,17 @@ class DocumentGenerateView(APIView):
                         in_string = not in_string
                         sanitised.append(ch)
                         continue
-                    if in_string and ch == '\n':
-                        sanitised.append('\\n')
+                    if in_string and ch == "\n":
+                        sanitised.append("\\n")
                         continue
-                    if in_string and ch == '\r':
-                        sanitised.append('\\r')
+                    if in_string and ch == "\r":
+                        sanitised.append("\\r")
                         continue
-                    if in_string and ch == '\t':
-                        sanitised.append('\\t')
+                    if in_string and ch == "\t":
+                        sanitised.append("\\t")
                         continue
                     sanitised.append(ch)
-                json_str = ''.join(sanitised)
+                json_str = "".join(sanitised)
 
                 # Try parsing; if truncated, attempt to repair by trimming to last complete object
                 sections = None
@@ -583,45 +642,63 @@ class DocumentGenerateView(APIView):
                     # Repair strategy: find last complete {...} block and close the array
                     try:
                         # Find the last complete JSON object (ends with "}")
-                        last_complete = json_str.rfind('},')
+                        last_complete = json_str.rfind("},")
                         if last_complete == -1:
-                            last_complete = json_str.rfind('}')
+                            last_complete = json_str.rfind("}")
                         if last_complete > 100:
-                            repaired = json_str[:last_complete + 1].rstrip() + '\n]'
+                            repaired = json_str[: last_complete + 1].rstrip() + "\n]"
                             sections = json.loads(repaired)
-                            logger.info("JSON repaired: recovered %d sections", len(sections))
+                            logger.info(
+                                "JSON repaired: recovered %d sections", len(sections)
+                            )
                     except json.JSONDecodeError:
                         # Last resort: extract individual objects with regex
                         try:
                             objects = re.findall(
                                 r'\{\s*"heading"\s*:\s*"([^"]+)"\s*,\s*"content"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}',
-                                json_str, re.DOTALL
+                                json_str,
+                                re.DOTALL,
                             )
                             if objects:
-                                sections = [{"heading": h, "content": c.replace('\\n', '\n\n')}
-                                            for h, c in objects]
-                                logger.info("Regex fallback: recovered %d sections", len(sections))
+                                sections = [
+                                    {"heading": h, "content": c.replace("\\n", "\n\n")}
+                                    for h, c in objects
+                                ]
+                                logger.info(
+                                    "Regex fallback: recovered %d sections",
+                                    len(sections),
+                                )
                         except Exception:
                             pass
 
                 if isinstance(sections, list) and sections:
                     valid_sections = [
-                        s for s in sections
+                        s
+                        for s in sections
                         if isinstance(s, dict)
                         and s.get("heading", "").strip()
                         and s.get("content", "").strip()
                         and len(s.get("content", "")) > 50
                     ]
                     if valid_sections:
-                        logger.info("LLM expanded prompt into %d sections", len(valid_sections))
+                        logger.info(
+                            "LLM expanded prompt into %d sections", len(valid_sections)
+                        )
                         return valid_sections, sources_used
             except (ValueError, Exception) as exc:
-                logger.warning("Failed to parse LLM sections JSON: %s — raw: %s", exc, raw[:200])
+                logger.warning(
+                    "Failed to parse LLM sections JSON: %s — raw: %s", exc, raw[:200]
+                )
 
         # Smart fallback: generate structured sections using the prompt as a topic guide.
         # This produces a real, readable document even without an LLM.
-        logger.info("Generating structured fallback sections from prompt (no LLM or parse failed)")
-        return DocumentGenerateView._build_fallback_sections(prompt, title, doc_type), sources_used
+        logger.info(
+            "Generating structured fallback sections from prompt (no LLM or parse failed)"
+        )
+        return (
+            DocumentGenerateView._build_fallback_sections(prompt, title, doc_type),
+            sources_used,
+        )
 
     @staticmethod
     def _build_fallback_sections(prompt: str, title: str, doc_type: str) -> list:
@@ -778,27 +855,30 @@ class DocumentGenerateView(APIView):
         Call the appropriate doc generation tool and return (result_str, abs_file_path).
         """
         from ai_engine.agents.doc_tools import (
+            _generate_html,
+            _generate_markdown,
             _generate_pdf,
             _generate_ppt,
             _generate_word_doc,
-            _generate_markdown,
-            _generate_html,
         )
 
         if doc_type == "pdf":
             result = _generate_pdf(
-                title=title, sections=sections,
-                subtitle=subtitle, author=author, user_id=user_id,
+                title=title,
+                sections=sections,
+                subtitle=subtitle,
+                author=author,
+                user_id=user_id,
             )
         elif doc_type == "ppt":
             # Convert sections → slides with rich bullet points derived from content
             slides = []
             for s in sections:
-                heading  = s.get("heading", "Slide")
-                content  = s.get("content", "")
+                heading = s.get("heading", "Slide")
+                content = s.get("content", "")
                 # Extract first sentence of each paragraph as a bullet point
-                paras    = [p.strip() for p in content.split("\n\n") if p.strip()]
-                bullets  = []
+                paras = [p.strip() for p in content.split("\n\n") if p.strip()]
+                bullets = []
                 for para in paras[:5]:
                     first = para.split(".")[0].strip()
                     if first and len(first) > 10:
@@ -808,38 +888,53 @@ class DocumentGenerateView(APIView):
                     words = content.split()
                     chunk = 12
                     for i in range(0, min(len(words), chunk * 3), chunk):
-                        bullets.append(" ".join(words[i:i + chunk]) + "…")
-                slides.append({
-                    "title":   heading,
-                    "bullets": bullets,
-                    "content": content,
-                    "notes":   paras[0][:300] if paras else "",
-                })
+                        bullets.append(" ".join(words[i : i + chunk]) + "…")
+                slides.append(
+                    {
+                        "title": heading,
+                        "bullets": bullets,
+                        "content": content,
+                        "notes": paras[0][:300] if paras else "",
+                    }
+                )
             result = _generate_ppt(
-                title=title, slides=slides,
+                title=title,
+                slides=slides,
                 subtitle=subtitle or "Generated by SYNAPSE AI",
-                author=author, user_id=user_id,
+                author=author,
+                user_id=user_id,
             )
         elif doc_type == "word":
             # Add level=1 to each section if missing
             word_sections = [
-                {"heading": s.get("heading", "Section"), "content": s.get("content", ""), "level": s.get("level", 1)}
+                {
+                    "heading": s.get("heading", "Section"),
+                    "content": s.get("content", ""),
+                    "level": s.get("level", 1),
+                }
                 for s in sections
             ]
             result = _generate_word_doc(
-                title=title, sections=word_sections,
-                author=author, add_toc=True, user_id=user_id,
+                title=title,
+                sections=word_sections,
+                author=author,
+                add_toc=True,
+                user_id=user_id,
             )
         elif doc_type == "markdown":
             result = _generate_markdown(
-                title=title, sections=sections,
-                author=author, user_id=user_id,
+                title=title,
+                sections=sections,
+                author=author,
+                user_id=user_id,
             )
         elif doc_type == "html":
             result = _generate_html(
-                title=title, sections=sections,
-                subtitle=subtitle or '',
-                author=author, user_id=user_id,
+                title=title,
+                sections=sections,
+                subtitle=subtitle or "",
+                author=author,
+                user_id=user_id,
             )
         else:
             raise ValueError(f"Unsupported doc_type: {doc_type}")
@@ -858,6 +953,7 @@ class DocumentGenerateView(APIView):
 # Generate Project (Phase 5.3)
 # ---------------------------------------------------------------------------
 
+
 class ProjectGenerateView(APIView):
     """
     POST /api/v1/documents/generate-project/
@@ -866,6 +962,7 @@ class ProjectGenerateView(APIView):
     Supported project_type values: django, fastapi, nextjs, datascience, react_lib
     Optional features list: ['auth', 'testing', 'ci_cd']
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request) -> Response:
@@ -877,10 +974,10 @@ class ProjectGenerateView(APIView):
 
         data = serializer.validated_data
         project_type = data["project_type"]
-        name         = data["name"]
-        features     = data.get("features", [])
-        description  = data.get("description", "") or ""
-        user_id      = str(request.user.id)
+        name = data["name"]
+        features = data.get("features", [])
+        description = data.get("description", "") or ""
+        user_id = str(request.user.id)
 
         # ── HTML Template: generate actual HTML/CSS/JS directly from the prompt ─
         if project_type == "html_template":
@@ -891,9 +988,12 @@ class ProjectGenerateView(APIView):
                 "Include beautiful gradients, micro-interactions, smooth animations, and premium typography. "
                 "Use Google Fonts and CDN libraries only — no build tools required."
             )
-            openrouter_key, gemini_key = DocumentGenerateView._get_llm_keys(request.user)
+            openrouter_key, gemini_key = DocumentGenerateView._get_llm_keys(
+                request.user
+            )
             try:
                 from ai_engine.agents.doc_tools import _generate_html_page_from_prompt
+
                 result_str = _generate_html_page_from_prompt(
                     title=name,
                     prompt=prompt,
@@ -950,6 +1050,7 @@ class ProjectGenerateView(APIView):
         # ── Standard project scaffold ─────────────────────────────────────────
         try:
             from ai_engine.agents.project_tools import _create_project
+
             result_str = _create_project(
                 project_type=project_type,
                 name=name,
@@ -964,7 +1065,10 @@ class ProjectGenerateView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        if "failed" in result_str.lower() or "unknown project_type" in result_str.lower():
+        if (
+            "failed" in result_str.lower()
+            or "unknown project_type" in result_str.lower()
+        ):
             return Response({"error": result_str}, status=status.HTTP_400_BAD_REQUEST)
 
         # Parse file path from result string ("Path: /abs/path")
@@ -1012,6 +1116,7 @@ class ProjectGenerateView(APIView):
 # List
 # ---------------------------------------------------------------------------
 
+
 class DocumentListView(APIView):
     """GET /api/v1/documents/ — list the authenticated user's documents."""
 
@@ -1027,13 +1132,16 @@ class DocumentListView(APIView):
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request)
         # Use the full serializer so download_url is included in list responses
-        serializer = GeneratedDocumentSerializer(page, many=True, context={"request": request})
+        serializer = GeneratedDocumentSerializer(
+            page, many=True, context={"request": request}
+        )
         return paginator.get_paginated_response(serializer.data)
 
 
 # ---------------------------------------------------------------------------
 # Detail + Delete
 # ---------------------------------------------------------------------------
+
 
 class DocumentDetailView(APIView):
     """
@@ -1052,13 +1160,19 @@ class DocumentDetailView(APIView):
     def get(self, request: Request, doc_id: str) -> Response:
         doc = self._get_doc(doc_id, request.user)
         if not doc:
-            return Response({"error": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
-        return Response(GeneratedDocumentSerializer(doc, context={"request": request}).data)
+            return Response(
+                {"error": "Document not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(
+            GeneratedDocumentSerializer(doc, context={"request": request}).data
+        )
 
     def delete(self, request: Request, doc_id: str) -> Response:
         doc = self._get_doc(doc_id, request.user)
         if not doc:
-            return Response({"error": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Document not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         # Delete physical file
         if doc.file_path:
@@ -1077,6 +1191,7 @@ class DocumentDetailView(APIView):
 # Download
 # ---------------------------------------------------------------------------
 
+
 class DocumentDownloadView(APIView):
     """GET /api/v1/documents/{id}/download/ — stream the file as a download."""
 
@@ -1089,7 +1204,10 @@ class DocumentDownloadView(APIView):
             raise Http404("Document not found.")
 
         if not doc.file_path:
-            return Response({"error": "No file available for this document."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "No file available for this document."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         stored = Path(doc.file_path)
         # If file_path is already absolute, use it directly; otherwise join with MEDIA_ROOT
@@ -1101,7 +1219,10 @@ class DocumentDownloadView(APIView):
         if not abs_path.exists():
             logger.error(
                 "Download failed — file missing on disk. doc_id=%s file_path=%s resolved=%s MEDIA_ROOT=%s",
-                doc_id, doc.file_path, abs_path, settings.MEDIA_ROOT,
+                doc_id,
+                doc.file_path,
+                abs_path,
+                settings.MEDIA_ROOT,
             )
             return Response(
                 {"error": f"File not found on server. Expected at: {abs_path}"},
@@ -1131,10 +1252,12 @@ class DocumentPreviewView(APIView):
     For HTML: renders a styled preview card.
     For all others: returns a branded cover card image.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, doc_id: str) -> Response:
         from django.http import HttpResponse
+
         try:
             doc = GeneratedDocument.objects.get(id=doc_id, user=request.user)
         except GeneratedDocument.DoesNotExist:
@@ -1163,41 +1286,55 @@ class DocumentPreviewView(APIView):
             abs_path = Path(settings.MEDIA_ROOT) / doc.file_path
 
         doc_type = doc.doc_type
-        title    = doc.title
+        title = doc.title
         subtitle = (doc.metadata or {}).get("subtitle", "")
-        author   = (doc.metadata or {}).get("author", "SYNAPSE AI")
+        author = (doc.metadata or {}).get("author", "SYNAPSE AI")
         sections = (doc.metadata or {}).get("sections", [])
 
         try:
             if doc_type == "pdf" and abs_path and abs_path.exists():
                 return DocumentPreviewView._render_pdf_preview(str(abs_path))
             elif doc_type == "ppt" and abs_path and abs_path.exists():
-                return DocumentPreviewView._render_pptx_preview(str(abs_path), title, subtitle)
+                return DocumentPreviewView._render_pptx_preview(
+                    str(abs_path), title, subtitle
+                )
             elif doc_type in ("word", "docx") and abs_path and abs_path.exists():
-                return DocumentPreviewView._render_docx_preview(str(abs_path), title, sections)
+                return DocumentPreviewView._render_docx_preview(
+                    str(abs_path), title, sections
+                )
             elif doc_type == "html" and abs_path and abs_path.exists():
-                return DocumentPreviewView._render_html_preview(str(abs_path), title, sections)
+                return DocumentPreviewView._render_html_preview(
+                    str(abs_path), title, sections
+                )
             elif doc_type == "markdown" and abs_path and abs_path.exists():
-                return DocumentPreviewView._render_markdown_preview(str(abs_path), title, sections)
+                return DocumentPreviewView._render_markdown_preview(
+                    str(abs_path), title, sections
+                )
         except Exception as exc:
-            logger.warning("Real preview rendering failed for %s (%s): %s", doc_type, doc.id, exc)
+            logger.warning(
+                "Real preview rendering failed for %s (%s): %s", doc_type, doc.id, exc
+            )
 
         # Fallback to branded cover image
         from ai_engine.agents.doc_tools import _cover_image_bytes
+
         return _cover_image_bytes(
-            title=title, subtitle=subtitle or doc_type.upper() + " Document",
-            author=author, doc_type=doc_type,
+            title=title,
+            subtitle=subtitle or doc_type.upper() + " Document",
+            author=author,
+            doc_type=doc_type,
         )
 
     # ── PDF preview via PyMuPDF ───────────────────────────────────────────────
     @staticmethod
     def _render_pdf_preview(path: str) -> bytes:
         import fitz  # PyMuPDF
-        doc  = fitz.open(path)
+
+        doc = fitz.open(path)
         page = doc[0]
-        mat  = fitz.Matrix(1.8, 1.8)   # 1.8× zoom → ~1080px wide
-        pix  = page.get_pixmap(matrix=mat, alpha=False)
-        png  = pix.tobytes("png")
+        mat = fitz.Matrix(1.8, 1.8)  # 1.8× zoom → ~1080px wide
+        pix = page.get_pixmap(matrix=mat, alpha=False)
+        png = pix.tobytes("png")
         doc.close()
         # Crop to 1200×630 social-card ratio
         return DocumentPreviewView._crop_to_ratio(png, 1200, 630)
@@ -1205,50 +1342,56 @@ class DocumentPreviewView(APIView):
     # ── PPTX preview via python-pptx + Pillow ────────────────────────────────
     @staticmethod
     def _render_pptx_preview(path: str, title: str, subtitle: str) -> bytes:
-        from pptx import Presentation
-        from pptx.util import Pt
-        from PIL import Image, ImageDraw, ImageFont
         import io as _io
 
-        prs  = Presentation(path)
+        from PIL import Image, ImageDraw, ImageFont
+        from pptx import Presentation
+        from pptx.util import Pt
+
+        prs = Presentation(path)
         slide = prs.slides[0]  # Title slide
 
         W, H = 1200, 630
 
         # ── Background gradient from slide background fill ────────────────
         # Try to read the gradient colours from the slide XML
-        bg_c1 = (55, 48, 163)    # indigo-dark fallback
-        bg_c2 = (124, 58, 237)   # violet fallback
+        bg_c1 = (55, 48, 163)  # indigo-dark fallback
+        bg_c2 = (124, 58, 237)  # violet fallback
         try:
             bg = slide.background
             fill = bg.fill
             if fill.type is not None:
                 # Try gradient stops
                 from pptx.oxml.ns import qn
+
                 gsLst = bg._element.find(".//" + qn("a:gsLst"))
                 if gsLst is not None:
                     stops = gsLst.findall(qn("a:gs"))
                     if len(stops) >= 2:
+
                         def _hex_to_rgb(h):
                             h = h.lstrip("#")
-                            return (int(h[0:2],16), int(h[2:4],16), int(h[4:6],16))
+                            return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
                         s0 = stops[0].find(".//" + qn("a:srgbClr"))
                         s1 = stops[-1].find(".//" + qn("a:srgbClr"))
-                        if s0 is not None: bg_c1 = _hex_to_rgb(s0.get("val","3730A3"))
-                        if s1 is not None: bg_c2 = _hex_to_rgb(s1.get("val","7C3AED"))
+                        if s0 is not None:
+                            bg_c1 = _hex_to_rgb(s0.get("val", "3730A3"))
+                        if s1 is not None:
+                            bg_c2 = _hex_to_rgb(s1.get("val", "7C3AED"))
         except Exception:
             pass
 
-        img  = Image.new("RGB", (W, H))
+        img = Image.new("RGB", (W, H))
         draw = ImageDraw.Draw(img)
 
         # Draw gradient background
         for y in range(H):
             t = y / H
-            r = int(bg_c1[0] + t*(bg_c2[0]-bg_c1[0]))
-            g = int(bg_c1[1] + t*(bg_c2[1]-bg_c1[1]))
-            b = int(bg_c1[2] + t*(bg_c2[2]-bg_c1[2]))
-            draw.line([(0,y),(W,y)], fill=(r,g,b))
+            r = int(bg_c1[0] + t * (bg_c2[0] - bg_c1[0]))
+            g = int(bg_c1[1] + t * (bg_c2[1] - bg_c1[1]))
+            b = int(bg_c1[2] + t * (bg_c2[2] - bg_c1[2]))
+            draw.line([(0, y), (W, y)], fill=(r, g, b))
 
         # Draw shapes from slide
         FONT_BOLD = [
@@ -1260,28 +1403,33 @@ class DocumentPreviewView(APIView):
             "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         ]
         import os as _os
+
         def _font(paths, size):
             for fp in paths:
                 if _os.path.exists(fp):
-                    try: return ImageFont.truetype(fp, size)
-                    except: continue
+                    try:
+                        return ImageFont.truetype(fp, size)
+                    except:
+                        continue
             return ImageFont.load_default()
 
         f_title = _font(FONT_BOLD, 52)
-        f_sub   = _font(FONT_REG,  22)
-        f_meta  = _font(FONT_REG,  14)
+        f_sub = _font(FONT_REG, 22)
+        f_meta = _font(FONT_REG, 14)
 
         # Slide dimensions (EMU)
         slide_w = prs.slide_width
         slide_h = prs.slide_height
 
         for shape in slide.shapes:
-            if not shape.has_text_frame: continue
+            if not shape.has_text_frame:
+                continue
             text = shape.text_frame.text.strip()
-            if not text: continue
+            if not text:
+                continue
             # Map shape position to image coordinates
-            sx = int(shape.left  / slide_w * W)
-            sy = int(shape.top   / slide_h * H)
+            sx = int(shape.left / slide_w * W)
+            sy = int(shape.top / slide_h * H)
             sw = int(shape.width / slide_w * W)
             # Pick font based on text size in shape
             try:
@@ -1289,9 +1437,11 @@ class DocumentPreviewView(APIView):
                 sz_pt = int(sz_pt.pt) if sz_pt else 18
             except:
                 sz_pt = 18
-            font = _font(FONT_BOLD if sz_pt > 20 else FONT_REG,
-                         max(12, min(48, int(sz_pt * W / 960))))
-            color = (255,255,255)
+            font = _font(
+                FONT_BOLD if sz_pt > 20 else FONT_REG,
+                max(12, min(48, int(sz_pt * W / 960))),
+            )
+            color = (255, 255, 255)
             try:
                 rgb = shape.text_frame.paragraphs[0].runs[0].font.color.rgb
                 color = (rgb.r, rgb.g, rgb.b)
@@ -1303,20 +1453,31 @@ class DocumentPreviewView(APIView):
             for w in words:
                 test = (cur + " " + w).strip()
                 if draw.textlength(test, font=font) > sw * 0.95:
-                    if cur: lines.append(cur)
+                    if cur:
+                        lines.append(cur)
                     cur = w
-                else: cur = test
-            if cur: lines.append(cur)
+                else:
+                    cur = test
+            if cur:
+                lines.append(cur)
             for li, line in enumerate(lines[:4]):
-                draw.text((sx, sy + li*int(sz_pt*1.3*W/960)), line,
-                          fill=color, font=font)
+                draw.text(
+                    (sx, sy + li * int(sz_pt * 1.3 * W / 960)),
+                    line,
+                    fill=color,
+                    font=font,
+                )
 
         # Left accent strip
-        draw.rectangle([0,0,8,H], fill=(129,140,248))
+        draw.rectangle([0, 0, 8, H], fill=(129, 140, 248))
         # Bottom strip
-        draw.rectangle([0,H-50,W,H], fill=(255,255,255))
-        draw.text((40, H-36), f"SYNAPSE AI  ·  {title[:60]}",
-                  fill=(79,70,229), font=_font(FONT_BOLD, 13))
+        draw.rectangle([0, H - 50, W, H], fill=(255, 255, 255))
+        draw.text(
+            (40, H - 36),
+            f"SYNAPSE AI  ·  {title[:60]}",
+            fill=(79, 70, 229),
+            font=_font(FONT_BOLD, 13),
+        )
 
         buf = _io.BytesIO()
         img.save(buf, "PNG", optimize=True)
@@ -1326,67 +1487,96 @@ class DocumentPreviewView(APIView):
     # ── DOCX preview via python-docx + Pillow ────────────────────────────────
     @staticmethod
     def _render_docx_preview(path: str, title: str, sections: list) -> bytes:
+        import io as _io
+        import os as _os
+
         from docx import Document as DocxDoc
         from PIL import Image, ImageDraw, ImageFont
-        import io as _io, os as _os
 
-        doc  = DocxDoc(path)
+        doc = DocxDoc(path)
         W, H = 1200, 630
 
         # Blue theme for Word
-        img  = Image.new("RGB", (W, H), (255,255,255))
+        img = Image.new("RGB", (W, H), (255, 255, 255))
         draw = ImageDraw.Draw(img)
 
         # Header bar
-        draw.rectangle([0,0,W,90], fill=(29,78,216))
-        draw.rectangle([0,0,10,H], fill=(59,130,246))
+        draw.rectangle([0, 0, W, 90], fill=(29, 78, 216))
+        draw.rectangle([0, 0, 10, H], fill=(59, 130, 246))
 
-        FONT_BOLD = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
-        FONT_REG  = ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]
+        FONT_BOLD = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        ]
+        FONT_REG = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        ]
+
         def _font(paths, size):
             for fp in paths:
                 if _os.path.exists(fp):
-                    try: return ImageFont.truetype(fp, size)
-                    except: continue
+                    try:
+                        return ImageFont.truetype(fp, size)
+                    except:
+                        continue
             return ImageFont.load_default()
 
-        draw.text((28, 22), title[:55], fill=(255,255,255), font=_font(FONT_BOLD, 36))
-        draw.text((28, 68), "WORD DOCUMENT  ·  SYNAPSE AI", fill=(147,197,253), font=_font(FONT_REG, 14))
+        draw.text((28, 22), title[:55], fill=(255, 255, 255), font=_font(FONT_BOLD, 36))
+        draw.text(
+            (28, 68),
+            "WORD DOCUMENT  ·  SYNAPSE AI",
+            fill=(147, 197, 253),
+            font=_font(FONT_REG, 14),
+        )
 
         # Page content — render first paragraphs
         y = 110
         for para in doc.paragraphs[:20]:
             txt = para.text.strip()
-            if not txt: continue
+            if not txt:
+                continue
             is_heading = para.style.name.startswith("Heading") or (
-                len(txt) < 60 and para.runs and any(r.bold for r in para.runs if r.text.strip()))
+                len(txt) < 60
+                and para.runs
+                and any(r.bold for r in para.runs if r.text.strip())
+            )
             if is_heading:
-                if y > 570: break
-                draw.rectangle([18, y+2, 18+4, y+24], fill=(29,78,216))
-                draw.text((28, y), txt[:70], fill=(17,24,39),
-                          font=_font(FONT_BOLD, 16))
+                if y > 570:
+                    break
+                draw.rectangle([18, y + 2, 18 + 4, y + 24], fill=(29, 78, 216))
+                draw.text(
+                    (28, y), txt[:70], fill=(17, 24, 39), font=_font(FONT_BOLD, 16)
+                )
                 y += 30
             else:
                 words = txt.split()
                 line, lines_out = "", []
                 for word in words:
                     test = line + " " + word if line else word
-                    if len(test) > 95: lines_out.append(line); line = word
-                    else: line = test
-                if line: lines_out.append(line)
+                    if len(test) > 95:
+                        lines_out.append(line)
+                        line = word
+                    else:
+                        line = test
+                if line:
+                    lines_out.append(line)
                 for ln in lines_out[:3]:
-                    if y > 590: break
-                    draw.text((28, y), ln, fill=(55,65,81), font=_font(FONT_REG, 13))
+                    if y > 590:
+                        break
+                    draw.text((28, y), ln, fill=(55, 65, 81), font=_font(FONT_REG, 13))
                     y += 18
                 y += 4
 
         # Footer
-        draw.rectangle([0,H-40,W,H], fill=(243,244,246))
-        draw.rectangle([0,H-40,W,H-39], fill=(209,213,219))
-        draw.text((28, H-28), f"SYNAPSE AI  ·  {title[:50]}  ·  Page 1",
-                  fill=(107,114,128), font=_font(FONT_REG, 12))
+        draw.rectangle([0, H - 40, W, H], fill=(243, 244, 246))
+        draw.rectangle([0, H - 40, W, H - 39], fill=(209, 213, 219))
+        draw.text(
+            (28, H - 28),
+            f"SYNAPSE AI  ·  {title[:50]}  ·  Page 1",
+            fill=(107, 114, 128),
+            font=_font(FONT_REG, 12),
+        )
 
         buf = _io.BytesIO()
         img.save(buf, "PNG", optimize=True)
@@ -1396,109 +1586,183 @@ class DocumentPreviewView(APIView):
     # ── HTML preview via Pillow ───────────────────────────────────────────────
     @staticmethod
     def _render_html_preview(path: str, title: str, sections: list) -> bytes:
+        import io as _io
+        import os as _os
+
         from PIL import Image, ImageDraw, ImageFont
-        import io as _io, os as _os
 
         # Read and parse key content from the HTML
         html_content = Path(path).read_text(encoding="utf-8")
 
         W, H = 1200, 630
-        img  = Image.new("RGB", (W, H), (15,12,46))   # dark background
+        img = Image.new("RGB", (W, H), (15, 12, 46))  # dark background
         draw = ImageDraw.Draw(img)
 
-        FONT_BOLD = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
-        FONT_REG  = ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]
+        FONT_BOLD = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        ]
+        FONT_REG = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        ]
+
         def _font(paths, size):
             for fp in paths:
                 if _os.path.exists(fp):
-                    try: return ImageFont.truetype(fp, size)
-                    except: continue
+                    try:
+                        return ImageFont.truetype(fp, size)
+                    except:
+                        continue
             return ImageFont.load_default()
 
         # Sidebar (dark)
-        draw.rectangle([0,0,220,H], fill=(30,27,74))
-        draw.rectangle([220,0,224,H], fill=(99,102,241))
+        draw.rectangle([0, 0, 220, H], fill=(30, 27, 74))
+        draw.rectangle([220, 0, 224, H], fill=(99, 102, 241))
 
         # Sidebar header
-        draw.rectangle([0,0,220,80], fill=(55,48,163))
-        draw.text((14, 14), "SYNAPSE AI", fill=(199,210,254), font=_font(FONT_BOLD, 12))
-        draw.text((14, 32), title[:22], fill=(255,255,255), font=_font(FONT_BOLD, 14))
+        draw.rectangle([0, 0, 220, 80], fill=(55, 48, 163))
+        draw.text(
+            (14, 14), "SYNAPSE AI", fill=(199, 210, 254), font=_font(FONT_BOLD, 12)
+        )
+        draw.text((14, 32), title[:22], fill=(255, 255, 255), font=_font(FONT_BOLD, 14))
 
         # Sidebar nav items
-        icons = ["🔍","📌","💡","📊","⚡","🎯","🔬"]
-        sec_names = [s.get("heading","")[:20] for s in sections[:7]] if sections else []
+        icons = ["🔍", "📌", "💡", "📊", "⚡", "🎯", "🔬"]
+        sec_names = (
+            [s.get("heading", "")[:20] for s in sections[:7]] if sections else []
+        )
         for i, (icon, name) in enumerate(zip(icons, sec_names)):
             sy = 90 + i * 38
             if i == 0:
-                draw.rectangle([0,sy,220,sy+36], fill=(79,70,229,160))
-                draw.rectangle([0,sy,4,sy+36], fill=(129,140,248))
-            draw.text((14, sy+10), f"{icon} {name[:18]}", fill=(200,200,220), font=_font(FONT_REG, 13))
+                draw.rectangle([0, sy, 220, sy + 36], fill=(79, 70, 229, 160))
+                draw.rectangle([0, sy, 4, sy + 36], fill=(129, 140, 248))
+            draw.text(
+                (14, sy + 10),
+                f"{icon} {name[:18]}",
+                fill=(200, 200, 220),
+                font=_font(FONT_REG, 13),
+            )
 
         # Main content area — gradient hero
         for y in range(120):
-            t = y/120
-            r = int(30+t*(55-30)); g = int(27+t*(48-27)); b = int(74+t*(163-74))
-            draw.line([(224,y),(W,y)], fill=(r,g,b))
+            t = y / 120
+            r = int(30 + t * (55 - 30))
+            g = int(27 + t * (48 - 27))
+            b = int(74 + t * (163 - 74))
+            draw.line([(224, y), (W, y)], fill=(r, g, b))
 
         # Hero title
-        draw.text((248, 18), "SYNAPSE AI  ·  Executive Report", fill=(129,140,248), font=_font(FONT_REG, 11))
-        words = title.split(); lines_out, cur = [], ""
+        draw.text(
+            (248, 18),
+            "SYNAPSE AI  ·  Executive Report",
+            fill=(129, 140, 248),
+            font=_font(FONT_REG, 11),
+        )
+        words = title.split()
+        lines_out, cur = [], ""
         for w in words:
-            test = (cur+" "+w).strip()
-            if len(test) > 28: lines_out.append(cur); cur=w
-            else: cur=test
-        if cur: lines_out.append(cur)
+            test = (cur + " " + w).strip()
+            if len(test) > 28:
+                lines_out.append(cur)
+                cur = w
+            else:
+                cur = test
+        if cur:
+            lines_out.append(cur)
         for li, line in enumerate(lines_out[:2]):
-            draw.text((248, 36+li*42), line, fill=(255,255,255), font=_font(FONT_BOLD, 36))
+            draw.text(
+                (248, 36 + li * 42),
+                line,
+                fill=(255, 255, 255),
+                font=_font(FONT_BOLD, 36),
+            )
 
         # Stat cards row
         card_y = 145
-        stats = [("Chapters",str(len(sections)),"#4F46E5"),
-                 ("Words", str(sum(len(s.get("content","").split()) for s in sections)),"#7C3AED"),
-                 ("Format","HTML","#06B6D4"),
-                 ("Level","Diamond","#10B981")]
+        stats = [
+            ("Chapters", str(len(sections)), "#4F46E5"),
+            (
+                "Words",
+                str(sum(len(s.get("content", "").split()) for s in sections)),
+                "#7C3AED",
+            ),
+            ("Format", "HTML", "#06B6D4"),
+            ("Level", "Diamond", "#10B981"),
+        ]
         for ci, (lbl, val, col) in enumerate(stats):
-            cx = 248 + ci*230
-            r,g,b = int(col[1:3],16),int(col[3:5],16),int(col[5:7],16)
-            draw.rectangle([cx,card_y,cx+210,card_y+80], fill=(26,23,64))
-            draw.rectangle([cx,card_y,cx+210,card_y+4], fill=(r,g,b))
-            draw.text((cx+105-len(val)*10, card_y+14), val, fill=(r,g,b), font=_font(FONT_BOLD, 26))
-            draw.text((cx+105-len(lbl)*5, card_y+50), lbl.upper(), fill=(107,114,128), font=_font(FONT_REG, 11))
+            cx = 248 + ci * 230
+            r, g, b = int(col[1:3], 16), int(col[3:5], 16), int(col[5:7], 16)
+            draw.rectangle([cx, card_y, cx + 210, card_y + 80], fill=(26, 23, 64))
+            draw.rectangle([cx, card_y, cx + 210, card_y + 4], fill=(r, g, b))
+            draw.text(
+                (cx + 105 - len(val) * 10, card_y + 14),
+                val,
+                fill=(r, g, b),
+                font=_font(FONT_BOLD, 26),
+            )
+            draw.text(
+                (cx + 105 - len(lbl) * 5, card_y + 50),
+                lbl.upper(),
+                fill=(107, 114, 128),
+                font=_font(FONT_REG, 11),
+            )
 
         # Content section cards
         sec_y = 245
         for si, sec in enumerate(sections[:3]):
-            sx = 248 + si*313
-            heading = sec.get("heading","")[:24]
-            content_snippet = sec.get("content","")[:80].replace("\n"," ")
-            draw.rectangle([sx,sec_y,sx+298,sec_y+150], fill=(26,23,64))
-            draw.rectangle([sx,sec_y,sx+298,sec_y+4], fill=(79,70,229))
+            sx = 248 + si * 313
+            heading = sec.get("heading", "")[:24]
+            content_snippet = sec.get("content", "")[:80].replace("\n", " ")
+            draw.rectangle([sx, sec_y, sx + 298, sec_y + 150], fill=(26, 23, 64))
+            draw.rectangle([sx, sec_y, sx + 298, sec_y + 4], fill=(79, 70, 229))
             # Section number
-            draw.rectangle([sx,sec_y,sx+36,sec_y+36], fill=(55,48,163))
-            draw.text((sx+8, sec_y+8), f"{si+1:02d}", fill=(255,255,255), font=_font(FONT_BOLD, 16))
-            draw.text((sx+42, sec_y+8), heading, fill=(199,210,254), font=_font(FONT_BOLD, 13))
+            draw.rectangle([sx, sec_y, sx + 36, sec_y + 36], fill=(55, 48, 163))
+            draw.text(
+                (sx + 8, sec_y + 8),
+                f"{si+1:02d}",
+                fill=(255, 255, 255),
+                font=_font(FONT_BOLD, 16),
+            )
+            draw.text(
+                (sx + 42, sec_y + 8),
+                heading,
+                fill=(199, 210, 254),
+                font=_font(FONT_BOLD, 13),
+            )
             # Content snippet
-            words2 = content_snippet.split(); lines2, cur2 = [], ""
+            words2 = content_snippet.split()
+            lines2, cur2 = [], ""
             for w in words2:
-                test = (cur2+" "+w).strip()
-                if len(test)>35: lines2.append(cur2); cur2=w
-                else: cur2=test
-            if cur2: lines2.append(cur2)
-            for li,ln in enumerate(lines2[:4]):
-                draw.text((sx+10, sec_y+45+li*22), ln+"…" if li==3 else ln,
-                          fill=(148,163,184), font=_font(FONT_REG, 12))
+                test = (cur2 + " " + w).strip()
+                if len(test) > 35:
+                    lines2.append(cur2)
+                    cur2 = w
+                else:
+                    cur2 = test
+            if cur2:
+                lines2.append(cur2)
+            for li, ln in enumerate(lines2[:4]):
+                draw.text(
+                    (sx + 10, sec_y + 45 + li * 22),
+                    ln + "…" if li == 3 else ln,
+                    fill=(148, 163, 184),
+                    font=_font(FONT_REG, 12),
+                )
 
         # Scroll progress bar at top
-        draw.rectangle([224,0,W,3], fill=(79,70,229))
-        draw.rectangle([224,0,224+300,3], fill=(129,140,248))
+        draw.rectangle([224, 0, W, 3], fill=(79, 70, 229))
+        draw.rectangle([224, 0, 224 + 300, 3], fill=(129, 140, 248))
 
         # Footer
-        draw.rectangle([224,H-36,W,H], fill=(15,12,46))
-        draw.rectangle([224,H-37,W,H-36], fill=(55,48,163))
-        draw.text((244, H-26), f"SYNAPSE AI  ·  {title[:50]}  ·  Diamond Level  ·  All rights reserved",
-                  fill=(75,85,99), font=_font(FONT_REG, 11))
+        draw.rectangle([224, H - 36, W, H], fill=(15, 12, 46))
+        draw.rectangle([224, H - 37, W, H - 36], fill=(55, 48, 163))
+        draw.text(
+            (244, H - 26),
+            f"SYNAPSE AI  ·  {title[:50]}  ·  Diamond Level  ·  All rights reserved",
+            fill=(75, 85, 99),
+            font=_font(FONT_REG, 11),
+        )
 
         buf = _io.BytesIO()
         img.save(buf, "PNG", optimize=True)
@@ -1508,98 +1772,129 @@ class DocumentPreviewView(APIView):
     # ── Markdown preview via Pillow ───────────────────────────────────────────
     @staticmethod
     def _render_markdown_preview(path: str, title: str, sections: list) -> bytes:
+        import io as _io
+        import os as _os
+
         from PIL import Image, ImageDraw, ImageFont
-        import io as _io, os as _os
 
         content = Path(path).read_text(encoding="utf-8")
-        lines   = content.split("\n")
+        lines = content.split("\n")
 
         W, H = 1200, 630
-        img  = Image.new("RGB", (W, H), (255,255,255))
+        img = Image.new("RGB", (W, H), (255, 255, 255))
         draw = ImageDraw.Draw(img)
 
-        FONT_BOLD = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
-        FONT_MONO = ["/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf"]
-        FONT_REG  = ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]
+        FONT_BOLD = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        ]
+        FONT_MONO = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+        ]
+        FONT_REG = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        ]
+
         def _font(paths, size):
             for fp in paths:
                 if _os.path.exists(fp):
-                    try: return ImageFont.truetype(fp, size)
-                    except: continue
+                    try:
+                        return ImageFont.truetype(fp, size)
+                    except:
+                        continue
             return ImageFont.load_default()
 
         # Background
-        draw.rectangle([0,0,W,H], fill=(248,249,255))
+        draw.rectangle([0, 0, W, H], fill=(248, 249, 255))
 
         # Left accent bar (emerald for markdown)
-        draw.rectangle([0,0,6,H], fill=(16,185,129))
+        draw.rectangle([0, 0, 6, H], fill=(16, 185, 129))
 
         # Top badge bar
-        draw.rectangle([0,0,W,56], fill=(5,150,105))
-        draw.text((20, 10), "SYNAPSE AI", fill=(255,255,255), font=_font(FONT_BOLD, 13))
-        draw.text((20, 30), "MARKDOWN DOCUMENT", fill=(52,211,153), font=_font(FONT_REG, 12))
+        draw.rectangle([0, 0, W, 56], fill=(5, 150, 105))
+        draw.text(
+            (20, 10), "SYNAPSE AI", fill=(255, 255, 255), font=_font(FONT_BOLD, 13)
+        )
+        draw.text(
+            (20, 30), "MARKDOWN DOCUMENT", fill=(52, 211, 153), font=_font(FONT_REG, 12)
+        )
         # Badges
-        for bi, (lbl, col) in enumerate([("FINAL","#10B981"),("v2.0","#059669"),("AI","#047857")]):
-            bx = W - 200 + bi*62
-            r,g,b = int(col[1:3],16),int(col[3:5],16),int(col[5:7],16)
-            draw.rectangle([bx,12,bx+54,36], fill=(r,g,b))
-            draw.text((bx+8,18), lbl, fill=(255,255,255), font=_font(FONT_BOLD,12))
+        for bi, (lbl, col) in enumerate(
+            [("FINAL", "#10B981"), ("v2.0", "#059669"), ("AI", "#047857")]
+        ):
+            bx = W - 200 + bi * 62
+            r, g, b = int(col[1:3], 16), int(col[3:5], 16), int(col[5:7], 16)
+            draw.rectangle([bx, 12, bx + 54, 36], fill=(r, g, b))
+            draw.text(
+                (bx + 8, 18), lbl, fill=(255, 255, 255), font=_font(FONT_BOLD, 12)
+            )
 
         # Render markdown lines
         y = 72
         for raw_line in lines[:50]:
-            if y > 590: break
+            if y > 590:
+                break
             stripped = raw_line.strip()
-            if not stripped or stripped.startswith("---") or stripped.startswith("```"): continue
+            if not stripped or stripped.startswith("---") or stripped.startswith("```"):
+                continue
             if stripped.startswith("# "):
                 txt = stripped[2:][:70]
-                draw.text((20, y), txt, fill=(17,24,39), font=_font(FONT_BOLD, 28))
+                draw.text((20, y), txt, fill=(17, 24, 39), font=_font(FONT_BOLD, 28))
                 y += 38
             elif stripped.startswith("## "):
                 txt = stripped[3:][:70]
-                draw.rectangle([20,y+2,24,y+22], fill=(16,185,129))
-                draw.text((30, y), txt, fill=(5,150,105), font=_font(FONT_BOLD, 18))
+                draw.rectangle([20, y + 2, 24, y + 22], fill=(16, 185, 129))
+                draw.text((30, y), txt, fill=(5, 150, 105), font=_font(FONT_BOLD, 18))
                 y += 26
             elif stripped.startswith("### "):
                 txt = stripped[4:][:80]
-                draw.text((30, y), txt, fill=(55,65,81), font=_font(FONT_BOLD, 14))
+                draw.text((30, y), txt, fill=(55, 65, 81), font=_font(FONT_BOLD, 14))
                 y += 20
             elif stripped.startswith(">"):
                 txt = stripped.lstrip("> ").strip()[:100]
-                draw.rectangle([20,y,24,y+18], fill=(16,185,129))
-                draw.rectangle([20,y,500,y+18], fill=(236,253,245))
-                draw.text((30, y+2), txt, fill=(5,150,105), font=_font(FONT_REG, 12))
+                draw.rectangle([20, y, 24, y + 18], fill=(16, 185, 129))
+                draw.rectangle([20, y, 500, y + 18], fill=(236, 253, 245))
+                draw.text(
+                    (30, y + 2), txt, fill=(5, 150, 105), font=_font(FONT_REG, 12)
+                )
                 y += 22
             elif stripped.startswith("!["):
                 continue  # skip image tags
             elif stripped.startswith("|"):
                 # Table row
                 cells = [c.strip() for c in stripped.split("|")[1:-1]]
-                cell_w = (W-40) // max(len(cells),1)
-                draw.rectangle([20,y,W-20,y+22], fill=(243,244,246))
+                cell_w = (W - 40) // max(len(cells), 1)
+                draw.rectangle([20, y, W - 20, y + 22], fill=(243, 244, 246))
                 for ci, cell in enumerate(cells[:6]):
-                    draw.text((24+ci*cell_w, y+4), cell[:18],
-                              fill=(55,65,81), font=_font(FONT_REG, 12))
+                    draw.text(
+                        (24 + ci * cell_w, y + 4),
+                        cell[:18],
+                        fill=(55, 65, 81),
+                        font=_font(FONT_REG, 12),
+                    )
                 y += 24
             elif stripped.startswith("**"):
                 txt = stripped.strip("*")[:100]
-                draw.text((20, y), txt, fill=(17,24,39), font=_font(FONT_BOLD, 13))
+                draw.text((20, y), txt, fill=(17, 24, 39), font=_font(FONT_BOLD, 13))
                 y += 18
             elif stripped.startswith("![") or stripped.startswith("http"):
                 continue
             else:
                 txt = stripped[:120]
-                draw.text((20, y), txt, fill=(75,85,99), font=_font(FONT_REG, 12))
+                draw.text((20, y), txt, fill=(75, 85, 99), font=_font(FONT_REG, 12))
                 y += 17
 
         # Footer
-        draw.rectangle([0,H-36,W,H], fill=(243,244,246))
-        draw.rectangle([0,H-37,W,H-36], fill=(209,213,219))
-        draw.text((20, H-26), f"SYNAPSE AI  ·  {title[:60]}  ·  Markdown v2.0",
-                  fill=(107,114,128), font=_font(FONT_REG,12))
+        draw.rectangle([0, H - 36, W, H], fill=(243, 244, 246))
+        draw.rectangle([0, H - 37, W, H - 36], fill=(209, 213, 219))
+        draw.text(
+            (20, H - 26),
+            f"SYNAPSE AI  ·  {title[:60]}  ·  Markdown v2.0",
+            fill=(107, 114, 128),
+            font=_font(FONT_REG, 12),
+        )
 
         buf = _io.BytesIO()
         img.save(buf, "PNG", optimize=True)
@@ -1609,21 +1904,23 @@ class DocumentPreviewView(APIView):
     # ── Helper: crop PNG bytes to target ratio ────────────────────────────────
     @staticmethod
     def _crop_to_ratio(png_bytes: bytes, target_w: int, target_h: int) -> bytes:
-        from PIL import Image
         import io as _io
+
+        from PIL import Image
+
         img = Image.open(_io.BytesIO(png_bytes))
         src_w, src_h = img.size
         target_ratio = target_w / target_h
-        src_ratio    = src_w / src_h
+        src_ratio = src_w / src_h
         if src_ratio > target_ratio:
             # Too wide — crop sides
             new_w = int(src_h * target_ratio)
-            left  = (src_w - new_w) // 2
-            img   = img.crop((left, 0, left+new_w, src_h))
+            left = (src_w - new_w) // 2
+            img = img.crop((left, 0, left + new_w, src_h))
         elif src_ratio < target_ratio:
             # Too tall — crop bottom
             new_h = int(src_w / target_ratio)
-            img   = img.crop((0, 0, src_w, new_h))
+            img = img.crop((0, 0, src_w, new_h))
         img = img.resize((target_w, target_h), Image.LANCZOS)
         buf = _io.BytesIO()
         img.save(buf, "PNG", optimize=True)
@@ -1638,6 +1935,7 @@ class DocumentSectionRegenerateView(APIView):
     Body: { section_index: int, heading: str, instruction: str }
     Returns: { heading: str, content: str }
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, doc_id: str) -> Response:
@@ -1646,7 +1944,7 @@ class DocumentSectionRegenerateView(APIView):
         except GeneratedDocument.DoesNotExist:
             raise Http404
 
-        heading     = request.data.get("heading", "").strip()
+        heading = request.data.get("heading", "").strip()
         instruction = request.data.get("instruction", "").strip()
         if not heading:
             return Response({"error": "heading is required"}, status=400)
@@ -1654,19 +1952,29 @@ class DocumentSectionRegenerateView(APIView):
             instruction = f"Write a comprehensive section about: {heading}"
 
         # Use the LLM expander to regenerate just this one section
-        prompt = f"{instruction}\n\nDocument title: {doc.title}\nSection heading: {heading}"
+        prompt = (
+            f"{instruction}\n\nDocument title: {doc.title}\nSection heading: {heading}"
+        )
         try:
             sections = DocumentGenerateView._expand_prompt_to_sections(
-                prompt=prompt, title=doc.title, doc_type=doc.doc_type,
+                prompt=prompt,
+                title=doc.title,
+                doc_type=doc.doc_type,
                 user=request.user,
             )
             # Take the first section's content (most relevant)
             best = next(
-                (s for s in sections if heading.lower() in s.get("heading","").lower()),
-                sections[0] if sections else None
+                (
+                    s
+                    for s in sections
+                    if heading.lower() in s.get("heading", "").lower()
+                ),
+                sections[0] if sections else None,
             )
             if not best:
-                return Response({"error": "Could not generate section content"}, status=500)
+                return Response(
+                    {"error": "Could not generate section content"}, status=500
+                )
             return Response({"heading": heading, "content": best["content"]})
         except Exception as exc:
             logger.error("Section regen failed: %s", exc)
@@ -1680,6 +1988,7 @@ class DocumentSectionsUpdateView(APIView):
     Body: { sections: [{heading, content}, ...] }
     Returns: updated GeneratedDocumentSerializer data with new download_url
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, doc_id: str) -> Response:
@@ -1688,14 +1997,20 @@ class DocumentSectionsUpdateView(APIView):
         except GeneratedDocument.DoesNotExist:
             raise Http404
 
-        sections = request.data.get('sections', [])
+        sections = request.data.get("sections", [])
         if not isinstance(sections, list) or not sections:
-            return Response({'error': 'sections must be a non-empty list'}, status=400)
+            return Response({"error": "sections must be a non-empty list"}, status=400)
 
         # Validate each section has heading + content
         for i, sec in enumerate(sections):
-            if not isinstance(sec, dict) or 'heading' not in sec or 'content' not in sec:
-                return Response({'error': f'Section {i} must have heading and content'}, status=400)
+            if (
+                not isinstance(sec, dict)
+                or "heading" not in sec
+                or "content" not in sec
+            ):
+                return Response(
+                    {"error": f"Section {i} must have heading and content"}, status=400
+                )
 
         # Delete old file if it exists
         if doc.file_path:
@@ -1707,9 +2022,11 @@ class DocumentSectionsUpdateView(APIView):
                     pass
 
         # Rebuild the document file with updated sections
-        subtitle = doc.metadata.get('subtitle', '') if doc.metadata else ''
-        author   = doc.metadata.get('author', 'SYNAPSE AI') if doc.metadata else 'SYNAPSE AI'
-        user_id  = str(request.user.id)
+        subtitle = doc.metadata.get("subtitle", "") if doc.metadata else ""
+        author = (
+            doc.metadata.get("author", "SYNAPSE AI") if doc.metadata else "SYNAPSE AI"
+        )
+        user_id = str(request.user.id)
 
         try:
             result_str, file_path_str = self._call_tool(
@@ -1721,15 +2038,15 @@ class DocumentSectionsUpdateView(APIView):
                 user_id=user_id,
             )
         except Exception as exc:
-            logger.error('Document rebuild failed: %s', exc)
-            return Response({'error': f'Rebuild failed: {exc}'}, status=500)
+            logger.error("Document rebuild failed: %s", exc)
+            return Response({"error": f"Rebuild failed: {exc}"}, status=500)
 
-        if 'failed' in result_str.lower():
-            return Response({'error': result_str}, status=500)
+        if "failed" in result_str.lower():
+            return Response({"error": result_str}, status=500)
 
         # Update DB record
         abs_path = Path(file_path_str) if file_path_str else None
-        rel_path = ''
+        rel_path = ""
         file_size = 0
         if abs_path and abs_path.exists():
             media_root = Path(settings.MEDIA_ROOT)
@@ -1742,32 +2059,36 @@ class DocumentSectionsUpdateView(APIView):
         # Create new version instead of overwriting the original
         next_version = (doc.version or 1) + 1
         new_doc = GeneratedDocument.objects.create(
-            user            = request.user,
-            title           = doc.title,
-            doc_type        = doc.doc_type,
-            file_path       = rel_path,
-            file_size_bytes = file_size,
-            agent_prompt    = doc.agent_prompt,
-            version         = next_version,
-            parent          = doc.parent or doc,
-            metadata        = {
+            user=request.user,
+            title=doc.title,
+            doc_type=doc.doc_type,
+            file_path=rel_path,
+            file_size_bytes=file_size,
+            agent_prompt=doc.agent_prompt,
+            version=next_version,
+            parent=doc.parent or doc,
+            metadata={
                 **doc.metadata,
-                'sections':      sections,
-                'section_count': len(sections),
-                'last_rebuilt':  str(datetime.now(timezone.utc).isoformat()),
-                'subtitle':      (doc.metadata or {}).get('subtitle', ''),
-                'author':        (doc.metadata or {}).get('author', 'SYNAPSE AI'),
+                "sections": sections,
+                "section_count": len(sections),
+                "last_rebuilt": str(datetime.now(timezone.utc).isoformat()),
+                "subtitle": (doc.metadata or {}).get("subtitle", ""),
+                "author": (doc.metadata or {}).get("author", "SYNAPSE AI"),
             },
         )
         return Response(
-            GeneratedDocumentSerializer(new_doc, context={'request': request}).data
+            GeneratedDocumentSerializer(new_doc, context={"request": request}).data
         )
 
     @staticmethod
     def _call_tool(doc_type, title, sections, subtitle, author, user_id):
         return DocumentGenerateView._call_tool(
-            doc_type=doc_type, title=title, sections=sections,
-            subtitle=subtitle, author=author, user_id=user_id,
+            doc_type=doc_type,
+            title=title,
+            sections=sections,
+            subtitle=subtitle,
+            author=author,
+            user_id=user_id,
         )
 
 
@@ -1779,6 +2100,7 @@ class DocumentRegenerateAllView(APIView):
     Body: { instruction?: str }  (optional extra instruction appended to original prompt)
     Returns: updated GeneratedDocumentSerializer data
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, doc_id: str) -> Response:
@@ -1787,71 +2109,83 @@ class DocumentRegenerateAllView(APIView):
         except GeneratedDocument.DoesNotExist:
             raise Http404
 
-        instruction = request.data.get('instruction', '').strip()
-        prompt = doc.agent_prompt or f'Write a comprehensive document about {doc.title}'
+        instruction = request.data.get("instruction", "").strip()
+        prompt = doc.agent_prompt or f"Write a comprehensive document about {doc.title}"
         if instruction:
-            prompt = f'{prompt}\n\nAdditional instruction: {instruction}'
+            prompt = f"{prompt}\n\nAdditional instruction: {instruction}"
 
         # Regenerate all sections via LLM
         try:
             sections = DocumentGenerateView._expand_prompt_to_sections(
-                prompt=prompt, title=doc.title, doc_type=doc.doc_type,
+                prompt=prompt,
+                title=doc.title,
+                doc_type=doc.doc_type,
                 user=request.user,
             )
         except Exception as exc:
-            logger.error('Section expansion failed: %s', exc)
-            return Response({'error': f'Section generation failed: {exc}'}, status=500)
+            logger.error("Section expansion failed: %s", exc)
+            return Response({"error": f"Section generation failed: {exc}"}, status=500)
 
         # Delete old file
         if doc.file_path:
             old_path = Path(settings.MEDIA_ROOT) / doc.file_path
             if old_path.exists():
-                try: old_path.unlink()
-                except Exception: pass
+                try:
+                    old_path.unlink()
+                except Exception:
+                    pass
 
         # Rebuild file
-        subtitle = doc.metadata.get('subtitle', '') if doc.metadata else ''
-        author   = doc.metadata.get('author', 'SYNAPSE AI') if doc.metadata else 'SYNAPSE AI'
-        user_id  = str(request.user.id)
+        subtitle = doc.metadata.get("subtitle", "") if doc.metadata else ""
+        author = (
+            doc.metadata.get("author", "SYNAPSE AI") if doc.metadata else "SYNAPSE AI"
+        )
+        user_id = str(request.user.id)
 
         try:
             result_str, file_path_str = DocumentGenerateView._call_tool(
-                doc_type=doc.doc_type, title=doc.title, sections=sections,
-                subtitle=subtitle, author=author, user_id=user_id,
+                doc_type=doc.doc_type,
+                title=doc.title,
+                sections=sections,
+                subtitle=subtitle,
+                author=author,
+                user_id=user_id,
             )
         except Exception as exc:
-            logger.error('Document rebuild failed: %s', exc)
-            return Response({'error': f'Rebuild failed: {exc}'}, status=500)
+            logger.error("Document rebuild failed: %s", exc)
+            return Response({"error": f"Rebuild failed: {exc}"}, status=500)
 
         abs_path = Path(file_path_str) if file_path_str else None
-        rel_path = ''
+        rel_path = ""
         file_size = 0
         if abs_path and abs_path.exists():
             media_root = Path(settings.MEDIA_ROOT)
-            try: rel_path = str(abs_path.relative_to(media_root))
-            except ValueError: rel_path = str(abs_path)
+            try:
+                rel_path = str(abs_path.relative_to(media_root))
+            except ValueError:
+                rel_path = str(abs_path)
             file_size = abs_path.stat().st_size
 
         # Create new version instead of overwriting the original
         next_version = (doc.version or 1) + 1
         new_doc = GeneratedDocument.objects.create(
-            user            = request.user,
-            title           = doc.title,
-            doc_type        = doc.doc_type,
-            file_path       = rel_path,
-            file_size_bytes = file_size,
-            agent_prompt    = doc.agent_prompt,
-            version         = next_version,
-            parent          = doc.parent or doc,
-            metadata        = {
+            user=request.user,
+            title=doc.title,
+            doc_type=doc.doc_type,
+            file_path=rel_path,
+            file_size_bytes=file_size,
+            agent_prompt=doc.agent_prompt,
+            version=next_version,
+            parent=doc.parent or doc,
+            metadata={
                 **doc.metadata,
-                'sections':      sections,
-                'section_count': len(sections),
-                'last_rebuilt':  str(datetime.now(timezone.utc).isoformat()),
+                "sections": sections,
+                "section_count": len(sections),
+                "last_rebuilt": str(datetime.now(timezone.utc).isoformat()),
             },
         )
         return Response(
-            GeneratedDocumentSerializer(new_doc, context={'request': request}).data
+            GeneratedDocumentSerializer(new_doc, context={"request": request}).data
         )
 
 
@@ -1860,6 +2194,7 @@ class DocumentVersionsView(APIView):
     GET /api/v1/documents/{id}/versions/
     Returns all versions of a document (parent + all children).
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, doc_id: str) -> Response:
@@ -1872,14 +2207,16 @@ class DocumentVersionsView(APIView):
         root = doc.parent or doc
         # Get all versions: root + all children
         from django.db.models import Q
+
         all_versions = GeneratedDocument.objects.filter(
             Q(id=root.id) | Q(parent=root),
             user=request.user,
-        ).order_by('version')
+        ).order_by("version")
 
         return Response(
-            GeneratedDocumentSerializer(all_versions, many=True,
-                                        context={'request': request}).data
+            GeneratedDocumentSerializer(
+                all_versions, many=True, context={"request": request}
+            ).data
         )
 
 
@@ -1888,30 +2225,32 @@ class DocumentGenerateStreamView(APIView):
     POST /api/v1/documents/generate-stream/
     Server-Sent Events (SSE) streaming endpoint for document generation.
     Streams progress events as the document is being generated.
-    
+
     SSE event format: data: {"step": "...", "message": "...", "progress": 0-100, "done": bool, "error"?: str}
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request):
-        from django.http import StreamingHttpResponse
         import json as _json
+
+        from django.http import StreamingHttpResponse
 
         # Validate input
         serializer = DocumentGenerateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=400)
 
-        data       = serializer.validated_data
-        doc_type   = data['doc_type']
-        title      = data['title']
-        prompt     = data['prompt']
-        subtitle   = data.get('subtitle', '')
-        author     = data.get('author', 'SYNAPSE AI')
-        user       = request.user
-        user_id    = str(user.id)
-        sections   = data.get('sections', [])
-        model_override = data.get('model', '')
+        data = serializer.validated_data
+        doc_type = data["doc_type"]
+        title = data["title"]
+        prompt = data["prompt"]
+        subtitle = data.get("subtitle", "")
+        author = data.get("author", "SYNAPSE AI")
+        user = request.user
+        user_id = str(user.id)
+        sections = data.get("sections", [])
+        model_override = data.get("model", "")
 
         # Resolve LLM keys HERE — before the generator starts — so the user
         # object is still fully bound to the request/DB session.
@@ -1920,40 +2259,66 @@ class DocumentGenerateStreamView(APIView):
         def event_stream():
             def emit(step, message, progress, done=False, error=None, extra=None):
                 payload = {
-                    'step': step,
-                    'message': message,
-                    'progress': progress,
-                    'done': done,
+                    "step": step,
+                    "message": message,
+                    "progress": progress,
+                    "done": done,
                 }
                 if error:
-                    payload['error'] = error
+                    payload["error"] = error
                 if extra:
                     payload.update(extra)
-                yield f'data: {_json.dumps(payload)}\n\n'
+                yield f"data: {_json.dumps(payload)}\n\n"
 
             # Use keys resolved before generator started
             openrouter_key = _openrouter_key
-            gemini_key     = _gemini_key
+            gemini_key = _gemini_key
 
             try:
                 # Step 1: Validate & start
-                yield from emit('start', f'Starting {doc_type.upper()} generation for "{title}"...', 5)
+                yield from emit(
+                    "start",
+                    f'Starting {doc_type.upper()} generation for "{title}"...',
+                    5,
+                )
 
                 # Step 2: Report LLM key status
-                openrouter_key, gemini_key = openrouter_key, gemini_key  # already resolved
+                openrouter_key, gemini_key = (
+                    openrouter_key,
+                    gemini_key,
+                )  # already resolved
                 has_llm = bool(openrouter_key or gemini_key)
-                provider = 'OpenRouter' if openrouter_key else ('Gemini' if gemini_key else 'None')
-                
+                provider = (
+                    "OpenRouter"
+                    if openrouter_key
+                    else ("Gemini" if gemini_key else "None")
+                )
+
                 if has_llm:
-                    yield from emit('llm_check', f'AI engine ready: {provider}', 10)
+                    yield from emit("llm_check", f"AI engine ready: {provider}", 10)
                 else:
-                    yield from emit('llm_check', 'No AI key configured — using structured template', 10)
+                    yield from emit(
+                        "llm_check",
+                        "No AI key configured — using structured template",
+                        10,
+                    )
 
                 # Step 3 & 4: Generate the document
-                if doc_type == 'html':
+                if doc_type == "html":
                     # HTML: LLM generates the actual page HTML/CSS/JS directly from the prompt
-                    yield from emit('generating', f'Designing your HTML page with AI ({provider})...' if has_llm else 'Building HTML page...', 20)
-                    from ai_engine.agents.doc_tools import _generate_html_page_from_prompt
+                    yield from emit(
+                        "generating",
+                        (
+                            f"Designing your HTML page with AI ({provider})..."
+                            if has_llm
+                            else "Building HTML page..."
+                        ),
+                        20,
+                    )
+                    from ai_engine.agents.doc_tools import (
+                        _generate_html_page_from_prompt,
+                    )
+
                     result_str = _generate_html_page_from_prompt(
                         title=title,
                         prompt=prompt,
@@ -1964,54 +2329,77 @@ class DocumentGenerateStreamView(APIView):
                         gemini_key=gemini_key,
                         model_override=model_override,
                     )
-                    file_path_str = ''
+                    file_path_str = ""
                     for line in result_str.splitlines():
-                        if line.startswith('Path:'):
-                            file_path_str = line.replace('Path:', '').strip()
+                        if line.startswith("Path:"):
+                            file_path_str = line.replace("Path:", "").strip()
                             break
                     sections_list = []
-                    yield from emit('building', 'Finalising HTML page...', 75)
+                    yield from emit("building", "Finalising HTML page...", 75)
                 else:
                     # All other types: expand prompt → sections → render
                     if not sections:
-                        yield from emit('generating', 'Generating document structure and content with AI...', 20)
-                        sections_list = DocumentGenerateView._expand_prompt_to_sections(
-                            prompt=prompt, title=title, doc_type=doc_type, user=user,
-                            model_override=model_override
+                        yield from emit(
+                            "generating",
+                            "Generating document structure and content with AI...",
+                            20,
                         )
-                        yield from emit('sections_ready',
-                                        f'Generated {len(sections_list)} sections ({sum(len(s.get("content","").split()) for s in sections_list):,} words)',
-                                        50)
+                        sections_list = DocumentGenerateView._expand_prompt_to_sections(
+                            prompt=prompt,
+                            title=title,
+                            doc_type=doc_type,
+                            user=user,
+                            model_override=model_override,
+                        )
+                        yield from emit(
+                            "sections_ready",
+                            f'Generated {len(sections_list)} sections ({sum(len(s.get("content","").split()) for s in sections_list):,} words)',
+                            50,
+                        )
                     else:
                         sections_list = sections
-                        yield from emit('sections_ready', f'Using {len(sections_list)} provided sections', 50)
+                        yield from emit(
+                            "sections_ready",
+                            f"Using {len(sections_list)} provided sections",
+                            50,
+                        )
 
                     format_labels = {
-                        'pdf': 'Rendering premium PDF with charts and gradients',
-                        'ppt': 'Building PowerPoint with slides, charts and animations',
-                        'word': 'Composing Word document with styles and TOC',
-                        'markdown': 'Writing Markdown with badges and callouts',
+                        "pdf": "Rendering premium PDF with charts and gradients",
+                        "ppt": "Building PowerPoint with slides, charts and animations",
+                        "word": "Composing Word document with styles and TOC",
+                        "markdown": "Writing Markdown with badges and callouts",
                     }
-                    yield from emit('building',
-                                    format_labels.get(doc_type, f'Building {doc_type.upper()} document'),
-                                    65)
-
-                    result_str, file_path_str = DocumentGenerateView._call_tool(
-                        doc_type=doc_type, title=title, sections=sections_list,
-                        subtitle=subtitle, author=author, user_id=user_id,
+                    yield from emit(
+                        "building",
+                        format_labels.get(
+                            doc_type, f"Building {doc_type.upper()} document"
+                        ),
+                        65,
                     )
 
-                if 'failed' in result_str.lower():
-                    yield from emit('error', result_str, 65, done=True, error=result_str)
+                    result_str, file_path_str = DocumentGenerateView._call_tool(
+                        doc_type=doc_type,
+                        title=title,
+                        sections=sections_list,
+                        subtitle=subtitle,
+                        author=author,
+                        user_id=user_id,
+                    )
+
+                if "failed" in result_str.lower():
+                    yield from emit(
+                        "error", result_str, 65, done=True, error=result_str
+                    )
                     return
 
-                yield from emit('file_ready', 'Document file created successfully', 80)
+                yield from emit("file_ready", "Document file created successfully", 80)
 
                 # Step 5: Save to database
-                yield from emit('saving', 'Saving to your document library...', 88)
+                yield from emit("saving", "Saving to your document library...", 88)
 
-                abs_path  = Path(file_path_str) if file_path_str else None
-                rel_path  = ''
+                abs_path = Path(file_path_str) if file_path_str else None
+                rel_path = ""
                 file_size = 0
                 if abs_path and abs_path.exists():
                     media_root = Path(settings.MEDIA_ROOT)
@@ -2022,43 +2410,46 @@ class DocumentGenerateStreamView(APIView):
                     file_size = abs_path.stat().st_size
 
                 doc = GeneratedDocument.objects.create(
-                    user            = user,
-                    title           = title,
-                    doc_type        = doc_type,
-                    file_path       = rel_path,
-                    file_size_bytes = file_size,
-                    agent_prompt    = prompt,
-                    metadata        = {
-                        'sections':      sections_list,
-                        'section_count': len(sections_list),
-                        'subtitle':      subtitle,
-                        'author':        author,
-                        'provider':      provider,
+                    user=user,
+                    title=title,
+                    doc_type=doc_type,
+                    file_path=rel_path,
+                    file_size_bytes=file_size,
+                    agent_prompt=prompt,
+                    metadata={
+                        "sections": sections_list,
+                        "section_count": len(sections_list),
+                        "subtitle": subtitle,
+                        "author": author,
+                        "provider": provider,
                     },
                 )
 
                 # Step 6: Done
                 from rest_framework.request import Request as DRFRequest
-                doc_data = GeneratedDocumentSerializer(doc, context={'request': request}).data
+
+                doc_data = GeneratedDocumentSerializer(
+                    doc, context={"request": request}
+                ).data
                 yield from emit(
-                    'complete',
-                    f'Done! {doc_type.upper()} ready — {file_size/1024:.1f} KB, {len(sections_list)} sections',
+                    "complete",
+                    f"Done! {doc_type.upper()} ready — {file_size/1024:.1f} KB, {len(sections_list)} sections",
                     100,
                     done=True,
-                    extra={'document': doc_data},
+                    extra={"document": doc_data},
                 )
 
             except Exception as exc:
-                logger.error('SSE stream generation error: %s', exc, exc_info=True)
+                logger.error("SSE stream generation error: %s", exc, exc_info=True)
                 yield f'data: {_json.dumps({"step": "error", "message": str(exc), "progress": 0, "done": True, "error": str(exc)})}\n\n'
 
         response = StreamingHttpResponse(
             event_stream(),
-            content_type='text/event-stream',
+            content_type="text/event-stream",
         )
-        response['Cache-Control'] = 'no-cache'
-        response['X-Accel-Buffering'] = 'no'
-        response['Access-Control-Allow-Origin'] = '*'
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        response["Access-Control-Allow-Origin"] = "*"
         return response
 
 
@@ -2075,15 +2466,17 @@ class DocumentRenderView(APIView):
       word     → python-docx → styled HTML
       ppt      → python-pptx → slide-by-slide HTML viewer
     """
+
     # Allow any — we handle auth manually so ?token= works in iframes
     permission_classes = []
     authentication_classes = []
 
     def get(self, request: Request, doc_id: str):
-        from django.http import HttpResponse, HttpResponseForbidden
-        from rest_framework_simplejwt.tokens import AccessToken
         from rest_framework_simplejwt.exceptions import TokenError
+        from rest_framework_simplejwt.tokens import AccessToken
+
         from django.contrib.auth import get_user_model
+        from django.http import HttpResponse, HttpResponseForbidden
 
         User = get_user_model()
         user = None
@@ -2095,7 +2488,10 @@ class DocumentRenderView(APIView):
                 validated = AccessToken(token_param)
                 user = User.objects.get(id=validated["user_id"])
             except (TokenError, User.DoesNotExist, Exception) as e:
-                logger.warning("DocumentRenderView: token param invalid (%s) — trying Authorization header", e)
+                logger.warning(
+                    "DocumentRenderView: token param invalid (%s) — trying Authorization header",
+                    e,
+                )
                 # Don't 403 immediately — fall through to try the Bearer header
 
         # 2. Try Authorization header (standard DRF JWT)
@@ -2111,14 +2507,16 @@ class DocumentRenderView(APIView):
         # 3. Try refreshing via the refresh token in the cookie or header (future)
         if user is None:
             # Both methods failed — give a clear error
-            logger.warning("DocumentRenderView: all auth methods failed for doc %s", doc_id)
+            logger.warning(
+                "DocumentRenderView: all auth methods failed for doc %s", doc_id
+            )
             return HttpResponseForbidden(
                 "<html><body style='font:14px sans-serif;padding:40px;color:#dc2626;font-family:sans-serif'>"
                 "<h3>⚠️ Session Expired</h3>"
                 "<p>Your session has expired. Please <a href='/login' style='color:#4F46E5'>sign in again</a> "
                 "and reopen the preview.</p>"
                 "</body></html>",
-                content_type="text/html"
+                content_type="text/html",
             )
 
         try:
@@ -2126,10 +2524,12 @@ class DocumentRenderView(APIView):
         except GeneratedDocument.DoesNotExist:
             raise Http404
 
-        stored  = Path(doc.file_path) if doc.file_path else None
+        stored = Path(doc.file_path) if doc.file_path else None
         abs_path = None
         if stored:
-            abs_path = stored if stored.is_absolute() else Path(settings.MEDIA_ROOT) / stored
+            abs_path = (
+                stored if stored.is_absolute() else Path(settings.MEDIA_ROOT) / stored
+            )
 
         def _html_resp(html: str) -> HttpResponse:
             """Return an HTML response that is allowed to be framed by the same origin."""
@@ -2168,9 +2568,9 @@ class DocumentRenderView(APIView):
         # Final fallback
         return _html_resp(
             f'<html><body style="font:16px sans-serif;padding:40px;color:#374151">'
-            f'<p>Preview unavailable. '
+            f"<p>Preview unavailable. "
             f'<a href="/api/v1/documents/{doc_id}/download/" style="color:#4F46E5">Download file</a></p>'
-            f'</body></html>'
+            f"</body></html>"
         )
 
     # ── PDF preview via PyMuPDF — renders all pages as images ────────────────
@@ -2178,16 +2578,17 @@ class DocumentRenderView(APIView):
     def _pdf_wrapper(doc, abs_path: Path) -> str:
         """Render all PDF pages as PNG images embedded in a scrollable HTML viewer."""
         import base64
+
         import fitz  # PyMuPDF
 
-        pdf      = fitz.open(str(abs_path))
+        pdf = fitz.open(str(abs_path))
         pages_html = []
 
         # Render every page at 1.5× zoom (good quality, reasonable size)
         mat = fitz.Matrix(1.5, 1.5)
         for page_num in range(len(pdf)):
             page = pdf[page_num]
-            pix  = page.get_pixmap(matrix=mat, alpha=False)
+            pix = page.get_pixmap(matrix=mat, alpha=False)
             png_bytes = pix.tobytes("png")
             b64 = base64.b64encode(png_bytes).decode()
             pages_html.append(
@@ -2195,7 +2596,7 @@ class DocumentRenderView(APIView):
                 f'<img src="data:image/png;base64,{b64}" '
                 f'alt="Page {page_num+1}" loading="lazy"/>'
                 f'<div class="page-label">Page {page_num+1} of {len(pdf)}</div>'
-                f'</div>'
+                f"</div>"
             )
 
         pdf.close()
@@ -2320,13 +2721,14 @@ pagesEl.addEventListener('scroll', () => {{
     @staticmethod
     def _render_markdown(doc, abs_path: Path) -> str:
         import re as _re
+
         raw = abs_path.read_text(encoding="utf-8")
 
         # Strip YAML front-matter
         if raw.startswith("---"):
             end = raw.find("---", 3)
             if end != -1:
-                raw = raw[end + 3:].lstrip()
+                raw = raw[end + 3 :].lstrip()
 
         # Simple Markdown → HTML (handles the most common patterns)
         lines = raw.split("\n")
@@ -2350,21 +2752,24 @@ pagesEl.addEventListener('scroll', () => {{
                 continue
             if in_code:
                 import html as _html_mod
+
                 html_parts.append(_html_mod.escape(line) + "\n")
                 continue
 
             # Blockquotes
             if stripped.startswith(">"):
                 if not in_blockquote:
-                    html_parts.append('<blockquote>')
+                    html_parts.append("<blockquote>")
                     in_blockquote = True
                 content = stripped.lstrip("> ").strip()
                 # Handle [!NOTE] / [!TIP] admonitions
                 if content.startswith("[!"):
                     type_end = content.find("]")
                     admon_type = content[2:type_end] if type_end > 0 else "NOTE"
-                    html_parts.append(f'<p class="admon admon-{admon_type.lower()}">'
-                                      f'<strong>{admon_type}</strong></p>')
+                    html_parts.append(
+                        f'<p class="admon admon-{admon_type.lower()}">'
+                        f"<strong>{admon_type}</strong></p>"
+                    )
                 else:
                     html_parts.append(f"<p>{_md_inline(content)}</p>")
                 continue
@@ -2376,14 +2781,17 @@ pagesEl.addEventListener('scroll', () => {{
             # Tables
             if "|" in stripped:
                 if not in_table:
-                    html_parts.append('<table>')
+                    html_parts.append("<table>")
                     in_table = True
                 if _re.match(r"^\|[-:\s|]+\|$", stripped):
                     continue  # separator row
                 cells = [c.strip() for c in stripped.strip("|").split("|")]
                 tag = "th" if not any("th" in p for p in html_parts[-3:]) else "td"
-                html_parts.append("<tr>" + "".join(f"<{tag}>{_md_inline(c)}</{tag}>"
-                                                    for c in cells) + "</tr>")
+                html_parts.append(
+                    "<tr>"
+                    + "".join(f"<{tag}>{_md_inline(c)}</{tag}>" for c in cells)
+                    + "</tr>"
+                )
                 continue
             else:
                 if in_table:
@@ -2406,7 +2814,7 @@ pagesEl.addEventListener('scroll', () => {{
             elif stripped.startswith("- ") or stripped.startswith("* "):
                 html_parts.append(f"<li>{_md_inline(stripped[2:])}</li>")
             elif _re.match(r"^\d+\. ", stripped):
-                item_text = _re.sub(r'^\d+\. ', '', stripped)
+                item_text = _re.sub(r"^\d+\. ", "", stripped)
                 html_parts.append(f"<li>{_md_inline(item_text)}</li>")
             # Images
             elif stripped.startswith("!["):
@@ -2420,9 +2828,12 @@ pagesEl.addEventListener('scroll', () => {{
             else:
                 html_parts.append(f"<p>{_md_inline(stripped)}</p>")
 
-        if in_code:       html_parts.append("</code></pre>")
-        if in_table:      html_parts.append("</table>")
-        if in_blockquote: html_parts.append("</blockquote>")
+        if in_code:
+            html_parts.append("</code></pre>")
+        if in_table:
+            html_parts.append("</table>")
+        if in_blockquote:
+            html_parts.append("</blockquote>")
 
         body = "\n".join(html_parts)
         return f"""<!DOCTYPE html>
@@ -2522,8 +2933,9 @@ window.addEventListener('scroll',()=>{{
     # ── DOCX → styled HTML ────────────────────────────────────────────────────
     @staticmethod
     def _render_docx(doc, abs_path: Path) -> str:
-        from docx import Document as DocxDoc
         import html as _html_mod
+
+        from docx import Document as DocxDoc
 
         d = DocxDoc(str(abs_path))
         parts = []
@@ -2538,26 +2950,33 @@ window.addEventListener('scroll',()=>{{
             is_bold = any(r.bold for r in para.runs if r.text.strip())
             is_shaded = False
             try:
-                pPr = para._p.find("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr")
+                pPr = para._p.find(
+                    "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr"
+                )
                 if pPr is not None:
-                    shd = pPr.find("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}shd")
+                    shd = pPr.find(
+                        "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}shd"
+                    )
                     if shd is not None:
-                        fill = shd.get("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}fill","")
-                        if fill and fill.lower() not in ("ffffff","auto",""):
+                        fill = shd.get(
+                            "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}fill",
+                            "",
+                        )
+                        if fill and fill.lower() not in ("ffffff", "auto", ""):
                             is_shaded = True
             except Exception:
                 pass
 
             if "Heading 1" in style or (is_bold and is_shaded and len(text) < 80):
-                parts.append(f'<h2>{safe}</h2>')
+                parts.append(f"<h2>{safe}</h2>")
             elif "Heading 2" in style or (is_bold and len(text) < 60):
-                parts.append(f'<h3>{safe}</h3>')
+                parts.append(f"<h3>{safe}</h3>")
             elif "Heading" in style:
-                parts.append(f'<h4>{safe}</h4>')
+                parts.append(f"<h4>{safe}</h4>")
             elif is_shaded and len(text) > 5:
                 parts.append(f'<div class="badge-section">{safe}</div>')
             else:
-                parts.append(f'<p>{safe}</p>')
+                parts.append(f"<p>{safe}</p>")
 
         body = "\n".join(parts)
         return f"""<!DOCTYPE html>
@@ -2628,19 +3047,22 @@ window.addEventListener('scroll',()=>{{
     # ── PPTX → slide-by-slide HTML ────────────────────────────────────────────
     @staticmethod
     def _render_pptx(doc, abs_path: Path) -> str:
-        from pptx import Presentation
-        from pptx.util import Pt
         import html as _html_mod
 
-        prs    = Presentation(str(abs_path))
+        from pptx import Presentation
+        from pptx.util import Pt
+
+        prs = Presentation(str(abs_path))
         slides_html = []
 
         for si, slide in enumerate(prs.slides):
             shapes_html = []
             for shape in slide.shapes:
-                if not shape.has_text_frame: continue
+                if not shape.has_text_frame:
+                    continue
                 text = shape.text_frame.text.strip()
-                if not text: continue
+                if not text:
+                    continue
                 safe = _html_mod.escape(text)
                 try:
                     sz = shape.text_frame.paragraphs[0].runs[0].font.size
@@ -2659,24 +3081,28 @@ window.addEventListener('scroll',()=>{{
 
                 if sz_pt >= 32:
                     shapes_html.append(
-                        f'<div class="slide-title" style="color:{color}">{safe}</div>')
+                        f'<div class="slide-title" style="color:{color}">{safe}</div>'
+                    )
                 elif sz_pt >= 20:
                     shapes_html.append(
-                        f'<div class="slide-subtitle" style="color:{color}">{safe}</div>')
+                        f'<div class="slide-subtitle" style="color:{color}">{safe}</div>'
+                    )
                 else:
                     # Multi-line bullet content
                     for line in text.split("\n"):
                         if line.strip():
                             shapes_html.append(
                                 f'<div class="bullet" style="color:{color}">'
-                                f'▸ &nbsp;{_html_mod.escape(line.strip())}</div>')
+                                f"▸ &nbsp;{_html_mod.escape(line.strip())}</div>"
+                            )
 
             bg_color = "#1E1B4B" if si == 0 else ("#f8f9ff" if si % 2 == 0 else "#fff")
             try:
                 bg_elem = slide.background
-                fill    = bg_elem.fill
+                fill = bg_elem.fill
                 if fill.type is not None:
                     from pptx.oxml.ns import qn as _qn
+
                     sr = bg_elem._element.find(".//" + _qn("a:srgbClr"))
                     if sr is not None:
                         bg_color = "#" + sr.get("val", "1E1B4B")
@@ -2686,13 +3112,15 @@ window.addEventListener('scroll',()=>{{
             slide_num_html = (
                 f'<span class="slide-num">{si+1} / {len(prs.slides)}</span>'
             )
-            slides_html.append(f"""
+            slides_html.append(
+                f"""
 <div class="slide" style="background:{bg_color}" id="slide-{si+1}">
   <div class="slide-inner">
     {"".join(shapes_html)}
   </div>
   {slide_num_html}
-</div>""")
+</div>"""
+            )
 
         slides_body = "\n".join(slides_html)
         total = len(prs.slides)
@@ -2802,18 +3230,20 @@ window.addEventListener('scroll',()=>{{
 
 def _md_inline(text: str) -> str:
     """Convert inline markdown (bold, italic, code, links) to HTML."""
-    import html as _html_mod, re as _re
+    import html as _html_mod
+    import re as _re
+
     text = _html_mod.escape(text)
     # Bold-italic
-    text = _re.sub(r'\*\*\*(.+?)\*\*\*', r'<strong><em>\1</em></strong>', text)
+    text = _re.sub(r"\*\*\*(.+?)\*\*\*", r"<strong><em>\1</em></strong>", text)
     # Bold
-    text = _re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+    text = _re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
     # Italic
-    text = _re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+    text = _re.sub(r"\*(.+?)\*", r"<em>\1</em>", text)
     # Code
-    text = _re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
+    text = _re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
     # Links
-    text = _re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+    text = _re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
     # Strikethrough
-    text = _re.sub(r'~~(.+?)~~', r'<del>\1</del>', text)
+    text = _re.sub(r"~~(.+?)~~", r"<del>\1</del>", text)
     return text

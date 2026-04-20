@@ -18,6 +18,7 @@ Each tool:
   - Has a 30-second timeout on external calls
   - Handles errors gracefully (returns error string, never raises)
 """
+
 from __future__ import annotations
 
 import json
@@ -43,14 +44,19 @@ _HTTP_TIMEOUT = 30
 # 1. search_knowledge_base
 # ===========================================================================
 
+
 class SearchKnowledgeBaseInput(BaseModel):
     query: str = Field(..., description="Natural language search query")
-    limit: int = Field(default=10, ge=1, le=50, description="Maximum number of results to return")
+    limit: int = Field(
+        default=10, ge=1, le=50, description="Maximum number of results to return"
+    )
     content_types: Optional[List[str]] = Field(
         default=None,
         description="Filter by content type: articles, papers, repositories, videos. Defaults to all.",
     )
-    min_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Minimum similarity score (0–1)")
+    min_score: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="Minimum similarity score (0–1)"
+    )
 
 
 def _search_knowledge_base(
@@ -66,7 +72,8 @@ def _search_knowledge_base(
         retriever = SynapseRetriever(
             k=limit,
             score_threshold=min_score,
-            content_types=content_types or ["articles", "papers", "repositories", "videos"],
+            content_types=content_types
+            or ["articles", "papers", "repositories", "videos"],
         )
         docs = retriever.invoke(query)
 
@@ -113,10 +120,15 @@ def make_search_knowledge_base_tool() -> StructuredTool:
 # 2. fetch_articles
 # ===========================================================================
 
+
 class FetchArticlesInput(BaseModel):
     topic: str = Field(..., description="Topic or keyword to search for in articles")
-    days_back: int = Field(default=7, ge=1, le=365, description="How many days back to search")
-    limit: int = Field(default=20, ge=1, le=100, description="Maximum articles to return")
+    days_back: int = Field(
+        default=7, ge=1, le=365, description="How many days back to search"
+    )
+    limit: int = Field(
+        default=20, ge=1, le=100, description="Maximum articles to return"
+    )
     source: Optional[str] = Field(
         default=None,
         description="Filter by source name, e.g. 'hackernews', 'arxiv', 'github'",
@@ -132,22 +144,29 @@ def _fetch_articles(
     """Fetch articles from the SYNAPSE PostgreSQL database."""
     try:
         import django
+
         os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.base")
         try:
             django.setup()
         except RuntimeError:
             pass  # already set up
 
-        from django.utils import timezone
         from apps.articles.models import Article
 
+        from django.utils import timezone
+
         cutoff = timezone.now() - timedelta(days=days_back)
-        qs = Article.objects.filter(
-            scraped_at__gte=cutoff,
-        ).select_related("source").order_by("-trending_score", "-scraped_at")
+        qs = (
+            Article.objects.filter(
+                scraped_at__gte=cutoff,
+            )
+            .select_related("source")
+            .order_by("-trending_score", "-scraped_at")
+        )
 
         if topic:
             from django.db.models import Q
+
             qs = qs.filter(
                 Q(title__icontains=topic)
                 | Q(summary__icontains=topic)
@@ -161,7 +180,9 @@ def _fetch_articles(
         articles = qs[:limit]
 
         if not articles.exists():
-            return f"No articles found for topic '{topic}' in the last {days_back} days."
+            return (
+                f"No articles found for topic '{topic}' in the last {days_back} days."
+            )
 
         results = []
         for i, a in enumerate(articles, 1):
@@ -201,6 +222,7 @@ def make_fetch_articles_tool() -> StructuredTool:
 # 3. analyze_trends
 # ===========================================================================
 
+
 class AnalyzeTrendsInput(BaseModel):
     technologies: List[str] = Field(
         ...,
@@ -221,47 +243,63 @@ def _analyze_trends(
     """Analyze technology trends from SYNAPSE database article and repository data."""
     try:
         import django
+
         os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.base")
         try:
             django.setup()
         except RuntimeError:
             pass
 
-        from django.utils import timezone
-        from django.db.models import Count, Avg, Q
         from apps.articles.models import Article
         from apps.repositories.models import Repository
 
+        from django.db.models import Avg, Count, Q
+        from django.utils import timezone
+
         cutoff = timezone.now() - timedelta(days=period_days)
         report_lines = [
-            f"Technology Trend Analysis — last {period_days} days\n"
-            f"{'=' * 50}"
+            f"Technology Trend Analysis — last {period_days} days\n" f"{'=' * 50}"
         ]
 
         for tech in technologies:
-            tech_q = Q(title__icontains=tech) | Q(keywords__icontains=tech) | Q(topic__icontains=tech)
+            tech_q = (
+                Q(title__icontains=tech)
+                | Q(keywords__icontains=tech)
+                | Q(topic__icontains=tech)
+            )
 
             # Articles
-            article_count = Article.objects.filter(tech_q, scraped_at__gte=cutoff).count()
+            article_count = Article.objects.filter(
+                tech_q, scraped_at__gte=cutoff
+            ).count()
             avg_sentiment = (
-                Article.objects.filter(tech_q, scraped_at__gte=cutoff)
-                .aggregate(avg=Avg("sentiment_score"))["avg"]
+                Article.objects.filter(tech_q, scraped_at__gte=cutoff).aggregate(
+                    avg=Avg("sentiment_score")
+                )["avg"]
             ) or 0.0
 
             # Repositories
-            repo_q = Q(name__icontains=tech) | Q(description__icontains=tech) | Q(topics__icontains=tech)
-            repo_count = Repository.objects.filter(repo_q, scraped_at__gte=cutoff).count()
+            repo_q = (
+                Q(name__icontains=tech)
+                | Q(description__icontains=tech)
+                | Q(topics__icontains=tech)
+            )
+            repo_count = Repository.objects.filter(
+                repo_q, scraped_at__gte=cutoff
+            ).count()
             top_repos = (
                 Repository.objects.filter(repo_q)
                 .order_by("-stars")[:3]
                 .values_list("name", "stars")
             )
-            top_repos_str = ", ".join(f"{n} (★{s})" for n, s in top_repos) or "None found"
+            top_repos_str = (
+                ", ".join(f"{n} (★{s})" for n, s in top_repos) or "None found"
+            )
 
             sentiment_label = (
-                "Positive 📈" if avg_sentiment > 0.1
-                else "Negative 📉" if avg_sentiment < -0.1
-                else "Neutral ➡️"
+                "Positive 📈"
+                if avg_sentiment > 0.1
+                else "Negative 📉" if avg_sentiment < -0.1 else "Neutral ➡️"
             )
 
             report_lines.append(
@@ -297,12 +335,20 @@ def make_analyze_trends_tool() -> StructuredTool:
 # 4. search_github
 # ===========================================================================
 
+
 class SearchGitHubInput(BaseModel):
     query: str = Field(..., description="Search query for GitHub repositories")
-    language: Optional[str] = Field(default=None, description="Filter by programming language, e.g. 'Python', 'TypeScript'")
+    language: Optional[str] = Field(
+        default=None,
+        description="Filter by programming language, e.g. 'Python', 'TypeScript'",
+    )
     stars_min: int = Field(default=100, ge=0, description="Minimum number of stars")
-    limit: int = Field(default=10, ge=1, le=30, description="Maximum repositories to return")
-    sort: str = Field(default="stars", description="Sort by: stars, forks, updated, best-match")
+    limit: int = Field(
+        default=10, ge=1, le=30, description="Maximum repositories to return"
+    )
+    sort: str = Field(
+        default="stars", description="Sort by: stars, forks, updated, best-match"
+    )
 
 
 def _search_github(
@@ -337,7 +383,11 @@ def _search_github(
         }
 
         with httpx.Client(timeout=_HTTP_TIMEOUT) as client:
-            resp = client.get("https://api.github.com/search/repositories", params=params, headers=headers)
+            resp = client.get(
+                "https://api.github.com/search/repositories",
+                params=params,
+                headers=headers,
+            )
             resp.raise_for_status()
             data = resp.json()
 
@@ -389,9 +439,14 @@ def make_search_github_tool() -> StructuredTool:
 # 5. fetch_arxiv_papers
 # ===========================================================================
 
+
 class FetchArxivPapersInput(BaseModel):
-    query: str = Field(..., description="Search query for arXiv papers (title, abstract, or keyword)")
-    max_results: int = Field(default=10, ge=1, le=50, description="Maximum papers to return")
+    query: str = Field(
+        ..., description="Search query for arXiv papers (title, abstract, or keyword)"
+    )
+    max_results: int = Field(
+        default=10, ge=1, le=50, description="Maximum papers to return"
+    )
     categories: Optional[List[str]] = Field(
         default=None,
         description="arXiv category filters, e.g. ['cs.AI', 'cs.LG', 'stat.ML']",
@@ -430,6 +485,7 @@ def _fetch_arxiv_papers(
 
         # Parse Atom XML
         import xml.etree.ElementTree as ET
+
         ns = {"atom": "http://www.w3.org/2005/Atom"}
         root = ET.fromstring(content)
         entries = root.findall("atom:entry", ns)
@@ -449,10 +505,7 @@ def _fetch_arxiv_papers(
             summary = (summary_el.text or "").strip().replace("\n", " ")[:300]
             published = (published_el.text or "")[:10]
             paper_id = (id_el.text or "").strip()
-            author_names = [
-                (a.find("atom:name", ns).text or "")
-                for a in authors[:3]
-            ]
+            author_names = [(a.find("atom:name", ns).text or "") for a in authors[:3]]
             author_str = ", ".join(author_names)
             if len(authors) > 3:
                 author_str += f" et al. (+{len(authors) - 3})"
@@ -497,6 +550,7 @@ def make_fetch_arxiv_papers_tool() -> StructuredTool:
 # TASK-303-B1 — Tavily Web Search
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class WebSearchInput(BaseModel):
     query: str = Field(..., description="Web search query")
     max_results: int = Field(
@@ -526,26 +580,37 @@ def _web_search(
     # os is imported at module level
     tavily_key = os.environ.get("TAVILY_API_KEY", "").strip()
     if not tavily_key or len(tavily_key) < 8:
-        return [{"error": "TAVILY_API_KEY not configured or invalid. Set it in .env to enable live web search."}]
+        return [
+            {
+                "error": "TAVILY_API_KEY not configured or invalid. Set it in .env to enable live web search."
+            }
+        ]
 
     try:
         from tavily import TavilyClient  # type: ignore
+
         client = TavilyClient(api_key=tavily_key)
-        kwargs: dict = {"query": query, "max_results": max_results, "search_depth": search_depth}
+        kwargs: dict = {
+            "query": query,
+            "max_results": max_results,
+            "search_depth": search_depth,
+        }
         if include_domains:
             kwargs["include_domains"] = include_domains
         response = client.search(**kwargs)
         return [
             {
-                "title":   r.get("title", ""),
-                "url":     r.get("url", ""),
+                "title": r.get("title", ""),
+                "url": r.get("url", ""),
                 "snippet": (r.get("content", "") or "")[:400],
-                "score":   r.get("score", 0.0),
+                "score": r.get("score", 0.0),
             }
             for r in response.get("results", [])
         ]
     except ImportError:
-        return [{"error": "tavily-python not installed. Run: pip install tavily-python"}]
+        return [
+            {"error": "tavily-python not installed. Run: pip install tavily-python"}
+        ]
     except Exception as exc:
         logger.error("web_search error: %s", exc)
         return [{"error": str(exc)}]
@@ -568,6 +633,7 @@ def make_web_search_tool() -> StructuredTool:
 # TASK-303-B2 — Python Code Execution Sandbox
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class RunPythonInput(BaseModel):
     code: str = Field(
         ...,
@@ -577,23 +643,71 @@ class RunPythonInput(BaseModel):
 
 
 _SAFE_BUILTINS_KEYS = {
-    "None", "True", "False", "int", "float", "str", "bool",
-    "list", "dict", "set", "tuple", "bytes", "len", "range",
-    "enumerate", "zip", "map", "filter", "sorted", "reversed",
-    "min", "max", "sum", "abs", "round", "print", "repr",
-    "type", "isinstance", "issubclass", "hasattr",
-    "callable", "iter", "next", "any", "all", "hash",
-    "chr", "ord", "hex", "oct", "bin", "pow", "divmod",
-    "format", "vars", "dir",
+    "None",
+    "True",
+    "False",
+    "int",
+    "float",
+    "str",
+    "bool",
+    "list",
+    "dict",
+    "set",
+    "tuple",
+    "bytes",
+    "len",
+    "range",
+    "enumerate",
+    "zip",
+    "map",
+    "filter",
+    "sorted",
+    "reversed",
+    "min",
+    "max",
+    "sum",
+    "abs",
+    "round",
+    "print",
+    "repr",
+    "type",
+    "isinstance",
+    "issubclass",
+    "hasattr",
+    "callable",
+    "iter",
+    "next",
+    "any",
+    "all",
+    "hash",
+    "chr",
+    "ord",
+    "hex",
+    "oct",
+    "bin",
+    "pow",
+    "divmod",
+    "format",
+    "vars",
+    "dir",
 }
 # NOTE: "getattr", "setattr", "delattr", "id", "__import__" are intentionally
 # excluded — getattr/setattr can be used to escape the sandbox by accessing
 # dunder attributes on objects (e.g. ().__class__.__bases__[0].__subclasses__()).
 
 _SAFE_MODULES = {
-    "math", "statistics", "json", "datetime", "re",
-    "collections", "itertools", "functools", "string",
-    "decimal", "fractions", "random",
+    "math",
+    "statistics",
+    "json",
+    "datetime",
+    "re",
+    "collections",
+    "itertools",
+    "functools",
+    "string",
+    "decimal",
+    "fractions",
+    "random",
 }
 
 # Patterns that are blocked outright before execution.
@@ -602,20 +716,46 @@ _SAFE_MODULES = {
 # (e.g. getattr bypass), so we do NOT rely solely on this list.
 _BLOCKED_PATTERNS = [
     # Dunder escape vectors
-    "__class__", "__bases__", "__subclasses__", "__globals__",
-    "__builtins__", "__import__", "__loader__", "__spec__",
-    "__code__", "__func__", "__self__", "__mro__",
+    "__class__",
+    "__bases__",
+    "__subclasses__",
+    "__globals__",
+    "__builtins__",
+    "__import__",
+    "__loader__",
+    "__spec__",
+    "__code__",
+    "__func__",
+    "__self__",
+    "__mro__",
     # Dangerous stdlib modules
-    "importlib", "subprocess", "multiprocessing",
-    "socket", "requests", "urllib", "httpx", "aiohttp",
-    "shutil", "pathlib", "tempfile",
+    "importlib",
+    "subprocess",
+    "multiprocessing",
+    "socket",
+    "requests",
+    "urllib",
+    "httpx",
+    "aiohttp",
+    "shutil",
+    "pathlib",
+    "tempfile",
     # File / OS access
-    "open(", "os.system", "os.popen", "os.exec",
-    "os.spawn", "os.fork", "os.path",
+    "open(",
+    "os.system",
+    "os.popen",
+    "os.exec",
+    "os.spawn",
+    "os.fork",
+    "os.path",
     # Code execution
-    "eval(", "exec(", "compile(",
+    "eval(",
+    "exec(",
+    "compile(",
     # Reflection / introspection abuse
-    "builtins", "ctypes", "cffi",
+    "builtins",
+    "ctypes",
+    "cffi",
 ]
 
 
@@ -634,13 +774,17 @@ def _run_python_code(code: str, timeout_seconds: int = 10) -> dict:
     Do NOT use this to run untrusted code from unauthenticated sources.
     For stronger isolation, use Docker-based sandboxing (e.g. gVisor).
     """
-    import io, sys, threading, traceback
+    import io
+    import sys
+    import threading
+    import traceback
 
     # 1. Pre-flight blocked-pattern scan
     for pattern in _BLOCKED_PATTERNS:
         if pattern in code:
             return {
-                "success": False, "stdout": "",
+                "success": False,
+                "stdout": "",
                 "stderr": f"SecurityError: '{pattern}' is not allowed in the sandbox.",
                 "result": None,
             }
@@ -648,7 +792,8 @@ def _run_python_code(code: str, timeout_seconds: int = 10) -> dict:
     # 2. Cap code size to prevent memory exhaustion
     if len(code) > 50_000:
         return {
-            "success": False, "stdout": "",
+            "success": False,
+            "stdout": "",
             "stderr": "SecurityError: Code exceeds maximum allowed size (50,000 characters).",
             "result": None,
         }
@@ -659,6 +804,7 @@ def _run_python_code(code: str, timeout_seconds: int = 10) -> dict:
     def _execute():
         # 3. Build restricted builtins — only whitelisted keys
         import builtins as _builtins_module
+
         safe_builtins = {
             k: getattr(_builtins_module, k)
             for k in _SAFE_BUILTINS_KEYS
@@ -670,6 +816,7 @@ def _run_python_code(code: str, timeout_seconds: int = 10) -> dict:
             top_level = name.split(".")[0]
             if top_level in _SAFE_MODULES:
                 import importlib
+
                 return importlib.import_module(name)
             raise ImportError(f"Module '{name}' is not allowed in the sandbox.")
 
@@ -706,9 +853,9 @@ def _run_python_code(code: str, timeout_seconds: int = 10) -> dict:
     error = err_container.get("error")
     return {
         "success": error is None,
-        "stdout":  stdout_buf.getvalue()[:4000],
-        "stderr":  (error or "")[:2000],
-        "result":  None,
+        "stdout": stdout_buf.getvalue()[:4000],
+        "stderr": (error or "")[:2000],
+        "result": None,
     }
 
 
@@ -730,10 +877,10 @@ def make_run_python_tool() -> StructuredTool:
 # TASK-303-B3 — PDF / Document Reader
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class ReadDocumentInput(BaseModel):
     url: str = Field(..., description="Public URL of a PDF or plain-text document.")
     max_chars: int = Field(default=8000, ge=1000, le=20000)
-
 
 
 # SEC-07: Maximum download size for _read_document — prevents a malicious URL
@@ -747,7 +894,8 @@ def _read_document(url: str, max_chars: int = 8000) -> dict:
     SEC-07: Enforces a maximum download size (_MAX_DOWNLOAD_BYTES) to prevent
     memory exhaustion from large files served by malicious or misbehaving URLs.
     """
-    import re, tempfile
+    import re
+    import tempfile
 
     if not url.startswith(("http://", "https://")):
         return {"error": "Only http:// and https:// URLs are supported."}
@@ -756,7 +904,9 @@ def _read_document(url: str, max_chars: int = 8000) -> dict:
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
             # Stream the response to check Content-Length before downloading fully
-            with client.stream("GET", url, headers={"User-Agent": "SYNAPSE-Agent/1.0"}) as resp:
+            with client.stream(
+                "GET", url, headers={"User-Agent": "SYNAPSE-Agent/1.0"}
+            ) as resp:
                 resp.raise_for_status()
                 content_type = resp.headers.get("content-type", "").lower()
 
@@ -765,7 +915,7 @@ def _read_document(url: str, max_chars: int = 8000) -> dict:
                 if content_length > _MAX_DOWNLOAD_BYTES:
                     return {
                         "error": f"File too large: {content_length / 1024 / 1024:.1f} MB "
-                                 f"(limit: {_MAX_DOWNLOAD_BYTES // 1024 // 1024} MB)"
+                        f"(limit: {_MAX_DOWNLOAD_BYTES // 1024 // 1024} MB)"
                     }
 
                 # Stream body with running size check
@@ -776,7 +926,7 @@ def _read_document(url: str, max_chars: int = 8000) -> dict:
                     if downloaded > _MAX_DOWNLOAD_BYTES:
                         return {
                             "error": f"File too large: exceeded "
-                                     f"{_MAX_DOWNLOAD_BYTES // 1024 // 1024} MB download limit."
+                            f"{_MAX_DOWNLOAD_BYTES // 1024 // 1024} MB download limit."
                         }
                     chunks.append(chunk)
                 raw_bytes = b"".join(chunks)
@@ -786,6 +936,7 @@ def _read_document(url: str, max_chars: int = 8000) -> dict:
     if "pdf" in content_type or url.lower().endswith(".pdf"):
         try:
             import fitz  # type: ignore
+
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                 tmp.write(raw_bytes)
                 tmp_path = tmp.name
@@ -814,8 +965,11 @@ def _read_document(url: str, max_chars: int = 8000) -> dict:
 
     truncated = len(text) > max_chars
     return {
-        "url": url, "doc_type": doc_type, "page_count": page_count,
-        "char_count": len(text), "truncated": truncated,
+        "url": url,
+        "doc_type": doc_type,
+        "page_count": page_count,
+        "char_count": len(text),
+        "truncated": truncated,
         "text": text[:max_chars],
     }
 
@@ -837,8 +991,11 @@ def make_read_document_tool() -> StructuredTool:
 # TASK-303-B4 — Chart / Visualization Generator
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class GenerateChartInput(BaseModel):
-    chart_type: str = Field(..., description="Chart type: 'bar', 'line', 'pie', 'scatter', 'histogram'")
+    chart_type: str = Field(
+        ..., description="Chart type: 'bar', 'line', 'pie', 'scatter', 'histogram'"
+    )
     title: str = Field(default="", description="Chart title")
     labels: list[str] = Field(..., description="X-axis or pie slice labels")
     values: list[float] = Field(..., description="Corresponding numeric values")
@@ -848,14 +1005,21 @@ class GenerateChartInput(BaseModel):
 
 
 def _generate_chart(
-    chart_type: str, labels: list[str], values: list[float],
-    title: str = "", x_label: str = "", y_label: str = "", color: str = "#6366f1",
+    chart_type: str,
+    labels: list[str],
+    values: list[float],
+    title: str = "",
+    x_label: str = "",
+    y_label: str = "",
+    color: str = "#6366f1",
 ) -> dict:
     """Generate a chart as base64-encoded PNG."""
-    import base64, io
+    import base64
+    import io
 
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
@@ -866,40 +1030,69 @@ def _generate_chart(
     if chart_type != "histogram" and len(labels) != len(values):
         return {"error": "labels and values must have the same length."}
 
-    plt.rcParams.update({
-        "figure.facecolor": "#0f172a", "axes.facecolor": "#1e293b",
-        "axes.edgecolor": "#334155", "axes.labelcolor": "#94a3b8",
-        "xtick.color": "#94a3b8", "ytick.color": "#94a3b8",
-        "text.color": "#e2e8f0", "grid.color": "#334155", "grid.alpha": 0.5,
-    })
+    plt.rcParams.update(
+        {
+            "figure.facecolor": "#0f172a",
+            "axes.facecolor": "#1e293b",
+            "axes.edgecolor": "#334155",
+            "axes.labelcolor": "#94a3b8",
+            "xtick.color": "#94a3b8",
+            "ytick.color": "#94a3b8",
+            "text.color": "#e2e8f0",
+            "grid.color": "#334155",
+            "grid.alpha": 0.5,
+        }
+    )
 
     fig, ax = plt.subplots(figsize=(8, 4.5), dpi=120)
     ct = chart_type.lower().strip()
 
     try:
         if ct == "bar":
-            bars = ax.bar(labels, values, color=color, edgecolor="#334155", linewidth=0.5)
+            bars = ax.bar(
+                labels, values, color=color, edgecolor="#334155", linewidth=0.5
+            )
             ax.bar_label(bars, fmt="%.1f", color="#94a3b8", fontsize=8, padding=3)
             ax.grid(axis="y", linestyle="--")
         elif ct == "line":
             ax.plot(labels, values, color=color, marker="o", linewidth=2, markersize=5)
             ax.fill_between(range(len(labels)), values, alpha=0.15, color=color)
             ax.set_xticks(range(len(labels)))
-            ax.set_xticklabels(labels, rotation=30 if len(labels) > 6 else 0, ha="right")
+            ax.set_xticklabels(
+                labels, rotation=30 if len(labels) > 6 else 0, ha="right"
+            )
             ax.grid(axis="y", linestyle="--")
         elif ct == "pie":
-            palette = ["#6366f1","#06b6d4","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#14b8a6"]
-            ax.pie(values, labels=labels, colors=palette[:len(labels)],
-                   autopct="%1.1f%%", startangle=90,
-                   wedgeprops={"edgecolor": "#0f172a", "linewidth": 1.5})
+            palette = [
+                "#6366f1",
+                "#06b6d4",
+                "#10b981",
+                "#f59e0b",
+                "#ef4444",
+                "#8b5cf6",
+                "#ec4899",
+                "#14b8a6",
+            ]
+            ax.pie(
+                values,
+                labels=labels,
+                colors=palette[: len(labels)],
+                autopct="%1.1f%%",
+                startangle=90,
+                wedgeprops={"edgecolor": "#0f172a", "linewidth": 1.5},
+            )
         elif ct == "scatter":
-            ax.scatter(labels, values, color=color, s=80, alpha=0.8, edgecolors="#334155")
+            ax.scatter(
+                labels, values, color=color, s=80, alpha=0.8, edgecolors="#334155"
+            )
             ax.grid(linestyle="--")
         elif ct == "histogram":
             ax.hist(values, bins=min(len(values), 20), color=color, edgecolor="#334155")
             ax.grid(axis="y", linestyle="--")
         else:
-            return {"error": f"Unknown chart_type '{ct}'. Use: bar, line, pie, scatter, histogram."}
+            return {
+                "error": f"Unknown chart_type '{ct}'. Use: bar, line, pie, scatter, histogram."
+            }
 
         if title:
             ax.set_title(title, color="#e2e8f0", fontsize=13, fontweight="bold", pad=12)
@@ -910,12 +1103,19 @@ def _generate_chart(
 
         plt.tight_layout()
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
+        fig.savefig(
+            buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor()
+        )
         plt.close(fig)
         buf.seek(0)
         b64 = base64.b64encode(buf.read()).decode("utf-8")
-        return {"success": True, "chart_type": ct, "title": title,
-                "base64_png": b64, "data_uri": f"data:image/png;base64,{b64}"}
+        return {
+            "success": True,
+            "chart_type": ct,
+            "title": title,
+            "base64_png": b64,
+            "data_uri": f"data:image/png;base64,{b64}",
+        }
     except Exception as exc:
         plt.close("all")
         return {"error": str(exc)}

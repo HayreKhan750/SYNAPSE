@@ -1,15 +1,16 @@
 # ── SYNAPSE Scrapy Settings ──────────────────────────────────
-import os, sys
+import os
+import sys
 from pathlib import Path
 
 # Add backend to path so Django models are accessible
 BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR / 'backend'))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
+sys.path.insert(0, str(BASE_DIR / "backend"))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
 
-BOT_NAME = 'synapse_scraper'
-SPIDER_MODULES = ['scraper.spiders']
-NEWSPIDER_MODULE = 'scraper.spiders'
+BOT_NAME = "synapse_scraper"
+SPIDER_MODULES = ["scraper.spiders"]
+NEWSPIDER_MODULE = "scraper.spiders"
 
 # ── Politeness ───────────────────────────────────────────────
 ROBOTSTXT_OBEY = True
@@ -23,18 +24,18 @@ AUTOTHROTTLE_MAX_DELAY = 10
 AUTOTHROTTLE_TARGET_CONCURRENCY = 2.0
 
 # ── User Agent Rotation ──────────────────────────────────────
-USER_AGENT = 'SYNAPSE-Bot/1.0 (+https://github.com/HayreKhan750/SYNAPSE)'
+USER_AGENT = "SYNAPSE-Bot/1.0 (+https://github.com/HayreKhan750/SYNAPSE)"
 DOWNLOADER_MIDDLEWARES = {
-    'scraper.middlewares.rotate_useragent.RotateUserAgentMiddleware': 400,
-    'scraper.middlewares.retry.CustomRetryMiddleware': 550,
-    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+    "scraper.middlewares.rotate_useragent.RotateUserAgentMiddleware": 400,
+    "scraper.middlewares.retry.CustomRetryMiddleware": 550,
+    "scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware": 810,
 }
 
 # ── Item Pipelines ───────────────────────────────────────────
 ITEM_PIPELINES = {
-    'scraper.pipelines.validate.ValidationPipeline': 100,
-    'scraper.pipelines.deduplicate.DeduplicationPipeline': 200,
-    'scraper.pipelines.database.DatabasePipeline': 300,
+    "scraper.pipelines.validate.ValidationPipeline": 100,
+    "scraper.pipelines.deduplicate.DeduplicationPipeline": 200,
+    "scraper.pipelines.database.DatabasePipeline": 300,
 }
 
 # ── Retry ────────────────────────────────────────────────────
@@ -48,10 +49,10 @@ RETRY_BACKOFF_MAX = 60
 HTTPCACHE_ENABLED = False  # Enable during dev to avoid repeated requests
 
 # ── Redis connection (for deduplication) ─────────────────────
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6380/0')
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6380/0")
 
 # ── Feed exports ─────────────────────────────────────────────
-FEED_EXPORT_ENCODING = 'utf-8'
-REQUEST_FINGERPRINTER_IMPLEMENTATION = '2.7'
-TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
-LOG_LEVEL = 'INFO'
+FEED_EXPORT_ENCODING = "utf-8"
+REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+LOG_LEVEL = "INFO"

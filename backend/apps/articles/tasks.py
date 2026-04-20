@@ -16,9 +16,10 @@ Summary failure sentinel:
   are excluded from future batch runs and never enter an infinite retry loop.
   Force-resetting: set summary="" and call summarize_article.delay(id, force=True).
 """
+
 import logging
-import sys
 import os
+import sys
 import time
 from typing import Dict, Optional
 
@@ -35,7 +36,9 @@ SUMMARY_FAILED_SENTINEL = "__failed__"
 # ── OpenRouter helper (replaces the old Gemini key-rotation helpers) ──────────
 
 
-def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[str] = None) -> Optional[str]:
+def _summarize_with_gemini(
+    text: str, max_chars: int = 8000, api_key: Optional[str] = None
+) -> Optional[str]:
     """
     Summarize text using OpenRouter (OpenAI-compatible endpoint).
     Uses the provided api_key if given, otherwise falls back to the
@@ -43,7 +46,9 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
     Returns None on failure so callers fall back to local BART.
     """
     if not api_key:
-        api_key = getattr(settings, 'GEMINI_API_KEY', None) or getattr(settings, 'OPENROUTER_API_KEY', None)
+        api_key = getattr(settings, "GEMINI_API_KEY", None) or getattr(
+            settings, "OPENROUTER_API_KEY", None
+        )
     if not api_key:
         logger.info("GEMINI_API_KEY not set - skipping Gemini summarization")
         return None  # Will fall back to BART
@@ -53,7 +58,8 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
 
     logger.info(
         "_summarize_with_gemini (openrouter): START model=%s text_length=%d",
-        model_name, len(text),
+        model_name,
+        len(text),
     )
 
     has_full_content = len(text) > 300 and "Article Content:" in text
@@ -78,8 +84,9 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
     # Try langchain_openai first; fall back to direct httpx call if not installed
     _use_httpx = False
     try:
-        from langchain_openai import ChatOpenAI           # noqa: PLC0415
         from langchain_core.messages import HumanMessage  # noqa: PLC0415
+        from langchain_openai import ChatOpenAI  # noqa: PLC0415
+
         try:
             llm = ChatOpenAI(
                 model=model_name,
@@ -92,13 +99,16 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
             logger.error("Failed to build ChatOpenAI (model=%s): %s", model_name, exc)
             _use_httpx = True
     except ImportError:
-        logger.warning("langchain_openai not installed — using httpx fallback for summarization")
+        logger.warning(
+            "langchain_openai not installed — using httpx fallback for summarization"
+        )
         _use_httpx = True
 
     for attempt in range(2):
         try:
             if _use_httpx:
                 import httpx  # noqa: PLC0415
+
                 resp = httpx.post(
                     f"{base_url}/chat/completions",
                     headers={
@@ -125,20 +135,31 @@ def _summarize_with_gemini(text: str, max_chars: int = 8000, api_key: Optional[s
             if summary:
                 logger.info(
                     "_summarize_with_gemini (openrouter): SUCCESS attempt=%d len=%d",
-                    attempt + 1, len(summary),
+                    attempt + 1,
+                    len(summary),
                 )
                 return summary
-            logger.error("OPENROUTER: empty response attempt=%d model=%s", attempt + 1, model_name)
+            logger.error(
+                "OPENROUTER: empty response attempt=%d model=%s",
+                attempt + 1,
+                model_name,
+            )
             return None
         except Exception as exc:
             exc_str = str(exc).lower()
-            is_rate_limit = any(k in exc_str for k in ("429", "rate limit", "quota", "too many"))
+            is_rate_limit = any(
+                k in exc_str for k in ("429", "rate limit", "quota", "too many")
+            )
             logger.error(
                 "OPENROUTER: API error attempt=%d model=%s rate_limit=%s: %s",
-                attempt + 1, model_name, is_rate_limit, exc,
+                attempt + 1,
+                model_name,
+                is_rate_limit,
+                exc,
             )
             if is_rate_limit and attempt == 0:
                 import time  # noqa: PLC0415
+
                 time.sleep(5)
                 continue
             return None
@@ -161,9 +182,12 @@ def _run_nlp(text: str, title: str = "") -> Optional[object]:
             sys.path.insert(0, project_root)
 
         from ai_engine.nlp.pipeline import run_pipeline  # noqa: PLC0415
+
         return run_pipeline(text=text, title=title)
     except ImportError as exc:
-        logger.error("NLP pipeline import failed (is ai_engine on PYTHONPATH?): %s", exc)
+        logger.error(
+            "NLP pipeline import failed (is ai_engine on PYTHONPATH?): %s", exc
+        )
         return None
     except Exception as exc:
         logger.error("NLP pipeline execution error: %s", exc)
@@ -177,7 +201,7 @@ def _run_nlp(text: str, title: str = "") -> Optional[object]:
     queue="nlp",
     name="apps.articles.tasks.process_article_nlp",
     soft_time_limit=120,  # 2 minutes soft limit
-    time_limit=180,       # 3 minutes hard limit
+    time_limit=180,  # 3 minutes hard limit
 )
 def process_article_nlp(self, article_id: str) -> Dict:
     """
@@ -205,7 +229,11 @@ def process_article_nlp(self, article_id: str) -> Dict:
             article = Article.objects.get(pk=article_id)
         except Article.DoesNotExist:
             logger.error("[%s] Article %s not found.", task_id, article_id)
-            return {"status": "error", "reason": "article_not_found", "article_id": article_id}
+            return {
+                "status": "error",
+                "reason": "article_not_found",
+                "article_id": article_id,
+            }
 
         # Build the text to analyse
         text = article.content or ""
@@ -213,14 +241,24 @@ def process_article_nlp(self, article_id: str) -> Dict:
 
         if not text and not title:
             logger.warning("[%s] Article %s has no text content.", task_id, article_id)
-            return {"status": "skipped", "reason": "no_content", "article_id": article_id}
+            return {
+                "status": "skipped",
+                "reason": "no_content",
+                "article_id": article_id,
+            }
 
         # Run the NLP pipeline
         result = _run_nlp(text=text, title=title)
 
         if result is None:
-            logger.error("[%s] NLP pipeline returned None for article %s.", task_id, article_id)
-            return {"status": "error", "reason": "pipeline_failed", "article_id": article_id}
+            logger.error(
+                "[%s] NLP pipeline returned None for article %s.", task_id, article_id
+            )
+            return {
+                "status": "error",
+                "reason": "pipeline_failed",
+                "article_id": article_id,
+            }
 
         if result.skipped:
             logger.info(
@@ -301,8 +339,12 @@ def process_article_nlp(self, article_id: str) -> Dict:
         logger.info(
             "[%s] NLP complete for article %s in %.2fs — "
             "topic=%s, sentiment=%.4f, keywords=%d, summary=%s",
-            task_id, article_id, elapsed,
-            result.topic, result.sentiment_score or 0.0, len(result.keywords),
+            task_id,
+            article_id,
+            elapsed,
+            result.topic,
+            result.sentiment_score or 0.0,
+            len(result.keywords),
             "yes" if result.summary else "no",
         )
 
@@ -318,7 +360,9 @@ def process_article_nlp(self, article_id: str) -> Dict:
         }
 
     except Exception as exc:
-        logger.error("[%s] Unexpected error processing article %s: %s", task_id, article_id, exc)
+        logger.error(
+            "[%s] Unexpected error processing article %s: %s", task_id, article_id, exc
+        )
         raise self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
 
 
@@ -344,14 +388,16 @@ def process_pending_articles_nlp(self, batch_size: int = 10) -> Dict:
         Dict summarising how many tasks were queued.
     """
     task_id = self.request.id
-    logger.info("[%s] Queuing NLP for pending articles (batch_size=%d)", task_id, batch_size)
+    logger.info(
+        "[%s] Queuing NLP for pending articles (batch_size=%d)", task_id, batch_size
+    )
 
     try:
         from apps.articles.models import Article  # noqa: PLC0415
 
-        pending = Article.objects.filter(
-            nlp_processed=False
-        ).values_list("id", flat=True)[:batch_size]
+        pending = Article.objects.filter(nlp_processed=False).values_list(
+            "id", flat=True
+        )[:batch_size]
 
         queued = 0
         for article_id in pending:
@@ -360,7 +406,7 @@ def process_pending_articles_nlp(self, batch_size: int = 10) -> Dict:
             process_article_nlp.apply_async(
                 args=[str(article_id)],
                 countdown=queued * 12,
-                queue='nlp',
+                queue="nlp",
             )
             queued += 1
 
@@ -395,6 +441,7 @@ def fetch_article_excerpt(self, article_id: str) -> dict:
     task_id = self.request.id or "no-task-id"
     try:
         from apps.articles.models import Article  # noqa: PLC0415
+
         try:
             article = Article.objects.get(pk=article_id)
         except Article.DoesNotExist:
@@ -457,13 +504,17 @@ def fetch_article_excerpt(self, article_id: str) -> dict:
             if not excerpt:
                 try:
                     import trafilatura  # noqa: PLC0415
+
                     extracted = trafilatura.extract(
-                        html, include_comments=False,
-                        include_tables=False, no_fallback=False,
+                        html,
+                        include_comments=False,
+                        include_tables=False,
+                        no_fallback=False,
                     )
                     if extracted:
                         sentences = [
-                            s.strip() for s in extracted.replace("\n", " ").split(".")
+                            s.strip()
+                            for s in extracted.replace("\n", " ").split(".")
                             if len(s.strip()) > 40
                         ]
                         excerpt = ". ".join(sentences[:2]) + "." if sentences else ""
@@ -473,7 +524,9 @@ def fetch_article_excerpt(self, article_id: str) -> dict:
         except Exception as exc:
             logger.warning(
                 "[%s] fetch_article_excerpt: HTTP fetch failed for %s: %s",
-                task_id, url[:60], exc,
+                task_id,
+                url[:60],
+                exc,
             )
 
         # Truncate to 220 chars at word boundary
@@ -487,18 +540,22 @@ def fetch_article_excerpt(self, article_id: str) -> dict:
             # Sanitise metadata — remove null bytes and invalid Unicode
             # that PostgreSQL JSON rejects.
             try:
-                import json as _json, re as _re
+                import json as _json
+                import re as _re
+
                 raw = _json.dumps(article.metadata, ensure_ascii=True)
                 # Strip null bytes \u0000 which PG cannot store in JSON
-                raw = raw.replace('\\u0000', '').replace('\x00', '')
-                raw = _re.sub(r'\\u0000', '', raw)
+                raw = raw.replace("\\u0000", "").replace("\x00", "")
+                raw = _re.sub(r"\\u0000", "", raw)
                 article.metadata = _json.loads(raw)
             except Exception:
                 article.metadata = {}
             article.save(update_fields=["metadata", "updated_at"])
             logger.info(
                 "[%s] fetch_article_excerpt: saved %d chars for article %s",
-                task_id, len(excerpt), article_id,
+                task_id,
+                len(excerpt),
+                article_id,
             )
             return {"status": "success", "excerpt_length": len(excerpt)}
         else:
@@ -508,33 +565,56 @@ def fetch_article_excerpt(self, article_id: str) -> dict:
             return {"status": "no_excerpt", "article_id": article_id}
 
     except Exception as exc:
-        logger.error("[%s] fetch_article_excerpt FAILED: %s", task_id, exc, exc_info=True)
+        logger.error(
+            "[%s] fetch_article_excerpt FAILED: %s", task_id, exc, exc_info=True
+        )
         raise self.retry(exc=exc, countdown=30)
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=60, queue="default", name="apps.articles.tasks.fetch_pending_excerpts")
+@shared_task(
+    bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+    queue="default",
+    name="apps.articles.tasks.fetch_pending_excerpts",
+)
 def fetch_pending_excerpts(self, batch_size: int = 30) -> dict:
     """Queue excerpt-fetching for all articles missing a metadata excerpt."""
     task_id = self.request.id or "no-task-id"
     try:
         from apps.articles.models import Article  # noqa: PLC0415
-        all_articles = list(Article.objects.filter(url__startswith="http").values("id", "metadata"))
+
+        all_articles = list(
+            Article.objects.filter(url__startswith="http").values("id", "metadata")
+        )
         to_fetch = [
-            str(a["id"]) for a in all_articles
+            str(a["id"])
+            for a in all_articles
             if not (a.get("metadata") or {}).get("excerpt")
         ][:batch_size]
 
         for i, article_id in enumerate(to_fetch):
-            fetch_article_excerpt.apply_async(args=[article_id], countdown=i * 2, queue="default")
+            fetch_article_excerpt.apply_async(
+                args=[article_id], countdown=i * 2, queue="default"
+            )
 
-        logger.info("[%s] fetch_pending_excerpts: queued %d tasks", task_id, len(to_fetch))
+        logger.info(
+            "[%s] fetch_pending_excerpts: queued %d tasks", task_id, len(to_fetch)
+        )
         return {"status": "success", "queued": len(to_fetch)}
     except Exception as exc:
-        logger.error("[%s] fetch_pending_excerpts FAILED: %s", task_id, exc, exc_info=True)
+        logger.error(
+            "[%s] fetch_pending_excerpts FAILED: %s", task_id, exc, exc_info=True
+        )
         raise self.retry(exc=exc, countdown=60)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, name="apps.articles.tasks.summarize_article")
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    name="apps.articles.tasks.summarize_article",
+)
 def summarize_article(self, article_id: str, force: bool = False) -> Dict:
     """
     Phase 2.2 — Standalone BART summarization task.
@@ -563,16 +643,26 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
             article = Article.objects.get(pk=article_id)
         except Article.DoesNotExist:
             logger.error("[%s] Article %s not found.", task_id, article_id)
-            return {"status": "error", "reason": "article_not_found", "article_id": article_id}
+            return {
+                "status": "error",
+                "reason": "article_not_found",
+                "article_id": article_id,
+            }
 
         # Skip if already has a real summary (or sentinel) and force is not set
         if article.summary and not force:
             logger.info(
                 "[%s] Article %s already has summary (or sentinel); skipping "
                 "(use force=True to overwrite). summary_prefix=%r",
-                task_id, article_id, article.summary[:40],
+                task_id,
+                article_id,
+                article.summary[:40],
             )
-            return {"status": "skipped", "reason": "already_summarized", "article_id": article_id}
+            return {
+                "status": "skipped",
+                "reason": "already_summarized",
+                "article_id": article_id,
+            }
 
         # Build the best possible text to summarize.
         # Many HackerNews articles only have a title + URL — no full content.
@@ -614,29 +704,42 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
         text = "\n".join(text_parts)
 
         if not text.strip() or (not content and not title):
-            logger.warning("[%s] Article %s has no usable text at all.", task_id, article_id)
+            logger.warning(
+                "[%s] Article %s has no usable text at all.", task_id, article_id
+            )
             article.summary = SUMMARY_FAILED_SENTINEL
             article.save(update_fields=["summary", "updated_at"])
             return {"status": "skipped", "reason": "no_text", "article_id": article_id}
 
         logger.info(
             "[%s] Article %s: content_len=%d, title=%r — building summary from available fields.",
-            task_id, article_id, len(content), title[:60],
+            task_id,
+            article_id,
+            len(content),
+            title[:60],
         )
 
         # Try Gemini first, then fall back to BART/extractive summarizer
-        logger.info("[%s] Attempting Gemini summarization for article %s", task_id, article_id)
+        logger.info(
+            "[%s] Attempting Gemini summarization for article %s", task_id, article_id
+        )
         summary = _summarize_with_gemini(text)
 
         if not summary:
             logger.error(
                 "[%s] Gemini summarization failed for article %s (title=%r). "
                 "Writing failure sentinel to prevent infinite re-queuing.",
-                task_id, article_id, title[:60],
+                task_id,
+                article_id,
+                title[:60],
             )
             article.summary = SUMMARY_FAILED_SENTINEL
             article.save(update_fields=["summary", "updated_at"])
-            return {"status": "error", "reason": "gemini_failed", "article_id": article_id}
+            return {
+                "status": "error",
+                "reason": "gemini_failed",
+                "article_id": article_id,
+            }
 
         article.summary = summary
         article.save(update_fields=["summary", "updated_at"])
@@ -644,7 +747,10 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
         elapsed = round(time.time() - start_time, 2)
         logger.info(
             "[%s] Summary generated for article %s in %.2fs (%d chars).",
-            task_id, article_id, elapsed, len(summary),
+            task_id,
+            article_id,
+            elapsed,
+            len(summary),
         )
 
         return {
@@ -655,7 +761,9 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
         }
 
     except Exception as exc:
-        logger.error("[%s] Unexpected error summarizing article %s: %s", task_id, article_id, exc)
+        logger.error(
+            "[%s] Unexpected error summarizing article %s: %s", task_id, article_id, exc
+        )
         raise self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
 
 
@@ -686,7 +794,8 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
     task_id = self.request.id
     logger.info(
         "[%s] Queuing summarization for articles without summary (batch_size=%d)",
-        task_id, batch_size,
+        task_id,
+        batch_size,
     )
 
     try:
@@ -702,14 +811,16 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
         )
         # Also pick up NULL summaries (legacy rows)
         pending_null = list(
-            Article.objects.filter(summary__isnull=True)
-            .values_list("id", flat=True)[:batch_size - len(pending)]
+            Article.objects.filter(summary__isnull=True).values_list("id", flat=True)[
+                : batch_size - len(pending)
+            ]
         )
         all_pending = pending + pending_null
 
         logger.info(
             "[%s] summarize_pending_articles: found %d articles needing summaries.",
-            task_id, len(all_pending),
+            task_id,
+            len(all_pending),
         )
 
         queued = 0
@@ -726,5 +837,7 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
         return {"status": "success", "queued": queued}
 
     except Exception as exc:
-        logger.error("[%s] summarize_pending_articles FAILED: %s", task_id, exc, exc_info=True)
+        logger.error(
+            "[%s] summarize_pending_articles FAILED: %s", task_id, exc, exc_info=True
+        )
         raise self.retry(exc=exc, countdown=120)

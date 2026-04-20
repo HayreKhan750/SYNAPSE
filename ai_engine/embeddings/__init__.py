@@ -9,6 +9,6 @@ Public API:
     embed_batch(texts)      — Embed a list of strings → list[list[float]].
 """
 
-from .embedder import SynapseEmbedder, embed_text, embed_batch, get_embedder
+from .embedder import SynapseEmbedder, embed_batch, embed_text, get_embedder
 
 __all__ = ["SynapseEmbedder", "embed_text", "embed_batch", "get_embedder"]

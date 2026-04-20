@@ -1,16 +1,19 @@
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+import logging
+
+from apps.core.models import UserActivity
+from apps.core.pagination import StandardPagination
+from django_filters.rest_framework import DjangoFilterBackend
+
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
-from django.db.models import Q
-from django.contrib.contenttypes.models import ContentType
-from apps.core.models import UserActivity
+
 from .models import Article
-from .serializers import ArticleListSerializer, ArticleDetailSerializer
-from apps.core.pagination import StandardPagination
-import logging
+from .serializers import ArticleDetailSerializer, ArticleListSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -19,42 +22,47 @@ class ArticleListView(ListAPIView):
     serializer_class = ArticleListSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['topic', 'source__source_type']
-    search_fields = ['title', 'summary', 'author', 'topic']
-    ordering_fields = ['published_at', 'trending_score', 'view_count', 'scraped_at']
-    ordering = ['-published_at']
+    filterset_fields = ["topic", "source__source_type"]
+    search_fields = ["title", "summary", "author", "topic"]
+    ordering_fields = ["published_at", "trending_score", "view_count", "scraped_at"]
+    ordering = ["-published_at"]
     pagination_class = StandardPagination
 
     def get_queryset(self):
-        qs = Article.objects.select_related('source').all()
+        qs = Article.objects.select_related("source").all()
         # ── Personalization: scope to articles linked via UserArticle junction ──
         if self.request.user and self.request.user.is_authenticated:
             qs = qs.filter(user_articles__user=self.request.user)
         # Tag filtering
-        tag = self.request.GET.get('tag')
+        tag = self.request.GET.get("tag")
         if tag:
             qs = qs.filter(tags__icontains=tag)
         # Topic filtering
-        topic = self.request.GET.get('topic')
-        if topic and topic != 'All':
+        topic = self.request.GET.get("topic")
+        if topic and topic != "All":
             qs = qs.filter(topic__iexact=topic)
         # Full-text search
-        q = self.request.GET.get('q', '').strip()
+        q = self.request.GET.get("q", "").strip()
         if q:
             qs = qs.filter(
-                Q(title__icontains=q) |
-                Q(summary__icontains=q) |
-                Q(author__icontains=q) |
-                Q(topic__icontains=q)
+                Q(title__icontains=q)
+                | Q(summary__icontains=q)
+                | Q(author__icontains=q)
+                | Q(topic__icontains=q)
             )
         # Interest-based filtering (TASK-001-B3)
         # Applied when for_you=1 is passed and user is authenticated with onboarding prefs
-        for_you = self.request.GET.get('for_you') == '1'
+        for_you = self.request.GET.get("for_you") == "1"
         if for_you and self.request.user and self.request.user.is_authenticated:
             try:
                 from apps.users.models import OnboardingPreferences
-                prefs = OnboardingPreferences.objects.get(user=self.request.user, completed=True)
-                interests = prefs.interests  # list of topic strings e.g. ["AI", "Security"]
+
+                prefs = OnboardingPreferences.objects.get(
+                    user=self.request.user, completed=True
+                )
+                interests = (
+                    prefs.interests
+                )  # list of topic strings e.g. ["AI", "Security"]
                 if interests:
                     # Build OR query: any article whose topic or tags matches any interest
                     interest_q = Q()
@@ -67,7 +75,9 @@ class ArticleListView(ListAPIView):
                         qs = personalized
                     logger.info(
                         "interest_feed_filtered: user=%s interests=%s count=%s",
-                        self.request.user.email, interests, qs.count(),
+                        self.request.user.email,
+                        interests,
+                        qs.count(),
                     )
             except Exception:
                 # Any error (no prefs, not completed, etc.) → just return unfiltered feed
@@ -78,23 +88,26 @@ class ArticleListView(ListAPIView):
 class ArticleDetailView(RetrieveAPIView):
     serializer_class = ArticleDetailSerializer
     permission_classes = [AllowAny]
-    queryset = Article.objects.select_related('source').all()
+    queryset = Article.objects.select_related("source").all()
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         instance.view_count += 1
-        instance.save(update_fields=['view_count'])
+        instance.save(update_fields=["view_count"])
         # Log view activity (Phase 2.4)
         try:
             ct = ContentType.objects.get_for_model(Article)
             if request.user and request.user.is_authenticated:
                 UserActivity.objects.create(
-                    user=request.user, content_type=ct, object_id=str(instance.id), interaction_type='view'
+                    user=request.user,
+                    content_type=ct,
+                    object_id=str(instance.id),
+                    interaction_type="view",
                 )
         except Exception:
             pass
         serializer = self.get_serializer(instance)
-        return Response({'success': True, 'data': serializer.data})
+        return Response({"success": True, "data": serializer.data})
 
 
 class TrendingArticleListView(ListAPIView):
@@ -106,38 +119,59 @@ class TrendingArticleListView(ListAPIView):
         # Do NOT slice here — sliced querysets cannot be paginated (count() breaks).
         # The pagination class will apply its own limit, and the meta.total will
         # reflect the real DB count so the home-page stat cards display correctly.
-        return Article.objects.select_related('source').order_by('-trending_score', '-published_at')
+        return Article.objects.select_related("source").order_by(
+            "-trending_score", "-published_at"
+        )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def article_topics(request):
     from django.core.cache import cache  # noqa: PLC0415
-    cache_key = 'article_topics_list'
+
+    cache_key = "article_topics_list"
     topics = cache.get(cache_key)
     if topics is None:
-        topics = list(Article.objects.exclude(topic='').values_list('topic', flat=True).distinct().order_by('topic'))
+        topics = list(
+            Article.objects.exclude(topic="")
+            .values_list("topic", flat=True)
+            .distinct()
+            .order_by("topic")
+        )
         cache.set(cache_key, topics, timeout=3600)  # Cache for 1 hour — stable data
-    return Response({'success': True, 'data': topics})
+    return Response({"success": True, "data": topics})
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def article_search(request):
-    q = request.GET.get('q', '').strip()
+    q = request.GET.get("q", "").strip()
     if not q:
-        return Response({'success': False, 'error': {'message': 'Query parameter q is required'}}, status=400)
-    results = Article.objects.filter(
-        Q(title__icontains=q) |
-        Q(summary__icontains=q) |
-        Q(author__icontains=q) |
-        Q(topic__icontains=q)
-    ).select_related('source').order_by('-trending_score')[:20]
+        return Response(
+            {"success": False, "error": {"message": "Query parameter q is required"}},
+            status=400,
+        )
+    results = (
+        Article.objects.filter(
+            Q(title__icontains=q)
+            | Q(summary__icontains=q)
+            | Q(author__icontains=q)
+            | Q(topic__icontains=q)
+        )
+        .select_related("source")
+        .order_by("-trending_score")[:20]
+    )
     serializer = ArticleListSerializer(results, many=True)
-    return Response({'success': True, 'data': serializer.data, 'meta': {'query': q, 'total': len(serializer.data)}})
+    return Response(
+        {
+            "success": True,
+            "data": serializer.data,
+            "meta": {"query": q, "total": len(serializer.data)},
+        }
+    )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def trigger_summarization(request):
     """
@@ -153,41 +187,53 @@ def trigger_summarization(request):
     """
     from .tasks import summarize_pending_articles  # noqa: PLC0415
 
-    batch_size = int(request.data.get('batch_size', 20))
+    batch_size = int(request.data.get("batch_size", 20))
     batch_size = max(1, min(batch_size, 50))  # clamp 1–50
 
     # Count how many articles actually need summaries before dispatching
-    from .tasks import SUMMARY_FAILED_SENTINEL  # noqa: PLC0415
     from django.db.models import Q as DQ  # noqa: PLC0415
-    pending_count = Article.objects.filter(
-        DQ(summary="") | DQ(summary__isnull=True)
-    ).exclude(summary=SUMMARY_FAILED_SENTINEL).count()
+
+    from .tasks import SUMMARY_FAILED_SENTINEL  # noqa: PLC0415
+
+    pending_count = (
+        Article.objects.filter(DQ(summary="") | DQ(summary__isnull=True))
+        .exclude(summary=SUMMARY_FAILED_SENTINEL)
+        .count()
+    )
 
     if pending_count == 0:
-        return Response({
-            'success': True,
-            'message': 'No articles pending summarization.',
-            'pending': 0,
-            'queued': 0,
-        })
+        return Response(
+            {
+                "success": True,
+                "message": "No articles pending summarization.",
+                "pending": 0,
+                "queued": 0,
+            }
+        )
 
     try:
         task = summarize_pending_articles.delay(batch_size)
         logger.info(
             "trigger_summarization: dispatched summarize_pending_articles "
             "(task_id=%s, pending=%d, batch_size=%d)",
-            task.id, pending_count, batch_size,
+            task.id,
+            pending_count,
+            batch_size,
         )
-        return Response({
-            'success': True,
-            'message': f'Summarization task queued for up to {batch_size} articles.',
-            'task_id': task.id,
-            'pending': pending_count,
-            'queued': min(pending_count, batch_size),
-        })
-    except Exception as exc:
-        logger.error("trigger_summarization: failed to dispatch task: %s", exc, exc_info=True)
         return Response(
-            {'success': False, 'error': str(exc)},
+            {
+                "success": True,
+                "message": f"Summarization task queued for up to {batch_size} articles.",
+                "task_id": task.id,
+                "pending": pending_count,
+                "queued": min(pending_count, batch_size),
+            }
+        )
+    except Exception as exc:
+        logger.error(
+            "trigger_summarization: failed to dispatch task: %s", exc, exc_info=True
+        )
+        return Response(
+            {"success": False, "error": str(exc)},
             status=500,
         )

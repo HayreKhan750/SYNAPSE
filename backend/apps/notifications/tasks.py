@@ -4,10 +4,10 @@ Celery tasks for the Notifications app.
 Phase 4.2 — SendGrid email delivery tasks.
 Phase 2 (TASK-201) — Weekly AI digest email.
 """
+
 import logging
 
 from celery import shared_task
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 def push_notification_to_ws(notification) -> None:
     """Push a notification to the user's WebSocket channel (non-blocking)."""
     try:
-        from channels.layers import get_channel_layer
         from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
         channel_layer = get_channel_layer()
         if channel_layer is None:
             return
@@ -34,11 +35,14 @@ def push_notification_to_ws(notification) -> None:
                     "created_at": notification.created_at.isoformat(),
                     "metadata": notification.metadata or {},
                 },
-            }
+            },
         )
-        logger.info("WS push: user=%s title=%s", notification.user_id, notification.title)
+        logger.info(
+            "WS push: user=%s title=%s", notification.user_id, notification.title
+        )
     except Exception as exc:
         logger.warning("WS push failed (non-critical): %s", exc)
+
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +50,7 @@ logger = logging.getLogger(__name__)
 @shared_task(
     bind=True,
     max_retries=3,
-    name='apps.notifications.tasks.send_notification_email_task',
+    name="apps.notifications.tasks.send_notification_email_task",
 )
 def send_notification_email_task(
     self,
@@ -64,14 +68,16 @@ def send_notification_email_task(
     Returns:
         dict with status and notification_id.
     """
-    from .models import Notification
     from .email_service import send_notification_email
+    from .models import Notification
 
     try:
-        notification = Notification.objects.select_related('user').get(id=notification_id)
+        notification = Notification.objects.select_related("user").get(
+            id=notification_id
+        )
     except Notification.DoesNotExist:
         logger.error(f"Notification {notification_id} not found — cannot send email.")
-        return {'status': 'failed', 'reason': 'Notification not found'}
+        return {"status": "failed", "reason": "Notification not found"}
 
     user = notification.user
     success = send_notification_email(
@@ -82,11 +88,11 @@ def send_notification_email_task(
 
     if success:
         logger.info(f"Email sent for notification {notification_id} to {user.email}")
-        return {'status': 'sent', 'notification_id': notification_id}
+        return {"status": "sent", "notification_id": notification_id}
     else:
         logger.warning(f"Email delivery failed for notification {notification_id}")
         return self.retry(
-            exc=Exception('Email delivery failed'),
+            exc=Exception("Email delivery failed"),
             countdown=60 * (self.request.retries + 1),
         )
 
@@ -94,7 +100,7 @@ def send_notification_email_task(
 @shared_task(
     bind=True,
     max_retries=3,
-    name='apps.notifications.tasks.send_weekly_digest_task',
+    name="apps.notifications.tasks.send_weekly_digest_task",
 )
 def send_weekly_digest_task(self, user_id: str) -> dict:
     """
@@ -109,30 +115,34 @@ def send_weekly_digest_task(self, user_id: str) -> dict:
     Returns:
         dict with status and user email.
     """
-    from django.utils import timezone
     from datetime import timedelta
+
     from apps.users.models import User
+
+    from django.utils import timezone
+
     from .email_service import send_weekly_digest_email
 
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         logger.error("Weekly digest: user %s not found", user_id)
-        return {'status': 'failed', 'reason': 'User not found'}
+        return {"status": "failed", "reason": "User not found"}
 
     if not user.digest_enabled:
         logger.info("Weekly digest: user %s has digest disabled — skipping", user.email)
-        return {'status': 'skipped', 'reason': 'digest_disabled'}
+        return {"status": "skipped", "reason": "digest_disabled"}
 
     since = timezone.now() - timedelta(days=7)
 
     # Top trending articles from the past week
     try:
         from apps.articles.models import Article
+
         articles = list(
-            Article.objects
-            .filter(published_at__gte=since)
-            .order_by('-trending_score')[:5]
+            Article.objects.filter(published_at__gte=since).order_by("-trending_score")[
+                :5
+            ]
         )
     except Exception as exc:
         logger.warning("Weekly digest: failed to fetch articles: %s", exc)
@@ -141,11 +151,12 @@ def send_weekly_digest_task(self, user_id: str) -> dict:
     # Top research papers from the past week
     try:
         from apps.papers.models import ResearchPaper
+
         since_date = since.date()
         papers = list(
-            ResearchPaper.objects
-            .filter(published_date__gte=since_date)
-            .order_by('-published_date')[:5]
+            ResearchPaper.objects.filter(published_date__gte=since_date).order_by(
+                "-published_date"
+            )[:5]
         )
     except Exception as exc:
         logger.warning("Weekly digest: failed to fetch papers: %s", exc)
@@ -154,10 +165,9 @@ def send_weekly_digest_task(self, user_id: str) -> dict:
     # Top trending repositories from the past week
     try:
         from apps.repositories.models import Repository
+
         repos = list(
-            Repository.objects
-            .filter(scraped_at__gte=since)
-            .order_by('-stars')[:5]
+            Repository.objects.filter(scraped_at__gte=since).order_by("-stars")[:5]
         )
     except Exception as exc:
         logger.warning("Weekly digest: failed to fetch repos: %s", exc)
@@ -172,16 +182,16 @@ def send_weekly_digest_task(self, user_id: str) -> dict:
 
     if success:
         logger.info("Weekly digest sent to %s", user.email)
-        return {'status': 'sent', 'user': user.email}
+        return {"status": "sent", "user": user.email}
 
     return self.retry(
-        exc=Exception('Weekly digest delivery failed'),
+        exc=Exception("Weekly digest delivery failed"),
         countdown=60 * (self.request.retries + 1),
     )
 
 
 @shared_task(
-    name='apps.notifications.tasks.send_weekly_digest_to_all',
+    name="apps.notifications.tasks.send_weekly_digest_to_all",
 )
 def send_weekly_digest_to_all() -> dict:
     """
@@ -194,10 +204,11 @@ def send_weekly_digest_to_all() -> dict:
     Returns:
         dict with enqueued count.
     """
-    from django.utils import timezone
     from apps.users.models import User
 
-    today = timezone.now().strftime('%A').lower()  # e.g. 'monday'
+    from django.utils import timezone
+
+    today = timezone.now().strftime("%A").lower()  # e.g. 'monday'
     users = User.objects.filter(digest_enabled=True, digest_day=today, is_active=True)
     count = 0
     for user in users.iterator():
@@ -205,13 +216,13 @@ def send_weekly_digest_to_all() -> dict:
         count += 1
 
     logger.info("Weekly digest fan-out: enqueued %d emails for %s", count, today)
-    return {'status': 'enqueued', 'count': count, 'day': today}
+    return {"status": "enqueued", "count": count, "day": today}
 
 
 @shared_task(
     bind=True,
     max_retries=3,
-    name='apps.notifications.tasks.send_workflow_completion_email_task',
+    name="apps.notifications.tasks.send_workflow_completion_email_task",
 )
 def send_workflow_completion_email_task(
     self,
@@ -236,13 +247,14 @@ def send_workflow_completion_email_task(
         dict with status.
     """
     from apps.users.models import User
+
     from .email_service import send_workflow_completion_email
 
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         logger.error(f"User {user_id} not found — cannot send workflow email.")
-        return {'status': 'failed', 'reason': 'User not found'}
+        return {"status": "failed", "reason": "User not found"}
 
     success = send_workflow_completion_email(
         user=user,
@@ -253,9 +265,9 @@ def send_workflow_completion_email_task(
 
     if success:
         logger.info(f"Workflow completion email sent to {user.email}")
-        return {'status': 'sent', 'user': user.email}
+        return {"status": "sent", "user": user.email}
     else:
         return self.retry(
-            exc=Exception('Workflow email delivery failed'),
+            exc=Exception("Workflow email delivery failed"),
             countdown=60 * (self.request.retries + 1),
         )

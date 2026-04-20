@@ -11,6 +11,7 @@ Multi-step LangGraph-style research workflow:
 Callable as a Celery task via run_research_session(session_id).
 Streams progress by updating ResearchSession.status + sub_questions.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ── Step 1: Plan ──────────────────────────────────────────────────────────────
+
 
 def plan_sub_questions(query: str, llm_client=None) -> list[str]:
     """
@@ -48,7 +50,7 @@ def plan_sub_questions(query: str, llm_client=None) -> list[str]:
             )
             raw = resp.choices[0].message.content.strip()
             # Extract JSON array
-            match = re.search(r'\[.*\]', raw, re.DOTALL)
+            match = re.search(r"\[.*\]", raw, re.DOTALL)
             if match:
                 return json.loads(match.group())[:5]
         except Exception as exc:
@@ -67,10 +69,12 @@ def plan_sub_questions(query: str, llm_client=None) -> list[str]:
 
 # ── Step 2: Research ──────────────────────────────────────────────────────────
 
+
 def search_arxiv(query: str, max_results: int = 5) -> list[dict]:
     """Search ArXiv API for papers matching the query."""
     try:
         import urllib.parse
+
         q = urllib.parse.quote(query)
         url = f"http://export.arxiv.org/api/query?search_query=all:{q}&max_results={max_results}&sortBy=relevance"
         resp = requests.get(url, timeout=15)
@@ -78,22 +82,28 @@ def search_arxiv(query: str, max_results: int = 5) -> list[dict]:
 
         # Parse Atom feed
         results = []
-        entries = re.findall(r'<entry>(.*?)</entry>', resp.text, re.DOTALL)
+        entries = re.findall(r"<entry>(.*?)</entry>", resp.text, re.DOTALL)
         for entry in entries:
-            title = re.search(r'<title>(.*?)</title>', entry, re.DOTALL)
-            summary = re.search(r'<summary>(.*?)</summary>', entry, re.DOTALL)
-            link = re.search(r'<id>(.*?)</id>', entry)
-            authors = re.findall(r'<name>(.*?)</name>', entry)
+            title = re.search(r"<title>(.*?)</title>", entry, re.DOTALL)
+            summary = re.search(r"<summary>(.*?)</summary>", entry, re.DOTALL)
+            link = re.search(r"<id>(.*?)</id>", entry)
+            authors = re.findall(r"<name>(.*?)</name>", entry)
 
             if title and link:
-                results.append({
-                    'title':   title.group(1).strip().replace('\n', ' '),
-                    'url':     link.group(1).strip(),
-                    'abstract': summary.group(1).strip().replace('\n', ' ')[:500] if summary else '',
-                    'authors': authors[:3],
-                    'type':    'paper',
-                    'source':  'arxiv',
-                })
+                results.append(
+                    {
+                        "title": title.group(1).strip().replace("\n", " "),
+                        "url": link.group(1).strip(),
+                        "abstract": (
+                            summary.group(1).strip().replace("\n", " ")[:500]
+                            if summary
+                            else ""
+                        ),
+                        "authors": authors[:3],
+                        "type": "paper",
+                        "source": "arxiv",
+                    }
+                )
         return results
     except Exception as exc:
         logger.warning("ArXiv search failed for '%s': %s", query, exc)
@@ -103,22 +113,22 @@ def search_arxiv(query: str, max_results: int = 5) -> list[dict]:
 def search_github(query: str, max_results: int = 3) -> list[dict]:
     """Search GitHub repos related to the query."""
     try:
-        token = os.environ.get('GITHUB_TOKEN', '')
-        headers = {'Accept': 'application/vnd.github.v3+json'}
+        token = os.environ.get("GITHUB_TOKEN", "")
+        headers = {"Accept": "application/vnd.github.v3+json"}
         if token:
-            headers['Authorization'] = f'token {token}'
+            headers["Authorization"] = f"token {token}"
         url = f"https://api.github.com/search/repositories?q={requests.utils.quote(query)}&sort=stars&per_page={max_results}"
         resp = requests.get(url, headers=headers, timeout=10)
         resp.raise_for_status()
-        repos = resp.json().get('items', [])
+        repos = resp.json().get("items", [])
         return [
             {
-                'title':    r['full_name'],
-                'url':      r['html_url'],
-                'abstract': r.get('description', '')[:300],
-                'stars':    r.get('stargazers_count', 0),
-                'type':     'repository',
-                'source':   'github',
+                "title": r["full_name"],
+                "url": r["html_url"],
+                "abstract": r.get("description", "")[:300],
+                "stars": r.get("stargazers_count", 0),
+                "type": "repository",
+                "source": "github",
             }
             for r in repos
         ]
@@ -131,18 +141,17 @@ def search_knowledge_base(query: str, max_results: int = 5) -> list[dict]:
     """Search Synapse knowledge base via internal API."""
     try:
         from apps.core.models import KnowledgeNode  # noqa: PLC0415
-        nodes = (
-            KnowledgeNode.objects
-            .filter(name__icontains=query.split()[0])
-            .order_by('-mention_count')[:max_results]
-        )
+
+        nodes = KnowledgeNode.objects.filter(name__icontains=query.split()[0]).order_by(
+            "-mention_count"
+        )[:max_results]
         return [
             {
-                'title':    node.name,
-                'url':      node.metadata.get('url', ''),
-                'abstract': node.description[:300],
-                'type':     node.entity_type,
-                'source':   'knowledge_base',
+                "title": node.name,
+                "url": node.metadata.get("url", ""),
+                "abstract": node.description[:300],
+                "type": node.entity_type,
+                "source": "knowledge_base",
             }
             for node in nodes
         ]
@@ -159,12 +168,13 @@ def research_sub_question(sub_question: str) -> dict:
     sources.extend(search_github(sub_question, max_results=2))
     sources.extend(search_knowledge_base(sub_question, max_results=2))
     return {
-        'sub_question': sub_question,
-        'sources':      sources,
+        "sub_question": sub_question,
+        "sources": sources,
     }
 
 
 # ── Step 3: Synthesize ────────────────────────────────────────────────────────
+
 
 def synthesize_findings(research_results: list[dict], llm_client=None) -> list[dict]:
     """
@@ -173,10 +183,10 @@ def synthesize_findings(research_results: list[dict], llm_client=None) -> list[d
     """
     synthesized = []
     for result in research_results:
-        sub_q   = result['sub_question']
-        sources = result['sources']
+        sub_q = result["sub_question"]
+        sources = result["sources"]
 
-        source_text = '\n'.join(
+        source_text = "\n".join(
             f"[{i+1}] {s['title']}: {s.get('abstract', '')[:200]}"
             for i, s in enumerate(sources[:5])
         )
@@ -199,20 +209,27 @@ def synthesize_findings(research_results: list[dict], llm_client=None) -> list[d
                 synthesis = resp.choices[0].message.content.strip()
             except Exception as exc:
                 logger.warning("Synthesis LLM call failed: %s", exc)
-                synthesis = f"Research on '{sub_q}' identified {len(sources)} relevant sources."
+                synthesis = (
+                    f"Research on '{sub_q}' identified {len(sources)} relevant sources."
+                )
         else:
-            synthesis = f"Research on '{sub_q}' identified {len(sources)} relevant sources: " + \
-                        ', '.join(s['title'][:60] for s in sources[:3])
+            synthesis = (
+                f"Research on '{sub_q}' identified {len(sources)} relevant sources: "
+                + ", ".join(s["title"][:60] for s in sources[:3])
+            )
 
-        synthesized.append({
-            'sub_question': sub_q,
-            'synthesis':    synthesis,
-            'sources':      sources,
-        })
+        synthesized.append(
+            {
+                "sub_question": sub_q,
+                "synthesis": synthesis,
+                "sources": sources,
+            }
+        )
     return synthesized
 
 
 # ── Step 4: Report ────────────────────────────────────────────────────────────
+
 
 def generate_report(
     query: str,
@@ -223,9 +240,8 @@ def generate_report(
     """
     Generate the final structured markdown research report.
     """
-    sections_text = '\n\n'.join(
-        f"### {r['sub_question']}\n\n{r['synthesis']}"
-        for r in synthesized_results
+    sections_text = "\n\n".join(
+        f"### {r['sub_question']}\n\n{r['synthesis']}" for r in synthesized_results
     )
 
     if llm_client and synthesized_results:
@@ -257,9 +273,9 @@ def generate_report(
     # Append numbered references
     report += "\n\n---\n\n## References\n\n"
     seen = set()
-    idx  = 1
+    idx = 1
     for src in all_sources:
-        url = src.get('url', '')
+        url = src.get("url", "")
         if url and url not in seen:
             seen.add(url)
             report += f"[{idx}] [{src['title']}]({url})\n"
@@ -269,7 +285,7 @@ def generate_report(
 
 
 def _fallback_report(query: str, synthesized: list[dict], sources: list[dict]) -> str:
-    date_str = datetime.now().strftime('%B %d, %Y')
+    date_str = datetime.now().strftime("%B %d, %Y")
     report = f"# Research Report: {query}\n\n*Generated by Synapse AI · {date_str}*\n\n"
     report += "## Executive Summary\n\n"
     report += f"This report synthesises research on *{query}* across {len(sources)} sources.\n\n"
@@ -284,6 +300,7 @@ def _fallback_report(query: str, synthesized: list[dict], sources: list[dict]) -
 
 
 # ── Main orchestrator ─────────────────────────────────────────────────────────
+
 
 def run_research_pipeline(session_id: str) -> None:
     """
@@ -311,8 +328,12 @@ def run_research_pipeline(session_id: str) -> None:
     llm_client = None
     try:
         import openai  # noqa
+
         from django.conf import settings as dj_settings  # noqa
-        api_key = getattr(dj_settings, 'OPENAI_API_KEY', os.environ.get('OPENAI_API_KEY', ''))
+
+        api_key = getattr(
+            dj_settings, "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", "")
+        )
         if api_key:
             llm_client = openai.OpenAI(api_key=api_key)
     except Exception:
@@ -321,29 +342,33 @@ def run_research_pipeline(session_id: str) -> None:
     try:
         # ── Step 1: Plan ─────────────────────────────────────────────────────
         session.status = ResearchSession.Status.RUNNING
-        session.save(update_fields=['status'])
+        session.save(update_fields=["status"])
 
         sub_questions = plan_sub_questions(session.query, llm_client)
         session.sub_questions = sub_questions
-        session.save(update_fields=['sub_questions'])
-        logger.info("Research plan: %d sub-questions for session %s", len(sub_questions), session_id)
+        session.save(update_fields=["sub_questions"])
+        logger.info(
+            "Research plan: %d sub-questions for session %s",
+            len(sub_questions),
+            session_id,
+        )
 
         # ── Step 2: Research ──────────────────────────────────────────────────
         research_results = []
         for sub_q in sub_questions:
             result = research_sub_question(sub_q)
             research_results.append(result)
-            logger.debug("Researched: '%s' → %d sources", sub_q, len(result['sources']))
+            logger.debug("Researched: '%s' → %d sources", sub_q, len(result["sources"]))
 
         # ── Step 3: Synthesize ────────────────────────────────────────────────
         synthesized = synthesize_findings(research_results, llm_client)
 
         # ── Step 4: Report ────────────────────────────────────────────────────
         all_sources = []
-        seen_urls   = set()
+        seen_urls = set()
         for r in research_results:
-            for src in r['sources']:
-                url = src.get('url', '')
+            for src in r["sources"]:
+                url = src.get("url", "")
                 if url and url not in seen_urls:
                     seen_urls.add(url)
                     all_sources.append(src)
@@ -353,14 +378,24 @@ def run_research_pipeline(session_id: str) -> None:
         report = generate_report(session.query, synthesized, all_sources, llm_client)
 
         # ── Save results ──────────────────────────────────────────────────────
-        session.report       = report
-        session.sources      = all_sources[:30]
-        session.status       = ResearchSession.Status.COMPLETE
+        session.report = report
+        session.sources = all_sources[:30]
+        session.status = ResearchSession.Status.COMPLETE
         session.completed_at = dj_tz.now()
-        session.save(update_fields=['report', 'sources', 'status', 'completed_at'])
-        logger.info("Research session %s completed: %d chars, %d sources", session_id, len(report), len(all_sources))
+        session.save(update_fields=["report", "sources", "status", "completed_at"])
+        logger.info(
+            "Research session %s completed: %d chars, %d sources",
+            session_id,
+            len(report),
+            len(all_sources),
+        )
 
     except Exception as exc:
-        logger.error("Research pipeline failed for session %s: %s", session_id, exc, exc_info=True)
+        logger.error(
+            "Research pipeline failed for session %s: %s",
+            session_id,
+            exc,
+            exc_info=True,
+        )
         session.status = ResearchSession.Status.FAILED
-        session.save(update_fields=['status'])
+        session.save(update_fields=["status"])

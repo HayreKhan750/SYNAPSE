@@ -4,6 +4,7 @@ Validates items before they reach storage, enforcing required fields and format 
 """
 
 import logging
+
 from scrapy.exceptions import DropItem
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 class ValidationPipeline:
     """
     Validates items against required fields and constraints.
-    
+
     - Checks required fields per item type
     - Validates URL format (http:// or https://)
     - Truncates oversized fields
@@ -40,19 +41,19 @@ class ValidationPipeline:
     def process_item(self, item, spider):
         """
         Process an item through validation pipeline.
-        
+
         Args:
             item: Scrapy item to validate
             spider: Spider instance
-            
+
         Returns:
             item: Validated item or raises DropItem
-            
+
         Raises:
             DropItem: If item fails validation
         """
         item_type = self.__class__._get_item_type(item)
-        
+
         # Check required fields
         required_fields = self.REQUIRED_FIELDS.get(item_type, [])
         for field in required_fields:
@@ -86,10 +87,10 @@ class ValidationPipeline:
     def _get_item_type(item):
         """
         Get the item type name.
-        
+
         Args:
             item: Scrapy item
-            
+
         Returns:
             str: Item class name
         """
@@ -99,10 +100,10 @@ class ValidationPipeline:
     def _is_valid_url(url):
         """
         Validate URL format.
-        
+
         Args:
             url (str): URL to validate
-            
+
         Returns:
             bool: True if URL starts with http:// or https://
         """

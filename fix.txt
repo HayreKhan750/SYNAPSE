@@ -1,0 +1,333 @@
+Skip to content
+
+Find…
+F
+
+Settings
+General
+Build and Deployment
+Environments
+Environment Variables
+Git
+Deployment Protection
+Functions
+Cron Jobs
+Microfrontends
+Project Members
+Drains
+Security
+Connectivity
+Advanced
+Ship
+26
+Built for you to ship what’s next.
+
+Avatar for hayredin950-8456
+hayredin950-8456
+
+
+Project Settings
+Environment Variables
+Environment Variables
+Store API keys, tokens, and config securely. Learn more
+
+Project
+Shared
+Search…
+All Environments
+
+Last Updated
+
+NEXT_PUBLIC_API_URL
+All Environments
+•••••••••••••••
+
+Updated 
+3m ago
+
+
+NEXT_PUBLIC_WS_URL
+All Environments
+•••••••••••••••
+
+Added 
+20m ago
+
+
+NEXT_PUBLIC_APP_NAME
+All Environments
+•••••••••••••••
+
+Added 
+20m ago
+
+
+Automatically expose System Environment Variables
+synapse-app - Overview – Vercel
+[Skip to content
+
+Find…
+F
+Other
+Overview
+Deployments
+Logs
+Analytics
+Speed Insights
+Observability
+Firewall
+CDN
+Domains
+Integrations
+Storage
+Flags
+Agent
+AI Gateway
+Sandboxes
+Workflows
+Usage
+Support
+Settings
+Ship
+26
+Built for you to ship what’s next.
+
+Avatar for hayredin950-8456
+hayredin950-8456
+
+
+Overview
+Production Deployment
+Deployment
+synapse-q1tpnt4o2-hayredins-projects.vercel.app
+Domains
+synapse-app-six.vercel.app
+Status
+Ready
+Created
+19m ago by hayredin950-8456
+
+hayredin950-8456 Avatar
+Source
+main
+6194d57
+fix: remove (dashboard)/page.tsx causing Vercel client-reference-manif…
+
+Deployment Settings
+4 Recommendations
+Recommendations
+Build Multiple Deployments Simultaneously
+Never wait for a queued build.
+Get builds up to 40% faster
+Switch to a bigger build machine.
+Prevent Frontend-Backend Mismatches
+Automatically sync client and server versions to avoid deployment conflicts.
+Find a Custom Domain
+Purchase a domain. Fast, at-cost & private.
+Build Settings
+On-Demand Concurrent Builds
+Disabled
+Build Machine
+Standard
+4 vCPU
+8 GB Memory
+Prioritize Production Builds
+Enabled
+Runtime Settings
+Fluid Compute
+Enabled
+Function CPU
+Standard
+1 vCPU
+2 GB Memory
+Node.js Version
+24.x
+Deployment Protection
+Standard Protection
+Skew Protection
+Disabled
+Cold Start Prevention
+Function Region
+iad1
+To update your Production Deployment, push to the main branch.
+Production Checklist
+
+1/5
+Connect Git Repository
+Add Custom Domain
+Preview Deployment
+Enable Web Analytics
+Enable Speed Insights
+Observability
+
+6h
+Edge Requests
+83
+Function Invocations
+0
+Error Rate
+0%
+Analytics
+
+Track visitors and page views
+
+Active Branches
+
+No Active Branches
+Commit using our Git connections.
+
+]M
+My Workspace
+synapse-api
+
+
+Search
+Ctrl+
+K
+
+New
+
+Upgrade
+
+
+h
+Dashboard
+synapse-api
+Events
+Settings
+Monitor
+Logs
+Metrics
+Manage
+Environment
+Shell
+Scaling
+Previews
+Disk
+One-Off Jobs
+Workflows: Now in beta
+Orchestrate your agents and background jobs with automatic retries and scale-to-zero. Learn more
+Create Workflow
+
+
+Changelog
+Invite a friend
+
+Contact support
+Render Status
+Web Service
+synapse-api
+Docker
+Free
+Upgrade your instance
+
+Connect
+
+Manual Deploy
+Service ID:
+srv-d7iv5h3bc2fs739bbpt0
+
+HayreKhan750 / SYNAPSE
+main
+https://synapse-api-oyld.onrender.com
+
+Environment
+
+Create environment group
+Environment Variables
+Set environment-specific config and secrets (such as API keys), then read those values from your code. Learn more.
+
+Export
+
+Edit
+Key	Value
+Key
+ALLOWED_HOSTS
+Value
+• • • • • • • • • • • •
+
+Key
+CELERY_BROKER_URL
+Value
+• • • • • • • • • • • •
+
+Key
+CELERY_RESULT_BACKEND
+Value
+• • • • • • • • • • • •
+
+Key
+CORS_ALLOWED_ORIGINS
+Value
+synapse-app-six.vercel.app
+
+Key
+CSRF_TRUSTED_ORIGINS
+Value
+synapse-app-six.vercel.app
+
+Key
+DATABASE_URL
+Value
+• • • • • • • • • • • •
+
+Key
+DEBUG
+Value
+• • • • • • • • • • • •
+
+Key
+DJANGO_SETTINGS_MODULE
+Value
+• • • • • • • • • • • •
+
+Key
+FIREBASE_PROJECT_ID
+Value
+• • • • • • • • • • • •
+
+Key
+FIREBASE_WEB_API_KEY
+Value
+• • • • • • • • • • • •
+
+Key
+FRONTEND_URL
+Value
+synapse-app-six.vercel.app
+
+Key
+REDIS_URL
+Value
+• • • • • • • • • • • •
+
+Key
+SCITELY_API_KEY
+Value
+• • • • • • • • • • • •
+
+Key
+SCITELY_MODEL
+Value
+• • • • • • • • • • • •
+
+Key
+SECRET_KEY
+Value
+• • • • • • • • • • • •
+
+
+Show more
+Secret Files
+Store plaintext files containing secret data (such as a .env file or a private key).
+Access during builds and at runtime from your app's root, or from /etc/secrets/<filename>.
+
+Add file
+More options
+Linked Environment Groups
+Environment groups are collections of environment variables and secret files that you can share across multiple services.
+No environment groups available to link.
+New Environment Group
+0 services selected:
+
+Move

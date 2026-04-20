@@ -10,17 +10,19 @@ Covers:
   - Collection add / remove bookmark
   - django-axes login rate limiting (lockout after 5 failed attempts)
 """
+
 import uuid
-from django.test import TestCase, override_settings
+
+from apps.articles.models import Article, Source
+from apps.core.models import Collection, UserBookmark
+from apps.papers.models import ResearchPaper
+from apps.repositories.models import Repository
+
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from rest_framework.test import APIClient
+from django.test import TestCase, override_settings
 from rest_framework import status
-
-from apps.core.models import UserBookmark, Collection
-from apps.articles.models import Article, Source
-from apps.repositories.models import Repository
-from apps.papers.models import ResearchPaper
+from rest_framework.test import APIClient
 
 User = get_user_model()
 
@@ -31,11 +33,17 @@ AXES_DISABLED_SETTINGS = {"AXES_ENABLED": False}
 def make_source(name="HackerNews", source_type="news"):
     return Source.objects.get_or_create(
         name=name,
-        defaults={"url": "https://news.ycombinator.com", "source_type": source_type, "is_active": True},
+        defaults={
+            "url": "https://news.ycombinator.com",
+            "source_type": source_type,
+            "is_active": True,
+        },
     )[0]
 
 
-def make_article(title="Test Article", topic="Machine Learning", tags=None, source=None):
+def make_article(
+    title="Test Article", topic="Machine Learning", tags=None, source=None
+):
     return Article.objects.create(
         title=title,
         url=f"https://example.com/{uuid.uuid4()}",
@@ -144,12 +152,16 @@ class ArticleFilterTests(TestCase):
         self.client = APIClient()
         source = make_source()
         self.ml_article = make_article(
-            title="PyTorch tutorial", topic="Machine Learning",
-            tags=["pytorch", "deep-learning"], source=source
+            title="PyTorch tutorial",
+            topic="Machine Learning",
+            tags=["pytorch", "deep-learning"],
+            source=source,
         )
         self.web_article = make_article(
-            title="React best practices", topic="Web Development",
-            tags=["react", "javascript"], source=source
+            title="React best practices",
+            topic="Web Development",
+            tags=["react", "javascript"],
+            source=source,
         )
 
     def _get_results(self, resp):
@@ -285,7 +297,11 @@ class BookmarkListTests(TestCase):
 
     def test_list_only_shows_own_bookmarks(self):
         other_user = User.objects.create_user(
-            email="other@test.com", username="otheruser", password="OtherPass123!", first_name="Other", last_name="User"
+            email="other@test.com",
+            username="otheruser",
+            password="OtherPass123!",
+            first_name="Other",
+            last_name="User",
         )
         other_client = APIClient()
         other_client.force_authenticate(user=other_user)
@@ -318,11 +334,15 @@ class CollectionTests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_create_collection(self):
-        resp = self.client.post("/api/v1/collections/", {
-            "name": "My AI Reading List",
-            "description": "Top AI articles",
-            "is_public": False,
-        }, format="json")
+        resp = self.client.post(
+            "/api/v1/collections/",
+            {
+                "name": "My AI Reading List",
+                "description": "Top AI articles",
+                "is_public": False,
+            },
+            format="json",
+        )
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data["data"]["name"], "My AI Reading List")
 
@@ -346,7 +366,9 @@ class CollectionTests(TestCase):
 
     def test_update_collection(self):
         coll = Collection.objects.create(user=self.user, name="Old Name")
-        resp = self.client.patch(f"/api/v1/collections/{coll.id}/", {"name": "New Name"}, format="json")
+        resp = self.client.patch(
+            f"/api/v1/collections/{coll.id}/", {"name": "New Name"}, format="json"
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["data"]["name"], "New Name")
 
@@ -358,7 +380,11 @@ class CollectionTests(TestCase):
 
     def test_cannot_access_other_users_collection(self):
         other_user = User.objects.create_user(
-            email="other2@test.com", username="otheruser2", password="OtherPass123!", first_name="Other", last_name="Two"
+            email="other2@test.com",
+            username="otheruser2",
+            password="OtherPass123!",
+            first_name="Other",
+            last_name="Two",
         )
         coll = Collection.objects.create(user=other_user, name="Private Collection")
         resp = self.client.get(f"/api/v1/collections/{coll.id}/")
@@ -391,7 +417,9 @@ class CollectionBookmarkTests(TestCase):
             last_name="BM",
         )
         self.client.force_authenticate(user=self.user)
-        self.collection = Collection.objects.create(user=self.user, name="My Collection")
+        self.collection = Collection.objects.create(
+            user=self.user, name="My Collection"
+        )
         self.article = make_article()
         ct = ContentType.objects.get_for_model(Article)
         self.bookmark = UserBookmark.objects.create(
@@ -451,23 +479,35 @@ class AxesLoginRateLimitTests(TestCase):
             self.skipTest("django-axes not installed")
 
         for i in range(5):
-            resp = self.client.post(self.login_url, {
-                "email": "axestest@test.com",
-                "password": "WrongPassword!",
-            }, format="json")
+            resp = self.client.post(
+                self.login_url,
+                {
+                    "email": "axestest@test.com",
+                    "password": "WrongPassword!",
+                },
+                format="json",
+            )
 
         # 6th attempt should be locked out (axes returns 403 or 429)
-        resp = self.client.post(self.login_url, {
-            "email": "axestest@test.com",
-            "password": "WrongPassword!",
-        }, format="json")
+        resp = self.client.post(
+            self.login_url,
+            {
+                "email": "axestest@test.com",
+                "password": "WrongPassword!",
+            },
+            format="json",
+        )
         self.assertIn(resp.status_code, [401, 403, 429, 400])
 
     def test_correct_login_succeeds(self):
         """Sanity check — valid credentials should return tokens."""
-        resp = self.client.post(self.login_url, {
-            "email": "axestest@test.com",
-            "password": "CorrectPass123!",
-        }, format="json")
+        resp = self.client.post(
+            self.login_url,
+            {
+                "email": "axestest@test.com",
+                "password": "CorrectPass123!",
+            },
+            format="json",
+        )
         # Should be 200 with tokens (not locked out)
         self.assertIn(resp.status_code, [200, 201])

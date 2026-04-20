@@ -5,11 +5,12 @@ Searches for repositories by push date, language filters, and star count.
 Respects GitHub API rate limits (60 req/hr without auth, 5000 req/hr with token).
 """
 
+import logging
 import os
 import re
-import logging
 from datetime import datetime, timedelta
 from urllib.parse import urljoin
+
 import scrapy
 from scrapy import signals
 
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class RepositoryItem(scrapy.Item):
     """GitHub repository item"""
+
     github_id = scrapy.Field()
     name = scrapy.Field()
     full_name = scrapy.Field()
@@ -40,7 +42,7 @@ class RepositoryItem(scrapy.Item):
 class GitHubSpider(scrapy.Spider):
     """
     Spider for scraping GitHub repositories from the GitHub REST API v3.
-    
+
     Usage:
         scrapy crawl github -a days_back=7 -a language=Python -a limit=500
     """
@@ -60,7 +62,7 @@ class GitHubSpider(scrapy.Spider):
     def __init__(self, days_back=1, language=None, limit=100, *args, **kwargs):
         """
         Initialize the spider.
-        
+
         Args:
             days_back (int): Number of days back to search for pushed repositories. Default: 1
             language (str): Programming language to filter by. If None, search all DEFAULT_LANGUAGES.
@@ -72,9 +74,9 @@ class GitHubSpider(scrapy.Spider):
         self.limit = int(limit)
         self.items_scraped = 0
         self.rate_limit_remaining = None
-        
+
         # Store user_id for personalization
-        self.user_id = kwargs.get('user_id')
+        self.user_id = kwargs.get("user_id")
 
         # Check for GitHub token
         self.github_token = os.environ.get("GITHUB_TOKEN")
@@ -127,7 +129,7 @@ class GitHubSpider(scrapy.Spider):
     def parse(self, response):
         """
         Parse search results and extract repository items.
-        
+
         Handles pagination via Link header.
         """
         if response.status in [403, 422]:
@@ -214,13 +216,13 @@ class GitHubSpider(scrapy.Spider):
             # GitHub may have changed the HTML structure — try a broader selector
             repos = response.css("div.Box-row, article[data-testid]")
 
-        logger.info(
-            f"Found {len(repos)} trending repos on {response.url}"
-        )
+        logger.info(f"Found {len(repos)} trending repos on {response.url}")
 
         for repo_el in repos:
             if self.items_scraped >= self.limit:
-                logger.info(f"Reached item limit ({self.limit}) from trending. Stopping.")
+                logger.info(
+                    f"Reached item limit ({self.limit}) from trending. Stopping."
+                )
                 self.crawler.engine.close_spider(self, "limit_reached")
                 return
 
@@ -228,47 +230,68 @@ class GitHubSpider(scrapy.Spider):
             link = repo_el.css("h2 a::attr(href)").get()
             if not link:
                 # Alternate selector for newer GitHub layout
-                link = repo_el.css("a[data-hovercard-type='repository']::attr(href)").get()
+                link = repo_el.css(
+                    "a[data-hovercard-type='repository']::attr(href)"
+                ).get()
             if not link or "/" not in link.strip("/"):
                 continue
 
-            full_name = link.strip("/").split("/")[-2] + "/" + link.strip("/").split("/")[-1]
+            full_name = (
+                link.strip("/").split("/")[-2] + "/" + link.strip("/").split("/")[-1]
+            )
             owner, name = full_name.split("/", 1)
 
             description = repo_el.css("p::text").get(default="").strip()
             # Sometimes description is in a <div> child
             if not description:
-                description = repo_el.css("div p::text, .color-fg-muted::text").get(default="").strip()
+                description = (
+                    repo_el.css("div p::text, .color-fg-muted::text")
+                    .get(default="")
+                    .strip()
+                )
 
             # Stars today — e.g. "1,234 stars today" or "⭐ 1,234"
-            stars_today_text = repo_el.css("span.d-inline-block.ml-0::text").get(default="")
+            stars_today_text = repo_el.css("span.d-inline-block.ml-0::text").get(
+                default=""
+            )
             if not stars_today_text:
                 # Try alternate selectors
-                stars_today_text = repo_el.css("span.Link--muted.d-inline-block.mr-3::text").get(default="")
+                stars_today_text = repo_el.css(
+                    "span.Link--muted.d-inline-block.mr-3::text"
+                ).get(default="")
             stars_today = 0
             digits = re.findall(r"[\d,]+", stars_today_text.replace("⭐", ""))
             if digits:
                 stars_today = int(digits[0].replace(",", ""))
 
             # Total stars
-            total_stars_text = repo_el.css("a.Link--muted.d-inline-block::text").get(default="")
+            total_stars_text = repo_el.css("a.Link--muted.d-inline-block::text").get(
+                default=""
+            )
             if not total_stars_text:
-                total_stars_text = repo_el.css("svg.octicon-star + span::text").get(default="")
+                total_stars_text = repo_el.css("svg.octicon-star + span::text").get(
+                    default=""
+                )
             total_stars = 0
             star_digits = re.findall(r"[\d,]+", total_stars_text)
             if star_digits:
                 total_stars = int(star_digits[-1].replace(",", ""))
 
             # Language
-            lang_text = repo_el.css("span[itemprop='programmingLanguage']::text").get(default="")
+            lang_text = repo_el.css("span[itemprop='programmingLanguage']::text").get(
+                default=""
+            )
             if not lang_text:
-                lang_text = repo_el.css("span.d-inline-block.ml-0.mr-3::text").get(default="")
+                lang_text = repo_el.css("span.d-inline-block.ml-0.mr-3::text").get(
+                    default=""
+                )
             repo_language = lang_text.strip() or language
 
             item = RepositoryItem()
             # Deterministic ID from full_name — Python's hash() is randomized
             # per-process, so we use hashlib for a stable numeric ID.
             import hashlib as _hl
+
             item["github_id"] = int(_hl.sha256(full_name.encode()).hexdigest()[:8], 16)
             item["name"] = name
             item["full_name"] = full_name
@@ -304,10 +327,10 @@ class GitHubSpider(scrapy.Spider):
     def _make_repo_item(self, repo_data):
         """
         Build a RepositoryItem from GitHub API response JSON.
-        
+
         Args:
             repo_data (dict): Repository data from GitHub API
-            
+
         Returns:
             RepositoryItem: Processed repository item
         """
@@ -339,7 +362,11 @@ class GitHubSpider(scrapy.Spider):
         item["metadata"] = {
             "pushed_at": repo_data.get("pushed_at"),
             "default_branch": repo_data.get("default_branch"),
-            "license": repo_data.get("license", {}).get("spdx_id") if repo_data.get("license") else None,
+            "license": (
+                repo_data.get("license", {}).get("spdx_id")
+                if repo_data.get("license")
+                else None
+            ),
             "archived": repo_data.get("archived", False),
             "fork": repo_data.get("fork", False),
             "size": repo_data.get("size", 0),
@@ -352,11 +379,11 @@ class GitHubSpider(scrapy.Spider):
     def _parse_link_header(self, link_header, rel):
         """
         Parse the Link header to find the URL for a specific rel value.
-        
+
         Args:
             link_header (str): Link header value
             rel (str): Relationship type (e.g., 'next', 'last')
-            
+
         Returns:
             str or None: URL for the specified relationship
         """
@@ -372,7 +399,7 @@ class GitHubSpider(scrapy.Spider):
     def _headers(self):
         """
         Return proper headers for GitHub API requests.
-        
+
         Returns:
             dict: Headers with Accept and Authorization
         """
@@ -387,7 +414,7 @@ class GitHubSpider(scrapy.Spider):
     def handle_error(self, failure):
         """
         Handle request errors gracefully.
-        
+
         Args:
             failure: Twisted Failure object
         """

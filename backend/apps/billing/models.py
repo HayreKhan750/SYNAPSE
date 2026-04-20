@@ -7,18 +7,20 @@ Phase 9.3 — Growth & Iteration
 
 Plans: Free | Pro ($19/mo) | Enterprise ($99/mo)
 """
+
 from __future__ import annotations
 
-import uuid
 import secrets
 import string
-from django.db import models
+import uuid
+
 from django.conf import settings
+from django.db import models
 
 
 class Plan(models.TextChoices):
-    FREE       = "free",       "Free"
-    PRO        = "pro",        "Pro ($19/mo)"
+    FREE = "free", "Free"
+    PRO = "pro", "Pro ($19/mo)"
     ENTERPRISE = "enterprise", "Enterprise ($99/mo)"
 
 
@@ -26,34 +28,36 @@ class Subscription(models.Model):
     """Tracks a user's Stripe subscription state."""
 
     class Status(models.TextChoices):
-        ACTIVE            = "active",             "Active"
-        TRIALING          = "trialing",           "Trialing"
-        PAST_DUE          = "past_due",           "Past Due"
-        CANCELED          = "canceled",           "Canceled"
-        INCOMPLETE        = "incomplete",         "Incomplete"
-        INCOMPLETE_EXPIRED= "incomplete_expired", "Incomplete Expired"
-        UNPAID            = "unpaid",             "Unpaid"
+        ACTIVE = "active", "Active"
+        TRIALING = "trialing", "Trialing"
+        PAST_DUE = "past_due", "Past Due"
+        CANCELED = "canceled", "Canceled"
+        INCOMPLETE = "incomplete", "Incomplete"
+        INCOMPLETE_EXPIRED = "incomplete_expired", "Incomplete Expired"
+        UNPAID = "unpaid", "Unpaid"
 
-    id                    = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user                  = models.OneToOneField(
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="subscription"
     )
-    plan                  = models.CharField(max_length=20, choices=Plan.choices, default=Plan.FREE)
-    status                = models.CharField(max_length=30, choices=Status.choices, default=Status.ACTIVE)
+    plan = models.CharField(max_length=20, choices=Plan.choices, default=Plan.FREE)
+    status = models.CharField(
+        max_length=30, choices=Status.choices, default=Status.ACTIVE
+    )
 
     # Stripe IDs
-    stripe_customer_id    = models.CharField(max_length=100, blank=True, db_index=True)
-    stripe_subscription_id= models.CharField(max_length=100, blank=True, db_index=True)
-    stripe_price_id       = models.CharField(max_length=100, blank=True)
+    stripe_customer_id = models.CharField(max_length=100, blank=True, db_index=True)
+    stripe_subscription_id = models.CharField(max_length=100, blank=True, db_index=True)
+    stripe_price_id = models.CharField(max_length=100, blank=True)
 
     # Billing period
-    current_period_start  = models.DateTimeField(null=True, blank=True)
-    current_period_end    = models.DateTimeField(null=True, blank=True)
-    cancel_at_period_end  = models.BooleanField(default=False)
-    trial_end             = models.DateTimeField(null=True, blank=True)
+    current_period_start = models.DateTimeField(null=True, blank=True)
+    current_period_end = models.DateTimeField(null=True, blank=True)
+    cancel_at_period_end = models.BooleanField(default=False)
+    trial_end = models.DateTimeField(null=True, blank=True)
 
-    created_at            = models.DateTimeField(auto_now_add=True)
-    updated_at            = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "billing_subscriptions"
@@ -80,14 +84,15 @@ class ReferralCode(models.Model):
     """
     User referral codes — 1 month Pro for referrer when referee subscribes.
     """
-    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    owner       = models.OneToOneField(
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="referral_code"
     )
-    code        = models.CharField(max_length=12, unique=True, db_index=True)
-    uses        = models.PositiveIntegerField(default=0)
-    max_uses    = models.PositiveIntegerField(default=100)
-    created_at  = models.DateTimeField(auto_now_add=True)
+    code = models.CharField(max_length=12, unique=True, db_index=True)
+    uses = models.PositiveIntegerField(default=0)
+    max_uses = models.PositiveIntegerField(default=100)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "billing_referral_codes"
@@ -113,13 +118,16 @@ class ReferralCode(models.Model):
 
 class ReferralUse(models.Model):
     """Tracks when a new user signs up via a referral code."""
-    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code        = models.ForeignKey(ReferralCode, on_delete=models.CASCADE, related_name="referral_uses")
-    referee     = models.OneToOneField(
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.ForeignKey(
+        ReferralCode, on_delete=models.CASCADE, related_name="referral_uses"
+    )
+    referee = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="referred_by"
     )
-    reward_given= models.BooleanField(default=False)
-    created_at  = models.DateTimeField(auto_now_add=True)
+    reward_given = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "billing_referral_uses"
@@ -129,24 +137,24 @@ class ReferralUse(models.Model):
 class Invoice(models.Model):
     """Tracks Stripe invoices for a user."""
 
-    id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user             = models.ForeignKey(
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="invoices"
     )
     stripe_invoice_id = models.CharField(max_length=100, unique=True, db_index=True)
-    amount_paid      = models.PositiveIntegerField(default=0, help_text="Amount in cents")
-    currency         = models.CharField(max_length=3, default="usd")
-    status           = models.CharField(max_length=30, default="paid")
-    pdf_url          = models.URLField(max_length=500, blank=True)
-    hosted_url       = models.URLField(max_length=500, blank=True)
-    period_start     = models.DateTimeField(null=True, blank=True)
-    period_end       = models.DateTimeField(null=True, blank=True)
-    created_at       = models.DateTimeField(auto_now_add=True)
+    amount_paid = models.PositiveIntegerField(default=0, help_text="Amount in cents")
+    currency = models.CharField(max_length=3, default="usd")
+    status = models.CharField(max_length=30, default="paid")
+    pdf_url = models.URLField(max_length=500, blank=True)
+    hosted_url = models.URLField(max_length=500, blank=True)
+    period_start = models.DateTimeField(null=True, blank=True)
+    period_end = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table   = "billing_invoices"
+        db_table = "billing_invoices"
         verbose_name = "Invoice"
-        ordering   = ["-created_at"]
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"Invoice {self.stripe_invoice_id} — {self.user.email}"
@@ -161,22 +169,27 @@ class UserFeedback(models.Model):
     """In-app NPS feedback and feature requests."""
 
     class FeedbackType(models.TextChoices):
-        NPS     = "nps",     "NPS Score"
-        BUG     = "bug",     "Bug Report"
+        NPS = "nps", "NPS Score"
+        BUG = "bug", "Bug Report"
         FEATURE = "feature", "Feature Request"
         GENERAL = "general", "General Feedback"
 
-    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user        = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="feedback"
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="feedback",
     )
-    type        = models.CharField(max_length=20, choices=FeedbackType.choices, default=FeedbackType.GENERAL)
-    nps_score   = models.PositiveSmallIntegerField(null=True, blank=True)  # 0–10
-    message     = models.TextField(max_length=2000, blank=True)
-    page_url    = models.URLField(max_length=500, blank=True)
-    user_agent  = models.CharField(max_length=300, blank=True)
-    created_at  = models.DateTimeField(auto_now_add=True)
+    type = models.CharField(
+        max_length=20, choices=FeedbackType.choices, default=FeedbackType.GENERAL
+    )
+    nps_score = models.PositiveSmallIntegerField(null=True, blank=True)  # 0–10
+    message = models.TextField(max_length=2000, blank=True)
+    page_url = models.URLField(max_length=500, blank=True)
+    user_agent = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "billing_user_feedback"

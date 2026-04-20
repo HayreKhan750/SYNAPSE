@@ -12,15 +12,16 @@ User ownership is tracked via lightweight junction tables (UserArticle,
 UserRepository, UserPaper, UserVideo, UserTweet).
 """
 
+import hashlib
+import logging
 import os
 import sys
-import logging
-import hashlib
 from datetime import datetime
 from pathlib import Path
 
-import django
 from twisted.internet import threads
+
+import django
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class DatabasePipeline:
             django.setup()
             self.django_setup_complete = True
             self._user_cache = {}  # cache user lookups per spider run
-            
+
             logger.info("Django environment initialized")
         except Exception as e:
             logger.error(f"Failed to initialize Django: {e}")
@@ -79,8 +80,10 @@ class DatabasePipeline:
 
     def _resolve_user(self, spider):
         """Resolve the Django User instance from the spider's user_id setting."""
-        user_id = getattr(spider, 'user_id', None) or os.environ.get('SYNAPSE_USER_ID')
-        logger.info(f"[_resolve_user] spider.user_id={getattr(spider, 'user_id', None)}, env={os.environ.get('SYNAPSE_USER_ID')}, resolved={user_id}")
+        user_id = getattr(spider, "user_id", None) or os.environ.get("SYNAPSE_USER_ID")
+        logger.info(
+            f"[_resolve_user] spider.user_id={getattr(spider, 'user_id', None)}, env={os.environ.get('SYNAPSE_USER_ID')}, resolved={user_id}"
+        )
         logger.debug(f"[_resolve_user] user_id={user_id}")
         if not user_id:
             logger.debug(f"[_resolve_user] No user_id found")
@@ -89,6 +92,7 @@ class DatabasePipeline:
             return self._user_cache[user_id]
         try:
             from apps.users.models import User
+
             user = User.objects.get(id=user_id)
             self._user_cache[user_id] = user
             return user
@@ -136,11 +140,13 @@ class DatabasePipeline:
 
         try:
             # Handle existing items (from deduplication) - just link user
-            if item.get('_is_existing'):
+            if item.get("_is_existing"):
                 user = self._resolve_user(spider)
                 if user:
                     self._link_existing_item(item, spider, user)
-                    logger.info(f"[_save_item_sync] Linked existing {item_type} to user {user}")
+                    logger.info(
+                        f"[_save_item_sync] Linked existing {item_type} to user {user}"
+                    )
                 return item
 
             # Handle new items - save to database
@@ -172,14 +178,20 @@ class DatabasePipeline:
 
     def _link_user(self, junction_model, user, **lookup):
         """Create a junction row linking user ↔ content item (idempotent)."""
-        logger.info(f"[_link_user] user={user}, model={junction_model.__name__}, lookup={lookup}")
+        logger.info(
+            f"[_link_user] user={user}, model={junction_model.__name__}, lookup={lookup}"
+        )
         if not user:
             logger.info("[_link_user] No user, skipping link")
             return
-        logger.debug(f"[_link_user] Attempting to link user {user} to {junction_model.__name__}")
+        logger.debug(
+            f"[_link_user] Attempting to link user {user} to {junction_model.__name__}"
+        )
         try:
             obj, created = junction_model.objects.get_or_create(user=user, **lookup)
-            logger.info(f"[_link_user] Linked user to {junction_model.__name__}: created={created}, id={obj.id}")
+            logger.info(
+                f"[_link_user] Linked user to {junction_model.__name__}: created={created}, id={obj.id}"
+            )
         except Exception as exc:
             logger.warning("Could not link user %s: %s", user, exc)
 
@@ -194,11 +206,13 @@ class DatabasePipeline:
         by its natural key and create the junction row.
         """
         import hashlib as _hl
+
         item_type = item.__class__.__name__
 
         try:
             if item_type == "ArticleItem":
                 from apps.articles.models import Article, UserArticle
+
                 url = item.get("url", "")
                 url_hash = _hl.sha256(url.encode()).hexdigest()
                 obj = Article.objects.filter(url_hash=url_hash).first()
@@ -207,24 +221,30 @@ class DatabasePipeline:
 
             elif item_type == "RepositoryItem":
                 from apps.repositories.models import Repository, UserRepository
+
                 obj = Repository.objects.filter(github_id=item.get("github_id")).first()
                 if obj:
                     self._link_user(UserRepository, user, repository=obj)
 
             elif item_type == "ResearchPaperItem":
                 from apps.papers.models import ResearchPaper, UserPaper
-                obj = ResearchPaper.objects.filter(arxiv_id=item.get("arxiv_id")).first()
+
+                obj = ResearchPaper.objects.filter(
+                    arxiv_id=item.get("arxiv_id")
+                ).first()
                 if obj:
                     self._link_user(UserPaper, user, paper=obj)
 
             elif item_type == "VideoItem":
-                from apps.videos.models import Video, UserVideo
+                from apps.videos.models import UserVideo, Video
+
                 obj = Video.objects.filter(youtube_id=item.get("youtube_id")).first()
                 if obj:
                     self._link_user(UserVideo, user, video=obj)
 
             elif item_type == "TweetItem":
                 from apps.tweets.models import Tweet, UserTweet
+
                 obj = Tweet.objects.filter(tweet_id=item.get("tweet_id")).first()
                 if obj:
                     self._link_user(UserTweet, user, tweet=obj)
@@ -266,20 +286,20 @@ class DatabasePipeline:
 
         # Update or create article (global, no user field)
         defaults = {
-                "url": url,
-                "title": item.get("title", ""),
-                "content": item.get("content", ""),
-                "summary": item.get("summary", ""),
-                "source": source,
-                "author": item.get("author", ""),
-                "published_at": published_at,
-                "topic": item.get("topic", ""),
-                "tags": item.get("tags", []),
-                "keywords": item.get("keywords", []),
-                "sentiment_score": item.get("sentiment_score"),
-                "trending_score": item.get("trending_score") or 0.0,
-                "view_count": item.get("view_count", 0),
-                "metadata": item.get("metadata", {}),
+            "url": url,
+            "title": item.get("title", ""),
+            "content": item.get("content", ""),
+            "summary": item.get("summary", ""),
+            "source": source,
+            "author": item.get("author", ""),
+            "published_at": published_at,
+            "topic": item.get("topic", ""),
+            "tags": item.get("tags", []),
+            "keywords": item.get("keywords", []),
+            "sentiment_score": item.get("sentiment_score"),
+            "trending_score": item.get("trending_score") or 0.0,
+            "view_count": item.get("view_count", 0),
+            "metadata": item.get("metadata", {}),
         }
         article, created = Article.objects.update_or_create(
             url_hash=url_hash,
@@ -294,6 +314,7 @@ class DatabasePipeline:
         if created or not article.nlp_processed:
             try:
                 import importlib
+
                 tasks_mod = importlib.import_module("apps.articles.tasks")
                 # Fetch excerpt first (fast HTTP) so it's available for summarization
                 tasks_mod.fetch_article_excerpt.apply_async(
@@ -307,12 +328,14 @@ class DatabasePipeline:
                 )
                 logger.info(
                     "Queued excerpt + NLP tasks for article %s (created=%s)",
-                    article.id, created,
+                    article.id,
+                    created,
                 )
             except Exception as nlp_exc:
                 logger.warning(
                     "Could not queue NLP task for article %s: %s",
-                    article.id, nlp_exc,
+                    article.id,
+                    nlp_exc,
                 )
 
     def _save_repository(self, item, spider):
@@ -391,7 +414,7 @@ class DatabasePipeline:
         """
         Save VideoItem to Video model + create UserVideo junction.
         """
-        from apps.videos.models import Video, UserVideo
+        from apps.videos.models import UserVideo, Video
 
         # Parse published_at if provided
         published_at = None
@@ -429,6 +452,7 @@ class DatabasePipeline:
         Save TweetItem to Tweet model + create UserTweet junction.
         """
         from apps.tweets.models import Tweet, UserTweet
+
         from django.utils import timezone
 
         posted_at = None
@@ -436,35 +460,35 @@ class DatabasePipeline:
             posted_at = self._parse_datetime(item["posted_at"])
 
         defaults = {
-                "text": item.get("text", ""),
-                "author_username": item.get("author_username", ""),
-                "author_display_name": item.get("author_display_name", ""),
-                "author_profile_image": item.get("author_profile_image", ""),
-                "author_verified": item.get("author_verified", False),
-                "author_followers": item.get("author_followers", 0),
-                "retweet_count": item.get("retweet_count", 0),
-                "like_count": item.get("like_count", 0),
-                "reply_count": item.get("reply_count", 0),
-                "quote_count": item.get("quote_count", 0),
-                "view_count": item.get("view_count", 0),
-                "bookmark_count": item.get("bookmark_count", 0),
-                "posted_at": posted_at,
-                "scraped_at": timezone.now(),
-                "hashtags": item.get("hashtags", []),
-                "mentions": item.get("mentions", []),
-                "media_urls": item.get("media_urls", []),
-                "urls": item.get("urls", []),
-                "is_retweet": item.get("is_retweet", False),
-                "is_reply": item.get("is_reply", False),
-                "is_quote": item.get("is_quote", False),
-                "conversation_id": item.get("conversation_id") or "",
-                "in_reply_to_user": item.get("in_reply_to_user") or "",
-                "lang": item.get("lang", ""),
-                "url": item.get("url", ""),
-                "source_label": item.get("source_label", ""),
-                "topic": item.get("topic", ""),
-                "trending_score": item.get("trending_score") or 0.0,
-                "metadata": item.get("metadata", {}),
+            "text": item.get("text", ""),
+            "author_username": item.get("author_username", ""),
+            "author_display_name": item.get("author_display_name", ""),
+            "author_profile_image": item.get("author_profile_image", ""),
+            "author_verified": item.get("author_verified", False),
+            "author_followers": item.get("author_followers", 0),
+            "retweet_count": item.get("retweet_count", 0),
+            "like_count": item.get("like_count", 0),
+            "reply_count": item.get("reply_count", 0),
+            "quote_count": item.get("quote_count", 0),
+            "view_count": item.get("view_count", 0),
+            "bookmark_count": item.get("bookmark_count", 0),
+            "posted_at": posted_at,
+            "scraped_at": timezone.now(),
+            "hashtags": item.get("hashtags", []),
+            "mentions": item.get("mentions", []),
+            "media_urls": item.get("media_urls", []),
+            "urls": item.get("urls", []),
+            "is_retweet": item.get("is_retweet", False),
+            "is_reply": item.get("is_reply", False),
+            "is_quote": item.get("is_quote", False),
+            "conversation_id": item.get("conversation_id") or "",
+            "in_reply_to_user": item.get("in_reply_to_user") or "",
+            "lang": item.get("lang", ""),
+            "url": item.get("url", ""),
+            "source_label": item.get("source_label", ""),
+            "topic": item.get("topic", ""),
+            "trending_score": item.get("trending_score") or 0.0,
+            "metadata": item.get("metadata", {}),
         }
 
         # Update or create tweet (global)
@@ -503,6 +527,7 @@ class DatabasePipeline:
         try:
             # Try other common formats
             from dateutil import parser
+
             return parser.parse(value)
         except Exception:
             logger.warning(f"Could not parse datetime: {value}")

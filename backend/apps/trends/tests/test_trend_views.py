@@ -12,16 +12,22 @@ Covers:
   - Days filter param
   - Limit param
 """
+
 from __future__ import annotations
+
 import datetime
 import uuid
-from django.test import TestCase
-from rest_framework.test import APIClient
-from rest_framework import status
+
 from apps.trends.models import TechnologyTrend
 
+from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APIClient
 
-def _make_trend(name: str, category: str = "ai_ml", score: float = 50.0, mentions: int = 10) -> TechnologyTrend:
+
+def _make_trend(
+    name: str, category: str = "ai_ml", score: float = 50.0, mentions: int = 10
+) -> TechnologyTrend:
     return TechnologyTrend.objects.create(
         technology_name=name,
         date=datetime.date.today(),
@@ -38,10 +44,10 @@ class TrendListViewTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.url = "/api/v1/trends/"
-        _make_trend("Python",    "language", 98.5, 45)
-        _make_trend("LLM",       "ai_ml",    95.0, 38)
-        _make_trend("Docker",    "devops",   75.0, 22)
-        _make_trend("React",     "web",      79.0, 26)
+        _make_trend("Python", "language", 98.5, 45)
+        _make_trend("LLM", "ai_ml", 95.0, 38)
+        _make_trend("Docker", "devops", 75.0, 22)
+        _make_trend("React", "web", 79.0, 26)
 
     def test_returns_200_without_auth(self):
         resp = self.client.get(self.url)
@@ -95,7 +101,15 @@ class TrendListViewTests(TestCase):
     def test_result_fields(self):
         resp = self.client.get(self.url)
         r = resp.data["results"][0]
-        for field in ("id", "technology_name", "date", "mention_count", "trend_score", "category", "sources"):
+        for field in (
+            "id",
+            "technology_name",
+            "date",
+            "mention_count",
+            "trend_score",
+            "category",
+            "sources",
+        ):
             self.assertIn(field, r)
 
     def test_invalid_limit_defaults_gracefully(self):

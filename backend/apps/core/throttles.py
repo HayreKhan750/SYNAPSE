@@ -23,40 +23,43 @@ JSON body on 429:
         "message": "..."
     }
 """
+
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from typing import Optional
 
-from rest_framework.throttling import SimpleRateThrottle
-from rest_framework.exceptions import Throttled
-
 from apps.billing.limits import get_user_plan
+
+from rest_framework.exceptions import Throttled
+from rest_framework.throttling import SimpleRateThrottle
 
 # ── Plan limit tables ─────────────────────────────────────────────────────────
 
 # Each entry: (max_requests, window_seconds)
 CHAT_LIMITS: dict[str, tuple[int, int]] = {
-    'FREE':       (5,    86400),  # 5/day
-    'PRO':        (200,  86400),  # 200/day
-    'ENTERPRISE': (1000, 86400),  # 1000/day pooled
+    "FREE": (5, 86400),  # 5/day
+    "PRO": (200, 86400),  # 200/day
+    "ENTERPRISE": (1000, 86400),  # 1000/day pooled
 }
 
 AGENT_LIMITS: dict[str, tuple[int, int]] = {
-    'FREE':       (1,   86400),   # 1/day
-    'PRO':        (50,  86400),   # 50/day
-    'ENTERPRISE': (200, 86400),   # 200/day pooled
+    "FREE": (1, 86400),  # 1/day
+    "PRO": (50, 86400),  # 50/day
+    "ENTERPRISE": (200, 86400),  # 200/day pooled
 }
 
 API_LIMITS: dict[str, tuple[int, int]] = {
-    'FREE':       (100,  3600),   # 100/hour
-    'PRO':        (500,  3600),   # 500/hour
-    'ENTERPRISE': (2000, 3600),   # 2000/hour
+    "FREE": (100, 3600),  # 100/hour
+    "PRO": (500, 3600),  # 500/hour
+    "ENTERPRISE": (2000, 3600),  # 2000/hour
 }
 
 
 # ── Base plan-aware throttle ──────────────────────────────────────────────────
+
 
 class PlanAwareThrottle(SimpleRateThrottle):
     """
@@ -65,38 +68,39 @@ class PlanAwareThrottle(SimpleRateThrottle):
     Subclasses set `limit_table` (dict plan→(limit, window)).
     Cache key: rl:{scope}:{user_id}:{window_bucket}
     """
-    scope:       str = 'plan_api'
+
+    scope: str = "plan_api"
     limit_table: dict[str, tuple[int, int]] = API_LIMITS
 
     # populated per-request in allow_request()
-    _limit:      int = 0
-    _remaining:  int = 0
-    _reset_at:   int = 0   # unix timestamp
+    _limit: int = 0
+    _remaining: int = 0
+    _reset_at: int = 0  # unix timestamp
 
     def get_cache_key(self, request, view) -> Optional[str]:
         if not request.user or not request.user.is_authenticated:
             return None
         plan = get_user_plan(request.user)
-        _, window = self.limit_table.get(plan, self.limit_table['FREE'])
+        _, window = self.limit_table.get(plan, self.limit_table["FREE"])
         # bucket = current window start (floor division of unix time)
         bucket = int(time.time()) // window
-        return f'rl:{self.scope}:{request.user.pk}:{bucket}'
+        return f"rl:{self.scope}:{request.user.pk}:{bucket}"
 
     def get_rate(self):
         # DRF SimpleRateThrottle requires get_rate() to return a string like "5/day"
         # but we override allow_request() entirely, so this is only used for
         # parse_rate() which we don't call. Return a dummy value.
-        return '9999/day'
+        return "9999/day"
 
     def allow_request(self, request, view) -> bool:
         if not request.user or not request.user.is_authenticated:
-            return True   # anonymous: handled by AnonRateThrottle
+            return True  # anonymous: handled by AnonRateThrottle
 
-        plan  = get_user_plan(request.user)
-        limit, window = self.limit_table.get(plan, self.limit_table['FREE'])
+        plan = get_user_plan(request.user)
+        limit, window = self.limit_table.get(plan, self.limit_table["FREE"])
         self._limit = limit
 
-        key   = self.get_cache_key(request, view)
+        key = self.get_cache_key(request, view)
         if key is None:
             return True
 
@@ -105,14 +109,14 @@ class PlanAwareThrottle(SimpleRateThrottle):
         if count is None:
             count = 0
 
-        bucket    = int(time.time()) // window
-        reset_ts  = (bucket + 1) * window
-        self._reset_at   = reset_ts
-        self._remaining  = max(0, limit - count - 1)
+        bucket = int(time.time()) // window
+        reset_ts = (bucket + 1) * window
+        self._reset_at = reset_ts
+        self._remaining = max(0, limit - count - 1)
 
         if count >= limit:
             self._remaining = 0
-            self.wait()           # sets self.history / self.now used by DRF
+            self.wait()  # sets self.history / self.now used by DRF
             return False
 
         # Increment counter
@@ -126,14 +130,14 @@ class PlanAwareThrottle(SimpleRateThrottle):
 
     def throttle_failure_response(self) -> dict:
         """Return structured 429 body."""
-        reset_dt  = datetime.fromtimestamp(self._reset_at, tz=dt_timezone.utc)
+        reset_dt = datetime.fromtimestamp(self._reset_at, tz=dt_timezone.utc)
         return {
-            'error':       'rate_limit_exceeded',
-            'limit':       self._limit,
-            'remaining':   0,
-            'reset_at':    reset_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'upgrade_url': '/pricing',
-            'message': (
+            "error": "rate_limit_exceeded",
+            "limit": self._limit,
+            "remaining": 0,
+            "reset_at": reset_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "upgrade_url": "/pricing",
+            "message": (
                 f"You have exceeded your plan's rate limit of {self._limit} requests. "
                 f"Resets at {reset_dt.strftime('%H:%M UTC')}. Upgrade to Pro for higher limits."
             ),
@@ -143,28 +147,32 @@ class PlanAwareThrottle(SimpleRateThrottle):
         """Return X-RateLimit-* headers to inject into response."""
         wait_secs = max(0, self._reset_at - int(time.time()))
         return {
-            'X-RateLimit-Limit':     str(self._limit),
-            'X-RateLimit-Remaining': str(self._remaining),
-            'X-RateLimit-Reset':     str(self._reset_at),
-            'Retry-After':           str(wait_secs),
+            "X-RateLimit-Limit": str(self._limit),
+            "X-RateLimit-Remaining": str(self._remaining),
+            "X-RateLimit-Reset": str(self._reset_at),
+            "Retry-After": str(wait_secs),
         }
 
 
 # ── Concrete throttle classes ─────────────────────────────────────────────────
 
+
 class ChatRateThrottle(PlanAwareThrottle):
     """TASK-501-B2: Rate limit for POST /api/*/chat/message/ endpoint."""
-    scope       = 'chat'
+
+    scope = "chat"
     limit_table = CHAT_LIMITS
 
 
 class AgentRateThrottle(PlanAwareThrottle):
     """TASK-501-B3: Rate limit for POST /api/*/agents/ endpoint."""
-    scope       = 'agent'
+
+    scope = "agent"
     limit_table = AGENT_LIMITS
 
 
 class APIRateThrottle(PlanAwareThrottle):
     """General API rate limit — applied globally per plan tier."""
-    scope       = 'api'
+
+    scope = "api"
     limit_table = API_LIMITS

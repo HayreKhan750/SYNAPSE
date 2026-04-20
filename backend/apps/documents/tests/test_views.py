@@ -8,24 +8,26 @@ Covers:
   - DocumentDetailView    (GET/DELETE /api/v1/documents/<id>/)
   - DocumentDownloadView  (GET /api/v1/documents/<id>/download/)
 """
+
 import os
-import uuid
-import tempfile
 import shutil
+import tempfile
+import uuid
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+from apps.documents.models import GeneratedDocument
+from apps.users.models import User
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from rest_framework.test import APIClient
 from rest_framework import status
-
-from apps.users.models import User
-from apps.documents.models import GeneratedDocument
+from rest_framework.test import APIClient
 
 
 def _make_user(email="doc_test@example.com", password="pass12345"):
     import uuid as _uuid
+
     username = email.split("@")[0] + "_" + _uuid.uuid4().hex[:4]
     return User.objects.create_user(username=username, email=email, password=password)
 
@@ -41,11 +43,15 @@ class DocumentGenerateViewTests(TestCase):
 
     def test_unauthenticated_returns_401(self):
         c = APIClient()
-        resp = c.post(self.url, {"doc_type": "markdown", "title": "T", "prompt": "Write about AI"})
+        resp = c.post(
+            self.url, {"doc_type": "markdown", "title": "T", "prompt": "Write about AI"}
+        )
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_missing_doc_type_returns_400(self):
-        resp = self.client.post(self.url, {"title": "T", "prompt": "Write about AI today"})
+        resp = self.client.post(
+            self.url, {"title": "T", "prompt": "Write about AI today"}
+        )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_invalid_doc_type_returns_400(self):
@@ -74,25 +80,41 @@ class DocumentGenerateViewTests(TestCase):
 
     def test_markdown_generation_returns_201(self):
         fake_result = ("Path: /tmp/test.md\nSome content", "/tmp/test.md")
-        with patch("apps.documents.views.DocumentGenerateView._call_tool", return_value=fake_result):
-            resp = self.client.post(self.url, {
-                "doc_type": "markdown",
-                "title": "AI Report",
-                "prompt": "Write a comprehensive report on AI trends in 2025",
-                "author": "SYNAPSE",
-            }, format="json")
+        with patch(
+            "apps.documents.views.DocumentGenerateView._call_tool",
+            return_value=fake_result,
+        ):
+            resp = self.client.post(
+                self.url,
+                {
+                    "doc_type": "markdown",
+                    "title": "AI Report",
+                    "prompt": "Write a comprehensive report on AI trends in 2025",
+                    "author": "SYNAPSE",
+                },
+                format="json",
+            )
         self.assertIn(resp.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK])
 
     def test_generated_doc_is_persisted_for_user(self):
         fake_result = ("Path: /tmp/test.md\nContent", "/tmp/test.md")
-        with patch("apps.documents.views.DocumentGenerateView._call_tool", return_value=fake_result):
-            self.client.post(self.url, {
-                "doc_type": "markdown",
-                "title": "Persisted Doc",
-                "prompt": "Write about machine learning fundamentals clearly",
-            }, format="json")
+        with patch(
+            "apps.documents.views.DocumentGenerateView._call_tool",
+            return_value=fake_result,
+        ):
+            self.client.post(
+                self.url,
+                {
+                    "doc_type": "markdown",
+                    "title": "Persisted Doc",
+                    "prompt": "Write about machine learning fundamentals clearly",
+                },
+                format="json",
+            )
         self.assertTrue(
-            GeneratedDocument.objects.filter(user=self.user, title="Persisted Doc").exists()
+            GeneratedDocument.objects.filter(
+                user=self.user, title="Persisted Doc"
+            ).exists()
         )
 
     def test_tool_failure_returns_error(self):
@@ -100,11 +122,15 @@ class DocumentGenerateViewTests(TestCase):
             "apps.documents.views.DocumentGenerateView._call_tool",
             side_effect=Exception("generation failed"),
         ):
-            resp = self.client.post(self.url, {
-                "doc_type": "pdf",
-                "title": "Fail Doc",
-                "prompt": "Write about neural networks in detail",
-            }, format="json")
+            resp = self.client.post(
+                self.url,
+                {
+                    "doc_type": "pdf",
+                    "title": "Fail Doc",
+                    "prompt": "Write about neural networks in detail",
+                },
+                format="json",
+            )
         self.assertIn(
             resp.status_code,
             [status.HTTP_400_BAD_REQUEST, status.HTTP_500_INTERNAL_SERVER_ERROR],
@@ -112,12 +138,15 @@ class DocumentGenerateViewTests(TestCase):
 
     def test_all_valid_doc_types_accepted_by_serializer(self):
         from apps.documents.serializers import DocumentGenerateSerializer
+
         for dt in ["pdf", "ppt", "word", "markdown"]:
-            s = DocumentGenerateSerializer(data={
-                "doc_type": dt,
-                "title": "Test",
-                "prompt": "Write a detailed report on this topic",
-            })
+            s = DocumentGenerateSerializer(
+                data={
+                    "doc_type": dt,
+                    "title": "Test",
+                    "prompt": "Write a detailed report on this topic",
+                }
+            )
             self.assertTrue(s.is_valid(), f"doc_type={dt} failed: {s.errors}")
 
 
@@ -131,7 +160,9 @@ class ProjectGenerateViewTests(TestCase):
         self.url = "/api/v1/documents/generate-project/"
 
     def test_unauthenticated_returns_401(self):
-        resp = APIClient().post(self.url, {"project_type": "django", "name": "myproject"})
+        resp = APIClient().post(
+            self.url, {"project_type": "django", "name": "myproject"}
+        )
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_invalid_project_type_returns_400(self):
@@ -156,16 +187,23 @@ class ProjectGenerateViewTests(TestCase):
 
     def test_valid_django_project_returns_success(self):
         fake_result = "Path: /tmp/myproject.zip\nProject created"
-        with patch("ai_engine.agents.project_tools._create_project", return_value=fake_result):
-            resp = self.client.post(self.url, {
-                "project_type": "django",
-                "name": "my_project",
-                "features": ["auth", "testing"],
-            }, format="json")
+        with patch(
+            "ai_engine.agents.project_tools._create_project", return_value=fake_result
+        ):
+            resp = self.client.post(
+                self.url,
+                {
+                    "project_type": "django",
+                    "name": "my_project",
+                    "features": ["auth", "testing"],
+                },
+                format="json",
+            )
         self.assertIn(resp.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK])
 
     def test_all_project_types_accepted_by_serializer(self):
         from apps.documents.serializers import ProjectGenerateSerializer
+
         for pt in ["django", "fastapi", "nextjs", "datascience", "react_lib"]:
             s = ProjectGenerateSerializer(data={"project_type": pt, "name": "testproj"})
             self.assertTrue(s.is_valid(), f"project_type={pt} failed: {s.errors}")

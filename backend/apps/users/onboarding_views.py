@@ -10,6 +10,7 @@ Endpoints:
 """
 
 import logging
+
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -23,19 +24,33 @@ logger = logging.getLogger(__name__)
 TOTAL_STEPS = 5
 
 STEP_CONFIG = {
-    1: {"title": "Welcome to SYNAPSE", "description": "Let's get you set up in a few quick steps."},
-    2: {"title": "Choose Your Interests", "description": "Select the topics you care about."},
+    1: {
+        "title": "Welcome to SYNAPSE",
+        "description": "Let's get you set up in a few quick steps.",
+    },
+    2: {
+        "title": "Choose Your Interests",
+        "description": "Select the topics you care about.",
+    },
     3: {"title": "What's Your Goal?", "description": "How do you plan to use SYNAPSE?"},
     4: {"title": "Take It for a Spin", "description": "Try your first search query."},
     5: {"title": "You're All Set!", "description": "Your personalised feed is ready."},
 }
 
 VALID_INTERESTS = {
-    'ai_ml', 'web_dev', 'security', 'cloud_devops', 'research',
-    'data_science', 'open_source', 'startup', 'finance', 'health_bio',
+    "ai_ml",
+    "web_dev",
+    "security",
+    "cloud_devops",
+    "research",
+    "data_science",
+    "open_source",
+    "startup",
+    "finance",
+    "health_bio",
 }
 
-VALID_USE_CASES = {'research', 'automation', 'learning', 'archiving', 'team'}
+VALID_USE_CASES = {"research", "automation", "learning", "archiving", "team"}
 
 
 def _prefs_response(user: User, prefs: OnboardingPreferences) -> dict:
@@ -51,7 +66,7 @@ def _prefs_response(user: User, prefs: OnboardingPreferences) -> dict:
     }
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def onboarding_status(request):
     """
@@ -63,7 +78,7 @@ def onboarding_status(request):
     return Response(_prefs_response(user, prefs))
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def onboarding_start(request):
     """
@@ -78,12 +93,12 @@ def onboarding_start(request):
         return Response(_prefs_response(user, prefs), status=status.HTTP_200_OK)
 
     prefs.current_step = 1
-    prefs.save(update_fields=['current_step', 'updated_at'])
+    prefs.save(update_fields=["current_step", "updated_at"])
     logger.info("Onboarding started for user %s", user.email)
     return Response(_prefs_response(user, prefs), status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def onboarding_complete_step(request, step: int):
     """
@@ -105,12 +120,15 @@ def onboarding_complete_step(request, step: int):
     prefs, _ = OnboardingPreferences.objects.get_or_create(user=user)
 
     # Save step-specific data
-    update_fields = ['current_step', 'updated_at']
+    update_fields = ["current_step", "updated_at"]
 
     if step == 2:
-        interests = request.data.get('interests', [])
+        interests = request.data.get("interests", [])
         if not isinstance(interests, list):
-            return Response({"error": "interests must be a list."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "interests must be a list."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         invalid = set(interests) - VALID_INTERESTS
         if invalid:
             return Response(
@@ -118,17 +136,17 @@ def onboarding_complete_step(request, step: int):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         prefs.interests = interests
-        update_fields.append('interests')
+        update_fields.append("interests")
 
     elif step == 3:
-        use_case = request.data.get('use_case', '')
+        use_case = request.data.get("use_case", "")
         if use_case and use_case not in VALID_USE_CASES:
             return Response(
                 {"error": f"Invalid use_case. Valid options: {VALID_USE_CASES}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         prefs.use_case = use_case
-        update_fields.append('use_case')
+        update_fields.append("use_case")
 
     # Advance step if this is the current step or an earlier one
     if step >= prefs.current_step:
@@ -139,7 +157,7 @@ def onboarding_complete_step(request, step: int):
     return Response(_prefs_response(user, prefs), status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def onboarding_finish(request):
     """
@@ -152,12 +170,12 @@ def onboarding_finish(request):
     # Mark prefs as complete
     prefs.completed = True
     prefs.current_step = TOTAL_STEPS
-    prefs.save(update_fields=['completed', 'current_step', 'updated_at'])
+    prefs.save(update_fields=["completed", "current_step", "updated_at"])
 
     # Mark user as onboarded
     user.is_onboarded = True
     user.onboarded_at = timezone.now()
-    user.save(update_fields=['is_onboarded', 'onboarded_at'])
+    user.save(update_fields=["is_onboarded", "onboarded_at"])
 
     # Send welcome email (non-blocking — fail silently)
     try:
@@ -187,28 +205,32 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
     Create initial automation workflows for new user based on their interests.
     Triggers immediate scraping to populate their feed with 5 items each.
     """
+    import json
+
     from apps.automation.models import AutomationWorkflow, WorkflowRun
     from apps.core.tasks import (
-        scrape_hackernews, scrape_github, scrape_arxiv,
-        scrape_youtube, scrape_twitter
+        scrape_arxiv,
+        scrape_github,
+        scrape_hackernews,
+        scrape_twitter,
+        scrape_youtube,
     )
-    import json
 
     user_id = str(user.id)
     interests = prefs.interests or []
 
     # Map interests to search queries
     interest_queries = {
-        'ai_ml': ['machine learning', 'artificial intelligence', 'neural networks'],
-        'web_dev': ['web development', 'frontend', 'backend', 'fullstack'],
-        'security': ['cybersecurity', 'infosec', 'privacy'],
-        'cloud_devops': ['cloud computing', 'devops', 'kubernetes', 'docker'],
-        'research': ['research paper', 'academic', 'study'],
-        'data_science': ['data science', 'analytics', 'big data'],
-        'open_source': ['open source', 'github', 'contribution'],
-        'startup': ['startup', 'entrepreneurship', 'founder'],
-        'finance': ['fintech', 'crypto', 'blockchain'],
-        'health_bio': ['health tech', 'biotech', 'medical'],
+        "ai_ml": ["machine learning", "artificial intelligence", "neural networks"],
+        "web_dev": ["web development", "frontend", "backend", "fullstack"],
+        "security": ["cybersecurity", "infosec", "privacy"],
+        "cloud_devops": ["cloud computing", "devops", "kubernetes", "docker"],
+        "research": ["research paper", "academic", "study"],
+        "data_science": ["data science", "analytics", "big data"],
+        "open_source": ["open source", "github", "contribution"],
+        "startup": ["startup", "entrepreneurship", "founder"],
+        "finance": ["fintech", "crypto", "blockchain"],
+        "health_bio": ["health tech", "biotech", "medical"],
     }
 
     # Build personalized queries from interests
@@ -219,7 +241,7 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
 
     # Default queries if no interests selected
     if not selected_queries:
-        selected_queries = ['technology', 'programming', 'software development']
+        selected_queries = ["technology", "programming", "software development"]
 
     # Create workflows for each source
     workflows_created = []
@@ -231,15 +253,17 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
         description=f"Top tech stories based on your interests: {', '.join(interests[:3]) or 'general tech'}",
         trigger_type="schedule",
         cron_expression="30 6 * * *",
-        actions=[{
-            "type": "collect_news",
-            "params": {
-                "sources": ["hackernews"],
-                "story_type": "top",
-                "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
-                "items_per_source": 5
+        actions=[
+            {
+                "type": "collect_news",
+                "params": {
+                    "sources": ["hackernews"],
+                    "story_type": "top",
+                    "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
+                    "items_per_source": 5,
+                },
             }
-        }],
+        ],
         is_active=True,
     )
     workflows_created.append(hn_workflow)
@@ -251,15 +275,17 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
         description=f"Hot repositories in your areas of interest",
         trigger_type="schedule",
         cron_expression="0 7 * * *",
-        actions=[{
-            "type": "collect_news",
-            "params": {
-                "sources": ["github"],
-                "days_back": 7,
-                "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
-                "items_per_source": 5
+        actions=[
+            {
+                "type": "collect_news",
+                "params": {
+                    "sources": ["github"],
+                    "days_back": 7,
+                    "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
+                    "items_per_source": 5,
+                },
             }
-        }],
+        ],
         is_active=True,
     )
     workflows_created.append(gh_workflow)
@@ -271,15 +297,17 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
         description=f"Academic papers matching your research interests",
         trigger_type="schedule",
         cron_expression="30 7 * * *",
-        actions=[{
-            "type": "collect_news",
-            "params": {
-                "sources": ["arxiv"],
-                "categories": ["cs.AI", "cs.LG", "cs.CL"],
-                "max_papers": 5,  # DEFAULT: 5 items - user can change in Automation page
-                "items_per_source": 5
+        actions=[
+            {
+                "type": "collect_news",
+                "params": {
+                    "sources": ["arxiv"],
+                    "categories": ["cs.AI", "cs.LG", "cs.CL"],
+                    "max_papers": 5,  # DEFAULT: 5 items - user can change in Automation page
+                    "items_per_source": 5,
+                },
             }
-        }],
+        ],
         is_active=True,
     )
     workflows_created.append(arxiv_workflow)
@@ -291,14 +319,20 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
         description=f"Educational videos based on your learning interests",
         trigger_type="schedule",
         cron_expression="0 8 * * *",
-        actions=[{
-            "type": "scrape_videos",
-            "params": {
-                "queries": selected_queries[:3] if selected_queries else ['programming tutorial', 'tech news'],
-                "max_results": 5,  # DEFAULT: 5 items - user can change in Automation page
-                "days_back": 30
+        actions=[
+            {
+                "type": "scrape_videos",
+                "params": {
+                    "queries": (
+                        selected_queries[:3]
+                        if selected_queries
+                        else ["programming tutorial", "tech news"]
+                    ),
+                    "max_results": 5,  # DEFAULT: 5 items - user can change in Automation page
+                    "days_back": 30,
+                },
             }
-        }],
+        ],
         is_active=True,
     )
     workflows_created.append(yt_workflow)
@@ -310,13 +344,19 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
         description=f"Curated tweets from the tech community",
         trigger_type="schedule",
         cron_expression="30 8 * * *",
-        actions=[{
-            "type": "scrape_tweets",
-            "params": {
-                "queries": selected_queries[:3] if selected_queries else ['tech', 'programming'],
-                "max_results": 5,  # DEFAULT: 5 items - user can change in Automation page
+        actions=[
+            {
+                "type": "scrape_tweets",
+                "params": {
+                    "queries": (
+                        selected_queries[:3]
+                        if selected_queries
+                        else ["tech", "programming"]
+                    ),
+                    "max_results": 5,  # DEFAULT: 5 items - user can change in Automation page
+                },
             }
-        }],
+        ],
         is_active=True,
     )
     workflows_created.append(tw_workflow)
@@ -329,33 +369,35 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
     # so it runs after the scrapers have had time to finish.
     from apps.core.tasks import generate_user_briefing
 
-    hn_task   = scrape_hackernews.delay(story_type="top", limit=5, user_id=user_id)
-    gh_task   = scrape_github.delay(days_back=7, limit=5, user_id=user_id)
+    hn_task = scrape_hackernews.delay(story_type="top", limit=5, user_id=user_id)
+    gh_task = scrape_github.delay(days_back=7, limit=5, user_id=user_id)
     arxiv_task = scrape_arxiv.delay(max_papers=5, user_id=user_id)
-    yt_task   = scrape_youtube.delay(max_results=5, user_id=user_id)
-    tw_task   = scrape_twitter.delay(max_results=5, user_id=user_id)
+    yt_task = scrape_youtube.delay(max_results=5, user_id=user_id)
+    tw_task = scrape_twitter.delay(max_results=5, user_id=user_id)
 
     # Queue briefing 90 s after scrapers — gives subprocess-based spiders
     # time to complete and save items to the database.
-    generate_user_briefing.apply_async(kwargs={'user_id': user_id}, countdown=90)
+    generate_user_briefing.apply_async(kwargs={"user_id": user_id}, countdown=90)
 
     task_results = {
-        'hackernews': hn_task.id,
-        'github':     gh_task.id,
-        'arxiv':      arxiv_task.id,
-        'youtube':    yt_task.id,
-        'twitter':    tw_task.id,
+        "hackernews": hn_task.id,
+        "github": gh_task.id,
+        "arxiv": arxiv_task.id,
+        "youtube": yt_task.id,
+        "twitter": tw_task.id,
     }
 
-    logger.info(f"Triggered scraping tasks + briefing for user {user.email}: {task_results}")
+    logger.info(
+        f"Triggered scraping tasks + briefing for user {user.email}: {task_results}"
+    )
 
     # Create workflow runs to track these initial scrapes
     for workflow in workflows_created:
         WorkflowRun.objects.create(
             workflow=workflow,
-            status='running',
-            trigger_event={'trigger': 'onboarding', 'is_initial_run': True},
-            result={'task_ids': task_results},
+            status="running",
+            trigger_event={"trigger": "onboarding", "is_initial_run": True},
+            result={"task_ids": task_results},
         )
 
     logger.info(f"Onboarding workflows and initial scraping triggered for {user.email}")
@@ -363,17 +405,24 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
 
 def _send_welcome_email(user: User) -> None:
     """Send a welcome email after onboarding completes."""
-    from django.core.mail import send_mail
     from django.conf import settings
+    from django.core.mail import send_mail
 
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-    interests_display = ", ".join(
-        i.replace('_', ' ').title()
-        for i in (getattr(user, 'onboarding_prefs', None) and user.onboarding_prefs.interests or [])
-    ) or "various topics"
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    interests_display = (
+        ", ".join(
+            i.replace("_", " ").title()
+            for i in (
+                getattr(user, "onboarding_prefs", None)
+                and user.onboarding_prefs.interests
+                or []
+            )
+        )
+        or "various topics"
+    )
 
     send_mail(
-        subject='🎉 Welcome to SYNAPSE — Your AI Research Hub',
+        subject="🎉 Welcome to SYNAPSE — Your AI Research Hub",
         message=(
             f"Hi {user.first_name or user.username},\n\n"
             f"You've completed onboarding and your personalised feed is ready!\n\n"

@@ -2,36 +2,36 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import timedelta
-from typing import Dict, Tuple, List
+from typing import Dict, List, Tuple
 
-from django.utils import timezone
-from django.contrib.contenttypes.models import ContentType
-
-from apps.core.models import UserActivity
 from apps.articles.models import Article
+from apps.core.models import UserActivity
 from apps.papers.models import ResearchPaper
 from apps.repositories.models import Repository
 
+from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 
 WEIGHTS = {
-    'view': 1.0,
-    'bookmark': 3.0,
-    'unbookmark': -1.5,  # slight negative impact
-    'like': 2.0,
+    "view": 1.0,
+    "bookmark": 3.0,
+    "unbookmark": -1.5,  # slight negative impact
+    "like": 2.0,
 }
 
 
-def _accumulate_scores(since, limit_per_type: int = 20) -> Dict[str, List[Tuple[str, float]]]:
+def _accumulate_scores(
+    since, limit_per_type: int = 20
+) -> Dict[str, List[Tuple[str, float]]]:
     """
     Return a mapping of model label -> list of (object_id, score) tuples sorted by score desc.
     Only considers activities since the given datetime.
     """
     qs = (
-        UserActivity.objects
-        .filter(timestamp__gte=since)
+        UserActivity.objects.filter(timestamp__gte=since)
         .exclude(content_type__isnull=True)
         .exclude(object_id__isnull=True)
-        .only('content_type_id', 'object_id', 'interaction_type')
+        .only("content_type_id", "object_id", "interaction_type")
     )
 
     scores: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
@@ -73,17 +73,17 @@ def get_trending(limit_per_type: int = 20, hours: int = 48):
                 results.append((obj, score))
         return results
 
-    article_pairs = ranked.get('article', [])
-    paper_pairs = ranked.get('researchpaper', []) or ranked.get('paper', [])
-    repo_pairs = ranked.get('repository', [])
+    article_pairs = ranked.get("article", [])
+    paper_pairs = ranked.get("researchpaper", []) or ranked.get("paper", [])
+    repo_pairs = ranked.get("repository", [])
 
     articles = fetch(Article, article_pairs)
     papers = fetch(ResearchPaper, paper_pairs)
     repos = fetch(Repository, repo_pairs)
 
     return {
-        'articles': articles,
-        'papers': papers,
-        'repos': repos,
-        'since': since,
+        "articles": articles,
+        "papers": papers,
+        "repos": repos,
+        "since": since,
     }

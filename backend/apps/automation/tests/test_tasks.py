@@ -7,22 +7,23 @@ Covers:
   - cleanup_stale_runs()
   - Edge cases: missing workflow, invalid action, all-success, partial-failure
 """
+
 import uuid
 from datetime import timedelta
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import MagicMock, call, patch
+
+from apps.automation.models import AutomationWorkflow, WorkflowRun
+from apps.automation.tasks import (
+    _action_collect_news,
+    _action_send_email,
+    _action_summarize_content,
+    cleanup_stale_runs,
+    execute_workflow,
+)
+from apps.users.models import User
 
 from django.test import TestCase
 from django.utils import timezone
-
-from apps.users.models import User
-from apps.automation.models import AutomationWorkflow, WorkflowRun
-from apps.automation.tasks import (
-    execute_workflow,
-    cleanup_stale_runs,
-    _action_collect_news,
-    _action_summarize_content,
-    _action_send_email,
-)
 
 
 def _make_user():
@@ -40,7 +41,8 @@ def _make_workflow(user, actions=None, is_active=True):
         name="Test Workflow",
         trigger_type="manual",
         is_active=is_active,
-        actions=actions or [{"type": "collect_news", "params": {"sources": ["hackernews"]}}],
+        actions=actions
+        or [{"type": "collect_news", "params": {"sources": ["hackernews"]}}],
     )
 
 
@@ -65,9 +67,10 @@ class ExecuteWorkflowTaskTests(TestCase):
         self.assertTrue(WorkflowRun.objects.filter(workflow=wf).exists())
 
     def test_successful_execution_sets_run_status_success(self):
-        wf = _make_workflow(self.user, actions=[
-            {"type": "collect_news", "params": {"sources": ["hackernews"]}}
-        ])
+        wf = _make_workflow(
+            self.user,
+            actions=[{"type": "collect_news", "params": {"sources": ["hackernews"]}}],
+        )
         mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
         with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(wf.id))
@@ -76,10 +79,10 @@ class ExecuteWorkflowTaskTests(TestCase):
         self.assertEqual(run.status, WorkflowRun.RunStatus.SUCCESS)
 
     def test_failed_action_sets_run_status_failed(self):
-        wf = _make_workflow(self.user, actions=[
-            {"type": "collect_news", "params": {}}
-        ])
-        with patch("apps.automation.tasks._dispatch_action", side_effect=Exception("boom")):
+        wf = _make_workflow(self.user, actions=[{"type": "collect_news", "params": {}}])
+        with patch(
+            "apps.automation.tasks._dispatch_action", side_effect=Exception("boom")
+        ):
             execute_workflow(str(wf.id))
         run = WorkflowRun.objects.filter(workflow=wf).first()
         self.assertEqual(run.status, WorkflowRun.RunStatus.FAILED)
@@ -87,19 +90,19 @@ class ExecuteWorkflowTaskTests(TestCase):
 
     def test_action_returning_failed_status_marks_run_failed(self):
         """A handler that returns status='failed' (not raises) should also mark the run failed."""
-        wf = _make_workflow(self.user, actions=[
-            {"type": "generate_pdf", "params": {}}
-        ])
-        mock_result = {"action": "generate_pdf", "status": "failed", "error": "No reportlab"}
+        wf = _make_workflow(self.user, actions=[{"type": "generate_pdf", "params": {}}])
+        mock_result = {
+            "action": "generate_pdf",
+            "status": "failed",
+            "error": "No reportlab",
+        }
         with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(wf.id))
         run = WorkflowRun.objects.filter(workflow=wf).first()
         self.assertEqual(run.status, WorkflowRun.RunStatus.FAILED)
 
     def test_unknown_action_type_is_handled_gracefully(self):
-        wf = _make_workflow(self.user, actions=[
-            {"type": "teleport", "params": {}}
-        ])
+        wf = _make_workflow(self.user, actions=[{"type": "teleport", "params": {}}])
         # _dispatch_action returns skipped for unknown types — no exception
         execute_workflow(str(wf.id))
         run = WorkflowRun.objects.filter(workflow=wf).first()
@@ -126,10 +129,13 @@ class ExecuteWorkflowTaskTests(TestCase):
 
     def test_multiple_actions_all_executed_in_order(self):
         """_dispatch_action is called once per action in definition order."""
-        wf = _make_workflow(self.user, actions=[
-            {"type": "collect_news", "params": {}},
-            {"type": "summarize_content", "params": {}},
-        ])
+        wf = _make_workflow(
+            self.user,
+            actions=[
+                {"type": "collect_news", "params": {}},
+                {"type": "summarize_content", "params": {}},
+            ],
+        )
         call_log = []
 
         def mock_dispatch(workflow, action):
@@ -179,10 +185,12 @@ class ActionHandlerTests(TestCase):
         mock_task.delay.assert_called_once()
 
     def test_collect_news_empty_sources_queues_all(self):
-        with patch("apps.core.tasks.scrape_hackernews") as m1, \
-             patch("apps.core.tasks.scrape_github") as m2, \
-             patch("apps.core.tasks.scrape_arxiv") as m3, \
-             patch("apps.core.tasks.scrape_youtube") as m4:
+        with (
+            patch("apps.core.tasks.scrape_hackernews") as m1,
+            patch("apps.core.tasks.scrape_github") as m2,
+            patch("apps.core.tasks.scrape_arxiv") as m3,
+            patch("apps.core.tasks.scrape_youtube") as m4,
+        ):
             for m in (m1, m2, m3, m4):
                 m.delay.return_value = MagicMock(id="t")
             result = _action_collect_news({})  # no sources = all
@@ -190,8 +198,10 @@ class ActionHandlerTests(TestCase):
         self.assertIn("github", result["task_ids"])
 
     def test_summarize_content_queues_nlp_tasks(self):
-        with patch("apps.articles.tasks.process_pending_articles_nlp") as m1, \
-             patch("apps.articles.tasks.summarize_pending_articles") as m2:
+        with (
+            patch("apps.articles.tasks.process_pending_articles_nlp") as m1,
+            patch("apps.articles.tasks.summarize_pending_articles") as m2,
+        ):
             m1.delay.return_value = MagicMock(id="nlp-task")
             m2.delay.return_value = MagicMock(id="sum-task")
             result = _action_summarize_content({})
@@ -213,7 +223,9 @@ class ActionHandlerTests(TestCase):
             trigger_type="manual",
             actions=[{"type": "send_email", "params": {}}],
         )
-        with patch("apps.notifications.tasks.send_notification_email_task") as mock_email:
+        with patch(
+            "apps.notifications.tasks.send_notification_email_task"
+        ) as mock_email:
             mock_email.delay = MagicMock()
             result = _action_send_email(wf, {"subject": "Done", "body": "Completed."})
         self.assertEqual(result["action"], "send_email")
@@ -246,9 +258,12 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
 
     def setUp(self):
         self.user = _make_user()
-        self.workflow = _make_workflow(self.user, actions=[
-            {'type': 'collect_news', 'params': {'sources': ['hackernews']}},
-        ])
+        self.workflow = _make_workflow(
+            self.user,
+            actions=[
+                {"type": "collect_news", "params": {"sources": ["hackernews"]}},
+            ],
+        )
 
     def _pre_create_run(self, run_status=WorkflowRun.RunStatus.PENDING):
         """Simulate what the trigger view does: create a pending run first."""
@@ -263,16 +278,16 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
     def test_reuses_existing_run_no_new_record_created(self):
         """When run_id is provided only one WorkflowRun must exist after execution."""
         pre_run = self._pre_create_run()
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id), run_id=str(pre_run.id))
         self.assertEqual(WorkflowRun.objects.filter(workflow=self.workflow).count(), 1)
 
     def test_reuses_the_correct_run_record(self):
         """The task must update *exactly* the run whose id was passed."""
         pre_run = self._pre_create_run()
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id), run_id=str(pre_run.id))
         pre_run.refresh_from_db()
         self.assertEqual(pre_run.status, WorkflowRun.RunStatus.SUCCESS)
@@ -282,8 +297,8 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
     def test_run_transitions_to_running_then_success(self):
         """Pre-created PENDING run must end in SUCCESS for an all-ok workflow."""
         pre_run = self._pre_create_run(run_status=WorkflowRun.RunStatus.PENDING)
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id), run_id=str(pre_run.id))
         pre_run.refresh_from_db()
         self.assertEqual(pre_run.status, WorkflowRun.RunStatus.SUCCESS)
@@ -292,17 +307,19 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
     def test_run_transitions_to_failed_when_action_raises(self):
         """Pre-created run must end in FAILED when an action raises."""
         pre_run = self._pre_create_run()
-        with patch('apps.automation.tasks._dispatch_action', side_effect=Exception('boom')):
+        with patch(
+            "apps.automation.tasks._dispatch_action", side_effect=Exception("boom")
+        ):
             execute_workflow(str(self.workflow.id), run_id=str(pre_run.id))
         pre_run.refresh_from_db()
         self.assertEqual(pre_run.status, WorkflowRun.RunStatus.FAILED)
-        self.assertIn('boom', pre_run.error_message)
+        self.assertIn("boom", pre_run.error_message)
 
     def test_run_transitions_to_failed_when_action_returns_failed_status(self):
         """Pre-created run must end in FAILED when an action returns status='failed'."""
         pre_run = self._pre_create_run()
-        mock_result = {'action': 'collect_news', 'status': 'failed', 'error': 'no data'}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        mock_result = {"action": "collect_news", "status": "failed", "error": "no data"}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id), run_id=str(pre_run.id))
         pre_run.refresh_from_db()
         self.assertEqual(pre_run.status, WorkflowRun.RunStatus.FAILED)
@@ -313,9 +330,9 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
         """The task's own Celery ID must be written to the pre-created run."""
         pre_run = self._pre_create_run()
         # celery_task_id starts empty on a pre-created run
-        self.assertEqual(pre_run.celery_task_id, '')
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        self.assertEqual(pre_run.celery_task_id, "")
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id), run_id=str(pre_run.id))
         pre_run.refresh_from_db()
         # In tests, self.request.id is None → stored as empty string — field must exist
@@ -326,20 +343,22 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
     def test_trigger_event_merged_onto_pre_created_run(self):
         """trigger_event kwarg must be stored on the pre-created run."""
         pre_run = self._pre_create_run()
-        event = {'event_type': 'new_article', 'article_id': 'xyz'}
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
-            execute_workflow(str(self.workflow.id), trigger_event=event, run_id=str(pre_run.id))
+        event = {"event_type": "new_article", "article_id": "xyz"}
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
+            execute_workflow(
+                str(self.workflow.id), trigger_event=event, run_id=str(pre_run.id)
+            )
         pre_run.refresh_from_db()
-        self.assertEqual(pre_run.trigger_event.get('event_type'), 'new_article')
+        self.assertEqual(pre_run.trigger_event.get("event_type"), "new_article")
 
     # ── Fallback for missing run_id ───────────────────────────────────────────
 
     def test_falls_back_to_new_run_when_run_id_not_found(self):
         """If the pre-created run was somehow deleted, the task creates a fresh one."""
         fake_run_id = str(uuid.uuid4())
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id), run_id=fake_run_id)
         # A new run must have been created as a fallback
         self.assertEqual(WorkflowRun.objects.filter(workflow=self.workflow).count(), 1)
@@ -350,8 +369,8 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
 
     def test_without_run_id_creates_fresh_run_as_before(self):
         """Existing schedule/event callers that pass no run_id still work correctly."""
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id))
         self.assertEqual(WorkflowRun.objects.filter(workflow=self.workflow).count(), 1)
         run = WorkflowRun.objects.get(workflow=self.workflow)
@@ -361,10 +380,13 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
 
     def test_multi_action_workflow_with_run_id_all_actions_executed(self):
         """All actions are executed in order even when run_id is supplied."""
-        wf = _make_workflow(self.user, actions=[
-            {'type': 'collect_news', 'params': {}},
-            {'type': 'summarize_content', 'params': {}},
-        ])
+        wf = _make_workflow(
+            self.user,
+            actions=[
+                {"type": "collect_news", "params": {}},
+                {"type": "summarize_content", "params": {}},
+            ],
+        )
         pre_run = WorkflowRun.objects.create(
             workflow=wf,
             status=WorkflowRun.RunStatus.PENDING,
@@ -372,16 +394,16 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
         call_log = []
 
         def mock_dispatch(workflow, action):
-            call_log.append(action['type'])
-            return {'action': action['type'], 'status': 'queued'}
+            call_log.append(action["type"])
+            return {"action": action["type"], "status": "queued"}
 
-        with patch('apps.automation.tasks._dispatch_action', side_effect=mock_dispatch):
+        with patch("apps.automation.tasks._dispatch_action", side_effect=mock_dispatch):
             execute_workflow(str(wf.id), run_id=str(pre_run.id))
 
-        self.assertEqual(call_log, ['collect_news', 'summarize_content'])
+        self.assertEqual(call_log, ["collect_news", "summarize_content"])
         pre_run.refresh_from_db()
         self.assertEqual(pre_run.status, WorkflowRun.RunStatus.SUCCESS)
-        self.assertEqual(len(pre_run.result.get('actions', [])), 2)
+        self.assertEqual(len(pre_run.result.get("actions", [])), 2)
 
     # ── Workflow counters updated ─────────────────────────────────────────────
 
@@ -389,8 +411,8 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
         """workflow.run_count must increment by 1 even when run_id is supplied."""
         pre_run = self._pre_create_run()
         initial = self.workflow.run_count
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id), run_id=str(pre_run.id))
         self.workflow.refresh_from_db()
         self.assertEqual(self.workflow.run_count, initial + 1)
@@ -399,8 +421,8 @@ class ExecuteWorkflowRunIdKwargTests(TestCase):
         """workflow.last_run_at must be set even when run_id is supplied."""
         pre_run = self._pre_create_run()
         before = timezone.now()
-        mock_result = {'action': 'collect_news', 'status': 'queued', 'task_ids': {}}
-        with patch('apps.automation.tasks._dispatch_action', return_value=mock_result):
+        mock_result = {"action": "collect_news", "status": "queued", "task_ids": {}}
+        with patch("apps.automation.tasks._dispatch_action", return_value=mock_result):
             execute_workflow(str(self.workflow.id), run_id=str(pre_run.id))
         self.workflow.refresh_from_db()
         self.assertIsNotNone(self.workflow.last_run_at)

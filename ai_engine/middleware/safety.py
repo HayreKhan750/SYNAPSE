@@ -5,8 +5,8 @@ Detects jailbreak attempts and common prompt injection patterns.
 Applied before every LLM call in the AI engine.
 """
 
-import re
 import logging
+import re
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,9 @@ _JAILBREAK_PATTERNS = [
     r"disregard\s+(all\s+)?(your\s+)?(previous|prior)\s+(instructions?|guidelines?|rules?)",
 ]
 
-_COMPILED_JAILBREAK = [re.compile(p, re.IGNORECASE | re.DOTALL) for p in _JAILBREAK_PATTERNS]
+_COMPILED_JAILBREAK = [
+    re.compile(p, re.IGNORECASE | re.DOTALL) for p in _JAILBREAK_PATTERNS
+]
 
 # Soft-block phrases (warn but allow) vs hard-block (always refuse)
 _HARD_BLOCK_PATTERNS = [
@@ -33,15 +35,20 @@ _HARD_BLOCK_PATTERNS = [
     r"(step.by.step|instructions?|how\s+to)\s+(make|create|build|synthesize)\s+(a\s+)?(bomb|explosive|weapon|poison)",
     r"(CSAM|child\s+(sexual|explicit|pornograph))",
 ]
-_COMPILED_HARD_BLOCK = [re.compile(p, re.IGNORECASE | re.DOTALL) for p in _HARD_BLOCK_PATTERNS]
+_COMPILED_HARD_BLOCK = [
+    re.compile(p, re.IGNORECASE | re.DOTALL) for p in _HARD_BLOCK_PATTERNS
+]
 
 
 class JailbreakDetectedError(Exception):
     """Raised when a jailbreak attempt is detected."""
+
     def __init__(self, pattern: str, hard_block: bool = False):
-        self.pattern    = pattern
+        self.pattern = pattern
         self.hard_block = hard_block
-        super().__init__(f"{'Hard-blocked' if hard_block else 'Jailbreak'} pattern detected: {pattern}")
+        super().__init__(
+            f"{'Hard-blocked' if hard_block else 'Jailbreak'} pattern detected: {pattern}"
+        )
 
 
 def check_jailbreak(text: str, user_id: Optional[str] = None) -> None:
@@ -55,7 +62,9 @@ def check_jailbreak(text: str, user_id: Optional[str] = None) -> None:
         if pattern.search(text):
             logger.warning(
                 "HARD BLOCK: user=%s matched pattern='%s' input_excerpt='%.100s'",
-                user_id, pattern.pattern[:60], text
+                user_id,
+                pattern.pattern[:60],
+                text,
             )
             raise JailbreakDetectedError(pattern=pattern.pattern, hard_block=True)
 
@@ -64,7 +73,9 @@ def check_jailbreak(text: str, user_id: Optional[str] = None) -> None:
         if pattern.search(text):
             logger.warning(
                 "JAILBREAK ATTEMPT: user=%s matched pattern='%s' input_excerpt='%.100s'",
-                user_id, pattern.pattern[:60], text
+                user_id,
+                pattern.pattern[:60],
+                text,
             )
             raise JailbreakDetectedError(pattern=pattern.pattern, hard_block=False)
 
@@ -81,17 +92,19 @@ def check_pii(text: str, user_id: Optional[str] = None) -> dict:
     """
     try:
         from presidio_analyzer import AnalyzerEngine  # type: ignore
+
         analyzer = AnalyzerEngine()
         results = analyzer.analyze(text=text, language="en")
         if results:
             entities = [
                 {
-                    "type":  r.entity_type,
+                    "type": r.entity_type,
                     "start": r.start,
-                    "end":   r.end,
+                    "end": r.end,
                     "score": round(r.score, 3),
                 }
-                for r in results if r.score >= 0.7
+                for r in results
+                if r.score >= 0.7
             ]
             if entities:
                 logger.warning(
@@ -118,11 +131,12 @@ def redact_pii(text: str) -> str:
     TASK-004-B6
     """
     try:
-        from presidio_analyzer import AnalyzerEngine   # type: ignore
+        from presidio_analyzer import AnalyzerEngine  # type: ignore
         from presidio_anonymizer import AnonymizerEngine  # type: ignore
-        analyzer   = AnalyzerEngine()
+
+        analyzer = AnalyzerEngine()
         anonymizer = AnonymizerEngine()
-        results    = analyzer.analyze(text=text, language="en")
+        results = analyzer.analyze(text=text, language="en")
         if results:
             return anonymizer.anonymize(text=text, analyzer_results=results).text
         return text

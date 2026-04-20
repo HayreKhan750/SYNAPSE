@@ -7,6 +7,7 @@ proper nouns that could be technology terms, and people in tech news.
 
 The spaCy model is loaded lazily and cached for the lifetime of the process.
 """
+
 import logging
 from typing import Dict, List
 
@@ -14,15 +15,15 @@ logger = logging.getLogger(__name__)
 
 # spaCy entity types to keep
 RELEVANT_ENTITY_TYPES: set = {
-    "ORG",      # Companies, organisations (e.g. OpenAI, Google)
+    "ORG",  # Companies, organisations (e.g. OpenAI, Google)
     "PRODUCT",  # Software, hardware products
-    "PERSON",   # Individuals mentioned in tech articles
-    "GPE",      # Geopolitical entities (countries, cities)
+    "PERSON",  # Individuals mentioned in tech articles
+    "GPE",  # Geopolitical entities (countries, cities)
     "WORK_OF_ART",  # Named works; sometimes captures project names
-    "LAW",      # Standards, regulations
-    "EVENT",    # Named events (conferences, releases)
-    "LANGUAGE", # Programming/spoken language names
-    "NORP",     # Nationalities, political groups (for trend context)
+    "LAW",  # Standards, regulations
+    "EVENT",  # Named events (conferences, releases)
+    "LANGUAGE",  # Programming/spoken language names
+    "NORP",  # Nationalities, political groups (for trend context)
 }
 
 # Module-level cache
@@ -35,6 +36,7 @@ def _get_nlp():
     if _nlp is None:
         try:
             import spacy  # noqa: PLC0415
+
             logger.info("Loading spaCy model: en_core_web_sm")
             _nlp = spacy.load("en_core_web_sm")
             logger.info("spaCy model loaded successfully.")
@@ -85,12 +87,14 @@ def extract_entities(text: str) -> List[Dict[str, str]]:
             if key in seen:
                 continue
             seen.add(key)
-            entities.append({
-                "text": ent.text.strip(),
-                "label": ent.label_,
-                "start": ent.start_char,
-                "end": ent.end_char,
-            })
+            entities.append(
+                {
+                    "text": ent.text.strip(),
+                    "label": ent.label_,
+                    "start": ent.start_char,
+                    "end": ent.end_char,
+                }
+            )
 
         return entities
 

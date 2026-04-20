@@ -5,10 +5,11 @@ Searches for tech-focused tweets by topic queries, hashtags, and trending tech a
 Respects X API rate limits (450 requests/15-min window for App-only auth).
 """
 
+import logging
 import os
 import re
-import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 import scrapy
 
 logger = logging.getLogger(__name__)
@@ -47,16 +48,19 @@ class XTwitterSpider(scrapy.Spider):
 
         if queries:
             import json
+
             self.queries = json.loads(queries) if isinstance(queries, str) else queries
         elif query:
             self.queries = [query]
         else:
             self.queries = self.DEFAULT_QUERIES
 
-        self.bearer_token = os.environ.get("X_API_KEY") or os.environ.get("TWITTER_BEARER_TOKEN")
-        
+        self.bearer_token = os.environ.get("X_API_KEY") or os.environ.get(
+            "TWITTER_BEARER_TOKEN"
+        )
+
         # Store user_id for personalization
-        self.user_id = kwargs.get('user_id')
+        self.user_id = kwargs.get("user_id")
         if not self.bearer_token:
             logger.warning(
                 "X_API_KEY / TWITTER_BEARER_TOKEN not set. "
@@ -82,7 +86,11 @@ class XTwitterSpider(scrapy.Spider):
         """Parse X API v2 search results."""
         if response.status == 429:
             reset_ts = int(response.headers.get("x-rate-limit-reset", 0))
-            wait = max(reset_ts - int(datetime.now(timezone.utc).timestamp()), 60) if reset_ts else 900
+            wait = (
+                max(reset_ts - int(datetime.now(timezone.utc).timestamp()), 60)
+                if reset_ts
+                else 900
+            )
             logger.warning(f"X API rate limited. Reset in {wait}s. Stopping spider.")
             self.crawler.engine.close_spider(self, "rate_limit_exceeded")
             return
@@ -140,7 +148,9 @@ class XTwitterSpider(scrapy.Spider):
         item["author_display_name"] = author.get("name", "")
         item["author_profile_image"] = author.get("profile_image_url", "")
         item["author_verified"] = author.get("verified", False)
-        item["author_followers"] = author.get("public_metrics", {}).get("followers_count", 0)
+        item["author_followers"] = author.get("public_metrics", {}).get(
+            "followers_count", 0
+        )
         item["posted_at"] = tweet_data.get("created_at")
 
         # Public metrics
@@ -162,7 +172,11 @@ class XTwitterSpider(scrapy.Spider):
         item["urls"] = [u.get("expanded_url", u.get("url", "")) for u in urls_field]
 
         # Media
-        media_keys = tweet_data.get("attachments", {}).get("media_keys", []) if tweet_data.get("attachments") else []
+        media_keys = (
+            tweet_data.get("attachments", {}).get("media_keys", [])
+            if tweet_data.get("attachments")
+            else []
+        )
         item["media_urls"] = []
         for mk in media_keys:
             m = media_by_key.get(mk, {})
@@ -180,7 +194,11 @@ class XTwitterSpider(scrapy.Spider):
 
         # Reply context
         reply_user_id = tweet_data.get("in_reply_to_user_id", "")
-        item["in_reply_to_user"] = users_by_id.get(reply_user_id, {}).get("username", "") if reply_user_id else ""
+        item["in_reply_to_user"] = (
+            users_by_id.get(reply_user_id, {}).get("username", "")
+            if reply_user_id
+            else ""
+        )
 
         item["lang"] = tweet_data.get("lang", "")
         item["source_label"] = tweet_data.get("source", "")
@@ -188,7 +206,11 @@ class XTwitterSpider(scrapy.Spider):
         # Build URL
         username = item["author_username"]
         tweet_id = item["tweet_id"]
-        item["url"] = f"https://x.com/{username}/status/{tweet_id}" if username and tweet_id else ""
+        item["url"] = (
+            f"https://x.com/{username}/status/{tweet_id}"
+            if username and tweet_id
+            else ""
+        )
 
         # Calculate trending score (engagement-weighted)
         item["trending_score"] = (
@@ -219,12 +241,61 @@ class XTwitterSpider(scrapy.Spider):
         hashtag_lower = " ".join(h.lower() for h in hashtags)
 
         topic_map = {
-            "AI": ["#ai", "#machinelearning", "#llm", "#deeplearning", "artificial intelligence", "gpt", "chatgpt", "#genai"],
-            "Web Dev": ["#webdev", "#javascript", "#typescript", "#reactjs", "#nextjs", "#frontend", "#css", "#html"],
-            "Security": ["#cybersecurity", "#infosec", "#hacking", "#malware", "#ransomware", "#privacy"],
-            "Cloud": ["#cloudcomputing", "#aws", "#azure", "#gcp", "#devops", "#kubernetes", "#docker", "#terraform"],
-            "Research": ["#research", "#science", "#paper", "#arxiv", "#datascience", "#statistics"],
-            "Programming": ["#python", "#rustlang", "#golang", "#java", "#programming", "#coding", "#opensource"],
+            "AI": [
+                "#ai",
+                "#machinelearning",
+                "#llm",
+                "#deeplearning",
+                "artificial intelligence",
+                "gpt",
+                "chatgpt",
+                "#genai",
+            ],
+            "Web Dev": [
+                "#webdev",
+                "#javascript",
+                "#typescript",
+                "#reactjs",
+                "#nextjs",
+                "#frontend",
+                "#css",
+                "#html",
+            ],
+            "Security": [
+                "#cybersecurity",
+                "#infosec",
+                "#hacking",
+                "#malware",
+                "#ransomware",
+                "#privacy",
+            ],
+            "Cloud": [
+                "#cloudcomputing",
+                "#aws",
+                "#azure",
+                "#gcp",
+                "#devops",
+                "#kubernetes",
+                "#docker",
+                "#terraform",
+            ],
+            "Research": [
+                "#research",
+                "#science",
+                "#paper",
+                "#arxiv",
+                "#datascience",
+                "#statistics",
+            ],
+            "Programming": [
+                "#python",
+                "#rustlang",
+                "#golang",
+                "#java",
+                "#programming",
+                "#coding",
+                "#opensource",
+            ],
         }
 
         combined = text_lower + " " + hashtag_lower

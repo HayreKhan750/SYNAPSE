@@ -16,6 +16,7 @@ Batch processing defaults: 32 items per batch (configurable via env).
 
 TASK-005 — Upgrade Embeddings to BAAI/bge-large-en-v1.5
 """
+
 from __future__ import annotations
 
 import logging
@@ -62,12 +63,14 @@ class SynapseEmbedder:
     def _load_sentence_transformers(self) -> None:
         try:
             from sentence_transformers import SentenceTransformer  # noqa: PLC0415
+
             logger.info("Loading sentence-transformer model: %s", _MODEL_NAME)
             self._model = SentenceTransformer(_MODEL_NAME)
             self.dimensions = self._model.get_sentence_embedding_dimension()
             logger.info(
                 "Sentence-transformer loaded — model=%s, dims=%d",
-                _MODEL_NAME, self.dimensions,
+                _MODEL_NAME,
+                self.dimensions,
             )
         except ImportError:
             logger.error(
@@ -119,7 +122,9 @@ class SynapseEmbedder:
 
         return self._embed_local([text])[0]
 
-    def embed_batch(self, texts: List[str], batch_size: int = _BATCH_SIZE) -> List[List[float]]:
+    def embed_batch(
+        self, texts: List[str], batch_size: int = _BATCH_SIZE
+    ) -> List[List[float]]:
         """
         Generate embeddings for a list of text strings in batches.
 
@@ -138,7 +143,7 @@ class SynapseEmbedder:
         # Sending empty strings produces misleading zero/near-zero vectors that
         # pollute nearest-neighbour retrieval results.
         zero_vector = [0.0] * self.dimensions
-        index_map: List[int] = []      # maps clean_texts position → original index
+        index_map: List[int] = []  # maps clean_texts position → original index
         clean_texts: List[str] = []
 
         for idx, t in enumerate(texts):
@@ -153,14 +158,16 @@ class SynapseEmbedder:
             return results
 
         for i in range(0, len(clean_texts), batch_size):
-            batch = clean_texts[i: i + batch_size]
-            batch_indices = index_map[i: i + batch_size]
+            batch = clean_texts[i : i + batch_size]
+            batch_indices = index_map[i : i + batch_size]
             start = time.time()
             batch_embeddings = self._embed_local(batch)
             elapsed = round(time.time() - start, 2)
             logger.debug(
                 "Embedded batch %d-%d in %.2fs",
-                i, i + len(batch), elapsed,
+                i,
+                i + len(batch),
+                elapsed,
             )
             for orig_idx, emb in zip(batch_indices, batch_embeddings):
                 results[orig_idx] = emb
@@ -179,7 +186,9 @@ class SynapseEmbedder:
         )
         return [emb.tolist() for emb in embeddings]
 
+
 # ── Utilities ──────────────────────────────────────────────────────────────────
+
 
 def _truncate_text(text: str, max_chars: int = 8192) -> str:
     """Truncate text to avoid exceeding model token limits."""
@@ -187,6 +196,7 @@ def _truncate_text(text: str, max_chars: int = 8192) -> str:
 
 
 # ── Singleton helpers ──────────────────────────────────────────────────────────
+
 
 def get_embedder() -> SynapseEmbedder:
     """Return the singleton SynapseEmbedder, loading it on first call."""

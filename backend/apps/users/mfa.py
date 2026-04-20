@@ -14,6 +14,7 @@ Uses django-otp + qrcode to implement:
 Dependencies:
   django-otp, qrcode[pil], cryptography (already in requirements)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -28,10 +29,11 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 BACKUP_CODE_LENGTH = 10
-BACKUP_CODE_COUNT  = 10
+BACKUP_CODE_COUNT = 10
 
 
 # ── TOTP Device helpers ────────────────────────────────────────────────────────
+
 
 def setup_totp_device(user) -> dict:
     """
@@ -39,9 +41,10 @@ def setup_totp_device(user) -> dict:
     Returns { secret, otpauth_url, qr_code_base64, backup_codes }
     """
     try:
-        from django_otp.plugins.otp_totp.models import TOTPDevice
-        import qrcode
         import base64
+
+        import qrcode
+        from django_otp.plugins.otp_totp.models import TOTPDevice
 
         # Remove existing devices
         TOTPDevice.objects.filter(user=user).delete()
@@ -54,15 +57,15 @@ def setup_totp_device(user) -> dict:
         )
 
         # Build otpauth:// URL
-        issuer  = "SYNAPSE"
+        issuer = "SYNAPSE"
         account = user.email
         otp_url = device.config_url
 
         # Generate QR code PNG → base64
-        qr  = qrcode.QRCode(box_size=6, border=2)
+        qr = qrcode.QRCode(box_size=6, border=2)
         qr.add_data(otp_url)
         qr.make(fit=True)
-        img    = qr.make_image(fill_color="black", back_color="white")
+        img = qr.make_image(fill_color="black", back_color="white")
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         qr_b64 = base64.b64encode(buffer.getvalue()).decode()
@@ -72,10 +75,10 @@ def setup_totp_device(user) -> dict:
 
         logger.info("totp_device_created", user=user.email)
         return {
-            "secret":          device.bin_key.hex(),
-            "otpauth_url":     otp_url,
-            "qr_code_base64":  qr_b64,
-            "backup_codes":    backup_codes,
+            "secret": device.bin_key.hex(),
+            "otpauth_url": otp_url,
+            "qr_code_base64": qr_b64,
+            "backup_codes": backup_codes,
         }
     except ImportError as exc:
         logger.error("totp_setup_import_error", error=str(exc))
@@ -115,6 +118,7 @@ def user_has_mfa_enabled(user) -> bool:
     """Check if user has a confirmed TOTP device."""
     try:
         from django_otp.plugins.otp_totp.models import TOTPDevice
+
         return TOTPDevice.objects.filter(user=user, confirmed=True).exists()
     except Exception:
         return False
@@ -124,6 +128,7 @@ def disable_mfa(user) -> None:
     """Remove all TOTP devices and backup codes for the user."""
     try:
         from django_otp.plugins.otp_totp.models import TOTPDevice
+
         TOTPDevice.objects.filter(user=user).delete()
         # Clear stored backup codes
         user.preferences.pop("mfa_backup_codes", None)
@@ -134,6 +139,7 @@ def disable_mfa(user) -> None:
 
 
 # ── Backup codes ───────────────────────────────────────────────────────────────
+
 
 def _generate_backup_codes(user) -> List[str]:
     """
@@ -147,8 +153,8 @@ def _generate_backup_codes(user) -> List[str]:
 
     for _ in range(BACKUP_CODE_COUNT):
         # 12 chars → 3 groups of 4
-        raw  = "".join(secrets.choice(alphabet) for _ in range(12))
-        fmt  = f"{raw[:4]}-{raw[4:8]}-{raw[8:]}"
+        raw = "".join(secrets.choice(alphabet) for _ in range(12))
+        fmt = f"{raw[:4]}-{raw[4:8]}-{raw[8:]}"
         codes.append(fmt)
         hashed.append(hashlib.sha256(fmt.encode()).hexdigest())
 
@@ -163,8 +169,8 @@ def verify_backup_code(user, code: str) -> bool:
     Verify and consume a backup code.
     Returns True if valid (and removes it from the list).
     """
-    hashed_input   = hashlib.sha256(code.upper().encode()).hexdigest()
-    stored_hashes  = user.preferences.get("mfa_backup_codes", [])
+    hashed_input = hashlib.sha256(code.upper().encode()).hexdigest()
+    stored_hashes = user.preferences.get("mfa_backup_codes", [])
 
     if hashed_input in stored_hashes:
         stored_hashes.remove(hashed_input)
