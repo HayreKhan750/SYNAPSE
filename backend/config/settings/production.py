@@ -99,7 +99,7 @@ _raw_cors = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
 CORS_ALLOWED_ORIGINS = [
     o if o.startswith(("http://", "https://")) else f"https://{o}"
     for o in (s.strip() for s in _raw_cors)
-    if s.strip()
+    if o
 ]
 if not CORS_ALLOWED_ORIGINS:
     raise ValueError(
