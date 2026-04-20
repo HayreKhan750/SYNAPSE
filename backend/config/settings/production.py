@@ -74,6 +74,20 @@ PASSWORD_HASHERS = [
 DATABASES["default"]["CONN_MAX_AGE"] = int(os.environ.get("DB_CONN_MAX_AGE", 60))
 DATABASES["default"]["OPTIONS"] = {"connect_timeout": 10}
 
+# ── Redis SSL (Upstash / managed Redis with TLS) ─────────────────────────────
+# When using rediss:// URLs, Celery and django-redis need explicit SSL config.
+import ssl as _ssl  # noqa: E402
+
+_redis_url = os.environ.get("REDIS_URL", "")
+if _redis_url.startswith("rediss://"):
+    CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": _ssl.CERT_NONE}
+    CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": _ssl.CERT_NONE}
+    # Also configure django-redis cache SSL
+    CACHES["default"]["OPTIONS"]["CONNECTION_POOL_KWARGS"] = {  # type: ignore
+        "max_connections": 100,
+        "ssl_cert_reqs": None,
+    }
+
 # ── WhiteNoise — efficient static file serving (no nginx needed for statics) ──
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
