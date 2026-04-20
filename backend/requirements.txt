@@ -117,5 +117,4 @@ yt-dlp>=2024.1.1
 # opentelemetry-instrumentation-redis>=0.44b0
 
 # TASK-601-B4: PDF export
-reportlab>=4.1.0
 firebase-admin>=7.0.0
