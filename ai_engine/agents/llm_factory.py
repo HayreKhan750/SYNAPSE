@@ -13,8 +13,9 @@ Provider selection order:
   1. provider="anthropic"  → Claude   (ANTHROPIC_API_KEY required)
   2. provider="ollama"     → Ollama   (no API key; OLLAMA_BASE_URL)
   3. provider="gemini"     → Gemini   (GEMINI_API_KEY required)
-  4. provider="openai"     → OpenRouter-compatible (OPENROUTER_API_KEY)
-  5. provider="auto"       → OpenRouter → Gemini → raise ValueError
+  4. provider="scitely"    → Scitely  (SCITELY_API_KEY; OpenAI-compatible)
+  5. provider="openai"     → OpenRouter-compatible (OPENROUTER_API_KEY)
+  6. provider="auto"       → Scitely → OpenRouter → Gemini → raise ValueError
 """
 from __future__ import annotations
 
@@ -54,6 +55,7 @@ def build_llm(
     max_tokens: int = 1024,
     streaming: bool = False,
     # Per-user API key overrides (take priority over env vars)
+    scitely_api_key: Optional[str] = None,
     openrouter_api_key: Optional[str] = None,
     gemini_api_key: Optional[str] = None,
     anthropic_api_key: Optional[str] = None,
@@ -69,6 +71,7 @@ def build_llm(
         max_tokens:         Maximum tokens in the response.
         streaming:          Whether to enable streaming mode.
         openrouter_api_key: Per-user OpenRouter key (overrides OPENROUTER_API_KEY env).
+        scitely_api_key:    Per-user Scitely key (overrides SCITELY_API_KEY env).
         gemini_api_key:     Per-user Gemini key (overrides GEMINI_API_KEY env).
         anthropic_api_key:  Per-user Anthropic key (overrides ANTHROPIC_API_KEY env).
         ollama_base_url:    Per-user Ollama base URL (overrides OLLAMA_BASE_URL env).
@@ -139,6 +142,46 @@ def build_llm(
             google_api_key=key,
             streaming=streaming,
             convert_system_message_to_human=True,
+        )
+
+    # ── Scitely (explicit or auto-fallback) ────────────────────────────────────
+    sc_key   = scitely_api_key or os.environ.get("SCITELY_API_KEY", "")
+    sc_base  = "https://api.scitely.com/v1"
+    sc_model = model or os.environ.get("SCITELY_MODEL", "gpt-4o-mini")
+
+    if provider == "scitely":
+        if not sc_key:
+            raise ValueError("SCITELY_API_KEY is required for provider='scitely'.")
+        if not _OPENAI_AVAILABLE or ChatOpenAI is None:
+            raise ImportError("langchain-openai is not installed.")
+        logger.info("llm_factory provider=scitely model=%s streaming=%s", sc_model, streaming)
+        return ChatOpenAI(
+            model=sc_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_api_key=sc_key,
+            openai_api_base=sc_base,
+            streaming=streaming,
+            default_headers={
+                "HTTP-Referer": "https://synapse.ai",
+                "X-Title": "SYNAPSE",
+            },
+        )
+
+    # Auto-fallback: try Scitely first
+    if sc_key and _OPENAI_AVAILABLE and ChatOpenAI is not None:
+        logger.info("llm_factory provider=scitely_auto model=%s streaming=%s", sc_model, streaming)
+        return ChatOpenAI(
+            model=sc_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_api_key=sc_key,
+            openai_api_base=sc_base,
+            streaming=streaming,
+            default_headers={
+                "HTTP-Referer": "https://synapse.ai",
+                "X-Title": "SYNAPSE",
+            },
         )
 
     # ── OpenRouter / OpenAI (explicit or auto-fallback) ───────────────────────

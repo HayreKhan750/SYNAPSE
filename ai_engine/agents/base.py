@@ -119,10 +119,11 @@ class SynapseAgent:
         max_iterations: int = MAX_ITERATIONS,
         max_execution_time: int = MAX_EXECUTION_TIME,
         verbose: bool = True,
+        scitely_api_key: Optional[str] = None,
         openrouter_api_key: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
         # TASK-302: multi-provider support
-        provider: str = "auto",              # "auto"|"openai"|"anthropic"|"ollama"|"gemini"
+        provider: str = "auto",              # "auto"|"openai"|"anthropic"|"ollama"|"gemini"|"scitely"
         anthropic_api_key: Optional[str] = None,
         ollama_base_url: Optional[str] = None,
     ) -> None:
@@ -135,6 +136,7 @@ class SynapseAgent:
         self.verbose = verbose
         self.provider = provider
         # Per-user API key overrides (take priority over env vars)
+        self._scitely_api_key = scitely_api_key
         self._openrouter_api_key = openrouter_api_key
         self._gemini_api_key = gemini_api_key
         self._anthropic_api_key = anthropic_api_key
@@ -159,8 +161,9 @@ class SynapseAgent:
           1. provider="anthropic"  → Claude (ANTHROPIC_API_KEY required)
           2. provider="ollama"     → local Ollama (OLLAMA_BASE_URL, no API key)
           3. provider="gemini"     → Google Gemini (GEMINI_API_KEY required)
-          4. provider="openai"     → OpenRouter-compatible endpoint
-          5. provider="auto"       → tries OpenRouter → Gemini → raises
+          4. provider="scitely"    → Scitely (SCITELY_API_KEY; OpenAI-compatible)
+          5. provider="openai"     → OpenRouter-compatible endpoint
+          6. provider="auto"       → tries Scitely → OpenRouter → Gemini → raises
         """
         from ai_engine.agents.llm_factory import build_llm
         return build_llm(
@@ -168,6 +171,7 @@ class SynapseAgent:
             model=self.model_name,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            scitely_api_key=self._scitely_api_key,
             openrouter_api_key=self._openrouter_api_key,
             gemini_api_key=self._gemini_api_key,
             anthropic_api_key=self._anthropic_api_key,

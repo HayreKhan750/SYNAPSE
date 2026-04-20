@@ -148,6 +148,8 @@ def _build_user_context(user) -> dict:
 
         # ── Configured integrations ───────────────────────────────
         integrations = []
+        if prefs.get('scitely_api_key'):
+            integrations.append("Scitely")
         if prefs.get('openrouter_api_key'):
             integrations.append("OpenRouter")
         if prefs.get('gemini_api_key'):
@@ -281,16 +283,20 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
     augmented_prompt = f"{context_prefix}{task_obj.prompt}" if context_prefix else task_obj.prompt
 
     # ── Resolve per-user API keys (user prefs → env vars → Django settings) ──
+    scitely_api_key = None
     openrouter_api_key = None
     gemini_api_key = None
     try:
         prefs = getattr(task_obj.user, 'preferences', {}) or {}
+        scitely_api_key = prefs.get('scitely_api_key') or None
         openrouter_api_key = prefs.get('openrouter_api_key') or None
         gemini_api_key = prefs.get('gemini_api_key') or None
     except Exception:
         pass
 
     # Fall back to environment / Django settings if user has no personal key
+    if not scitely_api_key:
+        scitely_api_key = os.environ.get('SCITELY_API_KEY') or None
     if not openrouter_api_key:
         from django.conf import settings as django_settings
         openrouter_api_key = (
@@ -312,6 +318,7 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
         from ai_engine.agents import get_executor
 
         executor = get_executor(
+            scitely_api_key=scitely_api_key,
             openrouter_api_key=openrouter_api_key,
             gemini_api_key=gemini_api_key,
         )

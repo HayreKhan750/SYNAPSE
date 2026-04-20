@@ -163,13 +163,13 @@ class ExplainView(APIView):
 
 def _get_user_keys(user) -> tuple:
     """
-    Return (openrouter_key, gemini_key) from the user's saved preferences.
-    Returns ('', '') if user is not authenticated or has no keys configured.
+    Return (scitely_key, openrouter_key, gemini_key) from the user's saved preferences.
+    Returns ('', '', '') if user is not authenticated or has no keys configured.
     """
     if user and user.is_authenticated:
         prefs = getattr(user, 'preferences', {}) or {}
-        return prefs.get('openrouter_api_key', ''), prefs.get('gemini_api_key', '')
-    return '', ''
+        return prefs.get('scitely_api_key', ''), prefs.get('openrouter_api_key', ''), prefs.get('gemini_api_key', '')
+    return '', '', ''
 
 
 def _is_valid_key(key: str, prefix: str = "") -> bool:
@@ -183,6 +183,20 @@ def _is_valid_key(key: str, prefix: str = "") -> bool:
     if len(key) < 20:
         return False
     return True
+
+
+def _get_scitely_key(user=None) -> str:
+    """Return the Scitely API key — valid user key takes priority over env var."""
+    import os
+    if user and user.is_authenticated:
+        prefs = getattr(user, 'preferences', {}) or {}
+        user_key = prefs.get('scitely_api_key', '')
+        if _is_valid_key(user_key):
+            return user_key
+    key = os.environ.get("SCITELY_API_KEY", "")
+    if key and not key.startswith("your-"):
+        return key
+    return ""
 
 
 def _get_openrouter_key(user=None) -> str:
@@ -260,7 +274,7 @@ def _pluralize_content_type(ct: str) -> str:
 def _get_pipeline(model: str = None, user=None):
     """
     Lazy-import RAG pipeline to avoid loading at Django startup.
-    Priority: user's own key → server env var → unavailable.
+    Priority: Scitely → OpenRouter → Gemini (user key → server env var).
     Tries full RAG pipeline first; falls back to direct LLM if pgvector retriever unavailable.
 
     Args:
@@ -269,25 +283,26 @@ def _get_pipeline(model: str = None, user=None):
     """
     import os
 
+    scitely_key = _get_scitely_key(user=user)
     openrouter_key = _get_openrouter_key(user=user)
     gemini_keys = _get_gemini_keys(user=user)
 
-    default_model = os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "google/gemini-2.0-flash-001"))
+    default_model = os.environ.get("SCITELY_MODEL", os.environ.get("OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "gpt-4o-mini")))
     resolved_model = model or default_model
 
-    if not openrouter_key and not gemini_keys:
-        logger.error("No LLM API key configured (OPENROUTER_API_KEY or GEMINI_API_KEY) — chat unavailable.")
+    if not scitely_key and not openrouter_key and not gemini_keys:
+        logger.error("No LLM API key configured (SCITELY_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY) — chat unavailable.")
         return None
 
-    logger.info("_get_pipeline: using model=%s openrouter=%s gemini_keys=%d user_keys=%s",
-                resolved_model, bool(openrouter_key), len(gemini_keys),
+    logger.info("_get_pipeline: using model=%s scitely=%s openrouter=%s gemini_keys=%d user_keys=%s",
+                resolved_model, bool(scitely_key), bool(openrouter_key), len(gemini_keys),
                 bool(user and user.is_authenticated))
 
     # Try the full RAG pipeline first (pgvector + embeddings + retrieval)
     # Only use RAG when no user-specific model override and no per-user key
     # (RAG pipeline is a singleton that cannot easily be keyed per user)
-    user_openrouter, user_gemini = _get_user_keys(user)
-    has_user_key = bool(user_openrouter or user_gemini)
+    user_scitely, user_openrouter, user_gemini = _get_user_keys(user)
+    has_user_key = bool(user_scitely or user_openrouter or user_gemini)
 
     if not model and not has_user_key:
         try:
@@ -297,7 +312,13 @@ def _get_pipeline(model: str = None, user=None):
             logger.warning("Full RAG pipeline unavailable (%s). Falling back to direct LLM.", exc)
 
     # Fallback: direct LLM pipeline (no retrieval, still useful for chat)
-    if openrouter_key:
+    # Priority: Scitely → OpenRouter → Gemini
+    if scitely_key:
+        return _OpenRouterDirectPipeline(
+            api_key=scitely_key, model=resolved_model,
+            base_url="https://api.scitely.com/v1"
+        )
+    elif openrouter_key:
         return _OpenRouterDirectPipeline(api_key=openrouter_key, model=resolved_model)
     else:
         api_key = _next_chat_key(gemini_keys)
@@ -306,15 +327,15 @@ def _get_pipeline(model: str = None, user=None):
 
 class _OpenRouterDirectPipeline:
     """
-    Direct pipeline that calls any model via OpenRouter's OpenAI-compatible API.
-    Supports all models available on OpenRouter (Gemini, GPT-4, Claude, etc.)
+    Direct pipeline that calls any model via an OpenAI-compatible API.
+    Works with OpenRouter, Scitely, and any OpenAI-compatible provider.
     """
 
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: str, model: str, base_url: str = None) -> None:
         import os
         self._api_key = api_key
         self._model = model
-        self._base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        self._base_url = base_url or os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
         self._histories: Dict[str, list] = {}
 
     def _build_llm(self, streaming: bool = False):

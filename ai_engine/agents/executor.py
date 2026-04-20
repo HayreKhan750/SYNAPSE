@@ -54,6 +54,7 @@ class SynapseAgentExecutor:
         max_iterations: int = 10,
         max_execution_time: int = 300,
         verbose: bool = True,
+        scitely_api_key: Optional[str] = None,
         openrouter_api_key: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
     ) -> None:
@@ -65,6 +66,7 @@ class SynapseAgentExecutor:
         self.max_execution_time = max_execution_time
         self.verbose = verbose
         # Per-user API key overrides
+        self.scitely_api_key = scitely_api_key
         self.openrouter_api_key = openrouter_api_key
         self.gemini_api_key = gemini_api_key
 
@@ -79,7 +81,7 @@ class SynapseAgentExecutor:
         Note: default agent is NOT cached when per-user keys are set, to avoid
         leaking one user's key into another user's session.
         """
-        if self.openrouter_api_key or self.gemini_api_key:
+        if self.scitely_api_key or self.openrouter_api_key or self.gemini_api_key:
             # Per-user keys — always build a fresh agent (no caching)
             tools = self.registry.get_tools()
             return SynapseAgent(
@@ -90,6 +92,7 @@ class SynapseAgentExecutor:
                 max_iterations=self.max_iterations,
                 max_execution_time=self.max_execution_time,
                 verbose=self.verbose,
+                scitely_api_key=self.scitely_api_key,
                 openrouter_api_key=self.openrouter_api_key,
                 gemini_api_key=self.gemini_api_key,
             )
@@ -367,6 +370,7 @@ _SENTINEL = object()
 # ---------------------------------------------------------------------------
 
 def get_executor(
+    scitely_api_key: Optional[str] = None,
     openrouter_api_key: Optional[str] = None,
     gemini_api_key: Optional[str] = None,
 ) -> SynapseAgentExecutor:
@@ -378,9 +382,10 @@ def get_executor(
     efficiency (uses env-var keys shared across all requests).
     """
     global _executor_instance
-    if openrouter_api_key or gemini_api_key:
+    if scitely_api_key or openrouter_api_key or gemini_api_key:
         # Per-user executor — not cached
         return SynapseAgentExecutor(
+            scitely_api_key=scitely_api_key,
             openrouter_api_key=openrouter_api_key,
             gemini_api_key=gemini_api_key,
         )

@@ -204,6 +204,7 @@ def ai_keys_view(request):
         prefs = getattr(request.user, 'preferences', {}) or {}
         gemini_ok     = bool(prefs.get('gemini_api_key'))
         openrouter_ok = bool(prefs.get('openrouter_api_key'))
+        scitely_ok    = bool(prefs.get('scitely_api_key'))
         github_ok     = bool(prefs.get('github_token'))
         x_api_ok      = bool(prefs.get('x_api_key'))
 
@@ -211,6 +212,7 @@ def ai_keys_view(request):
         from django.conf import settings
         env_gemini     = bool(os.environ.get('GEMINI_API_KEY'))
         env_openrouter = bool(os.environ.get('OPENROUTER_API_KEY'))
+        env_scitely    = bool(os.environ.get('SCITELY_API_KEY'))
         env_github     = bool(os.environ.get('GITHUB_TOKEN'))
         env_x_api      = bool(os.environ.get('X_API_KEY') or os.environ.get('TWITTER_BEARER_TOKEN'))
 
@@ -230,19 +232,19 @@ def ai_keys_view(request):
                 'message': 'Using shared GitHub token. Set your own in Settings for higher rate limits.',
             })
 
-        if not gemini_ok and not openrouter_ok and not env_gemini and not env_openrouter:
+        if not gemini_ok and not openrouter_ok and not scitely_ok and not env_gemini and not env_openrouter and not env_scitely:
             warnings.append({
                 'key': 'ai',
                 'label': 'AI Chat & Summarization',
                 'severity': 'error',
-                'message': 'No AI API key configured. AI chat, summarization, and agents are unavailable. Add a Gemini or OpenRouter key in Settings.',
+                'message': 'No AI API key configured. AI chat, summarization, and agents are unavailable. Add a Scitely, Gemini, or OpenRouter key in Settings.',
             })
-        elif not gemini_ok and not openrouter_ok:
+        elif not gemini_ok and not openrouter_ok and not scitely_ok:
             warnings.append({
                 'key': 'ai',
                 'label': 'AI Chat & Summarization',
                 'severity': 'info',
-                'message': 'Using shared AI key. Set your own Gemini or OpenRouter key in Settings for reliable access.',
+                'message': 'Using shared AI key. Set your own Scitely, Gemini, or OpenRouter key in Settings for reliable access.',
             })
 
         if not x_api_ok and not env_x_api:
@@ -263,9 +265,10 @@ def ai_keys_view(request):
         return Response({
             'gemini_configured':     gemini_ok,
             'openrouter_configured': openrouter_ok,
+            'scitely_configured':    scitely_ok,
             'github_configured':     github_ok,
             'x_api_configured':      x_api_ok,
-            'any_configured':        gemini_ok or openrouter_ok,
+            'any_configured':        gemini_ok or openrouter_ok or scitely_ok,
             'warnings':              warnings,
         })
 
@@ -276,6 +279,7 @@ def ai_keys_view(request):
 
     gemini_key     = request.data.get('gemini_api_key', '').strip()
     openrouter_key = request.data.get('openrouter_api_key', '').strip()
+    scitely_key    = request.data.get('scitely_api_key', '').strip()
     github_token   = request.data.get('github_token', '').strip()
     x_api_key      = request.data.get('x_api_key', '').strip()
 
@@ -288,6 +292,10 @@ def ai_keys_view(request):
         if len(openrouter_key) < 10 or len(openrouter_key) > 512:
             return Response({'success': False, 'error': 'Invalid OpenRouter API key format.'}, status=400)
         prefs['openrouter_api_key'] = openrouter_key
+    if scitely_key:
+        if len(scitely_key) < 10 or len(scitely_key) > 512:
+            return Response({'success': False, 'error': 'Invalid Scitely API key format.'}, status=400)
+        prefs['scitely_api_key'] = scitely_key
     if github_token:
         if len(github_token) < 10 or len(github_token) > 512:
             return Response({'success': False, 'error': 'Invalid GitHub token format.'}, status=400)
@@ -304,6 +312,7 @@ def ai_keys_view(request):
         'success': True,
         'gemini_configured':     bool(prefs.get('gemini_api_key')),
         'openrouter_configured': bool(prefs.get('openrouter_api_key')),
+        'scitely_configured':    bool(prefs.get('scitely_api_key')),
         'github_configured':     bool(prefs.get('github_token')),
         'x_api_configured':      bool(prefs.get('x_api_key')),
     })

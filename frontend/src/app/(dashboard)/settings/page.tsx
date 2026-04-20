@@ -90,10 +90,12 @@ function Toggle({ label, description, checked, onChange }: { label: string; desc
 function AiKeysForm() {
   const [geminiKey, setGeminiKey]           = useState('');
   const [openrouterKey, setOpenrouterKey]   = useState('');
+  const [scitelyKey, setScitelyKey]         = useState('');
   const [githubToken, setGithubToken]       = useState('');
   const [xApiKey, setXApiKey]               = useState('');
   const [showGemini, setShowGemini]         = useState(false);
   const [showOpenrouter, setShowOpenrouter] = useState(false);
+  const [showScitely, setShowScitely]       = useState(false);
   const [showGithub, setShowGithub]         = useState(false);
   const [showXApi, setShowXApi]             = useState(false);
   const [saving, setSaving]                 = useState(false);
@@ -101,6 +103,7 @@ function AiKeysForm() {
 
   const [geminiConfigured, setGeminiConfigured]         = useState(false);
   const [openrouterConfigured, setOpenrouterConfigured] = useState(false);
+  const [scitelyConfigured, setScitelyConfigured]       = useState(false);
   const [githubConfigured, setGithubConfigured]         = useState(false);
   const [xApiConfigured, setXApiConfigured]             = useState(false);
 
@@ -109,10 +112,12 @@ function AiKeysForm() {
     api.get('/users/ai-keys/', { signal: controller.signal }).then(({ data }) => {
       setGeminiConfigured(!!data.gemini_configured);
       setOpenrouterConfigured(!!data.openrouter_configured);
+      setScitelyConfigured(!!data.scitely_configured);
       setGithubConfigured(!!data.github_configured);
       setXApiConfigured(!!data.x_api_configured);
       setGeminiKey(data.gemini_configured ? '••••••••••••••••' : '');
       setOpenrouterKey(data.openrouter_configured ? '••••••••••••••••' : '');
+      setScitelyKey(data.scitely_configured ? '••••••••••••••••' : '');
       setGithubToken(data.github_configured ? '••••••••••••••••' : '');
       setXApiKey(data.x_api_configured ? '••••••••••••••••' : '');
       setLoaded(true);
@@ -126,6 +131,7 @@ function AiKeysForm() {
       const payload: Record<string, string> = {};
       if (geminiKey && !geminiKey.startsWith('•'))         payload.gemini_api_key = geminiKey;
       if (openrouterKey && !openrouterKey.startsWith('•')) payload.openrouter_api_key = openrouterKey;
+      if (scitelyKey && !scitelyKey.startsWith('•'))       payload.scitely_api_key = scitelyKey;
       if (githubToken && !githubToken.startsWith('•'))     payload.github_token = githubToken;
       if (xApiKey && !xApiKey.startsWith('•'))             payload.x_api_key = xApiKey;
       if (!Object.keys(payload).length) { toast.error('No new keys to save.'); setSaving(false); return; }
@@ -133,6 +139,7 @@ function AiKeysForm() {
       toast.success('Keys saved! AI, GitHub and X/Twitter scrapers now use your keys.');
       if (payload.gemini_api_key)     { setGeminiKey('••••••••••••••••');     setGeminiConfigured(true); }
       if (payload.openrouter_api_key) { setOpenrouterKey('••••••••••••••••'); setOpenrouterConfigured(true); }
+      if (payload.scitely_api_key)    { setScitelyKey('••••••••••••••••');    setScitelyConfigured(true); }
       if (payload.github_token)       { setGithubToken('••••••••••••••••');   setGithubConfigured(true); }
       if (payload.x_api_key)          { setXApiKey('••••••••••••••••');       setXApiConfigured(true); }
     } catch {
@@ -156,6 +163,34 @@ function AiKeysForm() {
 
   return (
     <div className="space-y-4">
+      {/* Scitely — Primary AI Provider */}
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-2">
+          Scitely API Key
+          <span className="text-cyan-600 dark:text-cyan-400 text-xs font-normal">50+ models · GPT-5 / Claude / DeepSeek / Flux</span>
+          {loaded && (scitelyConfigured
+            ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 font-semibold">✓ Saved</span>
+            : <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">Recommended</span>
+          )}
+        </label>
+        <div className="relative">
+          <input
+            type={showScitely ? 'text' : 'password'}
+            value={scitelyKey}
+            onChange={(e) => setScitelyKey(e.target.value)}
+            placeholder="sk-scitely-..."
+            className={fieldClass}
+          />
+          <button type="button" onClick={() => setShowScitely(s => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            {showScitely ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        <p className="text-xs text-slate-600 mt-1">
+          Get from <a href="https://scitely.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Scitely</a> — 50+ models, image/video generation, unlimited access
+        </p>
+      </div>
+
       {/* Gemini */}
       <div>
         <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-2">
