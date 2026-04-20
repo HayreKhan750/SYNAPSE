@@ -318,7 +318,8 @@ export default function OnboardingWizardPage() {
               onQueryButtonClick={handleQueryButtonClick}
             />;
           }
-          return <CurrentStepComponent />;
+          const SafeComponent = CurrentStepComponent as React.FC;
+          return <SafeComponent />;
         })()}
       </div>
 
