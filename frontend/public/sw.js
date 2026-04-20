@@ -1,32 +1,22 @@
 /**
  * SYNAPSE Service Worker — Phase 7.2 PWA
  *
- * Strategy:
- *  - App shell (HTML, CSS, JS) → Cache-first with network fallback
- *  - API calls (/api/v1/*) → Network-first with cache fallback
- *  - Offline fallback → /offline
+ * Strategy: Network-first for all requests.
+ * Vercel CDN handles caching — the SW only provides offline fallback.
  */
 
-const CACHE_NAME = 'synapse-v1'
+const CACHE_NAME = 'synapse-v2'
 const OFFLINE_URL = '/offline'
-
-const APP_SHELL = [
-  '/',
-  '/offline',
-  '/manifest.json',
-]
 
 // ── Install ────────────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL)
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll([OFFLINE_URL]))
   )
   self.skipWaiting()
 })
 
-// ── Activate ───────────────────────────────────────────────────────────────────
+// ── Activate — delete ALL old caches ───────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -40,57 +30,25 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
-// ── Fetch ──────────────────────────────────────────────────────────────────────
+// ── Fetch — Network-first for everything ───────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event
+
+  // Skip non-GET and cross-origin
+  if (request.method !== 'GET') return
   const url = new URL(request.url)
+  if (url.origin !== location.origin) return
 
-  // Skip non-GET and non-same-origin
-  if (request.method !== 'GET' || url.origin !== location.origin) return
-
-  // API calls → Network-first
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
-          return response
-        })
-        .catch(async () => {
-          const cached = await caches.match(request)
-          return cached ?? new Response(JSON.stringify({ error: 'offline' }), {
-            status: 503,
-            headers: { 'Content-Type': 'application/json' },
-          })
-        })
-    )
-    return
-  }
-
-  // HTML navigation → Network-first, fallback to /offline
+  // Navigation requests → network with offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cached = await caches.match(request)
-        if (cached) return cached
-        return caches.match(OFFLINE_URL)
-      })
+      fetch(request).catch(() => caches.match(OFFLINE_URL))
     )
     return
   }
 
-  // Static assets → Cache-first
+  // All other same-origin GET → network-first (no caching of stale assets)
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached
-      return fetch(request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
-        }
-        return response
-      })
-    })
+    fetch(request).catch(() => caches.match(request))
   )
 })
