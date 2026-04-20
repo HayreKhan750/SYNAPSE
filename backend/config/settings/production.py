@@ -70,9 +70,30 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
 ]
 
-# ── Database — connection pooling ─────────────────────────────────────────────
-DATABASES["default"]["CONN_MAX_AGE"] = int(os.environ.get("DB_CONN_MAX_AGE", 60))
-DATABASES["default"]["OPTIONS"] = {"connect_timeout": 10}
+# ── Database — parse DATABASE_URL for managed providers (Neon, Supabase, etc.) ─
+_database_url = os.environ.get("DATABASE_URL", "")
+if _database_url:
+    from urllib.parse import urlparse, parse_qs
+
+    _parsed = urlparse(_database_url)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": _parsed.path.lstrip("/"),
+            "USER": _parsed.username or "",
+            "PASSWORD": _parsed.password or "",
+            "HOST": _parsed.hostname or "localhost",
+            "PORT": str(_parsed.port or 5432),
+            "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", 60)),
+            "OPTIONS": {
+                "connect_timeout": 10,
+                "sslmode": parse_qs(_parsed.query).get("sslmode", ["require"])[0],
+            },
+        }
+    }
+else:
+    DATABASES["default"]["CONN_MAX_AGE"] = int(os.environ.get("DB_CONN_MAX_AGE", 60))  # type: ignore
+    DATABASES["default"]["OPTIONS"] = {"connect_timeout": 10}  # type: ignore
 
 # ── Redis SSL (Upstash / managed Redis with TLS) ─────────────────────────────
 # When using rediss:// URLs, Celery and django-redis need explicit SSL config.
