@@ -170,10 +170,7 @@ LOGGING = {
     },
     "formatters": {
         "json": {
-            "()": "structlog.stdlib.ProcessorFormatter",
-            # DEBUG is always False in production — use JSONRenderer unconditionally.
-            # structlog.dev.ConsoleRenderer is for local development only.
-            "processor": "structlog.processors.JSONRenderer",
+            "format": '{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}',
         },
     },
     "handlers": {
