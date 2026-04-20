@@ -45,6 +45,10 @@ RUN pip install gunicorn --no-cache-dir
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 COPY --chown=appuser:appuser . .
 
+# Make the production start script executable
+RUN chmod +x /app/start_prod.sh
+
 USER appuser
 EXPOSE 8000
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]
+# Runs BOTH Gunicorn web server AND Celery worker+beat in one container (free tier)
+CMD ["/app/start_prod.sh"]
