@@ -61,6 +61,8 @@ const nextConfig = {
     ],
     // Partial pre-rendering: static shell + streaming dynamic data
     ppr: false,
+    // Allow useSearchParams without mandatory Suspense boundary (client pages)
+    missingSuspenseWithCSRBailout: false,
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
