@@ -70,8 +70,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => makeQueryClient())
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
 
+  // GoogleOAuthProvider crashes the entire React tree if clientId is empty.
+  // Wrap conditionally so the app works without Google OAuth configured.
+  const MaybeGoogleProvider = googleClientId
+    ? ({ children: c }: { children: React.ReactNode }) => (
+        <GoogleOAuthProvider clientId={googleClientId}>{c}</GoogleOAuthProvider>
+      )
+    : React.Fragment
+
   return (
-    <GoogleOAuthProvider clientId={googleClientId}>
+    <MaybeGoogleProvider>
       {/* TASK-401-2: ThemeProvider — respect OS prefers-color-scheme on first visit,
            store preference in localStorage via next-themes built-in mechanism */}
       <ThemeProvider
@@ -112,6 +120,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
           </UpgradeModalProvider>
         </QueryClientProvider>
       </ThemeProvider>
-    </GoogleOAuthProvider>
+    </MaybeGoogleProvider>
   )
 }
