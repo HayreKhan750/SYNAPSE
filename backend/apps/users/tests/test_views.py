@@ -21,8 +21,10 @@ class AuthEndpointTest(TestCase):
         response = self.client.post(self.register_url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data['success'])
-        self.assertIn('tokens', response.data['data'])
-        self.assertIn('access', response.data['data']['tokens'])
+        # Registration now requires email verification — no tokens issued yet.
+        self.assertIn('user', response.data)
+        self.assertFalse(response.data['user']['email_verified'])
+        self.assertNotIn('tokens', response.data)
 
     def test_register_duplicate_email(self):
         User.objects.create_user(username='existing', email='dup@example.com', password='Pass123!')

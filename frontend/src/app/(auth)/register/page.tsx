@@ -66,9 +66,9 @@ export default function RegisterPage() {
         first_name: data.first_name, last_name: data.last_name,
         password: data.password, password2: data.confirm_password,
       })
-      toast.success('Account created! Welcome to SYNAPSE 🎉')
-      // New users → onboarding wizard; (onboarding) is a Next.js route group, not a URL segment
-      router.push('/wizard')
+      toast.success('Account created! Please check your email to verify your address 📧')
+      // New users → email verification; the /wizard runs after email is confirmed
+      router.push('/verify-email')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account')
     } finally {

@@ -3,46 +3,10 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
-from django.core.mail import send_mail
 from django.conf import settings
 import uuid
 from .models import User
-
-
-def send_verification_email(user):
-    """Send email verification link to newly registered user."""
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-    token = str(user.email_verification_token)
-    verify_url = f"{frontend_url}/verify-email?token={token}"
-
-    send_mail(
-        subject='Verify your SYNAPSE email address',
-        message=(
-            f"Hi {user.first_name or user.username},\n\n"
-            f"Thanks for signing up for SYNAPSE!\n\n"
-            f"Please verify your email address by clicking the link below:\n"
-            f"{verify_url}\n\n"
-            f"This link expires in 24 hours.\n\n"
-            f"— The SYNAPSE Team"
-        ),
-        html_message=(
-            f"<div style='font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px'>"
-            f"<h2 style='color:#4f46e5;margin-bottom:8px'>Verify your email</h2>"
-            f"<p>Hi <strong>{user.first_name or user.username}</strong>,</p>"
-            f"<p>Thanks for signing up for <strong>SYNAPSE</strong>! Please verify your email address.</p>"
-            f"<a href='{verify_url}' style='display:inline-block;background:linear-gradient(135deg,#6366f1,#7c3aed);"
-            f"color:white;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:bold;margin:16px 0'>"
-            f"Verify Email Address</a>"
-            f"<p style='color:#64748b;font-size:13px'>Or copy this link:<br>"
-            f"<code style='word-break:break-all'>{verify_url}</code></p>"
-            f"<p style='color:#64748b;font-size:13px'>This link expires in <strong>24 hours</strong>.</p>"
-            f"<p style='color:#64748b;font-size:13px'>— The SYNAPSE Team</p>"
-            f"</div>"
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=True,
-    )
+from .firebase_email import send_verification_email
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -61,6 +25,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password2')
         user = User.objects.create_user(**validated_data)
+        # Ensure a verification token is set (model default generates one but let's be explicit)
+        if not user.email_verification_token:
+            import uuid as _uuid
+            user.email_verification_token = _uuid.uuid4()
+            user.save(update_fields=['email_verification_token'])
+        # Send verification email (fail silently so registration still succeeds)
+        try:
+            send_verification_email(user)
+        except Exception:
+            pass
         return user
 
 

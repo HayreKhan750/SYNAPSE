@@ -24,13 +24,16 @@ function VerifyEmailContent() {
       setStatus('loading')
       authApi.get(`/auth/verify-email/?token=${token}`)
         .then(async (res) => {
-          const { tokens, user } = res.data
+          const { tokens } = res.data
           if (tokens) {
             setTokens(tokens.access, tokens.refresh)
             await fetchUser()
           }
           setStatus('success')
-          setTimeout(() => router.push('/home'), 2500)
+          // Route new users to onboarding wizard; returning users go to /home
+          const { user: currentUser } = useAuthStore.getState()
+          const isOnboarded = (currentUser as any)?.is_onboarded ?? false
+          setTimeout(() => router.push(isOnboarded ? '/home' : '/wizard'), 2500)
         })
         .catch((err) => {
           setMessage(err?.response?.data?.error || 'Invalid or expired verification link.')

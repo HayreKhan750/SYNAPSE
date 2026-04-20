@@ -76,17 +76,12 @@ export const useAuthStore = create<AuthStore>()(
           // TASK-203: track signup intent before API call
           track('signup_started', { method: 'email' })
 
+          // Registration now returns { success, user } — no tokens until email is verified.
+          // The /verify-email endpoint issues JWT tokens after the user clicks the link.
           await authApi.post('/auth/register/', data)
 
-          // Auto-login after successful registration
-          const loginCredentials: LoginCredentials = {
-            email: data.email,
-            password: data.password,
-          }
-          await get().login(loginCredentials)
-
-          // Override the login_completed event method for new signups
-          track('login_completed', { method: 'email_signup' })
+          track('signup_completed', { method: 'email' })
+          set({ isLoading: false })
         } catch (error: unknown) {
           set({ isLoading: false })
           if (axios.isAxiosError(error)) {

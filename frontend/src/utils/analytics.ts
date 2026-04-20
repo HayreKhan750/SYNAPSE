@@ -32,6 +32,7 @@ type EventName =
   | 'mfa_setup_started'
   | 'mfa_enabled'
   | 'signup_started'
+  | 'signup_completed'
   | 'login_completed'
 
 type EventProperties = Record<string, string | number | boolean | null | undefined>

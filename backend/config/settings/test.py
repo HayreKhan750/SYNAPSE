@@ -1,6 +1,10 @@
 import os
 from .base import *  # noqa: F401, F403
 
+# django.contrib.postgres is needed for ArrayField used in articles, papers, tweets etc.
+if 'django.contrib.postgres' not in INSTALLED_APPS:  # noqa: F405
+    INSTALLED_APPS += ['django.contrib.postgres']  # noqa: F405
+
 DEBUG = True
 ALLOWED_HOSTS = ['*', 'localhost', 'testserver', '127.0.0.1']
 

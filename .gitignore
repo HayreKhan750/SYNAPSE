@@ -120,3 +120,7 @@ secrets/
 ehthumbs.db
 Thumbs.db
 fix/
+
+# Firebase Service Account Key (NEVER commit this)
+*firebase-adminsdk*.json
+firebase-service-account.json

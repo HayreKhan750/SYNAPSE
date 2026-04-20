@@ -190,9 +190,22 @@ EMAIL_HOST          = os.environ.get('EMAIL_HOST', 'smtp.sendgrid.net')
 EMAIL_PORT          = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS       = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', 'apikey')
-EMAIL_HOST_PASSWORD = os.environ.get('SENDGRID_API_KEY', '')
+# Prefer EMAIL_HOST_PASSWORD (set in .env for Brevo/SMTP providers) and fall
+# back to SENDGRID_API_KEY for backward-compat with legacy SendGrid deployments.
+EMAIL_HOST_PASSWORD = (
+    os.environ.get('EMAIL_HOST_PASSWORD')
+    or os.environ.get('SENDGRID_API_KEY', '')
+)
 DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@synapse.ai')
 SENDGRID_API_KEY    = os.environ.get('SENDGRID_API_KEY', '')
+
+# ── Firebase Auth (FREE email sending for verification & password reset) ──────
+# Setup: https://console.firebase.google.com → Create project → Enable Auth
+# Set these env vars:
+#   FIREBASE_WEB_API_KEY               — from Project Settings > General
+#   GOOGLE_APPLICATION_CREDENTIALS     — path to service account JSON
+#   OR FIREBASE_CREDENTIALS_JSON       — service account JSON as string
+FIREBASE_WEB_API_KEY = os.environ.get('FIREBASE_WEB_API_KEY', '')
 
 # ── REST Framework ────────────────────────────────────────────
 REST_FRAMEWORK = {

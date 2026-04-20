@@ -88,7 +88,7 @@ class User(AbstractUser):
     created_at               = models.DateTimeField(auto_now_add=True)
     updated_at               = models.DateTimeField(auto_now=True)
     # ── Email verification ────────────────────────────────────
-    email_verified           = models.BooleanField(default=True)
+    email_verified           = models.BooleanField(default=False)
     email_verification_token = models.UUIDField(null=True, blank=True, default=uuid.uuid4)
     # ── Social auth ───────────────────────────────────────────
     google_id                = models.CharField(max_length=255, blank=True, unique=True, null=True)

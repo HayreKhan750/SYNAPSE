@@ -353,9 +353,9 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
     for workflow in workflows_created:
         WorkflowRun.objects.create(
             workflow=workflow,
-            status="running",
-            triggered_by="onboarding",
-            metadata={"is_initial_run": True, "task_ids": task_results}
+            status='running',
+            trigger_event={'trigger': 'onboarding', 'is_initial_run': True},
+            result={'task_ids': task_results},
         )
 
     logger.info(f"Onboarding workflows and initial scraping triggered for {user.email}")

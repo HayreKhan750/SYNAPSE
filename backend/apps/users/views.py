@@ -9,7 +9,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
-from django.core.mail import send_mail
+from .firebase_email import send_verification_email, send_password_reset_email
 from django.conf import settings
 import uuid
 import os
@@ -69,21 +69,18 @@ class RegisterView(generics.CreateAPIView):
         except Exception:
             pass  # Analytics must never block registration
 
-        refresh = RefreshToken.for_user(user)
         return Response({
             'success': True,
-            'message': 'Account created! Welcome to SYNAPSE.',
+            'message': 'Account created! Please check your email to verify your address.',
             'user': {
                 'id': str(user.id),
                 'email': user.email,
                 'username': user.username,
                 'first_name': user.first_name,
-                'email_verified': True,
+                'email_verified': False,
             },
-            'tokens': {
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-            }
+            # No tokens issued yet — the user must verify email first.
+            # The verify-email endpoint issues tokens on success.
         }, status=status.HTTP_201_CREATED)
 
 
@@ -333,31 +330,8 @@ def password_reset_request(request):
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
         reset_url = f"{frontend_url}/reset-password?uid={uid}&token={token}"
 
-        send_mail(
-            subject='Reset your SYNAPSE password',
-            message=(
-                f"Hi {user.first_name or user.username},\n\n"
-                f"You requested a password reset for your SYNAPSE account.\n\n"
-                f"Click the link below to reset your password (expires in 1 hour):\n"
-                f"{reset_url}\n\n"
-                f"If you didn't request this, you can safely ignore this email.\n\n"
-                f"— The SYNAPSE Team"
-            ),
-            html_message=(
-                f"<p>Hi <strong>{user.first_name or user.username}</strong>,</p>"
-                f"<p>You requested a password reset for your SYNAPSE account.</p>"
-                f"<p><a href='{reset_url}' style='background:#6366f1;color:white;padding:12px 24px;"
-                f"border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;'>"
-                f"Reset Password</a></p>"
-                f"<p>Or copy this link: <code>{reset_url}</code></p>"
-                f"<p>This link expires in <strong>1 hour</strong>. "
-                f"If you didn't request this, you can safely ignore this email.</p>"
-                f"<p>— The SYNAPSE Team</p>"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=True,
-        )
+        # Send via Firebase (free) with Django fallback
+        send_password_reset_email(user, reset_url)
     except User.DoesNotExist:
         pass  # Silently ignore — don't leak whether email exists
 
@@ -459,21 +433,9 @@ def resend_verification_email(request):
     user.email_verification_token = new_token
     user.save(update_fields=['email_verification_token'])
 
-    # Send email via notifications service
+    # Send verification email via Firebase (free) with Django fallback
     try:
-        from apps.notifications.email_service import EmailService
-        frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:3000')
-        verify_url = f"{frontend_url}/verify-email?token={new_token}"
-        EmailService.send_email(
-            to=user.email,
-            subject='Verify your SYNAPSE email',
-            template='verify_email',
-            context={
-                'user': user,
-                'verify_url': verify_url,
-                'expiry_hours': 24,
-            },
-        )
+        send_verification_email(user)
     except Exception:
         pass  # Email service may not be configured in dev
 
