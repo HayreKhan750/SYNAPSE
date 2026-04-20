@@ -434,7 +434,7 @@ function TrendingSection() {
   const { data: trendingData } = useQuery({
     queryKey: ['landing-trending'],
     queryFn: async () => {
-      const res = await api.get('/api/v1/trending/?limit=8&hours=48')
+      const res = await api.get('/trending/?limit=8&hours=48')
       return res.data?.data || {}
     },
     staleTime: 10 * 60 * 1000,

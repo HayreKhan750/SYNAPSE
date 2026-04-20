@@ -28,6 +28,11 @@ if not ALLOWED_HOSTS:
         'Example: ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com'
     )
 
+# ── Frontend URL ──────────────────────────────────────────────────────────────
+# Auto-prepend https:// if missing (common env var misconfiguration)
+_raw_fe = os.environ.get('FRONTEND_URL', '').strip()
+FRONTEND_URL = _raw_fe if _raw_fe.startswith(('http://', 'https://')) else f'https://{_raw_fe}' if _raw_fe else 'https://synapse-app-six.vercel.app'
+
 # ── Security headers ──────────────────────────────────────────────────────────
 SECURE_SSL_REDIRECT              = True
 SECURE_HSTS_SECONDS              = 31_536_000  # 1 year
@@ -79,12 +84,31 @@ MIDDLEWARE     = [m for m in MIDDLEWARE if m != 'silk.middleware.SilkyMiddleware
 # NEVER use '*' (wildcard) in production — it allows requests from any origin
 # and disables credentials validation.
 # Example: CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
-if not CORS_ALLOWED_ORIGINS or CORS_ALLOWED_ORIGINS == ['']:
+_raw_cors = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+# Auto-prepend https:// if the protocol is missing (common misconfiguration)
+CORS_ALLOWED_ORIGINS = [
+    o if o.startswith(('http://', 'https://')) else f'https://{o}'
+    for o in (s.strip() for s in _raw_cors) if s.strip()
+]
+if not CORS_ALLOWED_ORIGINS:
     raise ValueError(
         'CORS_ALLOWED_ORIGINS environment variable must be set in production. '
         'Example: CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com'
     )
+
+# ── CSRF — trusted origins for cross-site POST requests ───────────────────────
+# Django 4.x requires CSRF_TRUSTED_ORIGINS for cross-origin POST requests.
+# Falls back to CORS_ALLOWED_ORIGINS if CSRF_TRUSTED_ORIGINS is not set,
+# since the set of trusted CSRF origins typically matches the CORS origins.
+_raw_csrf = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
+if _raw_csrf:
+    CSRF_TRUSTED_ORIGINS = [
+        o if o.startswith(('http://', 'https://')) else f'https://{o}'
+        for o in (s.strip() for s in _raw_csrf.split(',')) if o.strip()
+    ]
+else:
+    # Default: derive from CORS_ALLOWED_ORIGINS (already https://-prefixed above)
+    CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
 
 # ── Sentry — error tracking ───────────────────────────────────────────────────
 SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
