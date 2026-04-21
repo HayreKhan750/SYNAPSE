@@ -28,11 +28,10 @@ celery -A config.celery worker -B \
 CELERY_PID=$!
 echo "   Celery PID: $CELERY_PID"
 
-# 4. Start Gunicorn web server (foreground)
-echo "🌐 Starting Gunicorn..."
-exec gunicorn config.wsgi:application \
+# 4. Start Daphne ASGI server (foreground) — supports HTTP + WebSocket
+# Gunicorn (WSGI) cannot handle WebSocket connections;
+# Daphne is the official ASGI server for Django Channels.
+echo "🌐 Starting Daphne ASGI server..."
+exec daphne config.asgi:application \
   --bind "0.0.0.0:${PORT:-8000}" \
-  --workers 2 \
-  --timeout 120 \
-  --access-logfile - \
-  --error-logfile -
+  --verbosity 1

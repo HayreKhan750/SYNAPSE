@@ -101,8 +101,15 @@ import ssl as _ssl  # noqa: E402
 
 _redis_url = os.environ.get("REDIS_URL", "")
 if _redis_url.startswith("rediss://"):
+    # Upstash free tier only supports DB 0 — normalize all Redis URLs to /0
+    _redis_url_db0 = _redis_url.rsplit("/", 1)[0] + "/0"
+    CELERY_BROKER_URL = _redis_url_db0
+    CELERY_RESULT_BACKEND = _redis_url_db0
     CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": _ssl.CERT_NONE}
     CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": _ssl.CERT_NONE}
+    # Also normalize CHANNEL_LAYERS and CACHES to DB 0
+    CHANNEL_LAYERS["default"]["CONFIG"]["hosts"] = [_redis_url_db0]  # type: ignore
+    CACHES["default"]["LOCATION"] = _redis_url_db0  # type: ignore
     # Also configure django-redis cache SSL
     CACHES["default"]["OPTIONS"]["CONNECTION_POOL_KWARGS"] = {  # type: ignore
         "max_connections": 100,

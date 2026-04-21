@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y libpq-dev curl && rm -rf /var/lib/apt/l
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-RUN pip install gunicorn --no-cache-dir
+# daphne is already installed via requirements.txt (needed for ASGI/WebSocket)
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 COPY --chown=appuser:appuser . .
@@ -50,5 +50,5 @@ RUN chmod +x /app/start_prod.sh
 
 USER appuser
 EXPOSE 8000
-# Runs BOTH Gunicorn web server AND Celery worker+beat in one container (free tier)
+# Runs BOTH Daphne ASGI server AND Celery worker+beat in one container (free tier)
 CMD ["/app/start_prod.sh"]
