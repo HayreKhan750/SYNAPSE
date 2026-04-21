@@ -47,17 +47,17 @@ function makeQueryClient() {
     }),
     defaultOptions: {
       queries: {
-        staleTime:            5 * 60 * 1000,   // 5 min — data considered fresh, no refetch on nav
-        gcTime:               15 * 60 * 1000,  // 15 min — keep in memory longer
-        retry:                1,               // Only 1 retry (was 2) — faster failure feedback
-        retryDelay:           (attempt) => Math.min(1000 * 2 ** attempt, 8_000),
+        staleTime: 5 * 60 * 1000,   // 5 min — data considered fresh, no refetch on nav
+        gcTime: 15 * 60 * 1000,  // 15 min — keep in memory longer
+        retry: 1,               // Only 1 retry (was 2) — faster failure feedback
+        retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8_000),
         // KEY PERF FIX: disable refetchOnWindowFocus globally — this was causing every tab
         // switch to re-fetch ALL active queries, making navigation feel slow.
         // Individual queries that need live data can override this explicitly.
         refetchOnWindowFocus: false,
-        refetchOnReconnect:   true,
+        refetchOnReconnect: true,
         // Structural sharing avoids unnecessary re-renders when data hasn't changed
-        structuralSharing:    true,
+        structuralSharing: true,
       },
       mutations: {
         retry: 0,
@@ -98,16 +98,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
               toastOptions={{
                 duration: 3500,
                 style: {
-                  background:   '#ffffff',
-                  color:        '#0f172a',
+                  background: '#ffffff',
+                  color: '#0f172a',
                   borderRadius: '12px',
-                  border:       '1px solid #e2e8f0',
-                  fontSize:     '13px',
-                  maxWidth:     '380px',
-                  boxShadow:    '0 4px 24px rgba(0,0,0,0.08)',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '13px',
+                  maxWidth: '380px',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
                 },
                 success: { iconTheme: { primary: '#22c55e', secondary: '#ffffff' } },
-                error:   { iconTheme: { primary: '#ef4444', secondary: '#ffffff' }, duration: 5000 },
+                error: { iconTheme: { primary: '#ef4444', secondary: '#ffffff' }, duration: 5000 },
               }}
             />
 

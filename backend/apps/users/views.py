@@ -68,13 +68,21 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+
+        try:
+            user = serializer.save()
+        except Exception as exc:
+            logger.error("Registration save failed: %s", exc, exc_info=True)
+            return Response(
+                {"detail": "Registration failed. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         # TASK-203: PostHog server-side signup event
         try:
             from apps.core.analytics import track_signup
 
-            track_signup(user)
+            track_signup(str(user.id), user.email)
         except Exception:
             pass  # Analytics must never block registration
 
