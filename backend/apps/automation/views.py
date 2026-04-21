@@ -131,28 +131,41 @@ class WorkflowTriggerView(APIView):
             trigger_event={},
         )
 
-        task = execute_workflow.apply_async(
-            args=[str(workflow.id)],
-            kwargs={"run_id": str(run.id)},
-        )
-
-        # Persist the celery task id on the run record
-        run.celery_task_id = task.id
-        run.save(update_fields=["celery_task_id"])
+        task_id = None
+        try:
+            task = execute_workflow.apply_async(
+                args=[str(workflow.id)],
+                kwargs={"run_id": str(run.id)},
+            )
+            # Persist the celery task id on the run record
+            run.celery_task_id = task.id
+            run.save(update_fields=["celery_task_id"])
+            task_id = task.id
+        except Exception as celery_error:
+            # Fallback: run synchronously if Celery worker is not available
+            logger.warning(
+                "Celery worker not available, running workflow synchronously: %s",
+                celery_error,
+            )
+            run.celery_task_id = "sync_fallback"
+            run.save(update_fields=["celery_task_id"])
+            task_id = run.celery_task_id
+            # Run synchronously
+            execute_workflow(str(workflow.id), run_id=str(run.id))
 
         logger.info(
             "Workflow %s manually triggered by %s. run=%s celery_task=%s",
             workflow.id,
             request.user.email,
             run.id,
-            task.id,
+            task_id,
         )
         return Response(
             {
                 "detail": "Workflow triggered successfully.",
                 "workflow_id": str(workflow.id),
                 "run_id": str(run.id),
-                "celery_task_id": task.id,
+                "celery_task_id": task_id,
             },
             status=status.HTTP_202_ACCEPTED,
         )

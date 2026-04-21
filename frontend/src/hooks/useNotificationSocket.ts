@@ -24,8 +24,10 @@ function getWsUrl(): string {
   // SECURITY: token is NOT passed in URL (would leak to server logs/browser history).
   // The Django Channels middleware authenticates via the session cookie or
   // a token sent as the first WebSocket message after connection.
-  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const host = process.env.NEXT_PUBLIC_WS_HOST || window.location.host.replace(/:\d+$/, ':8000')
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const url = new URL(apiUrl)
+  const proto = url.protocol === 'https:' ? 'wss' : 'ws'
+  const host = process.env.NEXT_PUBLIC_WS_HOST || url.host
   return `${proto}://${host}/ws/notifications/`
 }
 

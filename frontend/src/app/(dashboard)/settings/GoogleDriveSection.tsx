@@ -41,15 +41,20 @@ export function GoogleDriveSection() {
           `width=${width},height=${height},top=${top},left=${left},scrollbars=yes`,
         );
 
-        // Poll until popup closes then refresh status
-        const timer = setInterval(() => {
-          if (popup?.closed) {
-            clearInterval(timer);
-            setTimeout(() => {
-              queryClient.invalidateQueries({ queryKey: ['drive-status'] });
-            }, 1000);
+        // Listen for postMessage from the OAuth callback page
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data?.type === 'drive-oauth-complete') {
+            window.removeEventListener('message', handleMessage);
+            queryClient.invalidateQueries({ queryKey: ['drive-status'] });
           }
-        }, 500);
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        // Fallback: close listener after 5 minutes
+        setTimeout(() => {
+          window.removeEventListener('message', handleMessage);
+        }, 5 * 60 * 1000);
       }
     },
     onError: () => toast.error('Could not start Google Drive OAuth. Check your GOOGLE_CLIENT_ID config.'),
