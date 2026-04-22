@@ -554,6 +554,12 @@ def _dispatch_action(workflow, action: dict) -> dict:
         return _action_scrape_tweets(params, workflow=workflow)
     if action_type == "collect_news":
         return _action_collect_news(params, workflow=workflow)
+    if action_type == "scrape_hackernews":
+        return _action_collect_news({**params, "sources": ["hackernews"]}, workflow=workflow)
+    if action_type == "scrape_github":
+        return _action_collect_news({**params, "sources": ["github"]}, workflow=workflow)
+    if action_type == "scrape_arxiv":
+        return _action_collect_news({**params, "sources": ["arxiv"]}, workflow=workflow)
     if action_type == "summarize_content":
         return _action_summarize_content(params)
     if action_type == "generate_pdf":

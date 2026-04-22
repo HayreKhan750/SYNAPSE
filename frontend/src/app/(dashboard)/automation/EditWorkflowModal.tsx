@@ -95,9 +95,12 @@ export interface Workflow {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ACTION_LABELS: Record<string, string> = {
-  scrape_videos: '🎬 Scrape Videos',
-  scrape_tweets: '🐦 Scrape Tweets',
   collect_news: '📰 Collect News',
+  scrape_hackernews: '🔶 Scrape HackerNews',
+  scrape_github: '🐙 Scrape GitHub',
+  scrape_arxiv: '� Scrape arXiv',
+  scrape_videos: '🎬 Scrape Videos',
+  scrape_tweets: '� Scrape Tweets',
   summarize_content: '🤖 Summarize Content',
   generate_pdf: '📄 Generate PDF',
   send_email: '📧 Send Email',

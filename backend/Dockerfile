@@ -62,7 +62,7 @@ CMD python manage.py migrate --noinput 2>&1; \
     python manage.py collectstatic --noinput 2>/dev/null; \
     celery -A config.celery worker -B \
       -Q default,scraping,agents,nlp,embeddings,slow_scraping \
-      -c 2 -l info \
+      -c 4 -l info \
       --scheduler django_celery_beat.schedulers:DatabaseScheduler \
       --pidfile=/tmp/celerybeat.pid & \
     exec daphne config.asgi:application \

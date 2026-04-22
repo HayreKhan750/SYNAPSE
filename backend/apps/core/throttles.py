@@ -40,21 +40,21 @@ from rest_framework.throttling import SimpleRateThrottle
 
 # Each entry: (max_requests, window_seconds)
 CHAT_LIMITS: dict[str, tuple[int, int]] = {
-    "FREE": (5, 86400),  # 5/day
-    "PRO": (200, 86400),  # 200/day
-    "ENTERPRISE": (1000, 86400),  # 1000/day pooled
+    "free": (50, 86400),  # 50/day — generous for trial
+    "pro": (200, 86400),  # 200/day
+    "enterprise": (1000, 86400),  # 1000/day pooled
 }
 
 AGENT_LIMITS: dict[str, tuple[int, int]] = {
-    "FREE": (1, 86400),  # 1/day
-    "PRO": (50, 86400),  # 50/day
-    "ENTERPRISE": (200, 86400),  # 200/day pooled
+    "free": (10, 86400),  # 10/day — enough to try the feature
+    "pro": (50, 86400),  # 50/day
+    "enterprise": (200, 86400),  # 200/day pooled
 }
 
 API_LIMITS: dict[str, tuple[int, int]] = {
-    "FREE": (100, 3600),  # 100/hour
-    "PRO": (500, 3600),  # 500/hour
-    "ENTERPRISE": (2000, 3600),  # 2000/hour
+    "free": (1000, 3600),  # 1000/hour — dashboard makes 30+ requests per load
+    "pro": (5000, 3600),  # 5000/hour
+    "enterprise": (20000, 3600),  # 20000/hour
 }
 
 
@@ -97,7 +97,7 @@ class PlanAwareThrottle(SimpleRateThrottle):
             return True  # anonymous: handled by AnonRateThrottle
 
         plan = get_user_plan(request.user)
-        limit, window = self.limit_table.get(plan, self.limit_table["FREE"])
+        limit, window = self.limit_table.get(plan, self.limit_table["free"])
         self._limit = limit
 
         key = self.get_cache_key(request, view)

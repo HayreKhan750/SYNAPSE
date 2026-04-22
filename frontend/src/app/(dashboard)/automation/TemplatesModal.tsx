@@ -24,9 +24,12 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
+  collect_news: '📰 Collect News',
+  scrape_hackernews: '🔶 HackerNews',
+  scrape_github: '🐙 GitHub',
+  scrape_arxiv: '📜 arXiv',
   scrape_videos: '🎬 Scrape Videos',
   scrape_tweets: '🐦 Scrape Tweets',
-  collect_news: '📰 Collect News',
   summarize_content: '🤖 Summarize',
   generate_pdf: '📄 Generate PDF',
   send_email: '📧 Send Email',

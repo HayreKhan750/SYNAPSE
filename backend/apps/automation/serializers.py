@@ -168,6 +168,53 @@ ACTION_PARAM_SCHEMAS = {
             "default": "latest AI research and tech news",
         },
     },
+    "scrape_hackernews": {
+        "items_per_source": {
+            "type": "number",
+            "label": "Number of stories (1–500)",
+            "default": 100,
+            "min": 1,
+            "max": 500,
+        },
+        "story_type": {
+            "type": "select",
+            "label": "Story Type",
+            "options": ["top", "new", "best"],
+            "default": "top",
+        },
+    },
+    "scrape_github": {
+        "items_per_source": {
+            "type": "number",
+            "label": "Number of repos (1–500)",
+            "default": 100,
+            "min": 1,
+            "max": 500,
+        },
+        "days_back": {
+            "type": "number",
+            "label": "Days back (1–30)",
+            "default": 7,
+            "min": 1,
+            "max": 30,
+        },
+    },
+    "scrape_arxiv": {
+        "items_per_source": {
+            "type": "number",
+            "label": "Number of papers (1–500)",
+            "default": 100,
+            "min": 1,
+            "max": 500,
+        },
+        "days_back": {
+            "type": "number",
+            "label": "Days back (1–30)",
+            "default": 7,
+            "min": 1,
+            "max": 30,
+        },
+    },
 }
 
 EVENT_TYPE_CHOICES = [
