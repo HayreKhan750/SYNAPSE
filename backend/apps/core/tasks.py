@@ -493,72 +493,227 @@ def scrape_youtube(
 ) -> Dict:
     _ensure_dedup_ttl()
     """
-    Scrape YouTube videos using the YouTube spider.
-    
+    Scrape YouTube videos using yt-dlp directly (no Scrapy dependency).
+
+    This task calls yt-dlp --flat-playlist --dump-single-json for each
+    search query, parses the results, filters non-tech content, and saves
+    Video objects to the database.
+
     Args:
         self: Celery task instance (for retry mechanism)
         days_back: Number of days to look back - default: 30
         max_results: Maximum number of videos to scrape - default: 20
-        
+        queries: Optional list of search queries
+        user_id: Optional user ID for personalization
+
     Returns:
-        Dictionary with keys: {'spider': 'youtube', 'status': 'success'/'failed', 'returncode': int}
+        Dictionary with keys: {'spider': 'youtube', 'status': 'success'/'failed', 'count': int}
     """
+    import json as _json
+    import shutil
+
     task_id = self.request.id
     logger.info(
-        f"[{task_id}] Starting YouTube scraper: days_back={days_back}, max_results={max_results}"
+        f"[{task_id}] Starting YouTube scraper (yt-dlp direct): "
+        f"days_back={days_back}, max_results={max_results}"
     )
 
+    # ── Default queries ──────────────────────────────────────────────────
+    DEFAULT_QUERIES = [
+        "machine learning tutorial 2025",
+        "large language models explained",
+        "AI agents autonomous LLM",
+        "open source AI tools 2025",
+        "Django FastAPI Python tutorial",
+        "Next.js React TypeScript tutorial",
+        "Kubernetes Docker DevOps tutorial",
+        "web security best practices",
+    ]
+
+    NON_TECH_KEYWORDS = [
+        "workout", "fitness", "gym", "yoga", "diet", "recipe", "cooking",
+        "makeup", "beauty", "skincare", "fashion", "vlog", "travel", "prank",
+        "challenge", "dance", "music video", "reaction", "unboxing", "asmr",
+        "meditation", "relationship", "dating", "romance", "funny", "comedy",
+        "sport", "football", "basketball", "soccer", "cricket",
+        "movie review", "anime", "manga", "gaming highlights", "minecraft",
+        "fortnite", "roblox", "weight loss", "bodybuilding", "real estate",
+        "stock market tips",
+    ]
+
+    # ── Resolve queries ───────────────────────────────────────────────────
+    if queries:
+        search_queries = list(queries)
+    else:
+        search_queries = DEFAULT_QUERIES
+
+    # Cap queries to max_results
+    max_queries = max(1, max_results)
+    if len(search_queries) > max_queries:
+        search_queries = search_queries[:max_queries]
+
+    # Per-query result count
+    num_queries = max(len(search_queries), 1)
+    per_query = max(1, min(3, max_results // num_queries))
+
+    # ── Find yt-dlp binary ────────────────────────────────────────────────
+    ytdlp_bin = shutil.which("yt-dlp") or "/usr/local/bin/yt-dlp"
+
+    total_saved = 0
+    from datetime import datetime as _dt
+
     try:
-        spider_name = "youtube"
-        cmd = [
-            VENV_PYTHON,
-            "-m",
-            "scrapy",
-            "crawl",
-            spider_name,
-            "-a",
-            f"days_back={days_back}",
-            "-a",
-            f"max_results={max_results}",
-        ]
-        # Pass custom queries if provided
-        if queries:
-            import json
+        from apps.videos.models import Video
 
-            cmd += ["-a", f"queries={json.dumps(queries)}"]
+        for query in search_queries:
+            if total_saved >= max_results:
+                break
 
-        # Add user_id as spider argument if provided
-        if user_id:
-            cmd.extend(["-a", f"user_id={user_id}"])
+            search_url = f"ytsearch{per_query}:{query}"
+            try:
+                result = subprocess.run(
+                    [
+                        ytdlp_bin,
+                        "--flat-playlist",
+                        "--dump-single-json",
+                        "--no-warnings",
+                        "--quiet",
+                        search_url,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
 
-        result = subprocess.run(
-            cmd,
-            cwd=str(BASE_DIR / "scraper"),
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 minute timeout (8 queries × ~15s each = ~120s, with margin)
-            env=_scrapy_env(user_id=user_id),
+                raw = (result.stdout or "").strip()
+                if not raw:
+                    if result.stderr:
+                        logger.warning(
+                            f'[{task_id}] yt-dlp no output for "{query}": '
+                            f"{result.stderr[:200]}"
+                        )
+                    continue
+
+                try:
+                    playlist = _json.loads(raw)
+                except _json.JSONDecodeError as exc:
+                    logger.warning(
+                        f'[{task_id}] yt-dlp JSON parse error for "{query}": {exc}'
+                    )
+                    continue
+
+                entries = playlist.get("entries") or []
+                logger.info(
+                    f'[{task_id}] yt-dlp returned {len(entries)} entries for '
+                    f'query "{query}"'
+                )
+
+                for entry in entries:
+                    if total_saved >= max_results:
+                        break
+
+                    video_id = entry.get("id", "")
+                    title = (entry.get("title") or "").strip()
+                    if not video_id or not title:
+                        continue
+
+                    # ── Tech content filter ───────────────────────────
+                    title_lower = title.lower()
+                    desc_lower = (entry.get("description") or "").lower()
+                    combined = title_lower + " " + desc_lower[:200]
+                    if any(kw in combined for kw in NON_TECH_KEYWORDS):
+                        logger.debug(
+                            f'[{task_id}] Skipping non-tech: "{title[:60]}"'
+                        )
+                        continue
+
+                    # ── Parse upload date ──────────────────────────────
+                    upload_date_str = entry.get("upload_date", "") or ""
+                    published_at = None
+                    if upload_date_str:
+                        try:
+                            published_at = _dt.strptime(
+                                upload_date_str, "%Y%m%d"
+                            ).replace(tzinfo=timezone.utc)
+                        except ValueError:
+                            pass
+
+                    # ── Best thumbnail ──────────────────────────────────
+                    thumbnails = entry.get("thumbnails") or []
+                    if thumbnails:
+                        thumbnail_url = (
+                            thumbnails[-1].get("url", "")
+                            or f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+                        )
+                    else:
+                        thumbnail_url = (
+                            f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+                        )
+
+                    # ── Save to DB (upsert by youtube_id) ──────────────
+                    try:
+                        video, created = Video.objects.update_or_create(
+                            youtube_id=video_id,
+                            defaults={
+                                "title": title[:500],
+                                "description": (entry.get("description") or "")[
+                                    :2000
+                                ],
+                                "channel_name": (
+                                    entry.get("channel")
+                                    or entry.get("uploader")
+                                    or ""
+                                )[:200],
+                                "channel_id": (
+                                    entry.get("channel_id")
+                                    or entry.get("uploader_id")
+                                    or ""
+                                )[:100],
+                                "url": f"https://www.youtube.com/watch?v={video_id}",
+                                "thumbnail_url": thumbnail_url,
+                                "duration_seconds": int(
+                                    entry.get("duration") or 0
+                                ),
+                                "view_count": int(entry.get("view_count") or 0),
+                                "like_count": int(entry.get("like_count") or 0),
+                                "published_at": published_at,
+                                "topics": [query],
+                            },
+                        )
+                        if created:
+                            total_saved += 1
+                            logger.info(
+                                f'[{task_id}] Saved new video: "{title[:60]}"'
+                            )
+                    except Exception as exc:
+                        logger.warning(
+                            f'[{task_id}] Failed to save video {video_id}: {exc}'
+                        )
+
+            except subprocess.TimeoutExpired:
+                logger.warning(
+                    f'[{task_id}] yt-dlp timed out for query: "{query}"'
+                )
+            except FileNotFoundError:
+                logger.error(
+                    f"[{task_id}] yt-dlp binary not found at {ytdlp_bin}"
+                )
+                break
+            except Exception as exc:
+                logger.error(
+                    f'[{task_id}] yt-dlp error for query "{query}": {exc}'
+                )
+
+        logger.info(
+            f"[{task_id}] YouTube scraper completed: {total_saved} new videos saved"
         )
-
-        if result.returncode == 0:
-            logger.info(f"[{task_id}] YouTube scraper completed successfully")
-            _update_source_last_scraped("youtube")
-            _backfill_user_links(user_id, "youtube", max_results)
-            return {
-                "spider": "youtube",
-                "status": "success",
-                "returncode": result.returncode,
-            }
-        else:
-            logger.error(
-                f"[{task_id}] YouTube scraper failed with return code {result.returncode}\n"
-                f"stderr: {result.stderr}"
-            )
-            raise Exception(f"YouTube spider failed: {result.stderr}")
-
-    except subprocess.TimeoutExpired as exc:
-        logger.error(f"[{task_id}] YouTube scraper timed out after 300s")
-        return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+        _update_source_last_scraped("youtube")
+        _backfill_user_links(user_id, "youtube", max_results)
+        return {
+            "spider": "youtube",
+            "status": "success",
+            "count": total_saved,
+        }
 
     except Exception as exc:
         logger.error(f"[{task_id}] YouTube scraper exception: {exc}")
