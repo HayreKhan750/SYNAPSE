@@ -25,13 +25,21 @@ django_asgi_app = get_asgi_application()
 from apps.notifications.middleware import JwtAuthMiddleware
 from apps.notifications.routing import websocket_urlpatterns
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.security.websocket import AllowedHostsOriginValidator
+from channels.security.websocket import OriginValidator
+
+# AllowedHostsOriginValidator rejects cross-origin WebSocket connections
+# (frontend on a different domain than backend). OriginValidator allows
+# explicit specification of permitted origins.
+_frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+# Strip protocol for origin matching — OriginValidator checks the full origin
+_ws_allowed_origins = [_frontend_url]
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
-        "websocket": AllowedHostsOriginValidator(
-            JwtAuthMiddleware(URLRouter(websocket_urlpatterns))
+        "websocket": OriginValidator(
+            JwtAuthMiddleware(URLRouter(websocket_urlpatterns)),
+            _ws_allowed_origins,
         ),
     }
 )

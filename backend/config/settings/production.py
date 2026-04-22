@@ -105,6 +105,9 @@ if _redis_url.startswith("rediss://"):
     _redis_url_db0 = _redis_url.rsplit("/", 1)[0] + "/0"
     CELERY_BROKER_URL = _redis_url_db0
     CELERY_RESULT_BACKEND = _redis_url_db0
+    # Also override env vars so Celery worker picks up the corrected URLs
+    os.environ["CELERY_BROKER_URL"] = _redis_url_db0
+    os.environ["CELERY_RESULT_BACKEND"] = _redis_url_db0
     CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": _ssl.CERT_NONE}
     CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": _ssl.CERT_NONE}
     # Also normalize CHANNEL_LAYERS and CACHES to DB 0
@@ -115,6 +118,17 @@ if _redis_url.startswith("rediss://"):
         "max_connections": 100,
         "ssl_cert_reqs": None,
     }
+else:
+    # Also handle non-TLS Redis with DB > 0 (e.g. redis://host:6379/2)
+    for _env_key in ("CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"):
+        _val = os.environ.get(_env_key, "")
+        if _val and _val.startswith("redis://") and not _val.endswith("/0"):
+            _val_db0 = _val.rsplit("/", 1)[0] + "/0"
+            os.environ[_env_key] = _val_db0
+            if _env_key == "CELERY_BROKER_URL":
+                CELERY_BROKER_URL = _val_db0
+            else:
+                CELERY_RESULT_BACKEND = _val_db0
 
 # ── WhiteNoise — efficient static file serving (no nginx needed for statics) ──
 MIDDLEWARE = [
