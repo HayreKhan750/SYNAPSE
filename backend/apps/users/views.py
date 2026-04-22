@@ -565,7 +565,7 @@ def resend_verification_email(request):
     )
 
 
-@api_view(["POST"])
+@api_view(["POST", "OPTIONS"])
 @permission_classes([AllowAny])
 def google_auth(request):
     """

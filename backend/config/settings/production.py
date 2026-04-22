@@ -163,6 +163,9 @@ if not CORS_ALLOWED_ORIGINS:
     # Fall back to FRONTEND_URL so the app doesn't crash on missing env var
     CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
 
+# Allow credentials (cookies, Authorization headers) in CORS requests
+CORS_ALLOW_CREDENTIALS = True
+
 # ── CSRF — trusted origins for cross-site POST requests ───────────────────────
 # Django 4.x requires CSRF_TRUSTED_ORIGINS for cross-origin POST requests.
 # Falls back to CORS_ALLOWED_ORIGINS if CSRF_TRUSTED_ORIGINS is not set,
