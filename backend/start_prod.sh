@@ -33,5 +33,6 @@ echo "   Celery PID: $CELERY_PID"
 # Daphne is the official ASGI server for Django Channels.
 echo "🌐 Starting Daphne ASGI server..."
 exec daphne config.asgi:application \
-  --bind "0.0.0.0:${PORT:-8000}" \
+  --bind 0.0.0.0 \
+  --port "${PORT:-8000}" \
   --verbosity 1
