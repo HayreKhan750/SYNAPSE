@@ -81,7 +81,7 @@ class PlanAwareThrottle(SimpleRateThrottle):
         if not request.user or not request.user.is_authenticated:
             return None
         plan = get_user_plan(request.user)
-        _, window = self.limit_table.get(plan, self.limit_table["FREE"])
+        _, window = self.limit_table.get(plan, self.limit_table["free"])
         # bucket = current window start (floor division of unix time)
         bucket = int(time.time()) // window
         return f"rl:{self.scope}:{request.user.pk}:{bucket}"
