@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy ONLY requirements first — Docker caches this layer until requirements.txt changes
-COPY requirements.txt .
+# Build context is the repo root (so scraper/ is available)
+COPY backend/requirements.txt .
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt --use-deprecated=legacy-resolver
 
@@ -25,8 +26,10 @@ RUN pip install yt-dlp --no-cache-dir
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
-# Copy source code last — changes here don't invalidate the pip cache
-COPY --chown=appuser:appuser . .
+# Copy backend source code — changes here don't invalidate the pip cache
+COPY --chown=appuser:appuser backend/ .
+# Copy scraper from repo root (needed by Celery scrape tasks)
+COPY --chown=appuser:appuser scraper/ /app/scraper/
 
 USER appuser
 EXPOSE 8000
@@ -41,9 +44,14 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # daphne is already installed via requirements.txt (needed for ASGI/WebSocket)
+# yt-dlp is required by the YouTube spider (scrape_videos workflow)
+RUN pip install yt-dlp --no-cache-dir
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-COPY --chown=appuser:appuser . .
+# Copy backend source code
+COPY --chown=appuser:appuser backend/ .
+# Copy scraper from repo root (needed by Celery scrape tasks)
+COPY --chown=appuser:appuser scraper/ /app/scraper/
 
 # Make the production start script executable
 RUN chmod +x /app/start_prod.sh

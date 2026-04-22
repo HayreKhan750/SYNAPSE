@@ -5,8 +5,12 @@ from pathlib import Path
 
 # Add backend to path so Django models are accessible
 BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR / "backend"))
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
+# Local dev: /project/scraper/settings.py -> /project/backend
+# Docker:    /app/scraper/settings.py -> /app (no backend/ subdir)
+_backend_dir = BASE_DIR / "backend"
+sys.path.insert(0, str(_backend_dir if _backend_dir.exists() else BASE_DIR))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE",
+    "config.settings.development" if _backend_dir.exists() else "config.settings.production")
 
 BOT_NAME = "synapse_scraper"
 SPIDER_MODULES = ["scraper.spiders"]
