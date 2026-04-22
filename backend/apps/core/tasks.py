@@ -251,67 +251,114 @@ def scrape_hackernews(
 ) -> Dict:
     _ensure_dedup_ttl()
     """
-    Scrape HackerNews stories using the HackerNews spider.
-    
+    Scrape HackerNews stories using the official HN Firebase API.
+    No Scrapy dependency needed.
+
     Args:
         self: Celery task instance (for retry mechanism)
         story_type: Type of stories ('top', 'new', 'best') - default: 'top'
         limit: Maximum number of stories to scrape - default: 100
-        
+        user_id: Optional user ID for personalization
+
     Returns:
-        Dictionary with keys: {'spider': 'hackernews', 'status': 'success'/'failed', 'returncode': int}
+        Dictionary with keys: {'spider': 'hackernews', 'status': 'success'/'failed', 'count': int}
     """
+    import requests as _requests_lib
+
     task_id = self.request.id
     logger.info(
-        f"[{task_id}] Starting HackerNews scraper: story_type={story_type}, limit={limit}"
+        f"[{task_id}] Starting HackerNews scraper (direct API): "
+        f"story_type={story_type}, limit={limit}"
     )
 
+    total_saved = 0
+
     try:
-        spider_name = "hackernews"
-        cmd = [
-            VENV_PYTHON,
-            "-m",
-            "scrapy",
-            "crawl",
-            spider_name,
-            "-a",
-            f"story_type={story_type}",
-            "-a",
-            f"limit={limit}",
-        ]
+        from apps.articles.models import Article, Source
 
-        # Add user_id as spider argument if provided
-        if user_id:
-            cmd.extend(["-a", f"user_id={user_id}"])
-
-        result = subprocess.run(
-            cmd,
-            cwd=str(BASE_DIR / "scraper"),
-            capture_output=True,
-            text=True,
-            timeout=300,  # 5 minute timeout
-            env=_scrapy_env(user_id=user_id),
+        # Get or create the HN source
+        hn_source, _ = Source.objects.get_or_create(
+            url="https://news.ycombinator.com",
+            defaults={"name": "Hacker News", "source_type": "news"},
         )
 
-        if result.returncode == 0:
-            logger.info(f"[{task_id}] HackerNews scraper completed successfully")
-            _update_source_last_scraped("news")
-            _backfill_user_links(user_id, "hackernews", limit)
-            return {
-                "spider": "hackernews",
-                "status": "success",
-                "returncode": result.returncode,
-            }
-        else:
-            logger.error(
-                f"[{task_id}] HackerNews scraper failed with return code {result.returncode}\n"
-                f"stderr: {result.stderr}"
-            )
-            raise Exception(f"HackerNews spider failed: {result.stderr}")
+        # Fetch story IDs from the HN API
+        endpoint_map = {
+            "top": "topstories",
+            "new": "newstories",
+            "best": "beststories",
+        }
+        endpoint = endpoint_map.get(story_type, "topstories")
+        resp = _requests_lib.get(
+            f"https://hacker-news.firebaseio.com/v0/{endpoint}.json",
+            timeout=15,
+        )
+        resp.raise_for_status()
+        story_ids = resp.json()[:limit]
 
-    except subprocess.TimeoutExpired as exc:
-        logger.error(f"[{task_id}] HackerNews scraper timed out after 300s")
-        return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+        for sid in story_ids:
+            try:
+                item_resp = _requests_lib.get(
+                    f"https://hacker-news.firebaseio.com/v0/item/{sid}.json",
+                    timeout=10,
+                )
+                item_resp.raise_for_status()
+                item = item_resp.json()
+
+                if not item or item.get("type") != "story" or not item.get("url"):
+                    continue
+
+                title = (item.get("title") or "").strip()
+                url = item.get("url", "")
+                if not title or not url:
+                    continue
+
+                # Skip non-tech content
+                title_lower = title.lower()
+                NON_TECH = [
+                    "politics", "opinion", "election", "trump", "biden",
+                    "sports", "entertainment", "celebrity",
+                ]
+                if any(kw in title_lower for kw in NON_TECH):
+                    continue
+
+                article, created = Article.objects.update_or_create(
+                    url=url,
+                    defaults={
+                        "title": title[:1000],
+                        "content": (item.get("text") or "")[:5000],
+                        "author": item.get("by", "")[:300],
+                        "source": hn_source,
+                        "published_at": timezone.datetime.fromtimestamp(
+                            item.get("time", 0), tz=timezone.utc
+                        ) if item.get("time") else None,
+                        "topic": "tech",
+                        "tags": ["hackernews", story_type],
+                        "metadata": {
+                            "hn_id": sid,
+                            "score": item.get("score", 0),
+                            "descendants": item.get("descendants", 0),
+                            "scraped_via": "hn_api",
+                        },
+                    },
+                )
+                if created:
+                    total_saved += 1
+
+            except Exception as exc:
+                logger.warning(f"[{task_id}] Failed to fetch HN item {sid}: {exc}")
+                continue
+
+        logger.info(
+            f"[{task_id}] HackerNews scraper completed: {total_saved} new articles saved"
+        )
+        _update_source_last_scraped("news")
+        _backfill_user_links(user_id, "hackernews", limit)
+        return {
+            "spider": "hackernews",
+            "status": "success",
+            "count": total_saved,
+        }
 
     except Exception as exc:
         logger.error(f"[{task_id}] HackerNews scraper exception: {exc}")
@@ -328,72 +375,128 @@ def scrape_github(
 ) -> Dict:
     _ensure_dedup_ttl()
     """
-    Scrape GitHub repositories using the GitHub spider.
-    
+    Scrape GitHub repositories using the GitHub Search API.
+    No Scrapy dependency needed. Uses unauthenticated requests (10 req/min).
+
     Args:
         self: Celery task instance (for retry mechanism)
         days_back: Number of days to look back - default: 1
         language: Programming language filter (optional)
         limit: Maximum number of repositories to scrape - default: 100
-        
+        user_id: Optional user ID for personalization
+
     Returns:
-        Dictionary with keys: {'spider': 'github', 'status': 'success'/'failed', 'returncode': int}
+        Dictionary with keys: {'spider': 'github', 'status': 'success'/'failed', 'count': int}
     """
+    from datetime import timedelta
+    import requests as _requests_lib
+
     task_id = self.request.id
     logger.info(
-        f"[{task_id}] Starting GitHub scraper: days_back={days_back}, "
-        f"language={language}, limit={limit}"
+        f"[{task_id}] Starting GitHub scraper (direct API): "
+        f"days_back={days_back}, language={language}, limit={limit}"
     )
 
+    total_saved = 0
+
     try:
-        spider_name = "github"
-        cmd = [
-            VENV_PYTHON,
-            "-m",
-            "scrapy",
-            "crawl",
-            spider_name,
-            "-a",
-            f"days_back={days_back}",
-            "-a",
-            f"limit={limit}",
+        from apps.repositories.models import Repository
+
+        since_date = (timezone.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
+        queries = [
+            f"created:>{since_date}" + (f" language:{language}" if language else ""),
+            f"pushed:>{since_date} stars:>10" + (f" language:{language}" if language else ""),
         ]
 
-        if language:
-            cmd.extend(["-a", f"language={language}"])
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        # Use GITHUB_TOKEN if available for higher rate limits
+        gh_token = os.environ.get("GITHUB_TOKEN", "")
+        if gh_token:
+            headers["Authorization"] = f"Bearer {gh_token}"
 
-        # Add user_id as spider argument if provided
-        if user_id:
-            cmd.extend(["-a", f"user_id={user_id}"])
+        for query in queries:
+            if total_saved >= limit:
+                break
 
-        result = subprocess.run(
-            cmd,
-            cwd=str(BASE_DIR / "scraper"),
-            capture_output=True,
-            text=True,
-            timeout=300,  # 5 minute timeout
-            env=_scrapy_env(user_id=user_id),
+            try:
+                resp = _requests_lib.get(
+                    "https://api.github.com/search/repositories",
+                    params={
+                        "q": query,
+                        "sort": "stars",
+                        "order": "desc",
+                        "per_page": min(100, limit - total_saved),
+                    },
+                    headers=headers,
+                    timeout=15,
+                )
+                if resp.status_code == 403:
+                    logger.warning(f"[{task_id}] GitHub API rate limited, stopping")
+                    break
+                resp.raise_for_status()
+                items = resp.json().get("items", [])
+
+                for repo_data in items:
+                    if total_saved >= limit:
+                        break
+                    gh_repo_id = repo_data.get("id")
+                    if not gh_repo_id:
+                        continue
+
+                    try:
+                        repo, created = Repository.objects.update_or_create(
+                            github_id=gh_repo_id,
+                            defaults={
+                                "name": repo_data.get("name", ""),
+                                "full_name": repo_data.get("full_name", ""),
+                                "description": (repo_data.get("description") or "")[:5000],
+                                "url": repo_data.get("html_url", ""),
+                                "clone_url": repo_data.get("clone_url", ""),
+                                "stars": repo_data.get("stargazers_count", 0),
+                                "forks": repo_data.get("forks_count", 0),
+                                "watchers": repo_data.get("watchers_count", 0),
+                                "open_issues": repo_data.get("open_issues_count", 0),
+                                "language": repo_data.get("language", "") or "",
+                                "topics": repo_data.get("topics", []),
+                                "owner": (repo_data.get("owner") or {}).get("login", ""),
+                                "is_trending": repo_data.get("stargazers_count", 0) > 100,
+                                "repo_created_at": timezone.datetime.strptime(
+                                    repo_data.get("created_at", "")[:10], "%Y-%m-%d"
+                                ).replace(tzinfo=timezone.utc) if repo_data.get("created_at") else None,
+                                "metadata": {
+                                    "scraped_via": "github_api",
+                                    "query": query,
+                                },
+                            },
+                        )
+                        if created:
+                            total_saved += 1
+                    except Exception as exc:
+                        logger.warning(
+                            f"[{task_id}] Failed to save repo {gh_repo_id}: {exc}"
+                        )
+
+                # Respect rate limits between queries
+                import time
+                time.sleep(2)
+
+            except _requests_lib.RequestException as exc:
+                logger.warning(f"[{task_id}] GitHub API request failed: {exc}")
+                continue
+
+        logger.info(
+            f"[{task_id}] GitHub scraper completed: {total_saved} new repos saved"
         )
-
-        if result.returncode == 0:
-            logger.info(f"[{task_id}] GitHub scraper completed successfully")
-            _update_source_last_scraped("github")
-            _backfill_user_links(user_id, "github", limit)
-            return {
-                "spider": "github",
-                "status": "success",
-                "returncode": result.returncode,
-            }
-        else:
-            logger.error(
-                f"[{task_id}] GitHub scraper failed with return code {result.returncode}\n"
-                f"stderr: {result.stderr}"
-            )
-            raise Exception(f"GitHub spider failed: {result.stderr}")
-
-    except subprocess.TimeoutExpired as exc:
-        logger.error(f"[{task_id}] GitHub scraper timed out after 300s")
-        return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+        _update_source_last_scraped("github")
+        _backfill_user_links(user_id, "github", limit)
+        return {
+            "spider": "github",
+            "status": "success",
+            "count": total_saved,
+        }
 
     except Exception as exc:
         logger.error(f"[{task_id}] GitHub scraper exception: {exc}")
@@ -410,73 +513,167 @@ def scrape_arxiv(
 ) -> Dict:
     _ensure_dedup_ttl()
     """
-    Scrape arXiv papers using the arXiv spider.
-    
+    Scrape arXiv papers using the arXiv API (Atom XML feed).
+    No Scrapy dependency needed.
+
     Args:
         self: Celery task instance (for retry mechanism)
         categories: List of arXiv categories to scrape (optional)
         days_back: Number of days to look back - default: 7
         max_papers: Maximum number of papers to scrape - default: 500
-        
+        user_id: Optional user ID for personalization
+
     Returns:
-        Dictionary with keys: {'spider': 'arxiv', 'status': 'success'/'failed', 'returncode': int}
+        Dictionary with keys: {'spider': 'arxiv', 'status': 'success'/'failed', 'count': int}
     """
+    import xml.etree.ElementTree as ET
+    from datetime import timedelta
+    import requests as _requests_lib
+
     task_id = self.request.id
     logger.info(
-        f"[{task_id}] Starting arXiv scraper: categories={categories}, "
-        f"days_back={days_back}, max_papers={max_papers}"
+        f"[{task_id}] Starting arXiv scraper (direct API): "
+        f"categories={categories}, days_back={days_back}, max_papers={max_papers}"
     )
 
+    total_saved = 0
+
+    # Default CS categories if none specified
+    DEFAULT_CATEGORIES = ["cs.AI", "cs.CL", "cs.LG", "cs.CV", "cs.SE"]
+    search_cats = categories or DEFAULT_CATEGORIES
+
     try:
-        spider_name = "arxiv"
-        cmd = [
-            VENV_PYTHON,
-            "-m",
-            "scrapy",
-            "crawl",
-            spider_name,
-            "-a",
-            f"days_back={days_back}",
-            "-a",
-            f"max_papers={max_papers}",
-        ]
+        from apps.papers.models import ResearchPaper
 
-        if categories:
-            categories_str = ",".join(categories)
-            cmd.extend(["-a", f"categories={categories_str}"])
+        # arXiv API namespace
+        ATOM_NS = "{http://www.w3.org/2005/Atom}"
+        ARXIV_NS = "{http://arxiv.org/schemas/atom}"
 
-        # Add user_id as spider argument if provided
-        if user_id:
-            cmd.extend(["-a", f"user_id={user_id}"])
+        for cat in search_cats:
+            if total_saved >= max_papers:
+                break
 
-        result = subprocess.run(
-            cmd,
-            cwd=str(BASE_DIR / "scraper"),
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 minute timeout for arXiv
-            env=_scrapy_env(user_id=user_id),
+            try:
+                # Build search query
+                search_query = f"cat:{cat}"
+                if days_back:
+                    since = (timezone.now() - timedelta(days=days_back)).strftime("%Y%m%d")
+                    search_query += f" AND submittedDate:[{since}000000 TO 99991231235959]"
+
+                resp = _requests_lib.get(
+                    "http://export.arxiv.org/api/query",
+                    params={
+                        "search_query": search_query,
+                        "start": 0,
+                        "max_results": min(200, max_papers - total_saved),
+                        "sortBy": "submittedDate",
+                        "sortOrder": "descending",
+                    },
+                    timeout=30,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; SYNAPSE-Bot/1.0)"},
+                )
+                resp.raise_for_status()
+
+                root = ET.fromstring(resp.text)
+                entries = root.findall(f"{ATOM_NS}entry")
+
+                for entry in entries:
+                    if total_saved >= max_papers:
+                        break
+
+                    # Extract arXiv ID from the entry ID URL
+                    entry_id = entry.find(f"{ATOM_NS}id")
+                    if entry_id is None:
+                        continue
+                    arxiv_url = entry_id.text or ""
+                    arxiv_id = arxiv_url.split("/abs/")[-1] if "/abs/" in arxiv_url else ""
+                    if not arxiv_id:
+                        continue
+
+                    # Title
+                    title_el = entry.find(f"{ATOM_NS}title")
+                    title = (title_el.text or "").strip().replace("\n", " ") if title_el else ""
+                    if not title:
+                        continue
+
+                    # Abstract
+                    summary_el = entry.find(f"{ATOM_NS}summary")
+                    abstract = (summary_el.text or "").strip().replace("\n", " ") if summary_el else ""
+
+                    # Authors
+                    authors = []
+                    for author_el in entry.findall(f"{ATOM_NS}author"):
+                        name_el = author_el.find(f"{ATOM_NS}name")
+                        if name_el is not None and name_el.text:
+                            authors.append(name_el.text.strip()[:300])
+
+                    # Categories
+                    cats = []
+                    for cat_el in entry.findall(f"{ATOM_NS}category"):
+                        term = cat_el.get("term", "")
+                        if term:
+                            cats.append(term)
+
+                    # Published date
+                    published_el = entry.find(f"{ATOM_NS}published")
+                    published_date = None
+                    if published_el is not None and published_el.text:
+                        try:
+                            published_date = timezone.datetime.strptime(
+                                published_el.text[:10], "%Y-%m-%d"
+                            ).date()
+                        except ValueError:
+                            pass
+
+                    # PDF link
+                    pdf_url = ""
+                    for link_el in entry.findall(f"{ATOM_NS}link"):
+                        if link_el.get("title") == "pdf":
+                            pdf_url = link_el.get("href", "")
+                            break
+
+                    try:
+                        paper, created = ResearchPaper.objects.update_or_create(
+                            arxiv_id=arxiv_id,
+                            defaults={
+                                "title": title[:2000],
+                                "abstract": abstract[:10000],
+                                "authors": authors[:50],
+                                "categories": cats,
+                                "published_date": published_date,
+                                "url": f"https://arxiv.org/abs/{arxiv_id}",
+                                "pdf_url": pdf_url,
+                                "difficulty_level": "intermediate",
+                            },
+                        )
+                        if created:
+                            total_saved += 1
+                    except Exception as exc:
+                        logger.warning(
+                            f"[{task_id}] Failed to save paper {arxiv_id}: {exc}"
+                        )
+
+                # Respect arXiv rate limits (1 request per 3 seconds)
+                import time
+                time.sleep(3)
+
+            except _requests_lib.RequestException as exc:
+                logger.warning(f"[{task_id}] arXiv API request failed for {cat}: {exc}")
+                continue
+            except ET.ParseError as exc:
+                logger.warning(f"[{task_id}] arXiv XML parse error for {cat}: {exc}")
+                continue
+
+        logger.info(
+            f"[{task_id}] arXiv scraper completed: {total_saved} new papers saved"
         )
-
-        if result.returncode == 0:
-            logger.info(f"[{task_id}] arXiv scraper completed successfully")
-            _update_source_last_scraped("arxiv")
-            _backfill_user_links(user_id, "arxiv", max_papers)
-            return {
-                "spider": "arxiv",
-                "status": "success",
-                "returncode": result.returncode,
-            }
-        else:
-            logger.error(
-                f"[{task_id}] arXiv scraper failed with return code {result.returncode}\n"
-                f"stderr: {result.stderr}"
-            )
-            raise Exception(f"arXiv spider failed: {result.stderr}")
-
-    except subprocess.TimeoutExpired as exc:
-        logger.error(f"[{task_id}] arXiv scraper timed out after 600s")
-        return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+        _update_source_last_scraped("arxiv")
+        _backfill_user_links(user_id, "arxiv", max_papers)
+        return {
+            "spider": "arxiv",
+            "status": "success",
+            "count": total_saved,
+        }
 
     except Exception as exc:
         logger.error(f"[{task_id}] arXiv scraper exception: {exc}")
@@ -547,14 +744,16 @@ def scrape_youtube(
     else:
         search_queries = DEFAULT_QUERIES
 
-    # Cap queries to max_results
-    max_queries = max(1, max_results)
+    # Use fewer queries when max_results is small to avoid spreading too thin
+    # e.g. max_results=5 with 9 queries → per_query=1, most filtered out → only 3 saved
+    # Fix: cap queries so per_query is at least 3 (enough to survive filtering)
+    max_queries = max(1, max_results // 3)
     if len(search_queries) > max_queries:
         search_queries = search_queries[:max_queries]
 
-    # Per-query result count
+    # Per-query result count — fetch extra to account for filtering
     num_queries = max(len(search_queries), 1)
-    per_query = max(1, min(3, max_results // num_queries))
+    per_query = max(3, min(10, (max_results * 3) // num_queries))
 
     # ── Find yt-dlp binary ────────────────────────────────────────────────
     ytdlp_bin = shutil.which("yt-dlp") or "/usr/local/bin/yt-dlp"
@@ -731,82 +930,293 @@ def scrape_twitter(
 ) -> Dict:
     _ensure_dedup_ttl()
     """
-    Scrape tweets using the X/Twitter spider.
+    Scrape tweets from X/Twitter using direct HTTP requests to Nitter instances.
+    Falls back gracefully if instances are down. No Scrapy dependency needed.
 
     Args:
         self: Celery task instance (for retry mechanism)
         query: Search query (optional, uses default tech queries if not provided)
         queries: JSON string of multiple search queries (optional)
         max_results: Maximum number of tweets to scrape - default: 100
+        user_id: Optional user ID for personalization
+        use_nitter: Always True (kept for API compatibility)
 
     Returns:
-        Dictionary with keys: {'spider': 'twitter', 'status': 'success'/'failed', 'returncode': int}
+        Dictionary with keys: {'spider': 'twitter', 'status': 'success'/'failed', 'count': int}
     """
+    import re as _re
+    import json as _json
+    from urllib.parse import quote_plus
+    from datetime import datetime as _dt
+
+    import requests as _requests_lib
+
     task_id = self.request.id
     logger.info(
-        f"[{task_id}] Starting X/Twitter scraper: query={query}, max_results={max_results}, use_nitter={use_nitter}"
+        f"[{task_id}] Starting X/Twitter scraper (direct HTTP): "
+        f"query={query}, max_results={max_results}"
     )
 
+    NITTER_INSTANCES = [
+        "https://nitter.tiekoetter.com",
+        "https://nitter.poast.org",
+        "https://nitter.net",
+    ]
+
+    DEFAULT_QUERIES = [
+        "AI machine learning LLM",
+        "Python programming software",
+        "web development React TypeScript",
+        "open source GitHub",
+    ]
+
+    TECH_ACCOUNTS = [
+        "sama", "karpathy", "ylecun", "darioamodei",
+        "ilyasut", "fchollet", "emostaque", "rasbt",
+    ]
+
+    # ── Resolve queries ───────────────────────────────────────────────────
+    if queries:
+        try:
+            search_queries = (
+                _json.loads(queries) if isinstance(queries, str) else list(queries)
+            )
+        except _json.JSONDecodeError:
+            search_queries = [queries]
+    elif query:
+        search_queries = [query]
+    else:
+        search_queries = DEFAULT_QUERIES
+
+    total_saved = 0
+
     try:
-        # Determine spider: use Nitter (no API key needed) or X API v2
-        env = _scrapy_env(user_id=user_id)
-        has_x_api_key = bool(env.get("X_API_KEY") or env.get("TWITTER_BEARER_TOKEN"))
+        from apps.tweets.models import Tweet
 
-        # Prefer nitter unless: user explicitly wants X API AND has a key
-        spider_name = "twitter" if (has_x_api_key and not use_nitter) else "nitter"
-        logger.info(
-            f"[{task_id}] Using spider: {spider_name} (has_x_key={has_x_api_key})"
-        )
+        # Try each Nitter instance until one works
+        working_instance = None
+        for instance in NITTER_INSTANCES:
+            try:
+                resp = _requests_lib.get(
+                    instance, timeout=5, allow_redirects=True,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; SYNAPSE-Bot/1.0)"},
+                )
+                if resp.status_code == 200:
+                    working_instance = instance
+                    logger.info(f"[{task_id}] Working Nitter instance: {instance}")
+                    break
+            except Exception:
+                continue
 
-        cmd = [
-            VENV_PYTHON,
-            "-m",
-            "scrapy",
-            "crawl",
-            spider_name,
-            "-a",
-            f"max_results={max_results}",
-        ]
-        if query:
-            cmd.extend(["-a", f"query={query}"])
-        if queries:
-            cmd.extend(["-a", f"queries={queries}"])
+        if not working_instance:
+            logger.warning(
+                f"[{task_id}] No Nitter instances available. "
+                "Trying tech account profiles as last resort."
+            )
+            # Try profile pages as fallback
+            for instance in NITTER_INSTANCES:
+                try:
+                    test_url = f"{instance}/{TECH_ACCOUNTS[0]}"
+                    resp = _requests_lib.get(
+                        test_url, timeout=5,
+                        headers={"User-Agent": "Mozilla/5.0 (compatible; SYNAPSE-Bot/1.0)"},
+                    )
+                    if resp.status_code == 200:
+                        working_instance = instance
+                        break
+                except Exception:
+                    continue
 
-        # Add user_id as spider argument if provided
-        if user_id:
-            cmd.extend(["-a", f"user_id={user_id}"])
-
-        result = subprocess.run(
-            cmd,
-            cwd=str(BASE_DIR / "scraper"),
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env=env,
-        )
-
-        if result.returncode == 0:
-            logger.info(f"[{task_id}] X/Twitter scraper completed successfully")
+        if not working_instance:
+            logger.error(f"[{task_id}] All Nitter instances are down. Cannot scrape tweets.")
             _update_source_last_scraped("twitter")
-            _backfill_user_links(user_id, "twitter", max_results)
             return {
                 "spider": "twitter",
-                "status": "success",
-                "returncode": result.returncode,
+                "status": "failed",
+                "count": 0,
+                "error": "No Nitter instances available",
             }
-        else:
-            logger.error(
-                f"[{task_id}] X/Twitter scraper failed with return code {result.returncode}\n"
-                f"stderr: {result.stderr}"
-            )
-            raise Exception(f"X/Twitter spider failed: {result.stderr}")
 
-    except subprocess.TimeoutExpired as exc:
-        logger.error(f"[{task_id}] X/Twitter scraper timed out after 300s")
-        return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+        # ── Scrape search results ──────────────────────────────────────────
+        for q in search_queries:
+            if total_saved >= max_results:
+                break
+
+            search_url = f"{working_instance}/search?q={quote_plus(q)}&f=tweets"
+            try:
+                resp = _requests_lib.get(
+                    search_url, timeout=15,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; SYNAPSE-Bot/1.0)"},
+                )
+                if resp.status_code != 200:
+                    logger.warning(
+                        f"[{task_id}] Nitter search returned {resp.status_code} for '{q}'"
+                    )
+                    continue
+
+                # Parse HTML to extract tweet data
+                from bs4 import BeautifulSoup
+
+                soup = BeautifulSoup(resp.text, "html.parser")
+                for item in soup.select("div.timeline-item"):
+                    if total_saved >= max_results:
+                        break
+
+                    # Skip pinned/promoted
+                    if item.select_one("div.pinned") or item.select_one("div.promoted"):
+                        continue
+
+                    # Text
+                    text_el = item.select_one("div.tweet-content")
+                    text = text_el.get_text(strip=True) if text_el else ""
+                    if not text:
+                        continue
+
+                    # Tweet ID
+                    tweet_link_el = item.select_one("a.tweet-link")
+                    tweet_id = ""
+                    if tweet_link_el:
+                        href = tweet_link_el.get("href", "")
+                        if "/status/" in href:
+                            tweet_id = href.split("/status/")[-1].split("#")[0].strip("/")
+
+                    if not tweet_id:
+                        continue
+
+                    # Author
+                    username_el = item.select_one("a.username")
+                    author_username = (
+                        username_el.get_text(strip=True).lstrip("@")
+                        if username_el else "unknown"
+                    )
+                    fullname_el = item.select_one("a.fullname")
+                    author_display_name = (
+                        fullname_el.get_text(strip=True) if fullname_el else ""
+                    )
+
+                    # Date
+                    date_el = item.select_one("span.tweet-date a")
+                    posted_at = None
+                    if date_el:
+                        date_str = date_el.get("title", "")
+                        if date_str:
+                            for fmt in (
+                                "%b %d, %Y %I:%M %p",
+                                "%b %d, %Y, %I:%M %p",
+                                "%Y-%m-%d %H:%M:%S",
+                            ):
+                                try:
+                                    posted_at = _dt.strptime(date_str, fmt).replace(
+                                        tzinfo=timezone.utc
+                                    )
+                                    break
+                                except ValueError:
+                                    continue
+
+                    # Hashtags & mentions
+                    hashtags = [
+                        h.get_text(strip=True).lstrip("#")
+                        for h in item.select("a.hashtag")
+                    ]
+                    mentions = [
+                        m.get_text(strip=True).lstrip("@")
+                        for m in item.select("a.mention")
+                    ]
+
+                    # Stats
+                    like_count = 0
+                    retweet_count = 0
+                    for stat_el in item.select("div.tweet-stat"):
+                        icon = stat_el.select_one("span[class^='icon']")
+                        count_text = stat_el.select("span")[-1].get_text("0")
+                        count = 0
+                        try:
+                            count_text = count_text.strip().replace(",", "")
+                            if count_text.endswith("K"):
+                                count = int(float(count_text[:-1]) * 1000)
+                            elif count_text.endswith("M"):
+                                count = int(float(count_text[:-1]) * 1_000_000)
+                            else:
+                                count = int(count_text)
+                        except (ValueError, AttributeError):
+                            pass
+                        if icon and "heart" in icon.get("class", [""])[0]:
+                            like_count = count
+                        elif icon and "retweet" in icon.get("class", [""])[0]:
+                            retweet_count = count
+
+                    # Topic inference
+                    combined = " ".join(hashtags).lower() + " " + text.lower()
+                    topic = "AI"
+                    TOPIC_KEYWORDS = {
+                        "AI": ["ai", "ml", "llm", "gpt", "chatgpt", "openai", "deep"],
+                        "Programming": ["python", "rust", "golang", "coding", "github"],
+                        "Web Dev": ["react", "nextjs", "typescript", "javascript", "css"],
+                        "Security": ["security", "hacking", "vulnerability", "exploit"],
+                        "Cloud": ["aws", "azure", "kubernetes", "docker", "devops"],
+                    }
+                    for t, kws in TOPIC_KEYWORDS.items():
+                        if any(kw in combined for kw in kws):
+                            topic = t
+                            break
+
+                    # Save to DB (upsert by tweet_id)
+                    try:
+                        tweet, created = Tweet.objects.update_or_create(
+                            tweet_id=tweet_id,
+                            defaults={
+                                "text": text[:2000],
+                                "author_username": author_username[:200],
+                                "author_display_name": author_display_name[:300],
+                                "like_count": like_count,
+                                "retweet_count": retweet_count,
+                                "posted_at": posted_at,
+                                "hashtags": hashtags,
+                                "mentions": mentions,
+                                "is_retweet": text.startswith("RT @"),
+                                "url": f"https://x.com/{author_username}/status/{tweet_id}",
+                                "source_label": "nitter",
+                                "topic": topic,
+                                "metadata": {
+                                    "scraped_via": "nitter_http",
+                                    "nitter_instance": working_instance,
+                                    "query": q,
+                                },
+                            },
+                        )
+                        if created:
+                            total_saved += 1
+                            logger.info(
+                                f'[{task_id}] Saved new tweet: @{author_username}: '
+                                f'"{text[:50]}"'
+                            )
+                    except Exception as exc:
+                        logger.warning(
+                            f"[{task_id}] Failed to save tweet {tweet_id}: {exc}"
+                        )
+
+            except _requests_lib.RequestException as exc:
+                logger.warning(
+                    f'[{task_id}] Nitter request failed for "{q}": {exc}'
+                )
+            except Exception as exc:
+                logger.error(
+                    f'[{task_id}] Error scraping tweets for "{q}": {exc}'
+                )
+
+        logger.info(
+            f"[{task_id}] Twitter scraper completed: {total_saved} new tweets saved"
+        )
+        _update_source_last_scraped("twitter")
+        _backfill_user_links(user_id, "twitter", max_results)
+        return {
+            "spider": "twitter",
+            "status": "success",
+            "count": total_saved,
+        }
 
     except Exception as exc:
-        logger.error(f"[{task_id}] X/Twitter scraper exception: {exc}")
+        logger.error(f"[{task_id}] Twitter scraper exception: {exc}")
         return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
 
 

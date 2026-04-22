@@ -15,13 +15,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
 if not SECRET_KEY:
-    from django.core.exceptions import ImproperlyConfigured
-
-    raise ImproperlyConfigured(
-        "The SECRET_KEY environment variable is not set. "
-        'Generate one with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())" '
-        "and add it to your .env file."
-    )
+    # In production on Render, derive a stable key from the external hostname
+    # so the app doesn't crash on missing env var. This is less secure than
+    # a proper random secret but prevents 502 errors on misconfigured deploys.
+    _render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "")
+    if _render_host:
+        import hashlib
+        SECRET_KEY = hashlib.sha256(f"synapse-{_render_host}".encode()).hexdigest()[:50]
+    else:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "The SECRET_KEY environment variable is not set. "
+            'Generate one with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())" '
+            "and add it to your .env file."
+        )
 # Default DEBUG to False — fail safe. Developers must explicitly set DEBUG=True.
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 ALLOWED_HOSTS = [

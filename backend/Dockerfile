@@ -29,8 +29,6 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
 # Copy backend source code (not the whole repo)
 COPY --chown=appuser:appuser backend/ .
-# Copy scraper for Celery scrape tasks
-COPY --chown=appuser:appuser scraper/ /app/scraper/
 
 USER appuser
 EXPOSE 8000
@@ -45,17 +43,20 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # yt-dlp is required by the YouTube scraper (scrape_videos workflow)
-RUN pip install yt-dlp --no-cache-dir
+# beautifulsoup4 is required by the direct HTTP tweet scraper
+RUN pip install yt-dlp beautifulsoup4 --no-cache-dir
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
 # Copy backend source code (manage.py, config/, apps/ etc. go to /app/)
 COPY --chown=appuser:appuser backend/ .
-# Copy scraper for Celery scrape tasks
-COPY --chown=appuser:appuser scraper/ /app/scraper/
 
 USER appuser
 EXPOSE 8000
+
+# Ensure production settings are used (asgi.py defaults to development)
+ENV DJANGO_SETTINGS_MODULE=config.settings.production
+
 # Runs migrations, collectstatic, Celery worker+beat, then Daphne ASGI server
 CMD python manage.py migrate --noinput 2>&1; \
     python manage.py collectstatic --noinput 2>/dev/null; \

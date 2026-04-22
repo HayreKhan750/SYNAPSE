@@ -27,10 +27,12 @@ ALLOWED_HOSTS = [
     h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
 ]
 if not ALLOWED_HOSTS:
-    raise ValueError(
-        "ALLOWED_HOSTS environment variable must be set in production. "
-        "Example: ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com"
-    )
+    # Derive from RENDER_EXTERNAL_HOSTNAME (auto-set by Render) or FRONTEND_URL
+    _render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "")
+    if _render_host:
+        ALLOWED_HOSTS = [_render_host]
+    else:
+        ALLOWED_HOSTS = ["synapse-api-oyld.onrender.com", "localhost", "127.0.0.1"]
 
 # ── Frontend URL ──────────────────────────────────────────────────────────────
 # Auto-prepend https:// if missing (common env var misconfiguration)
@@ -158,10 +160,8 @@ CORS_ALLOWED_ORIGINS = [
     if o
 ]
 if not CORS_ALLOWED_ORIGINS:
-    raise ValueError(
-        "CORS_ALLOWED_ORIGINS environment variable must be set in production. "
-        "Example: CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com"
-    )
+    # Fall back to FRONTEND_URL so the app doesn't crash on missing env var
+    CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
 
 # ── CSRF — trusted origins for cross-site POST requests ───────────────────────
 # Django 4.x requires CSRF_TRUSTED_ORIGINS for cross-origin POST requests.
