@@ -1,4 +1,6 @@
 # ── Stage 1: Dependencies (cached unless requirements.txt changes) ────────────
+# Build context is the REPO ROOT (Render sends entire repo as context).
+# So paths like backend/requirements.txt and scraper/ are available.
 FROM python:3.11-slim AS builder
 WORKDIR /app
 
@@ -6,8 +8,8 @@ RUN apt-get update && apt-get install -y \
     build-essential libpq-dev gcc curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy ONLY requirements first — Docker caches this layer until requirements.txt changes
-COPY requirements.txt .
+# Copy ONLY backend requirements first — Docker caches this layer
+COPY backend/requirements.txt .
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt --use-deprecated=legacy-resolver
 
@@ -25,8 +27,10 @@ RUN pip install yt-dlp --no-cache-dir
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
-# Copy source code last — changes here don't invalidate the pip cache
-COPY --chown=appuser:appuser . .
+# Copy backend source code (not the whole repo)
+COPY --chown=appuser:appuser backend/ .
+# Copy scraper for Celery scrape tasks
+COPY --chown=appuser:appuser scraper/ /app/scraper/
 
 USER appuser
 EXPOSE 8000
@@ -40,12 +44,15 @@ RUN apt-get update && apt-get install -y libpq-dev curl && rm -rf /var/lib/apt/l
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# daphne is already installed via requirements.txt (needed for ASGI/WebSocket)
-# yt-dlp is required by the YouTube spider (scrape_videos workflow)
+# yt-dlp is required by the YouTube scraper (scrape_videos workflow)
 RUN pip install yt-dlp --no-cache-dir
 
-COPY --chown=appuser:appuser . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Copy backend source code (manage.py, config/, apps/ etc. go to /app/)
+COPY --chown=appuser:appuser backend/ .
+# Copy scraper for Celery scrape tasks
+COPY --chown=appuser:appuser scraper/ /app/scraper/
 
 USER appuser
 EXPOSE 8000
