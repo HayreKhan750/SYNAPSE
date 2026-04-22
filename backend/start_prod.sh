@@ -21,7 +21,7 @@ python manage.py collectstatic --noinput --clear 2>/dev/null || python manage.py
 echo "⚙️  Starting Celery worker + beat..."
 celery -A config.celery worker -B \
   -Q default,scraping,agents,nlp,embeddings,slow_scraping \
-  -c 2 -l info \
+  -c 4 -l info \
   --scheduler django_celery_beat.schedulers:DatabaseScheduler \
   --pidfile=/tmp/celerybeat.pid &
 
