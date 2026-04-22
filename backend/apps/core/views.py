@@ -999,29 +999,26 @@ class TodayBriefingView(APIView):
         try:
             briefing = DailyBriefing.objects.get(user=request.user, date=today)
         except DailyBriefing.DoesNotExist:
-            # Auto-generate on demand instead of returning 404
-            from apps.core.tasks import generate_user_briefing
-
+            # Auto-generate on demand via Celery (non-blocking)
             try:
-                result = generate_user_briefing.apply(
-                    kwargs={"user_id": str(request.user.id)}
-                )
-                briefing = DailyBriefing.objects.filter(
-                    user=request.user, date=today
-                ).first()
-            except Exception as exc:
-                logger.warning("On-demand briefing generation failed: %s", exc)
+                from apps.core.tasks import generate_user_briefing
 
-            if not briefing:
-                return Response(
-                    {
-                        "success": False,
-                        "error": {
-                            "message": "Briefing is being generated. Please refresh in a moment."
-                        },
-                    },
-                    status=status.HTTP_202_ACCEPTED,
+                generate_user_briefing.apply_async(
+                    kwargs={"user_id": str(request.user.id)},
+                    queue="default",
                 )
+            except Exception as exc:
+                logger.warning("On-demand briefing dispatch failed: %s", exc)
+
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Briefing is being generated. Please refresh in a moment."
+                    },
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
         return Response(
             {
                 "success": True,
