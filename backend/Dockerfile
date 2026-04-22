@@ -47,10 +47,17 @@ RUN pip install yt-dlp --no-cache-dir
 COPY --chown=appuser:appuser . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
-# Debug: verify start_prod.sh exists
-RUN ls -la /app/start_prod.sh || echo "WARNING: start_prod.sh not found"
-
 USER appuser
 EXPOSE 8000
-# Runs BOTH Daphne ASGI server AND Celery worker+beat in one container (free tier)
-CMD ["bash", "/app/start_prod.sh"]
+# Runs migrations, collectstatic, Celery worker+beat, then Daphne ASGI server
+CMD python manage.py migrate --noinput 2>&1; \
+    python manage.py collectstatic --noinput 2>/dev/null; \
+    celery -A config.celery worker -B \
+      -Q default,scraping,agents,nlp,embeddings,slow_scraping \
+      -c 2 -l info \
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler \
+      --pidfile=/tmp/celerybeat.pid & \
+    exec daphne config.asgi:application \
+      --bind 0.0.0.0 \
+      --port $PORT \
+      --verbosity 1
