@@ -120,12 +120,12 @@ class SecurityHeadersMiddleware:
             response["Cross-Origin-Embedder-Policy"] = "unsafe-none"
             response["Cross-Origin-Resource-Policy"] = "same-site"
         else:
-            # same-origin-allow-popups required for Google OAuth popup to work
+            # COOP: same-origin-allow-popups required for Google OAuth popup flow
             # (the popup needs to call window.close() and the opener checks window.closed)
             response["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-            # unsafe-none required for cross-origin frontend (Vercel) to read API responses
+            # COEP: unsafe-none required for cross-origin frontend (Vercel) to read API responses
             response["Cross-Origin-Embedder-Policy"] = "unsafe-none"
-            # cross-origin allows any origin to read API responses (required for SPA frontend)
+            # CORP: cross-origin allows any origin to read API responses (required by SPA frontend)
             response["Cross-Origin-Resource-Policy"] = "cross-origin"
 
         # Cache control for API responses (no caching of sensitive data)
