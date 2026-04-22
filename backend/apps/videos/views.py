@@ -24,8 +24,8 @@ class VideoListView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = Video.objects.all()
-        # ── Personalization: scope to videos linked via UserVideo junction ──
-        if self.request.user and self.request.user.is_authenticated:
+        # ── Personalization: only filter by UserVideo when explicitly requested ──
+        if self.request.query_params.get("personalized") and self.request.user and self.request.user.is_authenticated:
             qs = qs.filter(user_videos__user=self.request.user)
         return qs
 
