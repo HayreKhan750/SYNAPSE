@@ -44,7 +44,7 @@ def _get_tokens_for_user(user: User) -> dict:
     }
 
 
-@api_view(["GET", "OPTIONS"])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def github_auth(request):
     """

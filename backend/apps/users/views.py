@@ -13,7 +13,6 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
@@ -566,9 +565,8 @@ def resend_verification_email(request):
     )
 
 
-@api_view(["POST", "OPTIONS"])
+@api_view(["POST"])
 @permission_classes([AllowAny])
-@csrf_exempt
 def google_auth(request):
     """
     POST /api/v1/auth/google/
