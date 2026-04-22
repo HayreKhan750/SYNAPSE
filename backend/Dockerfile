@@ -44,13 +44,13 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # yt-dlp is required by the YouTube spider (scrape_videos workflow)
 RUN pip install yt-dlp --no-cache-dir
 
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 COPY --chown=appuser:appuser . .
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
-# Make the production start script executable
-RUN chmod +x /app/start_prod.sh
+# Debug: verify start_prod.sh exists
+RUN ls -la /app/start_prod.sh || echo "WARNING: start_prod.sh not found"
 
 USER appuser
 EXPOSE 8000
 # Runs BOTH Daphne ASGI server AND Celery worker+beat in one container (free tier)
-CMD ["/app/start_prod.sh"]
+CMD ["bash", "/app/start_prod.sh"]
