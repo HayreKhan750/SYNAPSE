@@ -501,7 +501,7 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
   const { data: runs = [], isLoading, refetch } = useQuery({
     queryKey: ['workflow-runs', workflow.id],
     queryFn: () => fetchRuns(workflow.id),
-    refetchInterval: 4000,
+    refetchInterval: runs.some(r => r.status === 'running') ? 4000 : 15_000,
   });
 
   return (
@@ -932,7 +932,7 @@ export default function AutomationPage() {
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['workflows'],
     queryFn: fetchWorkflows,
-    refetchInterval: isAuthenticated ? 10000 : false,
+    refetchInterval: isAuthenticated ? 30_000 : false,
     enabled: isAuthenticated,
   });
 
@@ -955,7 +955,7 @@ export default function AutomationPage() {
       }
       return list;
     },
-    refetchInterval: isAuthenticated ? 15000 : false,
+    refetchInterval: isAuthenticated ? 30_000 : false,
     enabled: isAuthenticated,
     retry: false,
   });

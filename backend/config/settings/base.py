@@ -239,7 +239,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "20/minute",
-        "user": "100/minute",
+        "user": "300/minute",  # dashboard has multiple polling queries
         "mfa_verify": "5/minute",  # Strict: prevents TOTP brute force
         "mfa_setup": "3/minute",  # Strict: prevents setup abuse
         "login": "10/minute",  # Brute force protection on login
