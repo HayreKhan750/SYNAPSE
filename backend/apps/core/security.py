@@ -70,12 +70,11 @@ class ContentSecurityPolicyMiddleware:
                     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                     "font-src 'self' https://fonts.gstatic.com",
                     "img-src 'self' data: https:",
-                    "connect-src 'self' wss: https:",
+                    "connect-src 'self' https: wss:",
                     "frame-ancestors 'none'",
                     "base-uri 'self'",
                     "form-action 'self'",
                     "object-src 'none'",
-                    "upgrade-insecure-requests",
                 ]
             )
 
@@ -124,10 +123,10 @@ class SecurityHeadersMiddleware:
             # same-origin-allow-popups required for Google OAuth popup to work
             # (the popup needs to call window.close() and the opener checks window.closed)
             response["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-            # credentialless allows cross-origin resources (fonts, images) while
-            # still providing isolation for same-origin scripts
-            response["Cross-Origin-Embedder-Policy"] = "credentialless"
-            response["Cross-Origin-Resource-Policy"] = "same-origin"
+            # unsafe-none required for cross-origin frontend (Vercel) to read API responses
+            response["Cross-Origin-Embedder-Policy"] = "unsafe-none"
+            # cross-origin allows any origin to read API responses (required for SPA frontend)
+            response["Cross-Origin-Resource-Policy"] = "cross-origin"
 
         # Cache control for API responses (no caching of sensitive data)
         if request.path.startswith("/api/") and not is_render:

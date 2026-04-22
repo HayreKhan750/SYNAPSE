@@ -163,8 +163,34 @@ if not CORS_ALLOWED_ORIGINS:
     # Fall back to FRONTEND_URL so the app doesn't crash on missing env var
     CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
 
+# Always ensure the known frontend URL is present (guards against env var misconfiguration)
+_KNOWN_FRONTEND = "https://synapse-app-six.vercel.app"
+if _KNOWN_FRONTEND not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(_KNOWN_FRONTEND)
+
 # Allow credentials (cookies, Authorization headers) in CORS requests
 CORS_ALLOW_CREDENTIALS = True
+
+# Explicitly allow methods and headers needed for OAuth and API calls
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 # ── CSRF — trusted origins for cross-site POST requests ───────────────────────
 # Django 4.x requires CSRF_TRUSTED_ORIGINS for cross-origin POST requests.
