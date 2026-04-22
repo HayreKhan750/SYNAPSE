@@ -501,7 +501,10 @@ function RunHistoryModal({ workflow, onClose }: { workflow: Workflow; onClose: (
   const { data: runs = [], isLoading, refetch } = useQuery({
     queryKey: ['workflow-runs', workflow.id],
     queryFn: () => fetchRuns(workflow.id),
-    refetchInterval: runs.some(r => r.status === 'running') ? 4000 : 15_000,
+    refetchInterval: (query) => {
+      const data = query.state.data ?? [];
+      return data.some((r: any) => r.status === 'running') ? 4000 : 15_000;
+    },
   });
 
   return (
