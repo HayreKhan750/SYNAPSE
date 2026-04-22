@@ -413,11 +413,16 @@ class ActionSchemasViewTests(APITestCase):
         resp = self.client.get("/api/v1/automation/action-schemas/")
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_action_schemas_returns_all_six_types(self):
+    def test_action_schemas_returns_all_types(self):
         resp = self.client.get("/api/v1/automation/action-schemas/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         expected = {
             "collect_news",
+            "scrape_videos",
+            "scrape_tweets",
+            "scrape_hackernews",
+            "scrape_github",
+            "scrape_arxiv",
             "summarize_content",
             "generate_pdf",
             "send_email",
