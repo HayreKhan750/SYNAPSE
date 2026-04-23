@@ -86,6 +86,9 @@ MIDDLEWARE = [
     "apps.core.middleware.APIVersionHeaderMiddleware",  # TASK-105-4: X-API-Version header
     # 'django_prometheus.middleware.PrometheusBeforeMiddleware',
     "django.middleware.security.SecurityMiddleware",
+    # Phase 9.1 — Security hardening (must run BEFORE CorsMiddleware to apply to OPTIONS preflight)
+    "apps.core.security.SecurityHeadersMiddleware",
+    "apps.core.security.ContentSecurityPolicyMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -95,9 +98,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # 'django_prometheus.middleware.PrometheusAfterMiddleware',
-    # Phase 9.1 — Security hardening
-    "apps.core.security.SecurityHeadersMiddleware",
-    "apps.core.security.ContentSecurityPolicyMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
