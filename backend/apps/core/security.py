@@ -127,6 +127,7 @@ class SecurityHeadersMiddleware:
             response["Cross-Origin-Embedder-Policy"] = "unsafe-none"
             # CORP: cross-origin allows any origin to read API responses (required by SPA frontend)
             response["Cross-Origin-Resource-Policy"] = "cross-origin"
+            # Note: Security middleware must run BEFORE CorsMiddleware in settings.py
 
         # Cache control for API responses (no caching of sensitive data)
         if request.path.startswith("/api/") and not is_render:
