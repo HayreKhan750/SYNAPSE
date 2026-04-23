@@ -75,22 +75,22 @@ const processQueue = (err: unknown, token: string | null) => {
 
 // ── Retry config ───────────────────────────────────────────────────────────────
 const RETRY_STATUS = new Set([408, 429, 500, 502, 503, 504])
-const MAX_RETRIES  = 3
-const retryDelay   = (n: number) => Math.min(300 * 2 ** n + Math.random() * 100, 5000)
+const MAX_RETRIES  = 5
+const retryDelay   = (n: number) => Math.min(1000 * 2 ** n + Math.random() * 500, 15000)
 
 // ── Axios instances ────────────────────────────────────────────────────────────
 
 /** Authenticated instance — all protected API calls */
 export const api: AxiosInstance = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
-  timeout: 30_000,
+  timeout: 60_000,
   headers: { 'Content-Type': 'application/json' },
 })
 
 /** Unauthenticated instance — login / refresh / register */
 export const authApi: AxiosInstance = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
-  timeout: 15_000,
+  timeout: 60_000,
   headers: { 'Content-Type': 'application/json' },
 })
 
