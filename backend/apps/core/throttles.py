@@ -171,8 +171,35 @@ class AgentRateThrottle(PlanAwareThrottle):
     limit_table = AGENT_LIMITS
 
 
+REGISTRATION_LIMITS: dict[str, tuple[int, int]] = {
+    "free": (5, 3600),       # 5 registrations/hour per IP
+    "pro": (20, 3600),       # 20/hour
+    "enterprise": (100, 3600),
+}
+
+
 class APIRateThrottle(PlanAwareThrottle):
     """General API rate limit — applied globally per plan tier."""
 
     scope = "api"
     limit_table = API_LIMITS
+
+
+class RegistrationThrottle(SimpleRateThrottle):
+    """
+    Rate limit for user registration — keyed by client IP.
+    Prevents spam registrations without requiring authentication.
+    """
+
+    scope = "registration"
+
+    def get_cache_key(self, request, view) -> Optional[str]:
+        return f"rl:registration:{self.get_ident(request)}"
+
+    def get_rate(self) -> str:
+        return "5/hour"
+
+    def allow_request(self, request, view):
+        if getattr(request.user, "is_authenticated", False):
+            return True
+        return super().allow_request(request, view)

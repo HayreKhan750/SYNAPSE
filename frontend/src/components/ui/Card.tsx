@@ -43,9 +43,10 @@ export function Card({
         'bg-white dark:bg-slate-800/80',
         'rounded-2xl border border-slate-300 dark:border-slate-700/60',
         'transition-colors duration-200',
-        !noPadding && 'p-5',
+        !noPadding && 'p-4 sm:p-5',
         hoverable && 'cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500/30',
         onClick && 'cursor-pointer',
+        'w-full min-w-0',
         className,
       )}
       {...props}

@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 
@@ -15,6 +16,8 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+
+from apps.core.throttles import APIRateThrottle, RegistrationThrottle
 
 from .firebase_email import send_password_reset_email, send_verification_email
 from .models import User
@@ -63,6 +66,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = [AllowAny]
+    throttle_classes = [RegistrationThrottle]
     serializer_class = UserRegistrationSerializer
 
     def create(self, request, *args, **kwargs):

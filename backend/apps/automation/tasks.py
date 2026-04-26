@@ -523,7 +523,10 @@ def _action_ai_digest(params: dict, workflow=None) -> dict:
             gemini_api_key=gemini_api_key,
         )
         result = executor.run(
-            task=f"Research and summarize: {topic}", tool_names=tool_names
+            task=f"Research and summarize: {topic}",
+            tool_names=tool_names,
+            user_id=str(workflow.user_id) if workflow else None,
+            role=getattr(workflow.user, "role", "user") if workflow else "user",
         )
 
         return {

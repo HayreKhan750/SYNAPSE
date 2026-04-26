@@ -49,7 +49,7 @@ class SynapseAgentExecutor:
     def __init__(
         self,
         registry: Optional[AgentToolRegistry] = None,
-        model_name: str = "gemini-1.5-flash-latest",
+        model_name: str = "",
         temperature: float = 0.1,
         max_tokens: int = 2048,
         max_iterations: int = 10,

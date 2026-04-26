@@ -250,6 +250,7 @@ REST_FRAMEWORK = {
         "mfa_verify": "5/minute",  # Strict: prevents TOTP brute force
         "mfa_setup": "3/minute",  # Strict: prevents setup abuse
         "login": "10/minute",  # Brute force protection on login
+        "registration": "5/hour",  # Anti-spam on registration endpoint
     },
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
     "EXCEPTION_HANDLER": "apps.core.exceptions.custom_exception_handler",

@@ -120,7 +120,7 @@ class SynapseAgent:
     def __init__(
         self,
         tools: List[BaseTool],
-        model_name: str = "gemini-1.5-flash-latest",
+        model_name: str = "",
         temperature: float = 0.1,
         max_tokens: int = 2048,
         max_iterations: int = MAX_ITERATIONS,
@@ -251,21 +251,37 @@ class SynapseAgent:
             messages = state.get("messages", [])
             answer = ""
             steps = []
+            
+            # Temporary storage for tool call details from AIMessage
+            pending_tool_calls = {}
 
             for msg in messages:
-                if isinstance(msg, AIMessage) and msg.content:
-                    answer = (
-                        msg.content
-                        if isinstance(msg.content, str)
-                        else str(msg.content)
-                    )
+                if isinstance(msg, AIMessage):
+                    if msg.content:
+                        answer = (
+                            msg.content
+                            if isinstance(msg.content, str)
+                            else str(msg.content)
+                        )
+                    # If this message has tool calls, store them to match with subsequent ToolMessages
+                    if hasattr(msg, "tool_calls") and msg.tool_calls:
+                        for tc in msg.tool_calls:
+                            pending_tool_calls[tc["id"]] = {
+                                "tool": tc["name"],
+                                "tool_input": tc["args"],
+                                "thought": msg.additional_kwargs.get("thought", "")
+                            }
                 elif isinstance(msg, ToolMessage):
+                    # Match this observation with the tool call details
+                    tc_id = getattr(msg, "tool_call_id", None)
+                    tc_info = pending_tool_calls.get(tc_id, {})
+                    
                     steps.append(
                         {
-                            "tool": getattr(msg, "name", "tool"),
-                            "tool_input": "",
+                            "tool": tc_info.get("tool") or getattr(msg, "name", "tool"),
+                            "tool_input": tc_info.get("tool_input", ""),
                             "observation": str(msg.content)[:2000],
-                            "thought": "",
+                            "thought": tc_info.get("thought", ""),
                         }
                     )
 

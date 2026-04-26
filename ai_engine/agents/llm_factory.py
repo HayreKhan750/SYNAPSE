@@ -158,6 +158,30 @@ def build_llm(
             convert_system_message_to_human=True,
         )
 
+    # ── OpenRouter / OpenAI (explicit or auto-fallback) ───────────────────────
+    or_key = openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+    or_base = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    or_model = model or os.environ.get(
+        "OPENROUTER_MODEL", "google/gemini-2.0-flash-001"
+    )
+
+    if or_key and _OPENAI_AVAILABLE and ChatOpenAI is not None:
+        logger.info(
+            "llm_factory provider=openrouter model=%s streaming=%s", or_model, streaming
+        )
+        return ChatOpenAI(
+            model=or_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_api_key=or_key,
+            openai_api_base=or_base,
+            streaming=streaming,
+            default_headers={
+                "HTTP-Referer": "https://synapse.ai",
+                "X-Title": "SYNAPSE",
+            },
+        )
+
     # ── Scitely (explicit or auto-fallback) ────────────────────────────────────
     sc_key = scitely_api_key or os.environ.get("SCITELY_API_KEY", "")
     sc_base = "https://api.scitely.com/v1"
@@ -184,7 +208,7 @@ def build_llm(
             },
         )
 
-    # Auto-fallback: try Scitely first
+    # Auto-fallback: try Scitely (only if OpenRouter failed or key missing)
     if sc_key and _OPENAI_AVAILABLE and ChatOpenAI is not None:
         logger.info(
             "llm_factory provider=scitely_auto model=%s streaming=%s",
@@ -204,32 +228,8 @@ def build_llm(
             },
         )
 
-    # ── OpenRouter / OpenAI (explicit or auto-fallback) ───────────────────────
-    or_key = openrouter_api_key
-    or_base = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    or_model = model or os.environ.get(
-        "OPENROUTER_MODEL", "google/gemini-2.0-flash-001"
-    )
-
-    if or_key and _OPENAI_AVAILABLE and ChatOpenAI is not None:
-        logger.info(
-            "llm_factory provider=openrouter model=%s streaming=%s", or_model, streaming
-        )
-        return ChatOpenAI(
-            model=or_model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            openai_api_key=or_key,
-            openai_api_base=or_base,
-            streaming=streaming,
-            default_headers={
-                "HTTP-Referer": "https://synapse.ai",
-                "X-Title": "SYNAPSE",
-            },
-        )
-
     # ── Gemini auto-fallback ──────────────────────────────────────────────────
-    gem_key = gemini_api_key
+    gem_key = gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
     if gem_key:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI  # type: ignore

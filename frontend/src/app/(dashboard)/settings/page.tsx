@@ -824,12 +824,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Integrations */}
-        <Section title="Integrations" icon={<Settings size={16} />}>
-          <p className="text-sm text-slate-400 mb-4">
-            Connect external services to power automation actions like{' '}
-            <span className="text-indigo-600 dark:text-indigo-400 font-mono text-xs">upload_to_drive</span>.
-          </p>
-          <GoogleDriveSection />
+        <Section title="Integrations" icon={<Code size={16} />}>
+          <IntegrationsSection />
         </Section>
 
         {/* GitHub OAuth — TASK-202 */}
@@ -934,29 +930,9 @@ export default function SettingsPage() {
           <AiKeysForm />
         </Section>
 
-        {/* API Key */}
-        <Section title="API Access" icon={<Key size={16} />}>
-          <p className="text-sm text-slate-400">Use this key to access the SYNAPSE API from external apps.</p>
-          <div className="flex items-center gap-2 flex-wrap xs:flex-nowrap">
-            <div className="w-full xs:flex-1 min-w-0 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-mono text-xs sm:text-sm text-slate-600 dark:text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap">
-              {showKey ? apiKey : '•'.repeat(Math.min(apiKey.length, 32))}
-            </div>
-            <div className="flex gap-1.5 shrink-0">
-              <button
-                onClick={() => setShowKey(s => !s)}
-                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
-                title={showKey ? 'Hide key' : 'Show key'}
-              >
-                {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-              <button
-                onClick={() => { navigator.clipboard.writeText(apiKey); toast.success('API key copied!') }}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors text-xs font-semibold whitespace-nowrap"
-              >
-                Copy
-              </button>
-            </div>
-          </div>
+        {/* API Keys */}
+        <Section title="API Keys" icon={<Key size={16} />}>
+          <ApiKeysSection />
         </Section>
 
         {/* Sign out */}
@@ -968,16 +944,6 @@ export default function SettingsPage() {
           >
             <LogOut size={14} /> Sign Out
           </button>
-        </Section>
-
-        {/* TASK-605-F1: API Keys */}
-        <Section title="API Keys" icon={<Key size={16} />}>
-          <ApiKeysSection />
-        </Section>
-
-        {/* TASK-607-5: Integrations */}
-        <Section title="Integrations" icon={<Code size={16} />}>
-          <IntegrationsSection />
         </Section>
 
         {/* Danger zone */}

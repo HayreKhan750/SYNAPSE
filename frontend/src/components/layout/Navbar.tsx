@@ -174,7 +174,7 @@ const NotificationDropdown = React.memo(function NotificationDropdown({ onClose 
   })
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-card-hover overflow-hidden z-50">
+    <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-card-hover overflow-hidden z-50">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
         <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Notifications</h3>

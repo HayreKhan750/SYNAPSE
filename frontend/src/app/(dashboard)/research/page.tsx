@@ -432,15 +432,15 @@ export default function ResearchPage() {
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 pb-12">
 
         {/* ── Compact Header + Search (GitHub Radar style) ─────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           {/* Title */}
           <div className="flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-500/25">
-              <BookOpen size={15} className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-500/25">
+              <BookOpen size={18} className="text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-slate-900 dark:text-white leading-none">Research Papers</h1>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              <h1 className="text-lg font-bold text-slate-900 dark:text-white leading-none">Research Papers</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 {totalCount > 0 ? `${totalCount.toLocaleString()} papers` : 'arXiv cs.AI · cs.LG · cs.CL'}
               </p>
             </div>
@@ -455,27 +455,32 @@ export default function ResearchPage() {
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search papers by title, author, keyword…"
-                className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all"
               />
-              {searchQuery && (
-                <button onClick={clearFilters} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600">
-                  <X className="w-3.5 h-3.5" />
+              {searchInput && (
+                <button onClick={() => { setSearchInput(''); setSearchQuery(''); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600">
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>
             <button
               onClick={handleSearch}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm shrink-0"
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-md shadow-indigo-500/20 shrink-0 flex items-center gap-2"
             >
               <Search className="w-4 h-4" />
+              <span className="hidden sm:inline">Search</span>
             </button>
           </div>
-
         </div>
 
+        {/* Stats Bar */}
+        {papers.length > 0 && <StatsBar papers={papers} />}
+
+        {/* Deep Research Agent Panel */}
+        <DeepResearchPanel />
 
         {/* ── Category filter — horizontal scroll strip ─────────────── */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0">
           {/* All pill */}
           <button
             onClick={() => setSelectedCategory('')}

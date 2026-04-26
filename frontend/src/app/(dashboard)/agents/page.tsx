@@ -1345,22 +1345,22 @@ export default function AgentsPage() {
           {/* Top accent line */}
           <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500" />
 
-          <div className="p-5 sm:p-6">
+          <div className="p-4 sm:p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
-                  <Terminal size={14} className="text-white" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+                  <Terminal size={12} className="text-white sm:w-[14px] sm:h-[14px]" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-slate-800 dark:text-white tracking-tight">Command Interface</h2>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Autonomous AI agent execution</p>
+                  <h2 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-white tracking-tight">Command Interface</h2>
+                  <p className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400">Autonomous AI agent execution</p>
                 </div>
               </div>
               {/* Tools count chip */}
               {tools.length > 0 && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold">
-                  <Zap size={10} />
+                <div className="flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[9px] sm:text-[10px] font-bold">
+                  <Zap size={9} className="sm:w-[10px] sm:h-[10px]" />
                   {tools.length} tools ready
                 </div>
               )}
@@ -1531,7 +1531,7 @@ export default function AgentsPage() {
         </div>
 
         {/* ── Tab bar ── */}
-        <div className="flex items-center gap-1 mb-5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-fit shadow-sm">
+        <div className="flex items-center gap-1 mb-5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-1 w-full sm:w-fit shadow-sm overflow-x-auto scrollbar-hide">
           {([
             { id: 'active',  label: 'Active',  count: activeTasks.length },
             { id: 'history', label: 'History', count: historyTasks.length },
@@ -1541,7 +1541,7 @@ export default function AgentsPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
+                'flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap',
                 activeTab === tab.id
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -1550,7 +1550,7 @@ export default function AgentsPage() {
               {tab.label}
               {tab.count > 0 && (
                 <span className={cn(
-                  'text-xs px-1.5 py-0.5 rounded-full font-bold',
+                  'text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full font-bold',
                   activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                 )}>
                   {tab.count}

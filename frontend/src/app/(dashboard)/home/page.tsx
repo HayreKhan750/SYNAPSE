@@ -15,18 +15,18 @@ import { ArticleSkeleton, RepositorySkeleton, PaperSkeleton } from '@/components
 
 const StatCard = ({ icon: Icon, label, value, gradient, href }: any) => (
   <Link href={href || '#'} className="group">
-    <div className={`rounded-2xl p-5 text-white relative overflow-hidden transition-all duration-200 group-hover:scale-[1.02] group-hover:shadow-xl ${gradient}`}>
+    <div className={`rounded-2xl p-4 sm:p-5 text-white relative overflow-hidden transition-all duration-200 group-hover:scale-[1.02] group-hover:shadow-xl ${gradient}`}>
       <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '20px 20px'}} />
       <div className="relative flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium opacity-80">{label}</p>
-          <p className="text-3xl font-black mt-0.5">{value?.toLocaleString?.() ?? value}</p>
+        <div className="min-w-0">
+          <p className="text-xs sm:text-sm font-medium opacity-80 truncate">{label}</p>
+          <p className="text-2xl sm:text-3xl font-black mt-0.5 truncate">{value?.toLocaleString?.() ?? value}</p>
         </div>
-        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-          <Icon size={24} />
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
       </div>
-      <div className="relative mt-3 flex items-center gap-1 text-xs font-medium opacity-70 group-hover:opacity-100 transition-opacity">
+      <div className="relative mt-3 flex items-center gap-1 text-[10px] sm:text-xs font-medium opacity-70 group-hover:opacity-100 transition-opacity">
         <span>View all</span>
         <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
       </div>
@@ -355,7 +355,7 @@ export default function Dashboard() {
       <div className="pb-10">
 
         {/* ── Hero Banner ──────────────────────────────────────────── */}
-        <div className="relative bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:from-slate-900 dark:via-indigo-950/80 dark:to-slate-900 px-6 pt-8 pb-12 overflow-hidden border-b border-indigo-100 dark:border-transparent">
+        <div className="relative bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:from-slate-900 dark:via-indigo-950/80 dark:to-slate-900 px-4 sm:px-6 pt-6 sm:pt-8 pb-10 sm:pb-12 overflow-hidden border-b border-indigo-100 dark:border-transparent">
           <div className="absolute inset-0 bg-grid-pattern opacity-10 dark:opacity-20" />
           <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-200/40 dark:bg-indigo-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
           <div className="absolute bottom-0 left-1/3 w-56 h-56 bg-violet-200/30 dark:bg-cyan-600/15 rounded-full blur-3xl translate-y-1/2" />
@@ -364,16 +364,16 @@ export default function Dashboard() {
               <Zap size={10} className="fill-indigo-500 text-indigo-500 dark:fill-indigo-400 dark:text-indigo-400" />
               AI-Powered Tech Intelligence
             </span>
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-2 tracking-tight leading-tight">
+            <h1 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white mb-2 tracking-tight leading-tight">
               Welcome to <span className="gradient-text">SYNAPSE</span>
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-base max-w-lg">
+            <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base max-w-lg">
               Your personal AI-curated feed of articles, papers, repos, and videos — all searchable and summarized.
             </p>
           </div>
         </div>
 
-        <div className="px-6 space-y-10 mt-6">
+        <div className="px-4 sm:px-6 space-y-10 mt-6">
 
           {/* ── TASK-305-F1: Today's Brief ────────────────────────── */}
           <TodayBriefCard />

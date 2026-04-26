@@ -30,7 +30,7 @@ GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "")
 GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
 GITHUB_REDIRECT_URI = os.environ.get(
     "GITHUB_REDIRECT_URI",
-    "https://synapse-api-oyld.onrender.com/api/v1/auth/github/callback/",
+    "http://localhost:8000/api/v1/auth/github/callback/",
 )
 FRONTEND_URL = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
 
