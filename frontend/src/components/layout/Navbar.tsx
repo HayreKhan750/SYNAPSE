@@ -376,29 +376,31 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick, onSearchCl
 
   return (
     <nav className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-300 dark:border-slate-700/60">
-      <div className="flex items-center justify-between h-16 px-6">
+      <div className="flex items-center justify-between h-16 px-3 sm:px-6 gap-2">
 
         {/* Left: Page title / Mobile menu */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={onMobileMenuClick}
-            className="inline-flex md:!hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+            className="inline-flex md:!hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white shrink-0"
             aria-label="Open sidebar"
           >
             <Menu size={20} />
           </button>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{getPageTitle()}</h1>
+          <h1 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">
+            {getPageTitle()}
+          </h1>
         </div>
 
         {/* Center: Search — TASK-402-4: pill triggers ⌘K command palette */}
-        <div className="hidden md:flex flex-1 max-w-md mx-8">
+        <div className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8">
           <button
             onClick={onSearchClick}
             className="w-full flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 dark:text-slate-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-white dark:hover:bg-slate-700/60 transition-colors text-sm"
             aria-label="Open search (⌘K)"
           >
             <Search size={16} className="flex-shrink-0" />
-            <span className="flex-1 text-left">Search articles, papers, repos…</span>
+            <span className="flex-1 text-left truncate">Search articles, papers, repos…</span>
             <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-[11px] font-mono text-slate-400 dark:text-slate-500 flex-shrink-0">
               <Command size={10} />K
             </kbd>
@@ -406,10 +408,23 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick, onSearchCl
         </div>
 
         {/* Right: Org Switcher, Theme, Bell, User */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
 
-          {/* Organization Switcher — TASK-006-F1 */}
-          <OrgSwitcher />
+          {/* Mobile-only search trigger (the full search bar above is md+) */}
+          {onSearchClick && (
+            <button
+              onClick={onSearchClick}
+              className="md:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+              aria-label="Open search"
+            >
+              <Search size={20} />
+            </button>
+          )}
+
+          {/* Organization Switcher — hidden on the smallest phones to save room */}
+          <div className="hidden sm:block">
+            <OrgSwitcher />
+          </div>
 
           {/* AI Assistant panel toggle — TASK-403-2 (xl screens only) */}
           {onAIPanelToggle && (
