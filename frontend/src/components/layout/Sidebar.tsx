@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Newspaper, GitBranch, BookOpen,
-  MessageSquare, Zap, Library, LogOut,
+  MessageSquare, Zap, Library, LogOut, User as UserIcon,
   ChevronLeft, ChevronRight, Bot, Youtube, TrendingUp, Twitter, CreditCard, Building2,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
@@ -195,24 +195,16 @@ export const Sidebar = memo(function Sidebar({
 // ── TASK-404-1: Mobile Bottom Navigation Bar ──────────────────────────────────
 // Shown only on < md screens; replaces sidebar for mobile users.
 
-const BOTTOM_NAV = [
-  { href: '/',      label: 'Home',    icon: LayoutDashboard },
-  { href: '/feed',  label: 'Feed',    icon: Newspaper       },
-  { href: '/search',label: 'Search',  icon: MessageSquare   }, // reuse as search shortcut
-  { href: '/chat',  label: 'Chat',    icon: MessageSquare   },
-  { href: '/agents',label: 'Agents',  icon: Bot             },
-]
+const MOBILE_BOTTOM_TABS = [
+  { href: '/',       label: 'Home',    icon: LayoutDashboard, accent: '#6366f1' },
+  { href: '/feed',   label: 'Feed',    icon: Newspaper,       accent: '#06b6d4' },
+  { href: '/chat',   label: 'Chat',    icon: MessageSquare,   accent: '#0ea5e9' },
+  { href: '/agents', label: 'Agents',  icon: Bot,             accent: '#ec4899' },
+  { href: '/profile',label: 'Profile', icon: UserIcon,        accent: '#8b5cf6' },
+] as const
 
 export function MobileBottomNav() {
   const pathname = usePathname()
-  // Show only on mobile (Tailwind md:hidden applied below)
-  const tabs = [
-    { href: '/',      label: 'Home',   icon: LayoutDashboard, accent: '#6366f1' },
-    { href: '/feed',  label: 'Feed',   icon: Newspaper,       accent: '#06b6d4' },
-    { href: '/chat',  label: 'Chat',   icon: MessageSquare,   accent: '#0ea5e9' },
-    { href: '/agents',label: 'Agents', icon: Bot,             accent: '#ec4899' },
-    { href: '/profile',label: 'Profile',icon: LayoutDashboard,accent: '#8b5cf6' },
-  ]
 
   return (
     <nav
@@ -220,7 +212,7 @@ export function MobileBottomNav() {
       aria-label="Mobile navigation"
     >
       <div className="flex items-center justify-around h-16 px-2">
-        {tabs.map(({ href, label, icon: Icon, accent }) => {
+        {MOBILE_BOTTOM_TABS.map(({ href, label, icon: Icon, accent }) => {
           const active = pathname === href || (href !== '/' && pathname?.startsWith(href))
           return (
             <Link

@@ -23,6 +23,30 @@ Never enable debug mode in production — it exposes sensitive information,
 disables security middleware, and allows arbitrary code execution.
 """
 
+# ── Email (SMTP) — auto-switch to SMTP when credentials are set ───────────────
+# In production we MUST NOT silently fall back to the Django console backend
+# (inherited from base.py) — that drops every verification / password-reset
+# email on the floor and users will never be able to complete signup.
+# If EMAIL_HOST_PASSWORD or SENDGRID_API_KEY is present, switch to real SMTP.
+_smtp_password = os.environ.get("EMAIL_HOST_PASSWORD") or os.environ.get(
+    "SENDGRID_API_KEY", ""
+)
+if _smtp_password and not os.environ.get("EMAIL_BACKEND"):
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+elif not os.environ.get("EMAIL_BACKEND"):
+    # No SMTP credentials at all in production — use the dummy backend so email
+    # sends are no-ops (rather than crashing or polluting stdout).
+    EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
+    import warnings as _warnings
+
+    _warnings.warn(
+        "[Synapse] No EMAIL_HOST_PASSWORD or SENDGRID_API_KEY set in production — "
+        "email verification and password reset emails will NOT be delivered. "
+        "Set EMAIL_HOST_PASSWORD (SMTP) or SENDGRID_API_KEY to enable email.",
+        category=RuntimeWarning,
+        stacklevel=2,
+    )
+
 ALLOWED_HOSTS = [
     h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
 ]

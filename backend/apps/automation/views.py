@@ -131,27 +131,62 @@ class WorkflowTriggerView(APIView):
             trigger_event={},
         )
 
-        task_id = None
+        # ── Worker-availability detection ─────────────────────────────────────
+        # On managed hosts (e.g. Render) it is common to have Redis up but no
+        # Celery worker running. In that case `apply_async` succeeds (it just
+        # enqueues to Redis), the task sits in the queue forever, and the run
+        # is permanently stuck in PENDING. Probe for a live worker first and
+        # fall back to a synchronous execution if none are listening.
+        from config.celery import app as _celery_app
+
+        workers_online = False
         try:
-            task = execute_workflow.apply_async(
-                args=[str(workflow.id)],
-                kwargs={"run_id": str(run.id)},
-            )
-            # Persist the celery task id on the run record
-            run.celery_task_id = task.id
-            run.save(update_fields=["celery_task_id"])
-            task_id = task.id
-        except Exception as celery_error:
-            # Fallback: run synchronously if Celery worker is not available
+            ping_result = _celery_app.control.inspect(timeout=1.0).ping()
+            workers_online = bool(ping_result)
+        except Exception as ping_err:
+            logger.warning("Celery worker ping failed: %s", ping_err)
+
+        task_id = None
+        if workers_online:
+            try:
+                task = execute_workflow.apply_async(
+                    args=[str(workflow.id)],
+                    kwargs={"run_id": str(run.id)},
+                )
+                # Persist the celery task id on the run record
+                run.celery_task_id = task.id
+                run.save(update_fields=["celery_task_id"])
+                task_id = task.id
+            except Exception as celery_error:
+                # Broker reachable but enqueue failed for another reason —
+                # still fall back to sync so the user actually gets results.
+                logger.warning(
+                    "Celery enqueue failed, running workflow synchronously: %s",
+                    celery_error,
+                )
+                workers_online = False  # force sync branch below
+
+        if not workers_online:
+            # No live Celery worker — run synchronously inside the request so
+            # the workflow actually executes. This is slower but guarantees
+            # behaviour on hosts that haven't deployed a worker service yet.
             logger.warning(
-                "Celery worker not available, running workflow synchronously: %s",
-                celery_error,
+                "No Celery worker responding; running workflow %s synchronously.",
+                workflow.id,
             )
             run.celery_task_id = "sync_fallback"
             run.save(update_fields=["celery_task_id"])
             task_id = run.celery_task_id
-            # Run synchronously
-            execute_workflow(str(workflow.id), run_id=str(run.id))
+            try:
+                execute_workflow(str(workflow.id), run_id=str(run.id))
+            except Exception as exec_err:
+                # Surface execution errors on the run record so the UI shows them
+                logger.exception("Synchronous workflow execution failed.")
+                run.refresh_from_db()
+                if run.status not in ("success", "failed"):
+                    run.status = "failed"
+                    run.error_message = str(exec_err)[:500]
+                    run.save(update_fields=["status", "error_message"])
 
         logger.info(
             "Workflow %s manually triggered by %s. run=%s celery_task=%s",
