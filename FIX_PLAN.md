@@ -12,6 +12,49 @@ major feature), **P2** (polish / quality).
 
 ---
 
+## 0. What was fixed in this commit
+
+The following code-side fixes are in this PR (everything else still requires
+the dashboard / env-var work described below):
+
+- **Removed root `package.json` stub** that contained only `rehype-raw` and
+  conflicted with the real Next.js app under `/frontend`.
+- **Login + Register pages**: OAuth buttons now detect missing
+  `NEXT_PUBLIC_GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_API_URL` and render in a
+  clear **disabled** state with a tooltip explaining the deployment isn't
+  configured for SSO — instead of opening a popup that fails silently.
+- **Login page**: error codes returned by the GitHub OAuth callback
+  (`?error=github_denied`, `github_no_email`, `github_token_failed`,
+  `github_profile_failed`, `github_no_token`) are now read from the URL
+  query string and surfaced as readable error messages.
+- **Auth layout footer**: the corrupted `��` glyph at the copyright line
+  was replaced with a proper `©`.
+- **Sidebar**: removed the dead `BOTTOM_NAV` constant and the duplicated
+  `tabs` array; mobile bottom nav now uses a single `MOBILE_BOTTOM_TABS`
+  source of truth, and the `Profile` tab uses the `User` icon instead of
+  `LayoutDashboard`.
+- **Navbar (mobile)**: tightened spacing on phones, added a search icon
+  trigger that's only visible under `md`, hid the org switcher under `sm`
+  to stop the right cluster overflowing, and made the page title truncate
+  cleanly instead of wrapping.
+- **Production email backend**: `config/settings/production.py` now
+  auto-switches to the real Django SMTP backend whenever
+  `EMAIL_HOST_PASSWORD` (or `SENDGRID_API_KEY`) is set, and falls back to
+  `dummy.EmailBackend` with a `RuntimeWarning` when no SMTP credentials
+  exist — instead of silently inheriting the console backend from `base.py`
+  and dropping every verification / password-reset email on the floor.
+- **Automation `▶ Run` endpoint** (`apps/automation/views.py`): now pings
+  Celery workers via `app.control.inspect().ping()` before enqueueing. If
+  no worker responds within 1 s, the workflow runs **synchronously** in the
+  request and the run record is updated with the result (or error). This
+  is the single most common reason workflows appear stuck in PENDING when
+  Render Redis is up but the worker service isn't deployed.
+- **`.env.example`**: documented `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (it was
+  missing), and added clearer instructions for `GITHUB_CLIENT_ID` /
+  `GITHUB_REDIRECT_URI` for production deployments.
+
+---
+
 ## 1. Why things are broken (root causes)
 
 The code itself is largely correct and well-architected. The reasons features
