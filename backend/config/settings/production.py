@@ -23,11 +23,88 @@ Never enable debug mode in production — it exposes sensitive information,
 disables security middleware, and allows arbitrary code execution.
 """
 
+# ── Strip placeholder env values BEFORE any other settings read os.environ ────
+# Hosts like Render auto-create env-var rows with placeholder values like
+# "value", "your-key", "change-me" if you click "Generate" without filling in.
+# Downstream code (`os.environ.get("GEMINI_API_KEY")`, SMTP backend, etc.) sees
+# those as truthy strings and tries to authenticate with them — which fails
+# silently (most callers use `fail_silently=True` or swallow API errors) and
+# leaves the operator with no signal that the env var is wrong.
+#
+# To prevent that, we delete any env var that matches a known placeholder
+# pattern HERE, before settings start reading them. Downstream code then sees
+# the var as missing — which is a clear, recoverable state.
+_PLACEHOLDER_VALUES = {
+    "value",
+    "values",
+    "todo",
+    "tbd",
+    "xxx",
+    "xxxx",
+    "secret",
+    "placeholder",
+    "change-me",
+    "changeme",
+    "change_me",
+    "your-key",
+    "your-api-key",
+    "your-secret",
+    "noreply@yourdomain.com",
+    "noreply@example.com",
+}
+_PLACEHOLDER_KEYS = (
+    # Email
+    "EMAIL_HOST_PASSWORD",
+    "SENDGRID_API_KEY",
+    "DEFAULT_FROM_EMAIL",
+    # AI providers (server-side fallback keys only — user-supplied keys are
+    # stored in the DB per-user and not affected by this scrub)
+    "GEMINI_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENROUTER_API_KEY",
+    "GROQ_API_KEY",
+    # Firebase
+    "FIREBASE_WEB_API_KEY",
+    "FIREBASE_CREDENTIALS_JSON",
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    # OAuth secrets
+    "GITHUB_CLIENT_SECRET",
+    "GOOGLE_CLIENT_SECRET",
+    # Misc
+    "SENTRY_DSN",
+)
+for _k in _PLACEHOLDER_KEYS:
+    _v = (os.environ.get(_k) or "").strip()
+    _v_lower = _v.lower()
+    if not _v:
+        continue
+    if (
+        _v_lower in _PLACEHOLDER_VALUES
+        or _v_lower.startswith("your-")
+        or _v_lower.startswith("your_")
+        or _v_lower.startswith("change-")
+        or _v_lower.startswith("change_")
+        or _v_lower.startswith("<")
+        or _v_lower.endswith(">")
+    ):
+        os.environ.pop(_k, None)
+        import warnings as _placeholder_warnings
+
+        _placeholder_warnings.warn(
+            f"[Synapse] Env var {_k} held a placeholder value ('{_v[:24]}...') and "
+            f"was discarded. Set a real value in your hosting dashboard or "
+            f"remove the variable.",
+            category=RuntimeWarning,
+            stacklevel=2,
+        )
+
 # ── Email (SMTP) — auto-switch to SMTP when credentials are set ───────────────
 # In production we MUST NOT silently fall back to the Django console backend
 # (inherited from base.py) — that drops every verification / password-reset
 # email on the floor and users will never be able to complete signup.
-# If EMAIL_HOST_PASSWORD or SENDGRID_API_KEY is present, switch to real SMTP.
+# If EMAIL_HOST_PASSWORD or SENDGRID_API_KEY is present (and is NOT a
+# placeholder — see the scrub above), switch to real SMTP.
 _smtp_password = os.environ.get("EMAIL_HOST_PASSWORD") or os.environ.get(
     "SENDGRID_API_KEY", ""
 )
@@ -42,7 +119,9 @@ elif not os.environ.get("EMAIL_BACKEND"):
     _warnings.warn(
         "[Synapse] No EMAIL_HOST_PASSWORD or SENDGRID_API_KEY set in production — "
         "email verification and password reset emails will NOT be delivered. "
-        "Set EMAIL_HOST_PASSWORD (SMTP) or SENDGRID_API_KEY to enable email.",
+        "Set EMAIL_HOST_PASSWORD (SMTP) or SENDGRID_API_KEY to enable email, "
+        "or upload Firebase service account credentials via "
+        "FIREBASE_CREDENTIALS_JSON to use Firebase email instead.",
         category=RuntimeWarning,
         stacklevel=2,
     )
