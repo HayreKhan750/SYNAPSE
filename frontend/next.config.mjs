@@ -40,6 +40,29 @@ const nextConfig = {
       },
     ];
   },
+  // ── HTTP headers ──────────────────────────────────────────────────────────
+  // Vercel's default `Cross-Origin-Opener-Policy: same-origin` BREAKS the
+  // Google Sign-In popup flow (`@react-oauth/google` uses `window.closed`
+  // polling on the popup, which is blocked by strict COOP). The official
+  // workaround is to use `same-origin-allow-popups`, which is the same
+  // value Google Identity Services itself recommends.
+  // See: https://web.dev/articles/why-coop-coep#configuring-coop
+  async headers() {
+    return [
+      {
+        // Apply COOP to all routes — login/register pages are the only ones
+        // that open OAuth popups, but keeping a single value is simpler and
+        // strictly safer than `unsafe-none`.
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+          },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
