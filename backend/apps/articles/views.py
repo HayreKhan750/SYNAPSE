@@ -190,10 +190,29 @@ def trigger_summarization(request):
     batch_size = int(request.data.get("batch_size", 20))
     batch_size = max(1, min(batch_size, 50))  # clamp 1–50
 
+    # By default, also clear the "permanently failed" sentinel from articles so
+    # they retry once the LLM provider is healthy again. The frontend can
+    # disable this by passing reset_failed=false. This makes the system
+    # self-heal whenever a user opens the feed AFTER an LLM key is
+    # (re)configured — no shell access required.
+    reset_failed = request.data.get("reset_failed", True)
+
     # Count how many articles actually need summaries before dispatching
     from django.db.models import Q as DQ  # noqa: PLC0415
 
     from .tasks import SUMMARY_FAILED_SENTINEL  # noqa: PLC0415
+
+    sentinel_cleared = 0
+    if reset_failed:
+        sentinel_cleared = Article.objects.filter(
+            summary=SUMMARY_FAILED_SENTINEL
+        ).update(summary="")
+        if sentinel_cleared:
+            logger.info(
+                "trigger_summarization: auto-cleared %d failure sentinel(s) "
+                "(self-heal after LLM provider recovered)",
+                sentinel_cleared,
+            )
 
     pending_count = (
         Article.objects.filter(DQ(summary="") | DQ(summary__isnull=True))
@@ -208,6 +227,7 @@ def trigger_summarization(request):
                 "message": "No articles pending summarization.",
                 "pending": 0,
                 "queued": 0,
+                "sentinel_cleared": sentinel_cleared,
             }
         )
 
@@ -215,18 +235,27 @@ def trigger_summarization(request):
         task = summarize_pending_articles.delay(batch_size)
         logger.info(
             "trigger_summarization: dispatched summarize_pending_articles "
-            "(task_id=%s, pending=%d, batch_size=%d)",
+            "(task_id=%s, pending=%d, batch_size=%d, sentinel_cleared=%d)",
             task.id,
             pending_count,
             batch_size,
+            sentinel_cleared,
         )
         return Response(
             {
                 "success": True,
-                "message": f"Summarization task queued for up to {batch_size} articles.",
+                "message": (
+                    f"Summarization task queued for up to {batch_size} articles."
+                    + (
+                        f" Cleared {sentinel_cleared} stuck article(s) for retry."
+                        if sentinel_cleared
+                        else ""
+                    )
+                ),
                 "task_id": task.id,
                 "pending": pending_count,
                 "queued": min(pending_count, batch_size),
+                "sentinel_cleared": sentinel_cleared,
             }
         )
     except Exception as exc:
