@@ -33,31 +33,95 @@ logger = logging.getLogger(__name__)
 SUMMARY_FAILED_SENTINEL = "__failed__"
 
 
-# ── OpenRouter helper (replaces the old Gemini key-rotation helpers) ──────────
+# ── Multi-provider LLM helper (Groq → Vercel AI Gateway → OpenRouter) ─────────
+# Summarization is latency-sensitive (we run it for every newly scraped article
+# and the user sees an "AI summarizing…" badge until it completes). We therefore
+# prefer providers in SPEED order, not capability order:
+#
+#   1. Groq                — ~500 t/s, ideal for short summaries
+#   2. Vercel AI Gateway   — capable, single key for many models
+#   3. OpenRouter / direct — legacy fallback, kept for backward compat
+#
+# Each provider is enabled by setting the matching env var. Set whichever you
+# have a key for; the resolver picks the first available.
+
+
+def _resolve_summarizer_provider(
+    override_key: Optional[str] = None,
+) -> Optional[tuple]:
+    """
+    Resolve (api_key, base_url, model) for an OpenAI-compatible summarization call.
+    Returns None if no provider is configured.
+
+    Priority:
+      override_key → Groq → Vercel AI Gateway → OpenRouter / Gemini (legacy).
+    """
+    # Per-call override — keep using the legacy OpenRouter base by default
+    if override_key:
+        return (
+            override_key,
+            os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+            os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001"),
+        )
+
+    # 1. Groq — fastest, OpenAI-compatible at /openai/v1
+    groq_key = (os.environ.get("GROQ_API_KEY") or "").strip()
+    if groq_key:
+        return (
+            groq_key,
+            "https://api.groq.com/openai/v1",
+            os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        )
+
+    # 2. Vercel AI Gateway — OpenAI-compatible at /v1
+    gateway_key = (os.environ.get("AI_GATEWAY_API_KEY") or "").strip()
+    if gateway_key:
+        return (
+            gateway_key,
+            "https://ai-gateway.vercel.sh/v1",
+            os.environ.get("AI_GATEWAY_MODEL", "openai/gpt-4o-mini"),
+        )
+
+    # 3. OpenRouter / Gemini — legacy
+    legacy_key = (
+        os.environ.get("OPENROUTER_API_KEY")
+        or os.environ.get("GEMINI_API_KEY")
+        or getattr(settings, "OPENROUTER_API_KEY", None)
+        or getattr(settings, "GEMINI_API_KEY", None)
+        or ""
+    )
+    legacy_key = legacy_key.strip() if isinstance(legacy_key, str) else ""
+    if legacy_key:
+        return (
+            legacy_key,
+            os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+            os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001"),
+        )
+
+    return None
 
 
 def _summarize_with_gemini(
     text: str, max_chars: int = 8000, api_key: Optional[str] = None
 ) -> Optional[str]:
     """
-    Summarize text using OpenRouter (OpenAI-compatible endpoint).
-    Uses the provided api_key if given, otherwise falls back to the
-    OPENROUTER_API_KEY environment variable.
-    Returns None on failure so callers fall back to local BART.
+    Summarize text via the first available OpenAI-compatible provider.
+    Function name kept for backward compatibility with existing callers.
+    Returns None on failure so callers fall back to local BART/extractive.
     """
-    if not api_key:
-        api_key = getattr(settings, "GEMINI_API_KEY", None) or getattr(
-            settings, "OPENROUTER_API_KEY", None
+    provider = _resolve_summarizer_provider(override_key=api_key)
+    if provider is None:
+        logger.info(
+            "No summarizer API key configured (set GROQ_API_KEY, "
+            "AI_GATEWAY_API_KEY, or OPENROUTER_API_KEY) - skipping LLM summary."
         )
-    if not api_key:
-        logger.info("GEMINI_API_KEY not set - skipping Gemini summarization")
-        return None  # Will fall back to BART
+        return None  # Caller falls back to BART
 
-    model_name = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
-    base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    api_key, base_url, model_name = provider
 
     logger.info(
-        "_summarize_with_gemini (openrouter): START model=%s text_length=%d",
+        "_summarize_with_gemini: START base_url=%s model=%s text_length=%d",
+        base_url,
         model_name,
         len(text),
     )
@@ -134,13 +198,15 @@ def _summarize_with_gemini(
 
             if summary:
                 logger.info(
-                    "_summarize_with_gemini (openrouter): SUCCESS attempt=%d len=%d",
+                    "_summarize_with_gemini: SUCCESS provider=%s attempt=%d len=%d",
+                    base_url,
                     attempt + 1,
                     len(summary),
                 )
                 return summary
             logger.error(
-                "OPENROUTER: empty response attempt=%d model=%s",
+                "LLM summarizer: empty response provider=%s attempt=%d model=%s",
+                base_url,
                 attempt + 1,
                 model_name,
             )
@@ -151,7 +217,8 @@ def _summarize_with_gemini(
                 k in exc_str for k in ("429", "rate limit", "quota", "too many")
             )
             logger.error(
-                "OPENROUTER: API error attempt=%d model=%s rate_limit=%s: %s",
+                "LLM summarizer: API error provider=%s attempt=%d model=%s rate_limit=%s: %s",
+                base_url,
                 attempt + 1,
                 model_name,
                 is_rate_limit,

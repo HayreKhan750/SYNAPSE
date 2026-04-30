@@ -71,7 +71,11 @@ class _DocumentLLMBuilder:
         """
         Invoke the LLM and return the raw string response, or None on failure.
 
-        Provider selection: OpenRouter (preferred) → Gemini (fallback) → None.
+        Provider selection (in order of preference):
+          1. Vercel AI Gateway (AI_GATEWAY_API_KEY)
+          2. Groq             (GROQ_API_KEY)
+          3. OpenRouter       (passed-in user/env key)
+          4. Gemini direct    (passed-in user/env key)
         """
         import os
 
@@ -81,20 +85,22 @@ class _DocumentLLMBuilder:
             logger.error("langchain-core not installed — cannot generate LLM sections")
             return None
 
-        # ── OpenRouter (preferred — 200+ models including GPT-4o, Claude, Gemini) ──
-        if openrouter_key:
-            try:
-                from langchain_openai import ChatOpenAI
+        try:
+            from langchain_openai import ChatOpenAI
+        except ImportError:
+            ChatOpenAI = None  # type: ignore
 
-                model = model_override or os.environ.get(
-                    "OPENROUTER_MODEL", "openai/gpt-4o-mini"
-                )
+        def _try_openai_compat(
+            label: str, api_key: str, base_url: str, model: str
+        ) -> str | None:
+            """Helper: try one OpenAI-compatible provider, return raw text or None."""
+            if not (api_key and ChatOpenAI):
+                return None
+            try:
                 llm = ChatOpenAI(
                     model=model,
-                    openai_api_key=openrouter_key,
-                    openai_api_base=os.environ.get(
-                        "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
-                    ),
+                    openai_api_key=api_key,
+                    openai_api_base=base_url,
                     temperature=0.7,
                     max_tokens=16000,
                 )
@@ -105,13 +111,50 @@ class _DocumentLLMBuilder:
                     resp.content if isinstance(resp.content, str) else str(resp.content)
                 )
                 logger.info(
-                    "_DocumentLLMBuilder: OpenRouter response (%d chars)", len(raw)
+                    "_DocumentLLMBuilder: %s response (%d chars)", label, len(raw)
                 )
                 return raw
             except Exception as exc:
-                logger.warning(
-                    "_DocumentLLMBuilder: OpenRouter failed (%s) — trying Gemini", exc
-                )
+                logger.warning("_DocumentLLMBuilder: %s failed (%s)", label, exc)
+                return None
+
+        # ── 1. Vercel AI Gateway ──────────────────────────────────────────────
+        gateway_key = (os.environ.get("AI_GATEWAY_API_KEY") or "").strip()
+        if gateway_key and not gateway_key.startswith("your-"):
+            raw = _try_openai_compat(
+                "AI Gateway",
+                gateway_key,
+                "https://ai-gateway.vercel.sh/v1",
+                model_override
+                or os.environ.get("AI_GATEWAY_MODEL", "openai/gpt-4o-mini"),
+            )
+            if raw:
+                return raw
+
+        # ── 2. Groq (fast inference) ──────────────────────────────────────────
+        groq_key = (os.environ.get("GROQ_API_KEY") or "").strip()
+        if groq_key and not groq_key.startswith("your-"):
+            raw = _try_openai_compat(
+                "Groq",
+                groq_key,
+                "https://api.groq.com/openai/v1",
+                model_override
+                or os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            )
+            if raw:
+                return raw
+
+        # ── 3. OpenRouter (passed-in or env key) ──────────────────────────────
+        if openrouter_key:
+            raw = _try_openai_compat(
+                "OpenRouter",
+                openrouter_key,
+                os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+                model_override
+                or os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+            )
+            if raw:
+                return raw
 
         # ── Google Gemini (fallback) ──────────────────────────────────────────
         if gemini_key:
@@ -138,10 +181,11 @@ class _DocumentLLMBuilder:
                 logger.warning("_DocumentLLMBuilder: Gemini failed (%s)", exc)
 
         # ── No provider available ─────────────────────────────────────────────
-        if not openrouter_key and not gemini_key:
+        if not (openrouter_key or gemini_key or gateway_key or groq_key):
             logger.warning(
                 "_DocumentLLMBuilder: No LLM API key configured. "
-                "Go to Settings → AI Engine to add your OpenRouter or Gemini key."
+                "Set AI_GATEWAY_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or "
+                "GEMINI_API_KEY — or have the user save a key in Settings → AI Engine."
             )
         return None
 
