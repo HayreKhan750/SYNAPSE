@@ -1,14 +1,24 @@
 #!/bin/sh
 # ── synapse-celery-worker Background Worker start script ─────────────────────
-# Runs the Celery worker only (no Beat). Concurrency is intentionally low (-c 2)
-# and we recycle each worker process after 50 tasks (--max-tasks-per-child=50)
-# so that Python releases any leaked memory and we stay under the 512 MB free
-# tier cap. Beat lives in start-beat.sh on a separate service when needed.
+# Runs the Celery worker only (no Beat). Concurrency and the per-child task
+# cap are env-driven so we can tune them without rebuilding the image when
+# moving between hosts:
+#   * Render free  (512 MB) → CELERY_CONCURRENCY=2  CELERY_MAX_TASKS_PER_CHILD=50
+#   * Koyeb Nano   (256 MB) → CELERY_CONCURRENCY=1  CELERY_MAX_TASKS_PER_CHILD=20
+#   * Anything paid (≥1 GB) → CELERY_CONCURRENCY=4+ CELERY_MAX_TASKS_PER_CHILD=100
+# Defaults below match the smallest realistic environment so we never OOM on
+# first boot, then operators bump them up via env vars when they have RAM.
 set -e
 
-echo "[start-worker] starting celery worker..."
+CELERY_CONCURRENCY="${CELERY_CONCURRENCY:-1}"
+CELERY_MAX_TASKS_PER_CHILD="${CELERY_MAX_TASKS_PER_CHILD:-20}"
+CELERY_QUEUES="${CELERY_QUEUES:-default,scraping,agents,nlp,embeddings}"
+CELERY_LOGLEVEL="${CELERY_LOGLEVEL:-info}"
+
+echo "[start-worker] concurrency=${CELERY_CONCURRENCY} max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD} queues=${CELERY_QUEUES}"
+
 exec celery -A config.celery worker \
-  -Q default,scraping,agents,nlp,embeddings \
-  -c 2 \
-  -l info \
-  --max-tasks-per-child=50
+  -Q "${CELERY_QUEUES}" \
+  -c "${CELERY_CONCURRENCY}" \
+  -l "${CELERY_LOGLEVEL}" \
+  --max-tasks-per-child="${CELERY_MAX_TASKS_PER_CHILD}"
