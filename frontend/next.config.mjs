@@ -41,24 +41,44 @@ const nextConfig = {
     ];
   },
   // ── HTTP headers ──────────────────────────────────────────────────────────
-  // Vercel's default `Cross-Origin-Opener-Policy: same-origin` BREAKS the
-  // Google Sign-In popup flow (`@react-oauth/google` uses `window.closed`
-  // polling on the popup, which is blocked by strict COOP). The official
-  // workaround is to use `same-origin-allow-popups`, which is the same
-  // value Google Identity Services itself recommends.
-  // See: https://web.dev/articles/why-coop-coep#configuring-coop
+  // Google Sign-In popup flow:
+  //   `@react-oauth/google` polls `popup.closed` to detect when the user
+  //   finishes/cancels the popup. Google's accounts.google.com pages set
+  //   `Cross-Origin-Opener-Policy: same-origin` themselves, which means the
+  //   parent window can only read `popup.closed` if its OWN COOP is
+  //   `unsafe-none`. `same-origin-allow-popups` is NOT enough — it allows
+  //   opening popups but still isolates them.
+  //
+  //   Strategy: keep `same-origin-allow-popups` everywhere (process isolation
+  //   benefit) but downgrade to `unsafe-none` ONLY on the auth pages where
+  //   the OAuth popup is actually opened. Later-defined sources override
+  //   earlier ones in Next.js, so the auth-page block must come AFTER the
+  //   catch-all.
   async headers() {
     return [
       {
-        // Apply COOP to all routes — login/register pages are the only ones
-        // that open OAuth popups, but keeping a single value is simpler and
-        // strictly safer than `unsafe-none`.
         source: '/:path*',
         headers: [
-          {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin-allow-popups',
-          },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+        ],
+      },
+      // ── OAuth popup pages — must be `unsafe-none` so window.closed works ──
+      {
+        source: '/login',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'unsafe-none' },
+        ],
+      },
+      {
+        source: '/register',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'unsafe-none' },
+        ],
+      },
+      {
+        source: '/forgot-password',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'unsafe-none' },
         ],
       },
     ];
