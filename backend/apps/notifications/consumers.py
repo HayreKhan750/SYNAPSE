@@ -64,8 +64,17 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self._authenticated = False
 
     async def disconnect(self, close_code):
-        if hasattr(self, "group_name"):
-            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        # Important: connect() sets self.group_name = None for unauthenticated
+        # sockets, so `hasattr` is not enough — the attribute exists but is None.
+        # Channels' group_discard() requires a real string, otherwise it raises
+        # `TypeError: Group name must be a valid unicode string with length < 100`
+        # (the error Sentry surfaced).
+        group_name = getattr(self, "group_name", None)
+        if group_name and isinstance(group_name, str):
+            try:
+                await self.channel_layer.group_discard(group_name, self.channel_name)
+            except Exception as exc:
+                logger.warning("WS group_discard failed (non-critical): %s", exc)
         logger.info(
             "WS disconnected: user=%s code=%s",
             getattr(self, "user_id", "?"),
