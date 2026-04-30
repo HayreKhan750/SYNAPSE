@@ -18,6 +18,7 @@ schedule (which is harder to express purely in Django settings).
 # ── Langchain compatibility patch ─────────────────────────────────────────────
 # langchain-openai >= 0.2.14 needs ContextOverflowError from langchain-core,
 # which is missing in langchain-core 0.3.83. Patch it before any task imports.
+import sys
 try:
     from langchain_core import exceptions as _lc_exc
 
@@ -27,8 +28,13 @@ try:
             """Context window exceeded — compatibility shim."""
 
         _lc_exc.ContextOverflowError = _ContextOverflowError
-except Exception:
-    pass
+        print("[celery] Applied langchain ContextOverflowError compatibility patch")
+except ImportError as e:
+    # langchain-core not installed — expected if langchain-openai isn't used
+    print(f"[celery] WARNING: Could not apply langchain patch (langchain-core not available): {e}")
+except Exception as e:
+    # Unexpected error — log it but don't crash (might be optional)
+    print(f"[celery] WARNING: Unexpected error while patching langchain: {e}", file=sys.stderr)
 # ─────────────────────────────────────────────────────────────────────────────
 import os
 

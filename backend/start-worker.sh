@@ -19,8 +19,25 @@ echo "[start-worker] concurrency=${CELERY_CONCURRENCY} max-tasks-per-child=${CEL
 echo "[start-worker] CELERY_BROKER_URL=${CELERY_BROKER_URL:-(not set)}"
 echo "[start-worker] DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-(not set)}"
 
+# Test that Django settings can be loaded
+echo "[start-worker] Testing Django setup..."
+python -c "import django; django.setup(); print('[start-worker] Django settings loaded successfully')" || {
+  echo "[start-worker] ERROR: Failed to load Django settings"
+  exit 1
+}
+
+# Test that Celery app can be imported
+echo "[start-worker] Testing Celery app import..."
+python -c "from config.celery import app; print('[start-worker] Celery app imported successfully')" || {
+  echo "[start-worker] ERROR: Failed to import Celery app from config.celery"
+  exit 1
+}
+
+echo "[start-worker] All pre-checks passed. Starting Celery worker..."
+
 exec celery -A config.celery worker \
   -Q "${CELERY_QUEUES}" \
   -c "${CELERY_CONCURRENCY}" \
   -l "${CELERY_LOGLEVEL}" \
   --max-tasks-per-child="${CELERY_MAX_TASKS_PER_CHILD}" 2>&1
+
