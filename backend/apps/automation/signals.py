@@ -36,14 +36,29 @@ def _fire_event(event_type: str, payload: dict) -> None:
 def _on_new_article(sender, instance, created, **kwargs):
     if not created:
         return
+    # `instance.source` is a ForeignKey → returns a `Source` *object*, which is
+    # not JSON-serializable. Celery's JSON serializer chokes on it and the
+    # signal fires hundreds of times per minute during scrapes, flooding logs
+    # AND consuming Render's already-tight 512 MB free-tier memory budget.
+    # Convert it to plain strings here.
+    src = getattr(instance, "source", None)
+    source_name = ""
+    source_id = None
+    if src is not None:
+        # `name` is the canonical display field on the Source model; fall back
+        # to str() if the field shape ever changes.
+        source_name = getattr(src, "name", None) or str(src)
+        source_id = str(getattr(src, "id", "")) or None
+
     _fire_event(
         "new_article",
         {
             "article_id": str(instance.id),
-            "title": instance.title,
-            "source": getattr(instance, "source", ""),
+            "title": instance.title or "",
+            "source": source_name,
+            "source_id": source_id,
             "topic": getattr(instance, "topic", "") or "",
-            "url": getattr(instance, "url", ""),
+            "url": getattr(instance, "url", "") or "",
         },
     )
 
