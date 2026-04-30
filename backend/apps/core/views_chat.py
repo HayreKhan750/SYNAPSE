@@ -784,10 +784,64 @@ class ChatView(APIView):  # TASK-501-B2: ChatRateThrottle applied
                 chat_kwargs["files"] = files
             result = pipeline.chat(**chat_kwargs)
         except Exception as exc:
+            # Log full traceback to Sentry / Render logs
             logger.error("RAG chat error: %s", exc, exc_info=True)
+
+            # Surface a useful, classified error to the client. Without this,
+            # the frontend just sees a generic 500 and we have to hunt through
+            # logs every time. Classifies common LLM-provider failures so the
+            # user sees an actionable message AND so we can debug remotely.
+            exc_str = str(exc)
+            exc_low = exc_str.lower()
+            exc_type = type(exc).__name__
+
+            if (
+                "429" in exc_low
+                or "resource_exhausted" in exc_low
+                or "quota" in exc_low
+                or "rate" in exc_low
+            ):
+                user_msg = (
+                    "AI provider rate limit reached. Please try again in a "
+                    "minute, or add another API key in Settings → AI Engine."
+                )
+                http_status = status.HTTP_429_TOO_MANY_REQUESTS
+            elif (
+                "api_key" in exc_low
+                or "no ai provider" in exc_low
+                or "api key not configured" in exc_low
+                or "unauthorized" in exc_low
+                or "401" in exc_low
+                or "403" in exc_low
+            ):
+                user_msg = (
+                    "AI provider rejected the request — likely a missing or "
+                    "invalid API key. Check AI_GATEWAY_API_KEY / GROQ_API_KEY "
+                    "on the server, or add a personal key in Settings → AI Engine."
+                )
+                http_status = status.HTTP_503_SERVICE_UNAVAILABLE
+            elif (
+                "timeout" in exc_low
+                or "timed out" in exc_low
+                or "connection" in exc_low
+            ):
+                user_msg = (
+                    "AI provider didn't respond in time. Try again in a moment."
+                )
+                http_status = status.HTTP_504_GATEWAY_TIMEOUT
+            else:
+                user_msg = "Failed to process question. Please try again."
+                http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
+
             return Response(
-                {"error": "Failed to process question. Please try again."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {
+                    "error": user_msg,
+                    # Always include the exception class + short message so
+                    # frontend devtools / Sentry breadcrumbs show the real
+                    # cause without needing Render shell access.
+                    "debug_reason": f"{exc_type}: {exc_str[:300]}",
+                },
+                status=http_status,
             )
 
         # Persist to DB
