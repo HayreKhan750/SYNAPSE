@@ -299,10 +299,33 @@ def _pluralize_content_type(ct: str) -> str:
     return _CONTENT_TYPE_PLURAL.get(ct.lower().strip(), ct + "s")
 
 
+def _get_gateway_key() -> str:
+    """Return the Vercel AI Gateway API key (or empty string)."""
+    import os
+
+    key = (os.environ.get("AI_GATEWAY_API_KEY") or "").strip()
+    return key if key and not key.startswith("your-") else ""
+
+
+def _get_groq_key() -> str:
+    """Return the Groq API key (or empty string)."""
+    import os
+
+    key = (os.environ.get("GROQ_API_KEY") or "").strip()
+    return key if key and not key.startswith("your-") else ""
+
+
 def _get_pipeline(model: str = None, user=None):
     """
     Lazy-import RAG pipeline to avoid loading at Django startup.
-    Priority: Scitely → OpenRouter → Gemini (user key → server env var).
+
+    Provider priority (when no user-supplied key):
+      1. Vercel AI Gateway   — capable + single-key access to many models
+      2. Groq                — fast inference for snappier chat
+      3. Scitely             — legacy
+      4. OpenRouter          — legacy
+      5. Gemini direct       — legacy multi-key rotation
+
     Tries full RAG pipeline first; falls back to direct LLM if pgvector retriever unavailable.
 
     Args:
@@ -314,6 +337,8 @@ def _get_pipeline(model: str = None, user=None):
     scitely_key = _get_scitely_key(user=user)
     openrouter_key = _get_openrouter_key(user=user)
     gemini_keys = _get_gemini_keys(user=user)
+    gateway_key = _get_gateway_key()
+    groq_key = _get_groq_key()
 
     default_model = os.environ.get(
         "SCITELY_MODEL",
@@ -323,15 +348,25 @@ def _get_pipeline(model: str = None, user=None):
     )
     resolved_model = model or default_model
 
-    if not scitely_key and not openrouter_key and not gemini_keys:
+    if (
+        not scitely_key
+        and not openrouter_key
+        and not gemini_keys
+        and not gateway_key
+        and not groq_key
+    ):
         logger.error(
-            "No LLM API key configured (SCITELY_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY) — chat unavailable."
+            "No LLM API key configured (set AI_GATEWAY_API_KEY, GROQ_API_KEY, "
+            "SCITELY_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY) — chat unavailable."
         )
         return None
 
     logger.info(
-        "_get_pipeline: using model=%s scitely=%s openrouter=%s gemini_keys=%d user_keys=%s",
+        "_get_pipeline: model=%s gateway=%s groq=%s scitely=%s openrouter=%s "
+        "gemini_keys=%d user_keys=%s",
         resolved_model,
+        bool(gateway_key),
+        bool(groq_key),
         bool(scitely_key),
         bool(openrouter_key),
         len(gemini_keys),
@@ -354,21 +389,49 @@ def _get_pipeline(model: str = None, user=None):
                 "Full RAG pipeline unavailable (%s). Falling back to direct LLM.", exc
             )
 
-    # Fallback: direct LLM pipeline (no retrieval, still useful for chat)
-    # Priority: Scitely → OpenRouter → Gemini
+    # User-supplied keys still take precedence (they came in via _get_*_key above)
+    if user_scitely or user_openrouter:
+        if scitely_key:
+            return _OpenRouterDirectPipeline(
+                api_key=scitely_key,
+                model=resolved_model,
+                base_url="https://api.scitely.com/v1",
+            )
+        if openrouter_key:
+            return _OpenRouterDirectPipeline(
+                api_key=openrouter_key, model=resolved_model
+            )
+    if user_gemini and gemini_keys:
+        api_key = _next_chat_key(gemini_keys)
+        return _GeminiDirectPipeline(
+            api_key=api_key, model=resolved_model, all_keys=gemini_keys
+        )
+
+    # Server-wide providers — preferred order
+    if gateway_key:
+        return _OpenRouterDirectPipeline(
+            api_key=gateway_key,
+            model=model or os.environ.get("AI_GATEWAY_MODEL", "openai/gpt-4o-mini"),
+            base_url="https://ai-gateway.vercel.sh/v1",
+        )
+    if groq_key:
+        return _OpenRouterDirectPipeline(
+            api_key=groq_key,
+            model=model or os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            base_url="https://api.groq.com/openai/v1",
+        )
     if scitely_key:
         return _OpenRouterDirectPipeline(
             api_key=scitely_key,
             model=resolved_model,
             base_url="https://api.scitely.com/v1",
         )
-    elif openrouter_key:
+    if openrouter_key:
         return _OpenRouterDirectPipeline(api_key=openrouter_key, model=resolved_model)
-    else:
-        api_key = _next_chat_key(gemini_keys)
-        return _GeminiDirectPipeline(
-            api_key=api_key, model=resolved_model, all_keys=gemini_keys
-        )
+    api_key = _next_chat_key(gemini_keys)
+    return _GeminiDirectPipeline(
+        api_key=api_key, model=resolved_model, all_keys=gemini_keys
+    )
 
 
 class _OpenRouterDirectPipeline:

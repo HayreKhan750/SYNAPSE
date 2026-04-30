@@ -576,6 +576,10 @@ def scrape_arxiv(
 
                 root = ET.fromstring(resp.text)
                 entries = root.findall(f"{ATOM_NS}entry")
+                logger.info(
+                    f"[{task_id}] arXiv {cat}: API returned {len(entries)} entries "
+                    f"(http={resp.status_code}, payload_len={len(resp.text)})"
+                )
 
                 for entry in entries:
                     if total_saved >= max_papers:
@@ -816,7 +820,7 @@ def scrape_youtube(
                     if not video_id or not title:
                         continue
 
-                    # ── Tech content filter ───────────────────────────
+                    # ── Tech content filter ─��─────────────────────────
                     title_lower = title.lower()
                     desc_lower = (entry.get("description") or "").lower()
                     combined = title_lower + " " + desc_lower[:200]
@@ -957,11 +961,24 @@ def scrape_twitter(
         f"query={query}, max_results={max_results}"
     )
 
-    NITTER_INSTANCES = [
-        "https://nitter.tiekoetter.com",
-        "https://nitter.poast.org",
-        "https://nitter.net",
-    ]
+    # Nitter mirrors are notoriously short-lived. We try several known-active
+    # instances *plus* the farside.link aggregator, which redirects to whichever
+    # mirror is currently up. NITTER_INSTANCES_OVERRIDE env var lets the
+    # operator pin a specific list (newline- or comma-separated) without a
+    # code redeploy.
+    _override = (os.environ.get("NITTER_INSTANCES_OVERRIDE") or "").strip()
+    if _override:
+        _raw = [s.strip() for s in _override.replace("\n", ",").split(",")]
+        NITTER_INSTANCES = [s for s in _raw if s.startswith("http")]
+    else:
+        NITTER_INSTANCES = [
+            "https://nitter.privacydev.net",
+            "https://nitter.poast.org",
+            "https://nitter.tiekoetter.com",
+            "https://nitter.net",
+            # Farside redirector — picks an up instance at request time
+            "https://farside.link/nitter",
+        ]
 
     DEFAULT_QUERIES = [
         "AI machine learning LLM",
@@ -1028,13 +1045,22 @@ def scrape_twitter(
                     continue
 
         if not working_instance:
-            logger.error(f"[{task_id}] All Nitter instances are down. Cannot scrape tweets.")
+            logger.error(
+                f"[{task_id}] All Nitter instances are down (tried {len(NITTER_INSTANCES)}). "
+                "Tweets cannot be scraped without a working Nitter mirror or a paid X API. "
+                "Set NITTER_INSTANCES_OVERRIDE to pin a known-good mirror."
+            )
             _update_source_last_scraped("twitter")
             return {
                 "spider": "twitter",
-                "status": "failed",
+                "status": "degraded",
                 "count": 0,
-                "error": "No Nitter instances available",
+                "error": (
+                    "No Nitter instances reachable — tweet scraping is currently "
+                    "unavailable. Either set NITTER_INSTANCES_OVERRIDE with a "
+                    "working mirror, or connect a paid X/Twitter API key."
+                ),
+                "instances_tried": len(NITTER_INSTANCES),
             }
 
         # ── Scrape search results ──────────────────────────────────────────
@@ -1999,7 +2025,7 @@ def backup_database(self) -> Dict:
     except Exception as exc:
         logger.error("TASK-502: Backup FAILED — %s", exc, exc_info=True)
 
-        # ── TASK-502-B2: Failure alerting ──────────────────────────────────
+        # ── TASK-502-B2: Failure alerting ────────────────────��─────────────
         err_msg = str(exc)[:1000]
         subject = (
             f"[SYNAPSE] Database backup FAILED — {timezone.now().strftime('%Y-%m-%d')}"
