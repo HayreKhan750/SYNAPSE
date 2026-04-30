@@ -54,7 +54,7 @@ COPY --chown=appuser:appuser backend/ .
 # Make the start scripts executable. We split the previous mega-CMD across
 # three dedicated services on Render so the free-tier 512 MB cap isn't
 # exceeded by running web + worker + beat in one container.
-RUN chmod +x /app/start-web.sh /app/start-worker.sh /app/start-beat.sh
+RUN chmod +x /app/start-web.sh /app/start-worker.sh /app/start-beat.sh /app/start-worker-with-health.sh
 
 USER appuser
 EXPOSE 8000
