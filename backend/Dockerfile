@@ -51,21 +51,18 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 # Copy backend source code (manage.py, config/, apps/ etc. go to /app/)
 COPY --chown=appuser:appuser backend/ .
 
+# Make the start scripts executable. We split the previous mega-CMD across
+# three dedicated services on Render so the free-tier 512 MB cap isn't
+# exceeded by running web + worker + beat in one container.
+RUN chmod +x /app/start-web.sh /app/start-worker.sh /app/start-beat.sh
+
 USER appuser
 EXPOSE 8000
 
 # Ensure production settings are used (asgi.py defaults to development)
 ENV DJANGO_SETTINGS_MODULE=config.settings.production
 
-# Runs migrations, collectstatic, Celery worker+beat, then Daphne ASGI server
-CMD python manage.py migrate --noinput 2>&1; \
-    python manage.py collectstatic --noinput 2>/dev/null; \
-    celery -A config.celery worker -B \
-      -Q default,scraping,agents,nlp,embeddings,slow_scraping \
-      -c 4 -l info \
-      --scheduler django_celery_beat.schedulers:DatabaseScheduler \
-      --pidfile=/tmp/celerybeat.pid & \
-    exec daphne config.asgi:application \
-      --bind 0.0.0.0 \
-      --port $PORT \
-      --verbosity 1
+# Default CMD = web service. The Celery worker and Beat services on Render
+# override this via their "Docker Command" field with /app/start-worker.sh
+# and /app/start-beat.sh respectively.
+CMD ["/app/start-web.sh"]
