@@ -3,9 +3,14 @@
  *
  * Strategy: Network-first for all requests.
  * Vercel CDN handles caching — the SW only provides offline fallback.
+ *
+ * IMPORTANT: every code path inside `event.respondWith(...)` MUST resolve to
+ * a valid Response object. Returning `undefined` (e.g. from a cache miss)
+ * causes Chrome to throw `TypeError: Failed to convert value to 'Response'`.
  */
 
-const CACHE_NAME = 'synapse-v2'
+// Bumped from v2 → v3 to invalidate stale clients with the previous broken handler.
+const CACHE_NAME = 'synapse-v3'
 const OFFLINE_URL = '/offline'
 
 // ── Install ────────────────────────────────────────────────────────────────────
@@ -30,7 +35,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
-// ── Fetch — Network-first for everything ───────────────────────────────────────
+// ── Fetch — Network-first, with safe fallbacks (never returns undefined) ───────
 self.addEventListener('fetch', (event) => {
   const { request } = event
 
@@ -39,16 +44,49 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url)
   if (url.origin !== location.origin) return
 
-  // Navigation requests → network with offline fallback
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(OFFLINE_URL))
-    )
+  // Skip OAuth-adjacent routes — never want the SW to interfere with auth flows
+  // (popups, callbacks, redirects). Let the browser handle these natively.
+  if (
+    url.pathname.startsWith('/api/v1/auth/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/login') ||
+    url.pathname.startsWith('/register')
+  ) {
     return
   }
 
-  // All other same-origin GET → network-first (no caching of stale assets)
-  event.respondWith(
-    fetch(request).catch(() => caches.match(request))
-  )
+  // Navigation requests → network with offline fallback
+  if (request.mode === 'navigate') {
+    event.respondWith(handleNavigate(request))
+    return
+  }
+
+  // All other same-origin GET → network-first
+  event.respondWith(handleAsset(request))
 })
+
+// Always returns a valid Response — never undefined.
+async function handleNavigate(request) {
+  try {
+    return await fetch(request)
+  } catch (_) {
+    const cached = await caches.match(OFFLINE_URL)
+    return cached || new Response(
+      '<!doctype html><title>Offline</title><h1>You are offline</h1>',
+      { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    )
+  }
+}
+
+// Always returns a valid Response — never undefined.
+async function handleAsset(request) {
+  try {
+    return await fetch(request)
+  } catch (_) {
+    const cached = await caches.match(request)
+    return cached || new Response('', {
+      status: 504,
+      statusText: 'Gateway Timeout (offline)',
+    })
+  }
+}
