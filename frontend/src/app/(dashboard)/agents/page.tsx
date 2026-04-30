@@ -393,7 +393,10 @@ function DocGeneratePanel({ onGenerated }: { onGenerated: () => void }) {
       setTitle(''); setPrompt('')
       setTimeout(onGenerated, 2000)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Generation failed.'
+      const errData = (err as { response?: { data?: { error?: string | { message?: string } } } })?.response?.data?.error
+      const msg = typeof errData === 'string' 
+        ? errData 
+        : (errData as { message?: string })?.message ?? 'Generation failed.'
       toast.error(msg)
     } finally { setGenerating(false) }
   }
@@ -1068,7 +1071,11 @@ function TaskCard({
                   <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium mb-0.5">Task failed</p>
-                    <p className="text-xs text-red-400/80">{task.error_message}</p>
+                    <p className="text-xs text-red-400/80">
+                      {typeof task.error_message === 'string' 
+                        ? task.error_message 
+                        : (task.error_message as { message?: string })?.message ?? 'Unknown error'}
+                    </p>
                   </div>
                 </div>
               )}
@@ -1268,7 +1275,12 @@ export default function AgentsPage() {
         subscribeSSE(newTask.id)
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to queue task.'
+      // Backend wraps errors in {success, error: {code, message, details}}
+      // Extract the message string safely to avoid rendering an object
+      const errData = (err as { response?: { data?: { error?: string | { message?: string } } } })?.response?.data?.error
+      const msg = typeof errData === 'string' 
+        ? errData 
+        : (errData as { message?: string })?.message ?? 'Failed to queue task.'
       toast.error(msg)
     } finally {
       setSubmitting(false)

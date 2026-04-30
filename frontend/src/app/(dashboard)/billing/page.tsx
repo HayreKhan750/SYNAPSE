@@ -189,7 +189,10 @@ export default function BillingPage() {
       toast.success('Subscription will cancel at end of billing period.')
       load()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to cancel.'
+      const errData = (err as { response?: { data?: { error?: string | { message?: string } } } })?.response?.data?.error
+      const msg = typeof errData === 'string' 
+        ? errData 
+        : (errData as { message?: string })?.message ?? 'Failed to cancel.'
       toast.error(msg)
     } finally {
       setCanceling(false)
