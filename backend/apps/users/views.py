@@ -254,6 +254,9 @@ def ai_keys_view(request):
         env_gemini = bool(os.environ.get("GEMINI_API_KEY"))
         env_openrouter = bool(os.environ.get("OPENROUTER_API_KEY"))
         env_scitely = bool(os.environ.get("SCITELY_API_KEY"))
+        # New providers (Apr 2026): server-side keys for the unified LLM factory.
+        env_ai_gateway = bool(os.environ.get("AI_GATEWAY_API_KEY"))
+        env_groq = bool(os.environ.get("GROQ_API_KEY"))
         env_github = bool(os.environ.get("GITHUB_TOKEN"))
         env_x_api = bool(
             os.environ.get("X_API_KEY") or os.environ.get("TWITTER_BEARER_TOKEN")
@@ -279,29 +282,34 @@ def ai_keys_view(request):
                 }
             )
 
-        if (
-            not gemini_ok
-            and not openrouter_ok
-            and not scitely_ok
-            and not env_gemini
-            and not env_openrouter
-            and not env_scitely
-        ):
+        # An AI key is "configured" if EITHER the user has set their own key
+        # OR the server has a usable key in env (any of: AI Gateway, Groq,
+        # Scitely, OpenRouter, Gemini).
+        any_ai_user_key = gemini_ok or openrouter_ok or scitely_ok
+        any_ai_env_key = (
+            env_ai_gateway
+            or env_groq
+            or env_scitely
+            or env_openrouter
+            or env_gemini
+        )
+
+        if not any_ai_user_key and not any_ai_env_key:
             warnings.append(
                 {
                     "key": "ai",
                     "label": "AI Chat & Summarization",
                     "severity": "error",
-                    "message": "No AI API key configured. AI chat, summarization, and agents are unavailable. Add a Scitely, Gemini, or OpenRouter key in Settings.",
+                    "message": "No AI API key configured. AI chat, summarization, and agents are unavailable. Add a key in Settings.",
                 }
             )
-        elif not gemini_ok and not openrouter_ok and not scitely_ok:
+        elif not any_ai_user_key:
             warnings.append(
                 {
                     "key": "ai",
                     "label": "AI Chat & Summarization",
                     "severity": "info",
-                    "message": "Using shared AI key. Set your own Scitely, Gemini, or OpenRouter key in Settings for reliable access.",
+                    "message": "Using the shared server AI key. Set your own key in Settings for dedicated access.",
                 }
             )
 
@@ -331,7 +339,14 @@ def ai_keys_view(request):
                 "scitely_configured": scitely_ok,
                 "github_configured": github_ok,
                 "x_api_configured": x_api_ok,
-                "any_configured": gemini_ok or openrouter_ok or scitely_ok,
+                # any_configured = at least one usable AI key is in scope
+                # (user-supplied OR server env). The frontend banner uses
+                # this to decide whether to nag the user about missing keys.
+                "any_configured": any_ai_user_key or any_ai_env_key,
+                # Surface the new server-side providers so the UI can show
+                # a friendlier "Powered by …" hint if it wants to.
+                "ai_gateway_env_configured": env_ai_gateway,
+                "groq_env_configured": env_groq,
                 "warnings": warnings,
             }
         )

@@ -10,12 +10,15 @@ contained near-identical provider-routing logic. Any change had to be made in tw
 places. This module is the single source of truth.
 
 Provider selection order:
-  1. provider="anthropic"  → Claude   (ANTHROPIC_API_KEY required)
-  2. provider="ollama"     → Ollama   (no API key; OLLAMA_BASE_URL)
-  3. provider="gemini"     → Gemini   (GEMINI_API_KEY required)
-  4. provider="scitely"    → Scitely  (SCITELY_API_KEY; OpenAI-compatible)
-  5. provider="openai"     → OpenRouter-compatible (OPENROUTER_API_KEY)
-  6. provider="auto"       → Scitely → OpenRouter → Gemini → raise ValueError
+  1. provider="anthropic"     → Claude         (ANTHROPIC_API_KEY required)
+  2. provider="ollama"        → Ollama         (no API key; OLLAMA_BASE_URL)
+  3. provider="gemini"        → Gemini         (GEMINI_API_KEY required)
+  4. provider="scitely"       → Scitely        (SCITELY_API_KEY; OpenAI-compatible)
+  5. provider="openai"        → OpenRouter     (OPENROUTER_API_KEY)
+  6. provider="ai_gateway"    → Vercel AI GW   (AI_GATEWAY_API_KEY)
+  7. provider="groq"          → Groq           (GROQ_API_KEY)
+  8. provider="auto"          → AI Gateway → Groq → Scitely → OpenRouter → Gemini
+                                 → ValueError if none configured
 """
 
 from __future__ import annotations
@@ -64,6 +67,9 @@ def build_llm(
     gemini_api_key: Optional[str] = None,
     anthropic_api_key: Optional[str] = None,
     ollama_base_url: Optional[str] = None,
+    # New providers (Apr 2026): server-side keys, no per-user key UI yet.
+    ai_gateway_api_key: Optional[str] = None,
+    groq_api_key: Optional[str] = None,
 ) -> Any:
     """
     Instantiate and return an LLM for the given provider.
@@ -156,6 +162,104 @@ def build_llm(
             google_api_key=key,
             streaming=streaming,
             convert_system_message_to_human=True,
+        )
+
+    # ── Vercel AI Gateway (explicit or auto-fallback) ─────────────────────────
+    # OpenAI-compatible — uses ChatOpenAI with the Gateway base URL.
+    # Default model is small/fast Anthropic via Gateway; override via AI_GATEWAY_MODEL
+    # or by passing `model="..."` (e.g. "openai/gpt-5-mini", "google/gemini-3-flash").
+    gw_key = ai_gateway_api_key or os.environ.get("AI_GATEWAY_API_KEY", "")
+    gw_base = os.environ.get(
+        "AI_GATEWAY_BASE_URL", "https://ai-gateway.vercel.sh/v1"
+    )
+    gw_model = model or os.environ.get(
+        "AI_GATEWAY_MODEL", "anthropic/claude-haiku-4.5"
+    )
+
+    if provider == "ai_gateway":
+        if not gw_key:
+            raise ValueError(
+                "AI_GATEWAY_API_KEY is required for provider='ai_gateway'."
+            )
+        if not _OPENAI_AVAILABLE or ChatOpenAI is None:
+            raise ImportError("langchain-openai is not installed.")
+        logger.info(
+            "llm_factory provider=ai_gateway model=%s streaming=%s",
+            gw_model,
+            streaming,
+        )
+        return ChatOpenAI(
+            model=gw_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_api_key=gw_key,
+            openai_api_base=gw_base,
+            streaming=streaming,
+            default_headers={
+                "HTTP-Referer": "https://synapse.ai",
+                "X-Title": "SYNAPSE",
+            },
+        )
+
+    # ── Groq (explicit or auto-fallback) ──────────────────────────────────────
+    # OpenAI-compatible — extremely fast inference via Groq's LPU hardware.
+    groq_key = groq_api_key or os.environ.get("GROQ_API_KEY", "")
+    groq_base = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+    groq_model = model or os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+    if provider == "groq":
+        if not groq_key:
+            raise ValueError("GROQ_API_KEY is required for provider='groq'.")
+        if not _OPENAI_AVAILABLE or ChatOpenAI is None:
+            raise ImportError("langchain-openai is not installed.")
+        logger.info(
+            "llm_factory provider=groq model=%s streaming=%s",
+            groq_model,
+            streaming,
+        )
+        return ChatOpenAI(
+            model=groq_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_api_key=groq_key,
+            openai_api_base=groq_base,
+            streaming=streaming,
+        )
+
+    # In auto mode, prefer the new server-side providers FIRST
+    # (AI Gateway → Groq) before falling back to legacy keys.
+    if gw_key and _OPENAI_AVAILABLE and ChatOpenAI is not None:
+        logger.info(
+            "llm_factory provider=ai_gateway_auto model=%s streaming=%s",
+            gw_model,
+            streaming,
+        )
+        return ChatOpenAI(
+            model=gw_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_api_key=gw_key,
+            openai_api_base=gw_base,
+            streaming=streaming,
+            default_headers={
+                "HTTP-Referer": "https://synapse.ai",
+                "X-Title": "SYNAPSE",
+            },
+        )
+
+    if groq_key and _OPENAI_AVAILABLE and ChatOpenAI is not None:
+        logger.info(
+            "llm_factory provider=groq_auto model=%s streaming=%s",
+            groq_model,
+            streaming,
+        )
+        return ChatOpenAI(
+            model=groq_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_api_key=groq_key,
+            openai_api_base=groq_base,
+            streaming=streaming,
         )
 
     # ── OpenRouter / OpenAI (explicit or auto-fallback) ───────────────────────
@@ -252,5 +356,7 @@ def build_llm(
             pass
 
     raise ValueError(
-        "API key not configured for standard agents. Please add one in Settings → AI Engine."
+        "No AI provider configured. Set one of AI_GATEWAY_API_KEY, GROQ_API_KEY, "
+        "SCITELY_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY on the server, "
+        "or add a personal key in Settings → AI Engine."
     )
