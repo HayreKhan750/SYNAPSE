@@ -16,9 +16,11 @@ CELERY_QUEUES="${CELERY_QUEUES:-default,scraping,agents,nlp,embeddings}"
 CELERY_LOGLEVEL="${CELERY_LOGLEVEL:-info}"
 
 echo "[start-worker] concurrency=${CELERY_CONCURRENCY} max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD} queues=${CELERY_QUEUES}"
+echo "[start-worker] CELERY_BROKER_URL=${CELERY_BROKER_URL:-(not set)}"
+echo "[start-worker] DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-(not set)}"
 
 exec celery -A config.celery worker \
   -Q "${CELERY_QUEUES}" \
   -c "${CELERY_CONCURRENCY}" \
   -l "${CELERY_LOGLEVEL}" \
-  --max-tasks-per-child="${CELERY_MAX_TASKS_PER_CHILD}"
+  --max-tasks-per-child="${CELERY_MAX_TASKS_PER_CHILD}" 2>&1

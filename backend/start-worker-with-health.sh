@@ -53,4 +53,4 @@ HEALTH_PID=$!
 trap 'kill -TERM "$HEALTH_PID" 2>/dev/null || true' EXIT INT TERM
 
 echo "[start-worker-with-health] handing off to start-worker.sh (PID will replace shell)"
-exec /app/start-worker.sh
+exec /app/start-worker.sh 2>&1
