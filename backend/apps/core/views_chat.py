@@ -9,7 +9,6 @@ import uuid
 from typing import Any, Dict, Optional
 
 from apps.core.models import Conversation
-from apps.core.throttles import ChatRateThrottle
 
 from django.http import StreamingHttpResponse
 from rest_framework import status

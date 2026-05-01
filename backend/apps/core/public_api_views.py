@@ -19,14 +19,12 @@ from __future__ import annotations
 import logging
 
 from apps.core.auth import APIKeyAuthentication
-from apps.core.throttles import APIRateThrottle
 
 from django.db.models import Q
 from rest_framework.decorators import (
     api_view,
     authentication_classes,
     permission_classes,
-    throttle_classes,
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -54,119 +52,6 @@ class PublicArticlesView(APIView):
 
     authentication_classes = PUBLIC_AUTH
     permission_classes = [IsAuthenticated]
-    throttle_classes = [APIRateThrottle]
-
-    def get(self, request: Request) -> Response:
-        from apps.articles.models import Article
-        from apps.articles.serializers import ArticleListSerializer as ArticleSerializer
-
-        q = request.query_params.get("q", "").strip()
-        topic = request.query_params.get("topic", "").strip()
-        limit, offset = _page_params(request)
-
-        qs = Article.objects.all().order_by("-scraped_at")
-        if q:
-            qs = qs.filter(Q(title__icontains=q) | Q(summary__icontains=q))
-        if topic:
-            qs = qs.filter(topic__icontains=topic)
-
-        total = qs.count()
-        items = qs[offset : offset + limit]
-        data = ArticleSerializer(items, many=True).data
-
-        return Response(
-            {
-                "success": True,
-                "count": total,
-                "next": offset + limit < total,
-                "data": data,
-            }
-        )
-
-
-class PublicPapersView(APIView):
-    """
-    GET /api/v1/content/papers/
-    Query params: ?q=, ?limit=, ?offset=
-    """
-
-    authentication_classes = PUBLIC_AUTH
-    permission_classes = [IsAuthenticated]
-    throttle_classes = [APIRateThrottle]
-
-    def get(self, request: Request) -> Response:
-        from apps.papers.models import ResearchPaper
-        from apps.papers.serializers import ResearchPaperSerializer
-
-        q = request.query_params.get("q", "").strip()
-        limit, offset = _page_params(request)
-
-        qs = ResearchPaper.objects.all().order_by("-fetched_at")
-        if q:
-            qs = qs.filter(Q(title__icontains=q) | Q(abstract__icontains=q))
-
-        total = qs.count()
-        items = qs[offset : offset + limit]
-        data = ResearchPaperSerializer(items, many=True).data
-
-        return Response(
-            {
-                "success": True,
-                "count": total,
-                "next": offset + limit < total,
-                "data": data,
-            }
-        )
-
-
-class PublicReposView(APIView):
-    """
-    GET /api/v1/content/repos/
-    Query params: ?q=, ?language=, ?limit=, ?offset=
-    """
-
-    authentication_classes = PUBLIC_AUTH
-    permission_classes = [IsAuthenticated]
-    throttle_classes = [APIRateThrottle]
-
-    def get(self, request: Request) -> Response:
-        from apps.repositories.models import Repository
-        from apps.repositories.serializers import RepositorySerializer
-
-        q = request.query_params.get("q", "").strip()
-        language = request.query_params.get("language", "").strip()
-        limit, offset = _page_params(request)
-
-        qs = Repository.objects.all().order_by("-stars")
-        if q:
-            qs = qs.filter(Q(full_name__icontains=q) | Q(description__icontains=q))
-        if language:
-            qs = qs.filter(language__iexact=language)
-
-        total = qs.count()
-        items = qs[offset : offset + limit]
-        data = RepositorySerializer(items, many=True).data
-
-        return Response(
-            {
-                "success": True,
-                "count": total,
-                "next": offset + limit < total,
-                "data": data,
-            }
-        )
-
-
-class PublicAIQueryView(APIView):
-    """
-    POST /api/v1/ai/query/
-    Body: {"question": "...", "conversation_id": "..."}
-    Returns: {"answer": "...", "sources": [...]}
-    """
-
-    authentication_classes = PUBLIC_AUTH
-    permission_classes = [IsAuthenticated]
-    throttle_classes = [APIRateThrottle]
 
     def post(self, request: Request) -> Response:
         question = (request.data.get("question") or "").strip()
@@ -211,7 +96,6 @@ class PublicTrendsView(APIView):
 
     authentication_classes = PUBLIC_AUTH
     permission_classes = [IsAuthenticated]
-    throttle_classes = [APIRateThrottle]
 
     def get(self, request: Request) -> Response:
         from apps.core.trending import get_trending  # noqa: PLC0415
@@ -234,7 +118,6 @@ class PublicSaveContentView(APIView):
 
     authentication_classes = PUBLIC_AUTH
     permission_classes = [IsAuthenticated]
-    throttle_classes = [APIRateThrottle]
 
     def post(self, request: Request) -> Response:
         url = (request.data.get("url") or "").strip()

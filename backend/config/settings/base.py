@@ -82,7 +82,6 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # ── Middleware ────────────────────────────────────────────────
 MIDDLEWARE = [
-    "apps.core.rate_limit_middleware.RateLimitHeaderMiddleware",  # TASK-501-B4
     "apps.core.middleware.APIVersionHeaderMiddleware",  # TASK-105-4: X-API-Version header
     # 'django_prometheus.middleware.PrometheusBeforeMiddleware',
     "django.middleware.security.SecurityMiddleware",
@@ -239,19 +238,9 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
-    # TASK-501: Plan-aware throttling — PlanAwareThrottle reads user plan from billing
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "apps.core.throttles.APIRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/minute",
-        "user": "1000/minute",  # dashboard has multiple polling queries
-        "mfa_verify": "5/minute",  # Strict: prevents TOTP brute force
-        "mfa_setup": "3/minute",  # Strict: prevents setup abuse
-        "login": "10/minute",  # Brute force protection on login
-        "registration": "5/hour",  # Anti-spam on registration endpoint
-    },
+    # Rate limiting disabled
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {},
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
     "EXCEPTION_HANDLER": "apps.core.exceptions.custom_exception_handler",
 }
