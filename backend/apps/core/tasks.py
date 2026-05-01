@@ -138,12 +138,16 @@ def _scrapy_env(user_id: Optional[str] = None) -> dict:
     return env
 
 
-def _backfill_user_links(user_id: str, source: str, limit: int = 5) -> int:
+def _backfill_user_links(user_id: str, source: str, limit: int = 50) -> int:
     """
-    After a scrape completes, ensure the user is linked to at least `limit`
-    items of the given source type.  Dedup may have prevented the spider
-    from re-yielding items that already exist in the DB; this function
-    links the user to those existing items so they appear in the feed.
+    After a scrape completes, link the user to existing items they don't have yet.
+    This ensures that even if dedup prevented new items from being saved (because
+    they already exist in the DB), those existing items still appear in the user's
+    feed.
+
+    The function links up to `limit` unlinked items of the given source type.
+    This makes scraped data visible to the user regardless of whether it was
+    newly saved or already existed.
 
     Returns the number of new junction rows created.
     """
@@ -165,77 +169,69 @@ def _backfill_user_links(user_id: str, source: str, limit: int = 5) -> int:
         if source in ("hackernews", "news", "articles"):
             from apps.articles.models import Article, UserArticle
 
-            already = UserArticle.objects.filter(user=user).values_list(
-                "article_id", flat=True
+            # Get IDs of articles already linked to this user
+            already_linked = set(
+                UserArticle.objects.filter(user=user).values_list("article_id", flat=True)
             )
-            needed = limit - already.count()
-            if needed > 0:
-                extras = Article.objects.exclude(id__in=already).order_by(
-                    "-scraped_at"
-                )[:needed]
-                for a in extras:
-                    _, c = UserArticle.objects.get_or_create(user=user, article=a)
-                    created_count += int(c)
+            # Find unlinked articles (most recent first) and link them
+            unlinked = Article.objects.exclude(id__in=already_linked).order_by(
+                "-scraped_at"
+            )[:limit]
+            for a in unlinked:
+                _, c = UserArticle.objects.get_or_create(user=user, article=a)
+                created_count += int(c)
 
         elif source == "github":
             from apps.repositories.models import Repository, UserRepository
 
-            already = UserRepository.objects.filter(user=user).values_list(
-                "repository_id", flat=True
+            already_linked = set(
+                UserRepository.objects.filter(user=user).values_list("repository_id", flat=True)
             )
-            needed = limit - already.count()
-            if needed > 0:
-                extras = Repository.objects.exclude(id__in=already).order_by(
-                    "-scraped_at"
-                )[:needed]
-                for r in extras:
-                    _, c = UserRepository.objects.get_or_create(user=user, repository=r)
-                    created_count += int(c)
+            unlinked = Repository.objects.exclude(id__in=already_linked).order_by(
+                "-scraped_at"
+            )[:limit]
+            for r in unlinked:
+                _, c = UserRepository.objects.get_or_create(user=user, repository=r)
+                created_count += int(c)
 
         elif source == "arxiv":
             from apps.papers.models import ResearchPaper, UserPaper
 
-            already = UserPaper.objects.filter(user=user).values_list(
-                "paper_id", flat=True
+            already_linked = set(
+                UserPaper.objects.filter(user=user).values_list("paper_id", flat=True)
             )
-            needed = limit - already.count()
-            if needed > 0:
-                extras = ResearchPaper.objects.exclude(id__in=already).order_by(
-                    "-fetched_at"
-                )[:needed]
-                for p in extras:
-                    _, c = UserPaper.objects.get_or_create(user=user, paper=p)
-                    created_count += int(c)
+            unlinked = ResearchPaper.objects.exclude(id__in=already_linked).order_by(
+                "-fetched_at"
+            )[:limit]
+            for p in unlinked:
+                _, c = UserPaper.objects.get_or_create(user=user, paper=p)
+                created_count += int(c)
 
         elif source in ("youtube", "videos"):
             from apps.videos.models import UserVideo, Video
 
-            already = UserVideo.objects.filter(user=user).values_list(
-                "video_id", flat=True
+            already_linked = set(
+                UserVideo.objects.filter(user=user).values_list("video_id", flat=True)
             )
-            needed = limit - already.count()
-            if needed > 0:
-                extras = Video.objects.exclude(id__in=already).order_by("-fetched_at")[
-                    :needed
-                ]
-                for v in extras:
-                    _, c = UserVideo.objects.get_or_create(user=user, video=v)
-                    created_count += int(c)
+            unlinked = Video.objects.exclude(id__in=already_linked).order_by(
+                "-fetched_at"
+            )[:limit]
+            for v in unlinked:
+                _, c = UserVideo.objects.get_or_create(user=user, video=v)
+                created_count += int(c)
 
         elif source in ("twitter", "tweets"):
             from apps.tweets.models import Tweet, UserTweet
 
-            already = UserTweet.objects.filter(user=user).values_list(
-                "tweet_id", flat=True
+            already_linked = set(
+                UserTweet.objects.filter(user=user).values_list("tweet_id", flat=True)
             )
-            needed = limit - already.count()
-            if needed > 0:
-                extras = Tweet.objects.exclude(id__in=already).order_by("-posted_at")[
-                    :needed
-                ]
-                for t in extras:
-                    _, c = UserTweet.objects.get_or_create(user=user, tweet=t)
-                    created_count += int(c)
+            unlinked = Tweet.objects.exclude(id__in=already_linked).order_by(
+                "-posted_at"
+            )[:limit]
+            for t in unlinked:
+                _, c = UserTweet.objects.get_or_create(user=user, tweet=t)
+                created_count += int(c)
 
     except Exception as exc:
         logger.warning(f"Backfill failed for user={user_id} source={source}: {exc}")
@@ -820,7 +816,7 @@ def scrape_youtube(
                     if not video_id or not title:
                         continue
 
-                    # ── Tech content filter ─��─────────────────────────
+                    # ── Tech content filter �����─────────────────────────
                     title_lower = title.lower()
                     desc_lower = (entry.get("description") or "").lower()
                     combined = title_lower + " " + desc_lower[:200]
