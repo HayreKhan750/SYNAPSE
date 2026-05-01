@@ -138,18 +138,104 @@ def _scrapy_env(user_id: Optional[str] = None) -> dict:
     return env
 
 
-def _backfill_user_links(user_id: str, source: str, limit: int = 50) -> int:
+def _link_items_to_user(user_id: str, source: str, item_ids: list) -> int:
     """
-    After a scrape completes, link the user to existing items they don't have yet.
-    This ensures that even if dedup prevented new items from being saved (because
-    they already exist in the DB), those existing items still appear in the user's
-    feed.
+    Link specific items (by their IDs) to a user. This is called after a scrape
+    completes with the list of all item IDs that were found (both newly created
+    and already existing). This ensures the user sees all scraped content in
+    their feed, not just newly created items.
 
-    The function links up to `limit` unlinked items of the given source type.
-    This makes scraped data visible to the user regardless of whether it was
-    newly saved or already existed.
+    Args:
+        user_id: The user to link items to
+        source: The content type ("hackernews", "github", "arxiv", "youtube", "tweets")
+        item_ids: List of item IDs (UUIDs or PKs) that were found during the scrape
 
     Returns the number of new junction rows created.
+    """
+    if not user_id or not item_ids:
+        return 0
+
+    try:
+        from apps.users.models import User
+
+        user = User.objects.filter(pk=user_id).first()
+        if not user:
+            return 0
+    except Exception:
+        return 0
+
+    created_count = 0
+
+    try:
+        if source in ("hackernews", "news", "articles"):
+            from apps.articles.models import Article, UserArticle
+
+            for article_id in item_ids:
+                try:
+                    article = Article.objects.get(pk=article_id)
+                    _, c = UserArticle.objects.get_or_create(user=user, article=article)
+                    created_count += int(c)
+                except Article.DoesNotExist:
+                    continue
+
+        elif source == "github":
+            from apps.repositories.models import Repository, UserRepository
+
+            for repo_id in item_ids:
+                try:
+                    repo = Repository.objects.get(pk=repo_id)
+                    _, c = UserRepository.objects.get_or_create(user=user, repository=repo)
+                    created_count += int(c)
+                except Repository.DoesNotExist:
+                    continue
+
+        elif source == "arxiv":
+            from apps.papers.models import ResearchPaper, UserPaper
+
+            for paper_id in item_ids:
+                try:
+                    paper = ResearchPaper.objects.get(pk=paper_id)
+                    _, c = UserPaper.objects.get_or_create(user=user, paper=paper)
+                    created_count += int(c)
+                except ResearchPaper.DoesNotExist:
+                    continue
+
+        elif source in ("youtube", "videos"):
+            from apps.videos.models import UserVideo, Video
+
+            for video_id in item_ids:
+                try:
+                    video = Video.objects.get(pk=video_id)
+                    _, c = UserVideo.objects.get_or_create(user=user, video=video)
+                    created_count += int(c)
+                except Video.DoesNotExist:
+                    continue
+
+        elif source in ("twitter", "tweets"):
+            from apps.tweets.models import Tweet, UserTweet
+
+            for tweet_id in item_ids:
+                try:
+                    tweet = Tweet.objects.get(pk=tweet_id)
+                    _, c = UserTweet.objects.get_or_create(user=user, tweet=tweet)
+                    created_count += int(c)
+                except Tweet.DoesNotExist:
+                    continue
+
+    except Exception as exc:
+        logger.warning(f"Link items failed for user={user_id} source={source}: {exc}")
+
+    if created_count:
+        logger.info(f"Linked {created_count} {source} items to user {user_id}")
+    return created_count
+
+
+def _backfill_user_links(user_id: str, source: str, limit: int = 50) -> int:
+    """
+    DEPRECATED: Use _link_items_to_user with specific item IDs instead.
+    
+    This fallback links the most recent unlinked items to the user.
+    Only used when specific item IDs aren't available.
     """
     if not user_id:
         return 0
@@ -169,11 +255,9 @@ def _backfill_user_links(user_id: str, source: str, limit: int = 50) -> int:
         if source in ("hackernews", "news", "articles"):
             from apps.articles.models import Article, UserArticle
 
-            # Get IDs of articles already linked to this user
             already_linked = set(
                 UserArticle.objects.filter(user=user).values_list("article_id", flat=True)
             )
-            # Find unlinked articles (most recent first) and link them
             unlinked = Article.objects.exclude(id__in=already_linked).order_by(
                 "-scraped_at"
             )[:limit]
@@ -268,6 +352,7 @@ def scrape_hackernews(
     )
 
     total_saved = 0
+    found_article_ids = []  # Track all articles found (new + existing)
 
     try:
         from apps.articles.models import Article, Source
@@ -338,6 +423,8 @@ def scrape_hackernews(
                         },
                     },
                 )
+                # Track ALL found articles (both new and existing)
+                found_article_ids.append(str(article.id))
                 if created:
                     total_saved += 1
 
@@ -346,14 +433,17 @@ def scrape_hackernews(
                 continue
 
         logger.info(
-            f"[{task_id}] HackerNews scraper completed: {total_saved} new articles saved"
+            f"[{task_id}] HackerNews scraper completed: {total_saved} new, "
+            f"{len(found_article_ids)} total articles found"
         )
         _update_source_last_scraped("news")
-        _backfill_user_links(user_id, "hackernews", limit)
+        # Link ALL found articles to the user (not just new ones)
+        _link_items_to_user(user_id, "hackernews", found_article_ids)
         return {
             "spider": "hackernews",
             "status": "success",
             "count": total_saved,
+            "total_found": len(found_article_ids),
         }
 
     except Exception as exc:
@@ -394,6 +484,7 @@ def scrape_github(
     )
 
     total_saved = 0
+    found_repo_ids = []  # Track all repos found (new + existing)
 
     try:
         from apps.repositories.models import Repository
@@ -468,6 +559,8 @@ def scrape_github(
                                 },
                             },
                         )
+                        # Track ALL found repos (both new and existing)
+                        found_repo_ids.append(str(repo.id))
                         if created:
                             total_saved += 1
                     except Exception as exc:
@@ -484,14 +577,17 @@ def scrape_github(
                 continue
 
         logger.info(
-            f"[{task_id}] GitHub scraper completed: {total_saved} new repos saved"
+            f"[{task_id}] GitHub scraper completed: {total_saved} new, "
+            f"{len(found_repo_ids)} total repos found"
         )
         _update_source_last_scraped("github")
-        _backfill_user_links(user_id, "github", limit)
+        # Link ALL found repos to the user (not just new ones)
+        _link_items_to_user(user_id, "github", found_repo_ids)
         return {
             "spider": "github",
             "status": "success",
             "count": total_saved,
+            "total_found": len(found_repo_ids),
         }
 
     except Exception as exc:
@@ -533,6 +629,7 @@ def scrape_arxiv(
     )
 
     total_saved = 0
+    found_paper_ids = []  # Track all papers found (new + existing)
 
     # Default CS categories if none specified
     DEFAULT_CATEGORIES = ["cs.AI", "cs.CL", "cs.LG", "cs.CV", "cs.SE"]
@@ -646,6 +743,8 @@ def scrape_arxiv(
                                 "difficulty_level": "intermediate",
                             },
                         )
+                        # Track ALL found papers (both new and existing)
+                        found_paper_ids.append(str(paper.id))
                         if created:
                             total_saved += 1
                     except Exception as exc:
@@ -665,14 +764,17 @@ def scrape_arxiv(
                 continue
 
         logger.info(
-            f"[{task_id}] arXiv scraper completed: {total_saved} new papers saved"
+            f"[{task_id}] arXiv scraper completed: {total_saved} new, "
+            f"{len(found_paper_ids)} total papers found"
         )
         _update_source_last_scraped("arxiv")
-        _backfill_user_links(user_id, "arxiv", max_papers)
+        # Link ALL found papers to the user (not just new ones)
+        _link_items_to_user(user_id, "arxiv", found_paper_ids)
         return {
             "spider": "arxiv",
             "status": "success",
             "count": total_saved,
+            "total_found": len(found_paper_ids),
         }
 
     except Exception as exc:
@@ -759,6 +861,7 @@ def scrape_youtube(
     ytdlp_bin = shutil.which("yt-dlp") or "/usr/local/bin/yt-dlp"
 
     total_saved = 0
+    found_video_ids = []  # Track all videos found (new + existing)
     from datetime import datetime as _dt
 
     try:
@@ -879,6 +982,8 @@ def scrape_youtube(
                                 "topics": [query],
                             },
                         )
+                        # Track ALL found videos (both new and existing)
+                        found_video_ids.append(str(video.id))
                         if created:
                             total_saved += 1
                             logger.info(
@@ -904,14 +1009,17 @@ def scrape_youtube(
                 )
 
         logger.info(
-            f"[{task_id}] YouTube scraper completed: {total_saved} new videos saved"
+            f"[{task_id}] YouTube scraper completed: {total_saved} new, "
+            f"{len(found_video_ids)} total videos found"
         )
         _update_source_last_scraped("youtube")
-        _backfill_user_links(user_id, "youtube", max_results)
+        # Link ALL found videos to the user (not just new ones)
+        _link_items_to_user(user_id, "youtube", found_video_ids)
         return {
             "spider": "youtube",
             "status": "success",
             "count": total_saved,
+            "total_found": len(found_video_ids),
         }
 
     except Exception as exc:
@@ -1002,6 +1110,7 @@ def scrape_twitter(
         search_queries = DEFAULT_QUERIES
 
     total_saved = 0
+    found_tweet_ids = []  # Track all tweets found (new + existing)
 
     try:
         from apps.tweets.models import Tweet
@@ -1206,6 +1315,8 @@ def scrape_twitter(
                                 },
                             },
                         )
+                        # Track ALL found tweets (both new and existing)
+                        found_tweet_ids.append(str(tweet.id))
                         if created:
                             total_saved += 1
                             logger.info(
@@ -1227,14 +1338,17 @@ def scrape_twitter(
                 )
 
         logger.info(
-            f"[{task_id}] Twitter scraper completed: {total_saved} new tweets saved"
+            f"[{task_id}] Twitter scraper completed: {total_saved} new, "
+            f"{len(found_tweet_ids)} total tweets found"
         )
         _update_source_last_scraped("twitter")
-        _backfill_user_links(user_id, "twitter", max_results)
+        # Link ALL found tweets to the user (not just new ones)
+        _link_items_to_user(user_id, "twitter", found_tweet_ids)
         return {
             "spider": "twitter",
             "status": "success",
             "count": total_saved,
+            "total_found": len(found_tweet_ids),
         }
 
     except Exception as exc:
@@ -1980,7 +2094,7 @@ def backup_database(self) -> Dict:
             gz_size_mb = os.path.getsize(gz_path) / (1024 * 1024)
             logger.info("TASK-502: Compressed backup %.1f MB", gz_size_mb)
 
-            # ── 3. Upload to S3 ────────────────────────────────────────────
+            # ── 3. Upload to S3 ─────────────────��──────────────────────────
             s3 = boto3.client(
                 "s3",
                 region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
