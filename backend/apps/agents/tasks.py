@@ -420,6 +420,23 @@ def execute_agent_task(self, agent_task_id: str) -> dict:
             "cost_usd": float(task_obj.cost_usd),
         }
 
+    except ValueError as exc:
+        # ValueError usually means missing API key configuration
+        error_msg = str(exc)
+        if "API_KEY" in error_msg or "api key" in error_msg.lower():
+            error_msg = (
+                "No AI provider configured. Please set one of: GROQ_API_KEY, "
+                "OPENROUTER_API_KEY, GEMINI_API_KEY, or AI_GATEWAY_API_KEY in your "
+                "Render environment variables."
+            )
+        logger.error("AgentTask %s — config error: %s", agent_task_id, error_msg)
+        task_obj.status = AgentTask.TaskStatus.FAILED
+        task_obj.error_message = error_msg
+        task_obj.completed_at = datetime.now(tz=timezone.utc)
+        task_obj.save(update_fields=["status", "error_message", "completed_at"])
+        # Don't retry config errors
+        return {"success": False, "error": error_msg, "agent_task_id": agent_task_id}
+
     except Exception as exc:
         logger.exception("AgentTask %s — unexpected error: %s", agent_task_id, exc)
         task_obj.status = AgentTask.TaskStatus.FAILED
