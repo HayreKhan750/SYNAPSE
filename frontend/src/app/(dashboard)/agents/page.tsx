@@ -242,16 +242,14 @@ function DocCard({ doc, onDelete, driveConnected, onEdited }: { doc: DocumentRec
   const [versions, setVersions] = React.useState<DocumentRecord[]>([])
   const [driveUrl, setDriveUrl] = React.useState<string | null>(doc.metadata?.drive_url as string ?? null)
 
-  const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace(/\/+$/, '')
-
   const handleDownload = async () => {
     try {
-      const res = await fetch(`${apiBase}/documents/${doc.id}/download/`, { headers: { Authorization: `Bearer ${localStorage.getItem('synapse_access_token') || ''}` } })
-      if (!res.ok) throw new Error()
-      const blob = await res.blob()
+      // Use api utility which has proper baseURL and auth headers
+      const res = await api.get(`/documents/${doc.id}/download/`, { responseType: 'blob' })
+      const blob = res.data
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a'); a.href = url
-      const cd = res.headers.get('Content-Disposition') || ''
+      const cd = res.headers['content-disposition'] || ''
       const match = cd.match(/filename="?([^"]+)"?/)
       a.download = match ? match[1] : `document.${doc.doc_type}`
       a.click(); URL.revokeObjectURL(url)
@@ -263,7 +261,10 @@ function DocCard({ doc, onDelete, driveConnected, onEdited }: { doc: DocumentRec
     setPreviewLoading(true)
     try {
       const res = await api.get(`/documents/${doc.id}/preview/`)
-      setRenderUrl(res.data?.render_url || `${apiBase}/documents/${doc.id}/preview/`)
+      // The render_url should be a full URL from the backend, or we construct it
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
+      const apiBaseUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`
+      setRenderUrl(res.data?.render_url || `${apiBaseUrl}/documents/${doc.id}/render/`)
       setShowPreview(true)
     } catch { toast.error('Preview failed.') } finally { setPreviewLoading(false) }
   }

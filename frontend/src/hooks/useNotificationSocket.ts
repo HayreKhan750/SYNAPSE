@@ -9,16 +9,46 @@
  *  2. Shows a toast with the notification title
  *
  * Includes exponential backoff reconnection (max 30s).
+ * Automatically refreshes expired tokens before connecting.
  */
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
+import { authApi } from '@/utils/api'
 
 const MAX_RETRIES = 8
 const BASE_DELAY_MS = 1_000
+
+/** Check if a JWT token is expired or will expire within 60 seconds */
+function isTokenExpiringSoon(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const exp = payload.exp * 1000 // Convert to ms
+    return Date.now() > exp - 60_000 // Expired or expires within 60s
+  } catch {
+    return true // Can't parse = treat as expired
+  }
+}
+
+/** Refresh the access token using the refresh token */
+async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+  try {
+    const res = await authApi.post('/auth/token/refresh/', { refresh: refreshToken })
+    const newAccess = res.data?.access
+    if (newAccess) {
+      localStorage.setItem('synapse_access_token', newAccess)
+      // Update the store
+      useAuthStore.setState({ accessToken: newAccess })
+      return newAccess
+    }
+  } catch (err) {
+    console.warn('[WS] Token refresh failed:', err)
+  }
+  return null
+}
 
 function getWsUrl(): string {
   // SECURITY: token is NOT passed in URL (would leak to server logs/browser history).
@@ -41,18 +71,46 @@ const NOTIF_TYPE_TOAST: Record<string, (msg: string) => void> = {
 
 export function useNotificationSocket() {
   const queryClient = useQueryClient()
-  const { accessToken: token, isAuthenticated } = useAuthStore()
+  const { accessToken: token, refreshToken, isAuthenticated } = useAuthStore()
   const wsRef   = useRef<WebSocket | null>(null)
   const retries = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const currentTokenRef = useRef<string | null>(token)
+
+  // Keep ref updated
+  useEffect(() => {
+    currentTokenRef.current = token
+  }, [token])
+
+  // Memoize getValidToken to avoid recreating on every render
+  const getValidToken = useCallback(async (): Promise<string | null> => {
+    let currentToken = currentTokenRef.current
+    if (!currentToken) return null
+
+    // If token is expiring soon, try to refresh it
+    if (isTokenExpiringSoon(currentToken) && refreshToken) {
+      const newToken = await refreshAccessToken(refreshToken)
+      if (newToken) {
+        currentTokenRef.current = newToken
+        return newToken
+      }
+      // Refresh failed — return existing token and let server reject if needed
+    }
+    return currentToken
+  }, [refreshToken])
 
   useEffect(() => {
     if (!isAuthenticated || !token) return
 
     let alive = true
 
-    function connect() {
+    async function connect() {
       if (!alive) return
+
+      // Get a valid (refreshed if needed) token before connecting
+      const validToken = await getValidToken()
+      if (!validToken || !alive) return
+
       const url = getWsUrl()
       const ws = new WebSocket(url)
       wsRef.current = ws
@@ -61,8 +119,8 @@ export function useNotificationSocket() {
         retries.current = 0
         // SECURITY: send token as first message (not in URL query param)
         // This keeps the token out of server logs, browser history, and referer headers
-        if (token) {
-          ws.send(JSON.stringify({ type: 'auth', token: token as string }))
+        if (validToken) {
+          ws.send(JSON.stringify({ type: 'auth', token: validToken }))
         }
         // keepalive ping every 25s
         const ping = setInterval(() => {
@@ -121,5 +179,5 @@ export function useNotificationSocket() {
       if (timerRef.current) clearTimeout(timerRef.current)
       if (wsRef.current) wsRef.current.close()
     }
-  }, [isAuthenticated, token, queryClient])
+  }, [isAuthenticated, token, queryClient, getValidToken])
 }
