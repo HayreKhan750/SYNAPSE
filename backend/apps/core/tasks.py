@@ -1075,11 +1075,17 @@ def scrape_twitter(
         _raw = [s.strip() for s in _override.replace("\n", ",").split(",")]
         NITTER_INSTANCES = [s for s in _raw if s.startswith("http")]
     else:
+        # Updated list of active Nitter instances (May 2026)
+        # Check https://status.d420.de/nitter for current status
         NITTER_INSTANCES = [
-            "https://nitter.privacydev.net",
             "https://nitter.poast.org",
-            "https://nitter.tiekoetter.com",
-            "https://nitter.net",
+            "https://nitter.privacydev.net",
+            "https://nitter.lucabased.xyz",
+            "https://nitter.woodland.cafe",
+            "https://nitter.esmailelbob.xyz",
+            "https://nitter.d420.de",
+            "https://nitter.rawbit.ninja",
+            "https://nitter.unixfox.eu",
             # Farside redirector — picks an up instance at request time
             "https://farside.link/nitter",
         ]
@@ -1116,23 +1122,32 @@ def scrape_twitter(
         from apps.tweets.models import Tweet
 
         # Try each Nitter instance until one works
+        # Use longer timeout (10s) since some instances are slow but functional
         working_instance = None
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+        }
         for instance in NITTER_INSTANCES:
             try:
                 resp = _requests_lib.get(
-                    instance, timeout=5, allow_redirects=True,
-                    headers={"User-Agent": "Mozilla/5.0 (compatible; SYNAPSE-Bot/1.0)"},
+                    instance, timeout=10, allow_redirects=True,
+                    headers=headers,
                 )
                 if resp.status_code == 200:
                     working_instance = instance
                     logger.info(f"[{task_id}] Working Nitter instance: {instance}")
                     break
-            except Exception:
+                else:
+                    logger.debug(f"[{task_id}] Instance {instance} returned {resp.status_code}")
+            except Exception as e:
+                logger.debug(f"[{task_id}] Instance {instance} failed: {e}")
                 continue
 
         if not working_instance:
             logger.warning(
-                f"[{task_id}] No Nitter instances available. "
+                f"[{task_id}] No Nitter instances available from homepage check. "
                 "Trying tech account profiles as last resort."
             )
             # Try profile pages as fallback
@@ -1140,11 +1155,12 @@ def scrape_twitter(
                 try:
                     test_url = f"{instance}/{TECH_ACCOUNTS[0]}"
                     resp = _requests_lib.get(
-                        test_url, timeout=5,
-                        headers={"User-Agent": "Mozilla/5.0 (compatible; SYNAPSE-Bot/1.0)"},
+                        test_url, timeout=10,
+                        headers=headers,
                     )
                     if resp.status_code == 200:
                         working_instance = instance
+                        logger.info(f"[{task_id}] Working Nitter instance (profile fallback): {instance}")
                         break
                 except Exception:
                     continue
@@ -1177,7 +1193,7 @@ def scrape_twitter(
             try:
                 resp = _requests_lib.get(
                     search_url, timeout=15,
-                    headers={"User-Agent": "Mozilla/5.0 (compatible; SYNAPSE-Bot/1.0)"},
+                    headers=headers,  # Use the same browser-like headers
                 )
                 if resp.status_code != 200:
                     logger.warning(
