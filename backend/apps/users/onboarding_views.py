@@ -23,6 +23,31 @@ logger = logging.getLogger(__name__)
 
 TOTAL_STEPS = 5
 
+# Mapping from interest tags to arXiv categories
+INTEREST_TO_ARXIV = {
+    "ai_ml": ["cs.AI", "cs.LG", "stat.ML"],
+    "research": ["cs.AI", "cs.LG", "math.ST"],
+    "data_science": ["cs.LG", "stat.ML", "cs.DB"],
+    "security": ["cs.CR", "cs.CY"],
+    "web_dev": ["cs.SE", "cs.PL"],
+    "cloud_devops": ["cs.SE", "cs.DC"],
+    "open_source": ["cs.SE"],
+    "health_bio": ["q-bio", "stat.AP"],
+    "finance": ["q-fin", "stat.AP"],
+    "startup": ["cs.SE"],
+}
+
+
+def _map_interests_to_arxiv_categories(interests):
+    """Map user interest tags to arXiv categories."""
+    categories = set()
+    for interest in interests:
+        if interest in INTEREST_TO_ARXIV:
+            categories.update(INTEREST_TO_ARXIV[interest])
+    # Return top 3, or defaults if none match
+    result = list(categories)[:3]
+    return result if result else ["cs.AI", "cs.LG", "cs.CL"]
+
 STEP_CONFIG = {
     1: {
         "title": "Welcome to SYNAPSE",
@@ -258,8 +283,9 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
                 "params": {
                     "sources": ["hackernews"],
                     "story_type": "top",
-                    "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
+                    "limit": 5,
                     "items_per_source": 5,
+                    "topics": interests[:3] if interests else ["technology"],
                 },
             }
         ],
@@ -271,7 +297,7 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
     gh_workflow = AutomationWorkflow.objects.create(
         user=user,
         name="Trending GitHub Repositories",
-        description=f"Hot repositories in your areas of interest",
+        description=f"Hot repositories in your areas of interest: {', '.join(interests[:3]) or 'general tech'}",
         trigger_type="schedule",
         cron_expression="0 7 * * *",
         actions=[
@@ -280,8 +306,9 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
                 "params": {
                     "sources": ["github"],
                     "days_back": 7,
-                    "limit": 5,  # DEFAULT: 5 items - user can change in Automation page
+                    "limit": 5,
                     "items_per_source": 5,
+                    "topics": interests[:3] if interests else ["technology"],
                 },
             }
         ],
@@ -293,7 +320,7 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
     arxiv_workflow = AutomationWorkflow.objects.create(
         user=user,
         name="Latest Research Papers",
-        description=f"Academic papers matching your research interests",
+        description=f"Academic papers matching your research interests: {', '.join(interests[:3]) or 'computer science'}",
         trigger_type="schedule",
         cron_expression="30 7 * * *",
         actions=[
@@ -301,9 +328,11 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
                 "type": "collect_news",
                 "params": {
                     "sources": ["arxiv"],
-                    "categories": ["cs.AI", "cs.LG", "cs.CL"],
-                    "max_papers": 5,  # DEFAULT: 5 items - user can change in Automation page
+                    # Map general interests to arXiv categories
+                    "categories": _map_interests_to_arxiv_categories(interests),
+                    "max_papers": 5,
                     "items_per_source": 5,
+                    "topics": interests[:3] if interests else ["computer science"],
                 },
             }
         ],
