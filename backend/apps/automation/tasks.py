@@ -44,6 +44,7 @@ def _action_scrape_videos(params: dict, workflow=None) -> dict:
         days_back = int(params.get("days_back", 30))
 
         user_id = str(workflow.user_id) if workflow else None
+        # Note: scrape_youtube is routed to "slow_scraping" queue via task_routes in settings
         task = scrape_youtube.apply_async(
             kwargs={
                 "days_back": days_back,
@@ -51,7 +52,7 @@ def _action_scrape_videos(params: dict, workflow=None) -> dict:
                 "queries": queries if queries else None,
                 "user_id": user_id,
             },
-            queue="scraping",
+            queue="slow_scraping",
         )
 
         return {
@@ -186,14 +187,15 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
                 "max_papers", params.get("items_per_source", DEFAULT_ITEMS_PER_SOURCE)
             )
         )
+        # arXiv uses slow_scraping queue due to API rate limits
         t = scrape_arxiv.apply_async(
             kwargs={
-                "categories": None,
+                "categories": params.get("categories"),  # Allow user-configured categories
                 "days_back": int(params.get("days_back", 7)),
                 "max_papers": arxiv_limit,
                 "user_id": user_id,
             },
-            queue="scraping",
+            queue="slow_scraping",
         )
         task_ids["arxiv"] = t.id
 
@@ -212,6 +214,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
                 "max_results", params.get("items_per_source", DEFAULT_ITEMS_PER_SOURCE)
             )
         )
+        # YouTube uses slow_scraping queue due to yt-dlp rate limits
         t = scrape_youtube.apply_async(
             kwargs={
                 "days_back": int(params.get("days_back", 30)),
@@ -219,7 +222,7 @@ def _action_collect_news(params: dict, workflow=None) -> dict:
                 "queries": yt_queries if yt_queries else None,
                 "user_id": user_id,
             },
-            queue="scraping",
+            queue="slow_scraping",
         )
         task_ids["youtube"] = t.id
 
