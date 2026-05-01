@@ -1027,6 +1027,160 @@ def scrape_youtube(
         return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
 
 
+def _scrape_twitter_syndication(
+    celery_task, task_id, search_queries, tech_accounts, user_id, max_results, headers
+):
+    """
+    Fallback Twitter scraper using Twitter's public Syndication API.
+    This endpoint is used for embedded tweets and doesn't require authentication.
+    It's more limited than Nitter but works when Nitter instances are down.
+    """
+    import requests as _requests_lib
+    from datetime import datetime as _dt
+    from apps.tweets.models import Tweet
+
+    logger.info(f"[{task_id}] Using Twitter Syndication API fallback")
+
+    total_saved = 0
+    found_tweet_ids = []
+
+    # Syndication API works best with specific tweet IDs or user timelines
+    # We'll scrape timelines of tech influencers since search isn't available
+    SYNDICATION_BASE = "https://syndication.twitter.com/srv/timeline-profile/screen-name"
+
+    for username in tech_accounts[:8]:  # Limit to avoid rate limits
+        try:
+            url = f"{SYNDICATION_BASE}/{username}"
+            resp = _requests_lib.get(
+                url,
+                timeout=15,
+                headers={
+                    "User-Agent": headers.get("User-Agent", "Mozilla/5.0"),
+                    "Accept": "text/html,application/xhtml+xml",
+                    "Referer": "https://platform.twitter.com/",
+                },
+            )
+
+            if resp.status_code != 200:
+                logger.debug(f"[{task_id}] Syndication API returned {resp.status_code} for @{username}")
+                continue
+
+            # Parse the HTML response
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # Find tweet containers in the syndication response
+            for article in soup.select("article, div.timeline-Tweet"):
+                try:
+                    # Extract tweet text
+                    text_el = article.select_one("p.timeline-Tweet-text, div.tweet-text, p")
+                    if not text_el:
+                        continue
+                    text = text_el.get_text(strip=True)
+                    if not text or len(text) < 10:
+                        continue
+
+                    # Try to extract tweet ID from links
+                    tweet_id = None
+                    for link in article.select("a[href*='/status/']"):
+                        href = link.get("href", "")
+                        if "/status/" in href:
+                            parts = href.split("/status/")
+                            if len(parts) > 1:
+                                tweet_id = parts[1].split("?")[0].split("/")[0]
+                                break
+
+                    if not tweet_id or not tweet_id.isdigit():
+                        continue
+
+                    # Extract timestamp
+                    posted_at = _dt.now()
+                    time_el = article.select_one("time")
+                    if time_el and time_el.get("datetime"):
+                        try:
+                            posted_at = _dt.fromisoformat(
+                                time_el["datetime"].replace("Z", "+00:00")
+                            )
+                        except ValueError:
+                            pass
+
+                    # Extract hashtags
+                    hashtags = []
+                    for tag in article.select("a[href*='hashtag']"):
+                        tag_text = tag.get_text(strip=True).lstrip("#")
+                        if tag_text:
+                            hashtags.append(tag_text)
+
+                    # Topic inference
+                    combined = " ".join(hashtags).lower() + " " + text.lower()
+                    topic = "AI"
+                    TOPIC_KEYWORDS = {
+                        "AI": ["ai", "ml", "llm", "gpt", "chatgpt", "openai", "deep"],
+                        "Programming": ["python", "rust", "golang", "coding", "github"],
+                        "Web Dev": ["react", "nextjs", "typescript", "javascript", "css"],
+                        "Security": ["security", "hacking", "vulnerability", "exploit"],
+                        "Cloud": ["aws", "azure", "kubernetes", "docker", "devops"],
+                    }
+                    for t, kws in TOPIC_KEYWORDS.items():
+                        if any(kw in combined for kw in kws):
+                            topic = t
+                            break
+
+                    # Save to DB
+                    tweet, created = Tweet.objects.update_or_create(
+                        tweet_id=tweet_id,
+                        defaults={
+                            "text": text[:2000],
+                            "author_username": username,
+                            "author_display_name": username.title(),
+                            "like_count": 0,
+                            "retweet_count": 0,
+                            "posted_at": posted_at,
+                            "hashtags": hashtags,
+                            "mentions": [],
+                            "is_retweet": text.startswith("RT @"),
+                            "url": f"https://x.com/{username}/status/{tweet_id}",
+                            "source_label": "syndication",
+                            "topic": topic,
+                            "metadata": {
+                                "scraped_via": "twitter_syndication_api",
+                                "username": username,
+                            },
+                        },
+                    )
+                    found_tweet_ids.append(str(tweet.id))
+                    if created:
+                        total_saved += 1
+                        logger.info(f"[{task_id}] Saved tweet via syndication: @{username}")
+
+                except Exception as e:
+                    logger.debug(f"[{task_id}] Error parsing syndication tweet: {e}")
+                    continue
+
+            # Small delay between users to avoid rate limiting
+            import time
+            time.sleep(0.5)
+
+        except Exception as e:
+            logger.warning(f"[{task_id}] Syndication API error for @{username}: {e}")
+            continue
+
+    logger.info(
+        f"[{task_id}] Twitter syndication fallback completed: {total_saved} new, "
+        f"{len(found_tweet_ids)} total tweets found"
+    )
+    _update_source_last_scraped("twitter")
+    _link_items_to_user(user_id, "twitter", found_tweet_ids)
+
+    return {
+        "spider": "twitter",
+        "status": "success" if found_tweet_ids else "partial",
+        "count": total_saved,
+        "total_found": len(found_tweet_ids),
+        "method": "syndication_api",
+    }
+
+
 @shared_task(bind=True, max_retries=3)
 def scrape_twitter(
     self,
@@ -1164,6 +1318,15 @@ def scrape_twitter(
                         break
                 except Exception:
                     continue
+
+        # ── Fallback: Twitter Syndication API (no auth required) ─────────────
+        # If Nitter completely fails, use Twitter's public syndication endpoint
+        # This is used for embedded tweets and doesn't require API keys
+        if not working_instance:
+            logger.info(f"[{task_id}] All Nitter instances down. Using Twitter Syndication API fallback.")
+            return _scrape_twitter_syndication(
+                self, task_id, search_queries, TECH_ACCOUNTS, user_id, max_results, headers
+            )
 
         if not working_instance:
             logger.error(
