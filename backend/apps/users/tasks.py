@@ -8,6 +8,28 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+@shared_task(bind=True, max_retries=2)
+def send_welcome_email_task(self, user_id: str):
+    """
+    Celery task to send welcome email after onboarding.
+    Runs asynchronously so it doesn't block the endpoint.
+    """
+    try:
+        from apps.users.models import User
+        from apps.users.onboarding_views import _send_welcome_email
+
+        user = User.objects.get(id=user_id)
+        _send_welcome_email(user)
+        logger.info(f"Sent welcome email to {user.email}")
+
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found for welcome email")
+    except Exception as exc:
+        logger.warning(f"Failed to send welcome email to user {user_id}: {exc}")
+        # Don't retry email failures - not critical
+        pass
+
+
 @shared_task(bind=True, max_retries=3)
 def create_initial_workflows_task(self, user_id: str, prefs_id: str):
     """
