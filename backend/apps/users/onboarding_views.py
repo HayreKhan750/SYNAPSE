@@ -183,11 +183,10 @@ def onboarding_finish(request):
     except Exception as exc:
         logger.warning("Failed to send welcome email to %s: %s", user.email, exc)
 
-    # Create initial workflows and trigger immediate scraping
-    try:
-        _create_initial_workflows(user, prefs)
-    except Exception as exc:
-        logger.warning("Failed to create initial workflows for %s: %s", user.email, exc)
+    # Queue workflow creation as a background task (non-blocking)
+    # This returns immediately instead of waiting for scraping to complete
+    from apps.users.tasks import create_initial_workflows_task
+    create_initial_workflows_task.delay(user_id=str(user.id), prefs_id=str(prefs.id))
 
     logger.info("Onboarding completed for user %s", user.email)
     return Response(
