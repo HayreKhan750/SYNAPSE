@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 export default function DashboardError({
@@ -29,16 +28,20 @@ export default function DashboardError({
           An unexpected error occurred. This is often temporary — try refreshing.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={() => reset()} className="gap-2">
+          <button
+            onClick={() => reset()}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+          >
             <RefreshCw className="w-4 h-4" />
             Try again
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/home" className="gap-2">
-              <Home className="w-4 h-4" />
-              Go home
-            </Link>
-          </Button>
+          </button>
+          <Link
+            href="/home"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-medium transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            Go home
+          </Link>
         </div>
         {error.message && (
           <details className="mt-6 text-left">

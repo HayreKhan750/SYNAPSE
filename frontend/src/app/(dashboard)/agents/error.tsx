@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 export default function AgentsError({
   error,
@@ -29,19 +28,19 @@ export default function AgentsError({
           The agents page encountered an error. This is often temporary — try refreshing.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button
+          <button
             onClick={() => reset()}
-            className="gap-2"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
             Try again
-          </Button>
-          <Button
-            variant="outline"
+          </button>
+          <button
             onClick={() => window.location.reload()}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-medium transition-colors"
           >
             Reload page
-          </Button>
+          </button>
         </div>
         {error.message && (
           <p className="mt-6 text-xs text-slate-400 dark:text-slate-500 font-mono break-all">
