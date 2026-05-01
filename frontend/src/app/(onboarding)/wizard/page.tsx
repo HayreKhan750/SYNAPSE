@@ -131,13 +131,16 @@ export default function OnboardingWizardPage() {
     if (currentStep === TOTAL_STEPS) {
       setSetupStatus('Creating your automation workflows...');
       const ok = await finishOnboarding();
+      // Always mark as finished and refresh, even if API had issues
+      // The backend now processes everything async, so we can redirect quickly
+      setFinished(true);
+      setSetupStatus('Your personalised SYNAPSE feed is being prepared...');
+      await refreshUser?.();
       if (ok) {
-        setFinished(true);
-        setSetupStatus('Scraping personalized content for you...');
-        await refreshUser?.();
-        // Wait 45 seconds for initial scraping to complete before redirecting
-        setTimeout(() => router.replace('/home'), 45000);
+        // Short delay to show success message, then redirect
+        setTimeout(() => router.replace('/home'), 3000);
       }
+      // If not ok, the "Go to Dashboard" button will be shown
       return;
     }
     setCurrentStep(s => s + 1);
@@ -152,12 +155,11 @@ export default function OnboardingWizardPage() {
     if (currentStep === TOTAL_STEPS - 1) {
       setSetupStatus('Setting up your default feed...');
       const ok = await finishOnboarding();
+      setFinished(true);
+      setSetupStatus('Your SYNAPSE feed is being prepared...');
+      await refreshUser?.();
       if (ok) {
-        setFinished(true);
-        setSetupStatus('Scraping general tech content for you...');
-        await refreshUser?.();
-        // Wait 45 seconds for initial scraping to complete before redirecting
-        setTimeout(() => router.replace('/home'), 45000);
+        setTimeout(() => router.replace('/home'), 3000);
       }
     }
   }, [currentStep, finishOnboarding, refreshUser, router]);
@@ -290,12 +292,23 @@ export default function OnboardingWizardPage() {
           </div>
         </div>
       )}
-      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 animate-pulse rounded-full w-full" />
-      </div>
-      <div className="text-slate-500 text-xs">
-        <p>⏳ This may take 30-60 seconds while we fetch your personalized content...</p>
-      </div>
+      {finished ? (
+        <button
+          onClick={() => router.replace('/home')}
+          className="mt-4 px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-indigo-500/20"
+        >
+          Go to Dashboard
+        </button>
+      ) : (
+        <>
+          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 animate-pulse rounded-full w-full" />
+          </div>
+          <div className="text-slate-500 text-xs">
+            <p>This may take 30-60 seconds while we fetch your personalized content...</p>
+          </div>
+        </>
+      )}
     </div>
   );
 

@@ -202,16 +202,11 @@ def onboarding_finish(request):
     user.onboarded_at = timezone.now()
     user.save(update_fields=["is_onboarded", "onboarded_at"])
 
-    # Send welcome email (non-blocking — fail silently)
-    try:
-        _send_welcome_email(user)
-    except Exception as exc:
-        logger.warning("Failed to send welcome email to %s: %s", user.email, exc)
-
-    # Queue workflow creation as a background task (non-blocking)
-    # This returns immediately instead of waiting for scraping to complete
-    from apps.users.tasks import create_initial_workflows_task
+    # Queue workflow creation and welcome email as background tasks (non-blocking)
+    # This returns immediately instead of waiting for scraping/email to complete
+    from apps.users.tasks import create_initial_workflows_task, send_welcome_email_task
     create_initial_workflows_task.delay(user_id=str(user.id), prefs_id=str(prefs.id))
+    send_welcome_email_task.delay(user_id=str(user.id))
 
     logger.info("Onboarding completed for user %s", user.email)
     return Response(
