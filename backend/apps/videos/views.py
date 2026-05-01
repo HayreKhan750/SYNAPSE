@@ -24,9 +24,12 @@ class VideoListView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = Video.objects.all()
-        # ── Personalization: only filter by UserVideo when explicitly requested ──
-        if self.request.query_params.get("personalized") and self.request.user and self.request.user.is_authenticated:
-            qs = qs.filter(user_videos__user=self.request.user)
+        # ── Personalization: filter by user's videos unless ?all=true is passed ──
+        # This ensures each user only sees content linked to their account
+        if self.request.user and self.request.user.is_authenticated:
+            show_all = self.request.query_params.get("all", "").lower() in ("true", "1")
+            if not show_all:
+                qs = qs.filter(user_videos__user=self.request.user)
         return qs
 
 

@@ -392,11 +392,28 @@ def _create_initial_workflows(user: User, prefs: OnboardingPreferences) -> None:
     # so it runs after the scrapers have had time to finish.
     from apps.core.tasks import generate_user_briefing
 
-    hn_task = scrape_hackernews.delay(story_type="top", limit=5, user_id=user_id)
-    gh_task = scrape_github.delay(days_back=7, limit=5, user_id=user_id)
-    arxiv_task = scrape_arxiv.delay(max_papers=5, user_id=user_id)
-    yt_task = scrape_youtube.delay(max_results=5, user_id=user_id)
-    tw_task = scrape_twitter.delay(max_results=5, user_id=user_id)
+    # Use apply_async with explicit queues to ensure tasks are routed correctly
+    hn_task = scrape_hackernews.apply_async(
+        kwargs={"story_type": "top", "limit": 5, "user_id": user_id},
+        queue="scraping"
+    )
+    gh_task = scrape_github.apply_async(
+        kwargs={"days_back": 7, "limit": 5, "user_id": user_id},
+        queue="scraping"
+    )
+    # arXiv and YouTube use slow_scraping queue due to rate limits
+    arxiv_task = scrape_arxiv.apply_async(
+        kwargs={"max_papers": 5, "user_id": user_id},
+        queue="slow_scraping"
+    )
+    yt_task = scrape_youtube.apply_async(
+        kwargs={"max_results": 5, "user_id": user_id},
+        queue="slow_scraping"
+    )
+    tw_task = scrape_twitter.apply_async(
+        kwargs={"max_results": 5, "user_id": user_id},
+        queue="scraping"
+    )
 
     # Queue briefing 90 s after scrapers — gives subprocess-based spiders
     # time to complete and save items to the database.
