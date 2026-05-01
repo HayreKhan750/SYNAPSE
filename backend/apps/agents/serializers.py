@@ -22,6 +22,7 @@ class AgentTaskCreateSerializer(serializers.ModelSerializer):
         "general",
         "document",
         "project",
+        "tweets",
     ]
 
     class Meta:
