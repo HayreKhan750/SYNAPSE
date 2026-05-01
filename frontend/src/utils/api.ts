@@ -74,8 +74,10 @@ const processQueue = (err: unknown, token: string | null) => {
 }
 
 // ── Retry config ───────────────────────────────────────────────────────────────
-const RETRY_STATUS = new Set([408, 429, 500, 502, 503, 504])
-const MAX_RETRIES  = 5
+// NOTE: 429 (rate limit) is intentionally NOT retried — retrying makes it worse.
+// The rate limit event handler shows the upgrade modal instead.
+const RETRY_STATUS = new Set([408, 500, 502, 503, 504])
+const MAX_RETRIES  = 3
 const retryDelay   = (n: number) => Math.min(1000 * 2 ** n + Math.random() * 500, 15000)
 
 // ── Axios instances ────────────────────────────────────────────────────────────
