@@ -12,7 +12,7 @@ set -e
 
 CELERY_CONCURRENCY="${CELERY_CONCURRENCY:-1}"
 CELERY_MAX_TASKS_PER_CHILD="${CELERY_MAX_TASKS_PER_CHILD:-20}"
-CELERY_QUEUES="${CELERY_QUEUES:-default,scraping,agents,nlp,embeddings}"
+CELERY_QUEUES="${CELERY_QUEUES:-default,scraping,slow_scraping,agents,nlp,embeddings}"
 CELERY_LOGLEVEL="${CELERY_LOGLEVEL:-info}"
 
 (

@@ -30,6 +30,9 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 # Copy backend source code (not the whole repo)
 COPY --chown=appuser:appuser backend/ .
 
+# Copy ai_engine module (required for AI agents)
+COPY --chown=appuser:appuser ai_engine/ ./ai_engine/
+
 USER appuser
 EXPOSE 8000
 
@@ -50,6 +53,9 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
 # Copy backend source code (manage.py, config/, apps/ etc. go to /app/)
 COPY --chown=appuser:appuser backend/ .
+
+# Copy ai_engine module (required for AI agents, embeddings, NLP)
+COPY --chown=appuser:appuser ai_engine/ ./ai_engine/
 
 # Make the start scripts executable. We split the previous mega-CMD across
 # three dedicated services on Render so the free-tier 512 MB cap isn't
