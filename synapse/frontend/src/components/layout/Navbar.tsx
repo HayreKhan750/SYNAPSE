@@ -378,7 +378,7 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick, onSearchCl
     <nav className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-300 dark:border-slate-700/60">
       <div className="flex items-center justify-between h-16 px-3 sm:px-6 gap-2">
 
-        {/* Left: Page title / Mobile menu */}
+        {/* Left: Mobile menu */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={onMobileMenuClick}
@@ -387,9 +387,6 @@ export const Navbar = React.memo(function Navbar({ onMobileMenuClick, onSearchCl
           >
             <Menu size={20} />
           </button>
-          <h1 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">
-            {getPageTitle()}
-          </h1>
         </div>
 
         {/* Center: Search — TASK-402-4: pill triggers ⌘K command palette */}
