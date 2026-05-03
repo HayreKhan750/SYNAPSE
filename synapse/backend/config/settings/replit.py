@@ -137,3 +137,20 @@ AUTO_VERIFY_EMAIL = True
 # ── Dev-only: generous registration throttle ──────────────────────────────────
 # The default 5/hour limit is too restrictive for iterative testing.
 REGISTRATION_THROTTLE_RATE = "1000/hour"
+
+# ── Replit AI integration — OpenAI-compatible endpoint ────────────────────────
+# Used for article summarization, daily briefings, and the AI agent.
+# No real API key needed — Replit's modelfarm proxies the requests.
+_replit_ai_base = os.environ.get(
+    "AI_INTEGRATIONS_OPENAI_BASE_URL", "http://localhost:1106/modelfarm/openai"
+)
+_replit_ai_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "_DUMMY_API_KEY_")
+
+# Wire into the summarizer provider resolver (checked after Groq, before nothing)
+OPENROUTER_API_KEY = _replit_ai_key
+OPENROUTER_BASE_URL = _replit_ai_base
+OPENROUTER_MODEL = "gpt-4o-mini"
+
+# Wire into the agent LLM factory
+OPENAI_API_KEY = _replit_ai_key
+OPENAI_API_BASE = _replit_ai_base

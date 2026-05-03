@@ -272,7 +272,7 @@ def _backfill_user_links(user_id: str, source: str, limit: int = 50) -> int:
                 UserRepository.objects.filter(user=user).values_list("repository_id", flat=True)
             )
             unlinked = Repository.objects.exclude(id__in=already_linked).order_by(
-                "-scraped_at"
+                "-stars"
             )[:limit]
             for r in unlinked:
                 _, c = UserRepository.objects.get_or_create(user=user, repository=r)
@@ -1620,7 +1620,7 @@ def generate_user_briefing(self, user_id: str) -> Dict:
     )[:5]
 
     repos = Repository.objects.filter(user_repositories__user=user).order_by(
-        "-scraped_at"
+        "-stars"
     )[:5]
 
     videos = Video.objects.filter(user_videos__user=user).order_by("-fetched_at")[:5]
@@ -1795,8 +1795,8 @@ def generate_daily_briefings(self) -> Dict:
             )
             repos = list(
                 Repository.objects.filter(scraped_at__gte=cutoff)
-                .order_by("-scraped_at")
-                .values("full_name", "url", "description")[:5]
+                .order_by("-stars")
+                .values("full_name", "url", "description", "stars")[:5]
             )
 
             sources: list = []
