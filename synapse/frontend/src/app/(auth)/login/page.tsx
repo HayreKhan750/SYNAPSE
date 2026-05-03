@@ -27,10 +27,22 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login } = useAuthStore()
+  const { login, isAuthenticated } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Redirect already-authenticated users (e.g. page reload while logged in).
+  // useEffect is client-only so useAuthStore.persist is safe here.
+  useEffect(() => {
+    const redirect = () => { if (isAuthenticated) router.replace('/home') }
+    if (useAuthStore.persist.hasHydrated()) {
+      redirect()
+    } else {
+      const unsub = useAuthStore.persist.onFinishHydration(redirect)
+      return () => unsub()
+    }
+  }, [isAuthenticated, router])
 
   useEffect(() => {
     const errorCode = searchParams?.get('error')

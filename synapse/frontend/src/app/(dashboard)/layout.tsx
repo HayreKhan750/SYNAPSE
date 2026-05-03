@@ -16,10 +16,6 @@ const CommandPalette = dynamic(
   { ssr: false },
 )
 
-// Track first mount across navigations to avoid re-showing the loading screen
-// on every route change (it only needs to show once, on initial hydration).
-let _appMounted = false
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -28,9 +24,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileOpen, setMobileOpen]   = useState(false)
   const [cmdOpen,    setCmdOpen]      = useState(false)
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
-  // Only show the loading screen once — on the very first hydration.
-  // After that, _appMounted stays true across client-side navigations.
-  const [isMounted, setIsMounted] = useState(_appMounted)
+  // Wait for Zustand persist to finish reading from localStorage before
+  // making any auth decisions — prevents race-condition redirect to /login.
+  // Must start as false (useState initializer runs on server where persist is unavailable).
+  const [hydrated, setHydrated] = useState(false)
 
   // Global ⌘K / Ctrl+K listener
   const handleGlobalKey = useCallback((e: KeyboardEvent) => {
@@ -46,26 +43,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [handleGlobalKey])
 
   useEffect(() => {
-    if (!_appMounted) {
-      _appMounted = true
-      setIsMounted(true)
+    if (useAuthStore.persist.hasHydrated()) {
+      setHydrated(true)
+      return
     }
+    const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true))
+    return () => unsub()
   }, [])
 
   useEffect(() => {
-    // Only redirect after mount so Zustand has time to rehydrate from localStorage
-    if (isMounted && !isAuthenticated) {
+    // Only redirect after Zustand has rehydrated from localStorage
+    if (hydrated && !isAuthenticated) {
       router.push('/login')
     }
-  }, [isMounted, isAuthenticated, router])
+  }, [hydrated, isAuthenticated, router])
 
   // Close mobile sidebar on route change
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
 
-  // Show loading screen only on very first app load (not between route changes)
-  if (!isMounted || !isAuthenticated) {
+  if (!hydrated || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
