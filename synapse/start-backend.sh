@@ -8,6 +8,11 @@ export DB_PASSWORD=password
 export DB_HOST=helium
 export DB_PORT=5432
 
+# Kill any existing process on port 8000 to prevent "Address already in use" errors
+echo "Freeing port 8000..."
+fuser -k 8000/tcp 2>/dev/null || true
+sleep 2
+
 cd /home/runner/workspace/synapse/backend
 
 echo "Running database migrations..."

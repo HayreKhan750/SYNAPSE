@@ -687,15 +687,17 @@ def scrape_arxiv(
                     if not arxiv_id:
                         continue
 
-                    # Title
+                    # Title — use itertext() to handle mixed-content XML elements
                     title_el = entry.find(f"{ATOM_NS}title")
-                    title = (title_el.text or "").strip().replace("\n", " ") if title_el else ""
+                    if title_el is None:
+                        continue
+                    title = "".join(title_el.itertext()).strip().replace("\n", " ")
                     if not title:
                         continue
 
                     # Abstract
                     summary_el = entry.find(f"{ATOM_NS}summary")
-                    abstract = (summary_el.text or "").strip().replace("\n", " ") if summary_el else ""
+                    abstract = "".join(summary_el.itertext()).strip().replace("\n", " ") if summary_el is not None else ""
 
                     # Authors
                     authors = []

@@ -38,27 +38,87 @@ Browser always uses relative paths — never `http://localhost:8000` directly.
 
 - **Email**: `demo@synapse.dev`
 - **Password**: `Demo1234!`
+- **UUID**: `57b9b0f1-338a-4004-9b46-ca4e1e82771b`
 - **Status**: email_verified=True, is_onboarded=True
+
+## Demo Data (seeded)
+
+| Content Type | Count | Notes |
+|---|---|---|
+| HackerNews Articles | 30 | Scraped via API |
+| GitHub Repos | 25 | Scraped via API |
+| arXiv Papers | 20 | cs.AI, cs.LG, cs.CL — direct insert |
+| YouTube Videos | 7 | Demo data with real YouTube IDs |
+| Tweets | 7 | Demo data (karpathy, swyx, LangChain, etc.) |
+| Automation Workflows | 2 | Daily Tech Digest + AI Research Monitor |
+| Trending Topics | 22 | Tech trends for today's date |
+| Daily Briefing | 1 | articles=5, repos=5, papers=5, videos=5, tweets=5 |
+
+## API Endpoints — All Working
+
+All endpoints return 200 with auth token. Key paths:
+
+- `POST /api/v1/auth/login/` — JWT auth
+- `GET /api/v1/articles/` — HackerNews articles
+- `GET /api/v1/repos/` — GitHub repos
+- `GET /api/v1/papers/` — arXiv papers
+- `GET /api/v1/videos/` — YouTube videos
+- `GET /api/v1/tweets/` — Twitter/X content
+- `GET /api/v1/trends/` — Tech trending topics
+- `GET /api/v1/briefing/today/` — Daily AI briefing
+- `GET /api/v1/automation/workflows/` — Automation workflows
+- `GET /api/v1/automation/action-schemas/` — Action parameter schemas
+- `POST /api/v1/ai/chat/` — RAG chat (requires user API key)
+- `GET /api/v1/ai/chat/conversations/` — Chat history
+- `GET /api/v1/agents/tasks/` — AI agent tasks
+- `GET /api/v1/agents/tools/` — Available agent tools
+- `GET /api/v1/agents/health/` — Agent health check
+- `GET /api/v1/billing/pricing/` — Pricing plans
+- `GET /api/v1/billing/subscription/` — User subscription
+- `GET /api/v1/users/me/` — User profile
+- `GET /api/v1/users/ai-keys/` — AI API keys (OpenRouter, Gemini, etc.)
+- `GET /api/v1/knowledge-graph/` — Knowledge graph data
+- `POST /api/v1/scraper/run/` — Trigger scraper (`scraper` field: hackernews|github|arxiv|youtube|twitter)
+- `POST /api/v1/trends/trigger/` — Trigger trend analysis
+
+## Chat AI — User-Supplied Keys
+
+The chat page (`/chat`) uses OpenRouter by default. Users must add their API key under Settings → API Keys. The chat endpoint is `/api/v1/ai/chat/` (POST). Supported models:
+- Google Gemini (free via OpenRouter)
+- Meta Llama (free via OpenRouter)
+- DeepSeek, Mistral, Qwen (free via OpenRouter)
+- GPT-4o, Claude (paid)
+- Local Ollama models
 
 ## Key Files
 
 - `synapse/start-frontend.sh` — Next.js startup (port 22167)
-- `synapse/start-backend.sh` — Django startup (Daphne ASGI, port 8000)
+- `synapse/start-backend.sh` — Django startup (Daphne ASGI, port 8000); includes `fuser -k 8000/tcp`
 - `synapse/backend/config/settings/replit.py` — Replit-specific Django settings
 - `synapse/frontend/.env.local` — NEXT_PUBLIC_API_URL='' (relative paths)
 - `synapse/frontend/next.config.mjs` — Next.js config (rewrites to Django, allowedDevOrigins)
 - `synapse/frontend/src/utils/api.ts` — Axios with empty BASE_URL for relative paths
 - `synapse/frontend/src/store/authStore.ts` — Handles auto-verify token response on register
 
+## Scraper Notes
+
+- **HackerNews**: Works via direct arXiv API. Returns 30 articles/run.
+- **GitHub**: Works via GitHub API (public, no token needed). Returns 25 repos/run.
+- **arXiv**: Fixed `itertext()` for XML title extraction (handles mixed-content elements). Returns up to 100 papers across 5 categories.
+- **YouTube**: Requires `yt-dlp` (installed). May need YouTube cookies for some searches.
+- **Twitter/X**: Requires `X_API_KEY` / `TWITTER_BEARER_TOKEN` set in environment.
+
 ## Installed Packages (beyond original requirements)
 
-- `langchain-core==0.3.83`, `langchain==0.3.28`, `langchain-community==0.3.31` — for AI agent framework
+- `langchain-core==0.3.83`, `langchain==0.3.28`, `langchain-community==0.3.31` — AI agent framework
 
 ## Known Non-Issues
 
 - `artifacts/api-server` workflow fails (EADDRINUSE) — unrelated Express server, not part of SYNAPSE
 - Django StatReloader "Address already in use" warning on hot-reload — cosmetic, server still running
-- `/api/v1/agents/health/` returns 503 if OPENAI_API_KEY not set (expected)
+- `/api/v1/agents/health/` returns 503 if OPENAI_API_KEY not set (expected — requires user API key)
+- Google sign-in shows "unavailable" — requires GOOGLE_CLIENT_ID/SECRET env vars
+- GitHub OAuth shows "Sign in with GitHub" — requires GITHUB_CLIENT_ID/SECRET env vars
 
 ## Startup Notes
 
