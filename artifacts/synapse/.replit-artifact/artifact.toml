@@ -1,0 +1,22 @@
+kind = "web"
+previewPath = "/"
+title = "SYNAPSE"
+version = "1.0.0"
+id = "artifacts/synapse"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22167
+
+[services.development]
+run = "bash /home/runner/workspace/synapse/start-frontend.sh"
+
+[services.env]
+PORT = "22167"
+BASE_PATH = "/"

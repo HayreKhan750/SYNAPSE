@@ -1,27 +1,53 @@
-# Workspace
+# SYNAPSE Workspace
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+AI-Powered Technology Intelligence Platform. Full-stack app cloned from GitHub (HayreKhan750/SYNAPSE) and made production-ready in Replit.
 
-## Stack
+## Architecture
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Frontend**: Next.js 15.5 (React 18) — `synapse/frontend/`
+- **Backend**: Django 4.2 (ASGI/Daphne) — `synapse/backend/`
+- **Database**: Replit PostgreSQL (host: helium, db: heliumdb)
+- **Workspace**: pnpm monorepo
 
-## Key Commands
+## Running Services
 
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
+| Workflow | Description | Port |
+|---|---|---|
+| `artifacts/synapse: web` | Next.js frontend | 22167 |
+| `SYNAPSE Backend` | Django API (ASGI) | 8000 |
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+## API Proxy
+
+Next.js rewrites `/api/v1/*` → `http://localhost:8000/api/v1/*/` internally (no CORS issues).
+
+## Django Settings
+
+- **Settings module**: `config.settings.replit`
+- **In-memory channels** (no Redis needed)
+- **Console email backend**
+- **Celery eager mode** (no broker needed)
+- **All ALLOWED_HOSTS** enabled
+
+## Test User
+
+- **Email**: `demo@synapse.dev`
+- **Password**: `Demo1234!`
+
+## Key Files
+
+- `synapse/start-frontend.sh` — Next.js startup (port 22167)
+- `synapse/start-backend.sh` — Django startup (port 8000)
+- `synapse/backend/config/settings/replit.py` — Replit-specific Django settings
+- `synapse/frontend/next.config.mjs` — Next.js config (rewrites, allowedDevOrigins)
+
+## Startup Notes
+
+- Frontend runs on Node.js v24 with Next.js 15 (upgraded from 14 for compatibility)
+- Backend `.bin` symlinks were created manually (`node_modules/.bin/next`)
+- Django backend needs to start before API calls work
+
+## pnpm Workspace Packages
+
+The original SYNAPSE app lives in `synapse/` (not in `artifacts/`). The artifact at `artifacts/synapse` just points its workflow to `synapse/start-frontend.sh`.
