@@ -182,7 +182,7 @@ const ACTION_LABELS: Record<string, string> = {
   scrape_github:     '🐙 Scrape GitHub',
   scrape_arxiv:      '📜 Scrape arXiv',
   scrape_videos:     '🎬 Scrape Videos',
-  scrape_tweets:     '� Scrape Tweets',
+  scrape_tweets:     '🐦 Scrape Tweets',
   summarize_content: '🤖 Summarize Content',
   generate_pdf:      '📄 Generate PDF',
   send_email:        '📧 Send Email',
@@ -1221,8 +1221,8 @@ export default function AutomationPage() {
   ).length;
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="p-6 max-w-6xl mx-auto pb-12">
+    <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="h-full overflow-y-auto p-4 sm:p-6 max-w-6xl mx-auto pb-12">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 sm:mb-8 gap-3 sm:gap-4">
