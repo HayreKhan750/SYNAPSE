@@ -93,6 +93,14 @@ class PlanAwareThrottle(SimpleRateThrottle):
         return "9999/day"
 
     def allow_request(self, request, view) -> bool:
+        # Rate limiting disabled for Replit demo environment.
+        # The global DEFAULT_THROTTLE_CLASSES=[] in replit.py already removes
+        # the default throttles; this override ensures any per-view subclass
+        # instances also pass through unconditionally.
+        import os
+        if os.environ.get("DISABLE_RATE_LIMITS", "true").lower() in ("1", "true", "yes"):
+            return True
+
         if not request.user or not request.user.is_authenticated:
             return True  # anonymous: handled by AnonRateThrottle
 

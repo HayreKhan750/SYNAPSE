@@ -15,6 +15,10 @@ export OPENROUTER_API_KEY="${AI_INTEGRATIONS_OPENAI_API_KEY:-_DUMMY_API_KEY_}"
 export OPENROUTER_BASE_URL="${AI_INTEGRATIONS_OPENAI_BASE_URL:-http://localhost:1106/modelfarm/openai}"
 export OPENROUTER_MODEL="gpt-4o-mini"
 
+# Disable all per-view rate limiting in the Replit environment.
+# PlanAwareThrottle.allow_request() checks this and returns True unconditionally.
+export DISABLE_RATE_LIMITS=true
+
 # Robustly free port 8000 — kill all processes, then wait until the port is actually free
 echo "Freeing port 8000..."
 fuser -k 8000/tcp 2>/dev/null || true
