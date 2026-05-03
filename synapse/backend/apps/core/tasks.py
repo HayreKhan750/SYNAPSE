@@ -568,9 +568,6 @@ def scrape_github(
                             f"[{task_id}] Failed to save repo {gh_repo_id}: {exc}"
                         )
 
-                # Respect rate limits between queries
-                import time
-                time.sleep(2)
 
             except _requests_lib.RequestException as exc:
                 logger.warning(f"[{task_id}] GitHub API request failed: {exc}")
@@ -754,9 +751,6 @@ def scrape_arxiv(
                             f"[{task_id}] Failed to save paper {arxiv_id}: {exc}"
                         )
 
-                # Respect arXiv rate limits (1 request per 3 seconds)
-                import time
-                time.sleep(3)
 
             except _requests_lib.RequestException as exc:
                 logger.warning(f"[{task_id}] arXiv API request failed for {cat}: {exc}")
@@ -860,7 +854,12 @@ def scrape_youtube(
     per_query = max(3, min(10, (max_results * 3) // num_queries))
 
     # ── Find yt-dlp binary ────────────────────────────────────────────────
-    ytdlp_bin = shutil.which("yt-dlp") or "/usr/local/bin/yt-dlp"
+    ytdlp_bin = (
+        shutil.which("yt-dlp")
+        or os.path.expanduser("~/.local/bin/yt-dlp")
+        or os.path.expanduser("~/.pythonlibs/bin/yt-dlp")
+        or "/usr/local/bin/yt-dlp"
+    )
 
     total_saved = 0
     found_video_ids = []  # Track all videos found (new + existing)
@@ -1159,9 +1158,6 @@ def _scrape_twitter_syndication(
                     logger.debug(f"[{task_id}] Error parsing syndication tweet: {e}")
                     continue
 
-            # Small delay between users to avoid rate limiting
-            import time
-            time.sleep(0.5)
 
         except Exception as e:
             logger.warning(f"[{task_id}] Syndication API error for @{username}: {e}")
@@ -1194,346 +1190,194 @@ def scrape_twitter(
 ) -> Dict:
     _ensure_dedup_ttl()
     """
-    Scrape tweets from X/Twitter using direct HTTP requests to Nitter instances.
-    Falls back gracefully if instances are down. No Scrapy dependency needed.
+    Scrape tech posts from the Mastodon fediverse (mastodon.social public API).
+    No API key or authentication required — public timeline endpoints are open.
+    Posts are stored in the Tweet model so the existing feed works unchanged.
 
     Args:
         self: Celery task instance (for retry mechanism)
-        query: Search query (optional, uses default tech queries if not provided)
-        queries: JSON string of multiple search queries (optional)
-        max_results: Maximum number of tweets to scrape - default: 100
+        query: Single hashtag to search (optional)
+        queries: JSON string of multiple hashtags (optional)
+        max_results: Maximum number of posts to scrape - default: 100
         user_id: Optional user ID for personalization
-        use_nitter: Always True (kept for API compatibility)
+        use_nitter: Kept for API compatibility (ignored)
 
     Returns:
         Dictionary with keys: {'spider': 'twitter', 'status': 'success'/'failed', 'count': int}
     """
     import re as _re
     import json as _json
-    from urllib.parse import quote_plus
     from datetime import datetime as _dt
 
     import requests as _requests_lib
 
     task_id = self.request.id
     logger.info(
-        f"[{task_id}] Starting X/Twitter scraper (direct HTTP): "
+        f"[{task_id}] Starting Mastodon scraper (public API, no key): "
         f"query={query}, max_results={max_results}"
     )
 
-    # Nitter mirrors are notoriously short-lived. We try several known-active
-    # instances *plus* the farside.link aggregator, which redirects to whichever
-    # mirror is currently up. NITTER_INSTANCES_OVERRIDE env var lets the
-    # operator pin a specific list (newline- or comma-separated) without a
-    # code redeploy.
-    _override = (os.environ.get("NITTER_INSTANCES_OVERRIDE") or "").strip()
-    if _override:
-        _raw = [s.strip() for s in _override.replace("\n", ",").split(",")]
-        NITTER_INSTANCES = [s for s in _raw if s.startswith("http")]
-    else:
-        # Updated list of active Nitter instances (May 2026)
-        # Check https://status.d420.de/nitter for current status
-        NITTER_INSTANCES = [
-            "https://nitter.poast.org",
-            "https://nitter.privacydev.net",
-            "https://nitter.lucabased.xyz",
-            "https://nitter.woodland.cafe",
-            "https://nitter.esmailelbob.xyz",
-            "https://nitter.d420.de",
-            "https://nitter.rawbit.ninja",
-            "https://nitter.unixfox.eu",
-            # Farside redirector — picks an up instance at request time
-            "https://farside.link/nitter",
-        ]
-
-    DEFAULT_QUERIES = [
-        "AI machine learning LLM",
-        "Python programming software",
-        "web development React TypeScript",
-        "open source GitHub",
+    # ── Default tech hashtags (maps to Mastodon tag timeline) ─────────────
+    DEFAULT_HASHTAGS = [
+        "ai", "machinelearning", "llm", "python", "programming",
+        "opensource", "rag", "typescript", "deeplearning", "rustlang",
+        "webdev", "devops", "kubernetes", "security", "github",
     ]
 
-    TECH_ACCOUNTS = [
-        "sama", "karpathy", "ylecun", "darioamodei",
-        "ilyasut", "fchollet", "emostaque", "rasbt",
-    ]
-
-    # ── Resolve queries ───────────────────────────────────────────────────
+    # ── Resolve hashtags from query/queries args ──────────────────────────
     if queries:
         try:
-            search_queries = (
-                _json.loads(queries) if isinstance(queries, str) else list(queries)
-            )
+            raw = _json.loads(queries) if isinstance(queries, str) else list(queries)
+            hashtag_list = [h.lstrip("#").strip() for h in raw if h.strip()]
         except _json.JSONDecodeError:
-            search_queries = [queries]
+            hashtag_list = [queries.lstrip("#").strip()]
     elif query:
-        search_queries = [query]
+        hashtag_list = [query.lstrip("#").strip()]
     else:
-        search_queries = DEFAULT_QUERIES
+        hashtag_list = DEFAULT_HASHTAGS
+
+    # ── Mastodon instances to try (all public, no auth) ───────────────────
+    MASTODON_INSTANCES = [
+        "https://mastodon.social",
+        "https://fosstodon.org",
+        "https://hachyderm.io",
+    ]
+
+    TOPIC_KEYWORDS = {
+        "AI": ["ai", "ml", "llm", "gpt", "chatgpt", "openai", "deeplearning", "machinelearning"],
+        "Programming": ["python", "rust", "rustlang", "golang", "coding", "github", "programming"],
+        "Web Dev": ["react", "nextjs", "typescript", "javascript", "css", "webdev"],
+        "Security": ["security", "hacking", "vulnerability", "exploit", "cybersecurity"],
+        "Cloud": ["aws", "azure", "kubernetes", "docker", "devops", "k8s"],
+    }
 
     total_saved = 0
-    found_tweet_ids = []  # Track all tweets found (new + existing)
+    found_tweet_ids = []
 
     try:
         from apps.tweets.models import Tweet
 
-        # Try each Nitter instance until one works
-        # Use longer timeout (10s) since some instances are slow but functional
-        working_instance = None
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-        }
-        for instance in NITTER_INSTANCES:
-            try:
-                resp = _requests_lib.get(
-                    instance, timeout=10, allow_redirects=True,
-                    headers=headers,
-                )
-                if resp.status_code == 200:
-                    working_instance = instance
-                    logger.info(f"[{task_id}] Working Nitter instance: {instance}")
-                    break
-                else:
-                    logger.debug(f"[{task_id}] Instance {instance} returned {resp.status_code}")
-            except Exception as e:
-                logger.debug(f"[{task_id}] Instance {instance} failed: {e}")
-                continue
-
-        if not working_instance:
-            logger.warning(
-                f"[{task_id}] No Nitter instances available from homepage check. "
-                "Trying tech account profiles as last resort."
-            )
-            # Try profile pages as fallback
-            for instance in NITTER_INSTANCES:
-                try:
-                    test_url = f"{instance}/{TECH_ACCOUNTS[0]}"
-                    resp = _requests_lib.get(
-                        test_url, timeout=10,
-                        headers=headers,
-                    )
-                    if resp.status_code == 200:
-                        working_instance = instance
-                        logger.info(f"[{task_id}] Working Nitter instance (profile fallback): {instance}")
-                        break
-                except Exception:
-                    continue
-
-        # ── Fallback: Twitter Syndication API (no auth required) ─────────────
-        # If Nitter completely fails, use Twitter's public syndication endpoint
-        # This is used for embedded tweets and doesn't require API keys
-        if not working_instance:
-            logger.info(f"[{task_id}] All Nitter instances down. Using Twitter Syndication API fallback.")
-            return _scrape_twitter_syndication(
-                self, task_id, search_queries, TECH_ACCOUNTS, user_id, max_results, headers
-            )
-
-        if not working_instance:
-            logger.error(
-                f"[{task_id}] All Nitter instances are down (tried {len(NITTER_INSTANCES)}). "
-                "Tweets cannot be scraped without a working Nitter mirror or a paid X API. "
-                "Set NITTER_INSTANCES_OVERRIDE to pin a known-good mirror."
-            )
-            _update_source_last_scraped("twitter")
-            return {
-                "spider": "twitter",
-                "status": "degraded",
-                "count": 0,
-                "error": (
-                    "No Nitter instances reachable — tweet scraping is currently "
-                    "unavailable. Either set NITTER_INSTANCES_OVERRIDE with a "
-                    "working mirror, or connect a paid X/Twitter API key."
-                ),
-                "instances_tried": len(NITTER_INSTANCES),
-            }
-
-        # ── Scrape search results ──────────────────────────────────────────
-        for q in search_queries:
+        for hashtag in hashtag_list:
             if total_saved >= max_results:
                 break
 
-            search_url = f"{working_instance}/search?q={quote_plus(q)}&f=tweets"
-            try:
-                resp = _requests_lib.get(
-                    search_url, timeout=15,
-                    headers=headers,  # Use the same browser-like headers
-                )
-                if resp.status_code != 200:
-                    logger.warning(
-                        f"[{task_id}] Nitter search returned {resp.status_code} for '{q}'"
-                    )
+            per_tag = max(20, max_results // len(hashtag_list))
+
+            for instance in MASTODON_INSTANCES:
+                try:
+                    api_url = f"{instance}/api/v1/timelines/tag/{hashtag}?limit={min(per_tag, 40)}"
+                    resp = _requests_lib.get(api_url, timeout=10, headers={"Accept": "application/json"})
+                    if resp.status_code != 200:
+                        logger.debug(f"[{task_id}] {instance} returned {resp.status_code} for #{hashtag}")
+                        continue
+
+                    posts = resp.json()
+                    if not isinstance(posts, list):
+                        continue
+
+                    logger.info(f"[{task_id}] #{hashtag} via {instance}: {len(posts)} posts")
+
+                    for post in posts:
+                        if total_saved >= max_results:
+                            break
+                        try:
+                            # Extract fields from Mastodon API response
+                            post_id = str(post.get("id", ""))
+                            if not post_id:
+                                continue
+
+                            # Strip HTML tags from content
+                            raw_content = post.get("content", "")
+                            text = _re.sub(r"<[^>]+>", "", raw_content).strip()
+                            text = _re.sub(r"\s+", " ", text).strip()
+                            if not text or len(text) < 10:
+                                continue
+
+                            acct = post.get("account", {})
+                            author_username = acct.get("acct", "unknown")[:200]
+                            author_display_name = acct.get("display_name", author_username)[:300]
+
+                            created_at_str = post.get("created_at", "")
+                            posted_at = None
+                            if created_at_str:
+                                try:
+                                    posted_at = _dt.fromisoformat(
+                                        created_at_str.replace("Z", "+00:00")
+                                    )
+                                except ValueError:
+                                    pass
+
+                            post_tags = [t.get("name", "") for t in post.get("tags", [])]
+                            like_count = post.get("favourites_count", 0) or 0
+                            retweet_count = post.get("reblogs_count", 0) or 0
+                            post_url = post.get("url") or f"{instance}/@{author_username}/{post_id}"
+
+                            # Topic inference
+                            combined = " ".join(post_tags).lower() + " " + text.lower()
+                            topic = "AI"
+                            for t, kws in TOPIC_KEYWORDS.items():
+                                if any(kw in combined for kw in kws):
+                                    topic = t
+                                    break
+
+                            # Use mastodon post ID prefixed to avoid collisions with tweet IDs
+                            tweet_id = f"masto_{post_id}"
+
+                            tweet, created = Tweet.objects.update_or_create(
+                                tweet_id=tweet_id,
+                                defaults={
+                                    "text": text[:2000],
+                                    "author_username": author_username,
+                                    "author_display_name": author_display_name,
+                                    "like_count": like_count,
+                                    "retweet_count": retweet_count,
+                                    "posted_at": posted_at,
+                                    "hashtags": post_tags,
+                                    "mentions": [],
+                                    "is_retweet": False,
+                                    "url": post_url,
+                                    "source_label": "mastodon",
+                                    "topic": topic,
+                                    "metadata": {
+                                        "scraped_via": "mastodon_api",
+                                        "instance": instance,
+                                        "hashtag": hashtag,
+                                    },
+                                },
+                            )
+                            found_tweet_ids.append(str(tweet.id))
+                            if created:
+                                total_saved += 1
+                                logger.info(
+                                    f'[{task_id}] Saved Mastodon post: @{author_username}: '
+                                    f'"{text[:60]}"'
+                                )
+                        except Exception as exc:
+                            logger.debug(f"[{task_id}] Error saving post: {exc}")
+                            continue
+
+                    break  # Successfully got posts from this instance — don't try others
+
+                except _requests_lib.RequestException as exc:
+                    logger.debug(f"[{task_id}] {instance} connection error: {exc}")
                     continue
 
-                # Parse HTML to extract tweet data
-                from bs4 import BeautifulSoup
-
-                soup = BeautifulSoup(resp.text, "html.parser")
-                for item in soup.select("div.timeline-item"):
-                    if total_saved >= max_results:
-                        break
-
-                    # Skip pinned/promoted
-                    if item.select_one("div.pinned") or item.select_one("div.promoted"):
-                        continue
-
-                    # Text
-                    text_el = item.select_one("div.tweet-content")
-                    text = text_el.get_text(strip=True) if text_el else ""
-                    if not text:
-                        continue
-
-                    # Tweet ID
-                    tweet_link_el = item.select_one("a.tweet-link")
-                    tweet_id = ""
-                    if tweet_link_el:
-                        href = tweet_link_el.get("href", "")
-                        if "/status/" in href:
-                            tweet_id = href.split("/status/")[-1].split("#")[0].strip("/")
-
-                    if not tweet_id:
-                        continue
-
-                    # Author
-                    username_el = item.select_one("a.username")
-                    author_username = (
-                        username_el.get_text(strip=True).lstrip("@")
-                        if username_el else "unknown"
-                    )
-                    fullname_el = item.select_one("a.fullname")
-                    author_display_name = (
-                        fullname_el.get_text(strip=True) if fullname_el else ""
-                    )
-
-                    # Date
-                    date_el = item.select_one("span.tweet-date a")
-                    posted_at = None
-                    if date_el:
-                        date_str = date_el.get("title", "")
-                        if date_str:
-                            for fmt in (
-                                "%b %d, %Y %I:%M %p",
-                                "%b %d, %Y, %I:%M %p",
-                                "%Y-%m-%d %H:%M:%S",
-                            ):
-                                try:
-                                    posted_at = _dt.strptime(date_str, fmt).replace(
-                                        tzinfo=timezone.utc
-                                    )
-                                    break
-                                except ValueError:
-                                    continue
-
-                    # Hashtags & mentions
-                    hashtags = [
-                        h.get_text(strip=True).lstrip("#")
-                        for h in item.select("a.hashtag")
-                    ]
-                    mentions = [
-                        m.get_text(strip=True).lstrip("@")
-                        for m in item.select("a.mention")
-                    ]
-
-                    # Stats
-                    like_count = 0
-                    retweet_count = 0
-                    for stat_el in item.select("div.tweet-stat"):
-                        icon = stat_el.select_one("span[class^='icon']")
-                        count_text = stat_el.select("span")[-1].get_text("0")
-                        count = 0
-                        try:
-                            count_text = count_text.strip().replace(",", "")
-                            if count_text.endswith("K"):
-                                count = int(float(count_text[:-1]) * 1000)
-                            elif count_text.endswith("M"):
-                                count = int(float(count_text[:-1]) * 1_000_000)
-                            else:
-                                count = int(count_text)
-                        except (ValueError, AttributeError):
-                            pass
-                        if icon and "heart" in icon.get("class", [""])[0]:
-                            like_count = count
-                        elif icon and "retweet" in icon.get("class", [""])[0]:
-                            retweet_count = count
-
-                    # Topic inference
-                    combined = " ".join(hashtags).lower() + " " + text.lower()
-                    topic = "AI"
-                    TOPIC_KEYWORDS = {
-                        "AI": ["ai", "ml", "llm", "gpt", "chatgpt", "openai", "deep"],
-                        "Programming": ["python", "rust", "golang", "coding", "github"],
-                        "Web Dev": ["react", "nextjs", "typescript", "javascript", "css"],
-                        "Security": ["security", "hacking", "vulnerability", "exploit"],
-                        "Cloud": ["aws", "azure", "kubernetes", "docker", "devops"],
-                    }
-                    for t, kws in TOPIC_KEYWORDS.items():
-                        if any(kw in combined for kw in kws):
-                            topic = t
-                            break
-
-                    # Save to DB (upsert by tweet_id)
-                    try:
-                        tweet, created = Tweet.objects.update_or_create(
-                            tweet_id=tweet_id,
-                            defaults={
-                                "text": text[:2000],
-                                "author_username": author_username[:200],
-                                "author_display_name": author_display_name[:300],
-                                "like_count": like_count,
-                                "retweet_count": retweet_count,
-                                "posted_at": posted_at,
-                                "hashtags": hashtags,
-                                "mentions": mentions,
-                                "is_retweet": text.startswith("RT @"),
-                                "url": f"https://x.com/{author_username}/status/{tweet_id}",
-                                "source_label": "nitter",
-                                "topic": topic,
-                                "metadata": {
-                                    "scraped_via": "nitter_http",
-                                    "nitter_instance": working_instance,
-                                    "query": q,
-                                },
-                            },
-                        )
-                        # Track ALL found tweets (both new and existing)
-                        found_tweet_ids.append(str(tweet.id))
-                        if created:
-                            total_saved += 1
-                            logger.info(
-                                f'[{task_id}] Saved new tweet: @{author_username}: '
-                                f'"{text[:50]}"'
-                            )
-                    except Exception as exc:
-                        logger.warning(
-                            f"[{task_id}] Failed to save tweet {tweet_id}: {exc}"
-                        )
-
-            except _requests_lib.RequestException as exc:
-                logger.warning(
-                    f'[{task_id}] Nitter request failed for "{q}": {exc}'
-                )
-            except Exception as exc:
-                logger.error(
-                    f'[{task_id}] Error scraping tweets for "{q}": {exc}'
-                )
-
         logger.info(
-            f"[{task_id}] Twitter scraper completed: {total_saved} new, "
-            f"{len(found_tweet_ids)} total tweets found"
+            f"[{task_id}] Mastodon scraper completed: {total_saved} new, "
+            f"{len(found_tweet_ids)} total posts found"
         )
         _update_source_last_scraped("twitter")
-        # Link ALL found tweets to the user (not just new ones)
         _link_items_to_user(user_id, "twitter", found_tweet_ids)
         return {
             "spider": "twitter",
-            "status": "success",
+            "status": "success" if found_tweet_ids else "partial",
             "count": total_saved,
             "total_found": len(found_tweet_ids),
+            "method": "mastodon_api",
         }
 
     except Exception as exc:
-        logger.error(f"[{task_id}] Twitter scraper exception: {exc}")
+        logger.error(f"[{task_id}] Mastodon scraper exception: {exc}", exc_info=True)
         return self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
 
 

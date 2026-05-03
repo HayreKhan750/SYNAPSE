@@ -26,7 +26,7 @@ done
 cd /home/runner/workspace/synapse/backend
 
 echo "Installing required Python packages..."
-pip install langchain-openai==0.2.14 "langgraph>=0.2.0,<0.3.0" --user --quiet 2>/dev/null || true
+pip install langchain-openai==0.2.14 "langgraph>=0.2.0,<0.3.0" yt-dlp --user --quiet 2>/dev/null || true
 
 echo "Running database migrations..."
 python manage.py migrate --noinput 2>&1 | tail -5 || true

@@ -840,7 +840,7 @@ def summarize_article(self, article_id: str, force: bool = False) -> Dict:
     queue="nlp",
     name="apps.articles.tasks.summarize_pending_articles",
 )
-def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
+def summarize_pending_articles(self, batch_size: int = 500) -> Dict:
     """
     Phase 2.2 — Queue BART summarization for articles without a summary.
 
@@ -853,7 +853,7 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
     or articles whose summarization failed transiently.
 
     Args:
-        batch_size: Maximum number of articles to enqueue (default 20).
+        batch_size: Maximum number of articles to enqueue (default 500).
 
     Returns:
         Dict summarising how many tasks were queued.
@@ -892,12 +892,7 @@ def summarize_pending_articles(self, batch_size: int = 20) -> Dict:
 
         queued = 0
         for article_id in all_pending:
-            # Stagger tasks 5 s apart so we stay under Gemini's 20 RPM free tier.
-            # With concurrency=1 on the nlp queue: 1 task per 5s = 12 RPM max.
-            summarize_article.apply_async(
-                args=[str(article_id)],
-                countdown=queued * 5,  # 5 s stagger = ~12 RPM, well under 20 RPM
-            )
+            summarize_article.apply_async(args=[str(article_id)])
             queued += 1
 
         logger.info("[%s] Queued %d summarization tasks.", task_id, queued)
