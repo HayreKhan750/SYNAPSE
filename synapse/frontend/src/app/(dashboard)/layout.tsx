@@ -96,7 +96,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Close mobile sidebar on route change
   useEffect(() => { setMobileOpen(false) }, [pathname])
 
-  if (!hydrated || !isAuthenticated) {
+  if (!hydrated) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -107,6 +107,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
     )
+  }
+
+  if (!isAuthenticated) {
+    return null
   }
 
   return (

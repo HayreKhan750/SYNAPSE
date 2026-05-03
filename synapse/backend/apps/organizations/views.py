@@ -82,7 +82,7 @@ class OrganizationListCreateView(APIView):
         ).values_list("organization_id", flat=True)
 
         orgs = (
-            Organization.objects.filter(id__in=member_org_ids)
+            Organization.objects.filter(id__in=list(member_org_ids))
             .select_related("owner")
             .prefetch_related("memberships")
         )
