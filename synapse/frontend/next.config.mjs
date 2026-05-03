@@ -38,20 +38,8 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'unsafe-none' },
         ],
-      },
-      {
-        source: '/login',
-        headers: [{ key: 'Cross-Origin-Opener-Policy', value: 'unsafe-none' }],
-      },
-      {
-        source: '/register',
-        headers: [{ key: 'Cross-Origin-Opener-Policy', value: 'unsafe-none' }],
-      },
-      {
-        source: '/forgot-password',
-        headers: [{ key: 'Cross-Origin-Opener-Policy', value: 'unsafe-none' }],
       },
     ];
   },
