@@ -90,6 +90,34 @@ class RegisterView(generics.CreateAPIView):
         except Exception:
             pass  # Analytics must never block registration
 
+        # Dev shortcut: when AUTO_VERIFY_EMAIL is True (e.g. Replit env where
+        # the console email backend means real emails never arrive), auto-verify
+        # the user and issue JWT tokens immediately so they can use the app.
+        auto_verify = getattr(settings, "AUTO_VERIFY_EMAIL", False)
+        if auto_verify:
+            user.email_verified = True
+            user.email_verification_token = None
+            user.save(update_fields=["email_verified", "email_verification_token"])
+            refresh = RefreshToken.for_user(user)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Account created! Welcome to SYNAPSE.",
+                    "user": {
+                        "id": str(user.id),
+                        "email": user.email,
+                        "username": user.username,
+                        "first_name": user.first_name,
+                        "email_verified": True,
+                    },
+                    "tokens": {
+                        "access": str(refresh.access_token),
+                        "refresh": str(refresh),
+                    },
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
         return Response(
             {
                 "success": True,

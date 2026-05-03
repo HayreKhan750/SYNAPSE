@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export DJANGO_SETTINGS_MODULE=config.settings.replit
-export PYTHONPATH=/home/runner/workspace/synapse/backend
+export PYTHONPATH=/home/runner/workspace/synapse/backend:/home/runner/workspace/synapse
 export DB_NAME=heliumdb
 export DB_USER=postgres
 export DB_PASSWORD=password
@@ -17,4 +17,4 @@ echo "Collecting static files..."
 python manage.py collectstatic --noinput -v 0 2>&1 | tail -3 || true
 
 echo "Starting Django backend on port 8000..."
-exec python manage.py runserver 0.0.0.0:8000
+exec daphne -b 0.0.0.0 -p 8000 config.asgi:application

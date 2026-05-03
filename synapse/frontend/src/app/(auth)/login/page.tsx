@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -33,7 +33,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   github_no_token:       'GitHub did not return an access token. Please try again.',
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login, googleAuth } = useAuthStore()
@@ -249,5 +249,17 @@ export default function LoginPage() {
         Create a free account <ArrowRight size={14} className="text-slate-400 dark:text-slate-500" />
       </Link>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-12">
+        <Loader2 size={24} className="animate-spin text-indigo-500 dark:text-indigo-400" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }

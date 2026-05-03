@@ -72,9 +72,17 @@ export default function RegisterPage() {
         first_name: data.first_name, last_name: data.last_name,
         password: data.password, password2: data.confirm_password,
       })
-      toast.success('Account created! Please check your email to verify your address 📧')
-      // New users → email verification; the /wizard runs after email is confirmed
-      router.push('/verify-email')
+      // If auto-verify is active (dev env), the authStore will already have
+      // set isAuthenticated = true with tokens — go straight to onboarding.
+      // Otherwise fall back to the email verification holding page.
+      const { isAuthenticated } = useAuthStore.getState()
+      if (isAuthenticated) {
+        toast.success('Account created! Welcome to SYNAPSE 🎉')
+        router.push('/wizard')
+      } else {
+        toast.success('Account created! Please check your email to verify your address 📧')
+        router.push('/verify-email')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account')
     } finally {

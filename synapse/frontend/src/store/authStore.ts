@@ -76,12 +76,29 @@ export const useAuthStore = create<AuthStore>()(
           // TASK-203: track signup intent before API call
           track('signup_started', { method: 'email' })
 
-          // Registration now returns { success, user } — no tokens until email is verified.
-          // The /verify-email endpoint issues JWT tokens after the user clicks the link.
-          await authApi.post('/auth/register/', data)
+          const response = await authApi.post('/auth/register/', data)
+          const { tokens, user } = response.data
+
+          // When the backend returns tokens (AUTO_VERIFY_EMAIL dev mode),
+          // log the user in immediately without requiring email verification.
+          if (tokens?.access && tokens?.refresh) {
+            set({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh,
+              user: user ?? null,
+              isAuthenticated: true,
+              isLoading: false,
+            })
+            localStorage.setItem('synapse_access_token', tokens.access)
+            localStorage.setItem('synapse_refresh_token', tokens.refresh)
+            if (user?.id) {
+              identifyUser(user.id, { plan: user.role ?? 'user', role: user.role ?? 'user' })
+            }
+          } else {
+            set({ isLoading: false })
+          }
 
           track('signup_completed', { method: 'email' })
-          set({ isLoading: false })
         } catch (error: unknown) {
           set({ isLoading: false })
           if (axios.isAxiosError(error)) {

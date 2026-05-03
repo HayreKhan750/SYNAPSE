@@ -14,9 +14,12 @@ import axios, {
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 
+// Use a relative base URL so browser requests flow through Next.js rewrites
+// (which proxy /api/v1/* → Django on localhost:8000 server-side).
+// Never use http://localhost:8000 directly — the browser can't reach it through the proxy.
 const BASE_URL = (
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-).replace(/\/api\/v1\/?$/, '')
+  process.env.NEXT_PUBLIC_API_URL || ''
+).replace(/\/api\/v1\/?$/, '').replace(/\/$/, '')
 
 // ── Token helpers ──────────────────────────────────────────────────────────────
 
