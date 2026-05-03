@@ -116,6 +116,15 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
         setActiveOrgId(list.length === 1 ? list[0].id : null);
       }
     } catch (err) {
+      const status = typeof err === 'object' && err && 'response' in err
+        ? (err as { response?: { status?: number } }).response?.status
+        : null;
+      if (status === 500) {
+        setOrgs([]);
+        setActiveOrgId(null);
+        setError(null);
+        return;
+      }
       const msg = err instanceof Error ? err.message : 'Failed to load organizations';
       console.error('Failed to fetch organizations:', err);
       setError(msg);
