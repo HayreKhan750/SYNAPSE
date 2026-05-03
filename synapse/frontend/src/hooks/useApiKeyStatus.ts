@@ -23,7 +23,10 @@ export function useApiKeyStatus(): { status: ApiKeyStatus | null; isLoading: boo
       return {
         gemini_configured: !!d.gemini_configured,
         openrouter_configured: !!d.openrouter_configured,
-        any_configured: !!(d.gemini_configured || d.openrouter_configured),
+        // Use the backend's authoritative value — it includes server-level env keys
+        // (Replit AI gateway, OpenRouter env, Groq, etc.) so the banner only shows
+        // when truly no AI backend is available at all.
+        any_configured: !!(d.any_configured ?? d.gemini_configured ?? d.openrouter_configured),
       }
     },
     staleTime: 60_000,        // re-check once per minute

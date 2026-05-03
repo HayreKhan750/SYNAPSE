@@ -64,7 +64,7 @@ class AgentTaskListCreateView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
-    throttle_classes = [AgentRateThrottle]  # TASK-501-B3
+    throttle_classes = []
 
     def get(self, request: Request) -> Response:
         qs = AgentTask.objects.filter(user=request.user).order_by("-created_at")

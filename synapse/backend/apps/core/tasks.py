@@ -1323,17 +1323,30 @@ def scrape_twitter(
                             # Use mastodon post ID prefixed to avoid collisions with tweet IDs
                             tweet_id = f"masto_{post_id}"
 
+                            # Extract avatar URL
+                            avatar_url = acct.get("avatar") or acct.get("avatar_static") or ""
+
+                            # Extract media attachments (images/videos)
+                            media_attachments = post.get("media_attachments") or []
+                            media_urls = []
+                            for ma in media_attachments:
+                                ma_url = ma.get("url") or ma.get("preview_url") or ""
+                                if ma_url:
+                                    media_urls.append(ma_url)
+
                             tweet, created = Tweet.objects.update_or_create(
                                 tweet_id=tweet_id,
                                 defaults={
                                     "text": text[:2000],
                                     "author_username": author_username,
                                     "author_display_name": author_display_name,
+                                    "author_profile_image": avatar_url[:500],
                                     "like_count": like_count,
                                     "retweet_count": retweet_count,
                                     "posted_at": posted_at,
                                     "hashtags": post_tags,
                                     "mentions": [],
+                                    "media_urls": media_urls,
                                     "is_retweet": False,
                                     "url": post_url,
                                     "source_label": "mastodon",

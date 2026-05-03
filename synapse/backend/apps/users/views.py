@@ -346,8 +346,8 @@ def ai_keys_view(request):
                 {
                     "key": "x_api_key",
                     "label": "X/Twitter",
-                    "severity": "warning",
-                    "message": "No X/Twitter API key. Using Nitter fallback which may be unreliable. Set your API key in Settings.",
+                    "severity": "info",
+                    "message": "Using Mastodon fediverse as tweet source (no API key needed). Add an X/Twitter API key in Settings for native X posts.",
                 }
             )
         elif not x_api_ok and env_x_api:

@@ -260,11 +260,12 @@ function DocCard({ doc, onDelete, driveConnected, onEdited }: { doc: DocumentRec
     if (showPreview) { setShowPreview(false); return }
     setPreviewLoading(true)
     try {
-      const res = await api.get(`/documents/${doc.id}/preview/`)
-      // The render_url should be a full URL from the backend, or we construct it
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
-      const apiBaseUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`
-      setRenderUrl(res.data?.render_url || `${apiBaseUrl}/documents/${doc.id}/render/`)
+      // Use a relative URL so it goes through the proxy correctly.
+      // The render endpoint accepts a ?token= param for iframe-friendly auth.
+      const token = typeof window !== 'undefined'
+        ? (localStorage.getItem('synapse_access_token') || localStorage.getItem('access_token') || '')
+        : ''
+      setRenderUrl(`/api/v1/documents/${doc.id}/render/${token ? `?token=${encodeURIComponent(token)}` : ''}`)
       setShowPreview(true)
     } catch { toast.error('Preview failed.') } finally { setPreviewLoading(false) }
   }
