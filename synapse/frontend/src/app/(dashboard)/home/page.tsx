@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, BookOpen, GitBranch, Youtube, Zap, ArrowRight, TrendingUp, Bookmark, MessageSquare, FileText, Twitter, Sun, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
