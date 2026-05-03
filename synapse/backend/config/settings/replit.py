@@ -124,3 +124,7 @@ LOGGING = {
 # Setting this to True makes RegisterView auto-verify and issue JWT tokens
 # immediately on signup so users can use the app without an inbox.
 AUTO_VERIFY_EMAIL = True
+
+# ── Dev-only: generous registration throttle ──────────────────────────────────
+# The default 5/hour limit is too restrictive for iterative testing.
+REGISTRATION_THROTTLE_RATE = "1000/hour"

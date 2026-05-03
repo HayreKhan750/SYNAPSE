@@ -197,7 +197,8 @@ class RegistrationThrottle(SimpleRateThrottle):
         return f"rl:registration:{self.get_ident(request)}"
 
     def get_rate(self) -> str:
-        return "5/hour"
+        from django.conf import settings
+        return getattr(settings, "REGISTRATION_THROTTLE_RATE", "5/hour")
 
     def allow_request(self, request, view):
         if getattr(request.user, "is_authenticated", False):

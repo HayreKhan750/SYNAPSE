@@ -66,7 +66,6 @@ const nextConfig = {
   },
   experimental: {
     optimizePackageImports: [
-      'lucide-react',
       'framer-motion',
       'recharts',
       '@radix-ui/react-dialog',
