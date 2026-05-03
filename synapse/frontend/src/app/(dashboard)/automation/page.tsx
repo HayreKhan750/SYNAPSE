@@ -93,7 +93,9 @@ function extractList<T>(raw: unknown): T[] {
 
 const fetchWorkflows = async (): Promise<Workflow[]> => {
   const { data } = await api.get('/automation/workflows/');
-  return extractList<Workflow>(data);
+  const list = extractList<Workflow>(data);
+  if (Array.isArray(data)) return data as Workflow[];
+  return list;
 };
 
 const fetchRuns = async (workflowId: string): Promise<WorkflowRun[]> => {
@@ -935,11 +937,12 @@ export default function AutomationPage() {
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const { data: workflows = [], isLoading } = useQuery({
+  const { data: workflows = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['workflows'],
     queryFn: fetchWorkflows,
     refetchInterval: isAuthenticated ? 30_000 : false,
     enabled: isAuthenticated,
+    retry: false,
   });
 
   // ── Event-triggered notification polling ────────────────────────────────────
@@ -1274,6 +1277,20 @@ export default function AutomationPage() {
             {[...Array(3)].map((_, i) => (
               <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 animate-pulse h-48" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h3 className="text-slate-800 dark:text-white font-semibold text-lg mb-2">Automation failed to load</h3>
+            <p className="text-slate-400 text-sm mb-6 max-w-sm">
+              {(error as Error | null)?.message || 'The server did not return workflow data.'}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-colors"
+            >
+              Retry
+            </button>
           </div>
         ) : workflows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
