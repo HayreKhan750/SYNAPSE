@@ -77,7 +77,7 @@ const nextConfig = {
   },
   compress: true,
   productionBrowserSourceMaps: false,
-  reactStrictMode: true,
+  reactStrictMode: false,
   // Only use standalone output when not in Replit dev
   ...(process.env.NODE_ENV === 'production' && !process.env.REPL_ID
     ? { output: 'standalone' }

@@ -84,7 +84,7 @@ function LoginContent() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} method="post" className="space-y-5">
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Email address
