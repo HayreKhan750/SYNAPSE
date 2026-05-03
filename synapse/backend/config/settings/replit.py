@@ -119,6 +119,15 @@ LOGGING = {
     },
 }
 
+# ── Relax password validators for dev/demo environment ────────────────────────
+# Remove strict validators so users can register with simple passwords
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 6},
+    },
+]
+
 # ── Dev-only: skip email verification requirement ─────────────────────────────
 # In Replit we use the console email backend so real emails never arrive.
 # Setting this to True makes RegisterView auto-verify and issue JWT tokens
