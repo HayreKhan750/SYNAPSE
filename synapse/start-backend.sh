@@ -27,10 +27,29 @@ for i in $(seq 1 10); do
   sleep 1
 done
 
+# ── Start Redis server (fast in-process cache + channel layer) ────────────────
+echo "Starting Redis..."
+fuser -k 6379/tcp 2>/dev/null || true
+# Use known path first (avoids slow `find /nix/store`); fall back to PATH lookup
+REDIS_BIN="/nix/store/9f8mvs1gssxandjg0azwjw8jlwzrmcis-redis-6.2.5/bin/redis-server"
+if [ ! -x "$REDIS_BIN" ]; then
+  REDIS_BIN=$(which redis-server 2>/dev/null || echo "")
+fi
+if [ -n "$REDIS_BIN" ] && [ -x "$REDIS_BIN" ]; then
+  "$REDIS_BIN" --daemonize yes \
+    --logfile /tmp/redis.log \
+    --port 6379 \
+    --maxmemory 64mb \
+    --maxmemory-policy allkeys-lru \
+    --save "" 2>/dev/null && echo "✓ Redis started" || echo "⚠ Redis failed to start"
+else
+  echo "⚠ redis-server not found — using in-memory cache"
+fi
+
 cd /home/runner/workspace/synapse/backend
 
 echo "Installing required Python packages..."
-pip install langchain-openai==0.2.14 "langgraph>=0.2.0,<0.3.0" yt-dlp --user --quiet 2>/dev/null || true
+pip install langchain-openai==0.2.14 "langgraph>=0.2.0,<0.3.0" yt-dlp django-redis redis --user --quiet 2>/dev/null || true
 
 echo "Running database migrations..."
 python manage.py migrate --noinput 2>&1 | tail -5 || true

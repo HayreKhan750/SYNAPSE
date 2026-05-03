@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, views_stream
 
 urlpatterns = [
     path("health/", views.health_check, name="health-check"),
@@ -65,4 +65,6 @@ urlpatterns = [
     path("recommendations/", views.recommendations, name="recommendations"),
     path("trending/", views.trending, name="trending"),
     path("api-status/", views.APIStatusView.as_view(), name="api-status"),
+    # ── SSE real-time content stream ──────────────────────────────────────────
+    path("stream/", views_stream.content_stream, name="content-stream"),
 ]

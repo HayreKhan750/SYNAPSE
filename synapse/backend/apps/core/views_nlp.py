@@ -43,27 +43,58 @@ def _ensure_ai_engine_path():
 @permission_classes([AllowAny])
 def summarize_text(request):
     """
-    Summarise arbitrary text using facebook/bart-large-cnn.
+    Summarise arbitrary text.
 
     Request body (JSON):
-        text        (str, required)  — The text to summarise.
-        max_length  (int, optional)  — Max summary tokens (default 150).
-        min_length  (int, optional)  — Min summary tokens (default 50).
-
-    Response (200):
-        {
-          "success": true,
-          "data": {
-            "summary": "...",
-            "original_word_count": 320,
-            "summary_word_count": 45
-          }
-        }
+        text        (str) — The text to summarise (original field).
+        content     (str) — Alias for text (used by ContentReaderModal).
+        title       (str) — Optional title for context.
+        url         (str) — Optional source URL.
+        mode        (str) — 'extended' → use LLM for deep-dive; otherwise BART.
+        max_length  (int) — Max summary tokens (default 150).
+        min_length  (int) — Min summary tokens (default 50).
     """
-    text = request.data.get("text", "").strip()
+    # Accept both 'text' (legacy) and 'content' (ContentReaderModal)
+    text = (request.data.get("text") or request.data.get("content") or "").strip()
+    title = request.data.get("title", "").strip()
+    url   = request.data.get("url", "").strip()
+    mode  = request.data.get("mode", "").strip()
+
+    # 'extended' mode — use the Replit AI LLM for a richer deep-dive analysis
+    if mode == "extended":
+        combined = f"Article: {title}\n\n{text}" if title else text
+        if not combined:
+            return Response({"success": False, "error": {"message": "No content to analyse."}},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            from apps.core.views_chat import _get_replit_openai_pipeline
+            pipeline = _get_replit_openai_pipeline()
+            prompt = (
+                f"You are a senior tech analyst. Provide a detailed analysis of the following article.\n\n"
+                f"Title: {title}\n"
+                f"{'URL: ' + url if url else ''}\n\n"
+                f"Content: {combined[:3000]}\n\n"
+                f"Provide:\n"
+                f"1. **Key Takeaways** (3-5 bullet points)\n"
+                f"2. **Technical Depth** (what technologies/concepts are discussed)\n"
+                f"3. **Why It Matters** (implications for developers/engineers)\n"
+                f"4. **Further Reading** (related topics to explore)\n\n"
+                f"Be concise but insightful. Use markdown formatting."
+            )
+            result = pipeline(prompt)
+            summary_text = result if isinstance(result, str) else str(result)
+            return Response({
+                "success": True,
+                "summary": summary_text,
+                "data": {"summary": summary_text},
+            })
+        except Exception as exc:
+            logger.warning("Extended summarize via LLM failed (%s) — falling back", exc)
+            # Fall through to BART below
+
     if not text:
         return Response(
-            {"success": False, "error": {"message": "Field 'text' is required."}},
+            {"success": False, "error": {"message": "Field 'text' or 'content' is required."}},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

@@ -18,20 +18,55 @@ CHANNEL_LAYERS = {
     }
 }
 
-# ── Disable Redis cache, use in-memory ────────────────────────────────────────
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "synapse-default",
-    }
-}
+# ── Redis cache — try real Redis first, fall back to LocMemCache ─────────────
+import subprocess as _subprocess
 
-# ── Disable Celery broker / result backend ────────────────────────────────────
-CELERY_BROKER_URL = "memory://"
-CELERY_RESULT_BACKEND = "cache+memory://"
-CELERY_ALWAYS_EAGER = True
-CELERY_EAGER_PROPAGATES = True
-CELERY_TASK_ALWAYS_EAGER = True
+def _redis_running() -> bool:
+    try:
+        import socket
+        s = socket.create_connection(("127.0.0.1", 6379), timeout=1)
+        s.close()
+        return True
+    except Exception:
+        return False
+
+if _redis_running():
+    CACHES = {
+        "default": {
+            "BACKEND":  "django_redis.cache.RedisCache",
+            "LOCATION": "redis://127.0.0.1:6379/0",
+            "OPTIONS": {
+                "CLIENT_CLASS":          "django_redis.client.DefaultClient",
+                "SOCKET_CONNECT_TIMEOUT": 2,
+                "SOCKET_TIMEOUT":         2,
+                "IGNORE_EXCEPTIONS":      True,
+            },
+            "KEY_PREFIX": "synapse",
+            "TIMEOUT":    300,
+        }
+    }
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
+else:
+    CACHES = {
+        "default": {
+            "BACKEND":  "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "synapse-default",
+        }
+    }
+
+# ── Celery — use Redis broker if available, otherwise in-memory ───────────────
+if _redis_running():
+    CELERY_BROKER_URL      = "redis://127.0.0.1:6379/1"
+    CELERY_RESULT_BACKEND  = "redis://127.0.0.1:6379/2"
+    CELERY_ALWAYS_EAGER    = False
+    CELERY_TASK_ALWAYS_EAGER = False
+else:
+    CELERY_BROKER_URL      = "memory://"
+    CELERY_RESULT_BACKEND  = "cache+memory://"
+    CELERY_ALWAYS_EAGER    = True
+    CELERY_EAGER_PROPAGATES = True
+    CELERY_TASK_ALWAYS_EAGER = True
 
 # ── Database (Replit PostgreSQL) ───────────────────────────────────────────────
 DATABASES = {

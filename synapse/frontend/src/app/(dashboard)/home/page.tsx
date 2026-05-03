@@ -9,6 +9,7 @@ import remarkGfm from 'remark-gfm';
 import api from '@/utils/api';
 import { ArticleCard, RepositoryCard, PaperCard, TweetCard } from '@/components/cards';
 import { HorizontalScroller } from '@/components/ui/HorizontalScroller';
+import { ActivityHeatmap } from '@/components/ui/ActivityHeatmap';
 import { VideoCard, type Video } from '@/components/cards/VideoCard';
 import { VideoPlayerModal } from '@/components/modals/VideoPlayerModal';
 import { ArticleSkeleton, RepositorySkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
@@ -494,6 +495,9 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* ── Reading Activity Heatmap ─────────────────────────── */}
+          <ActivityHeatmap />
 
         </div>
       </div>

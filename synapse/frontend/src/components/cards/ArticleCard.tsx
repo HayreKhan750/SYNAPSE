@@ -2,7 +2,8 @@
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Clock, Sparkles } from 'lucide-react';
+import { MessageSquare, Clock, Sparkles, BookOpen } from 'lucide-react';
+import { useReaderStore } from '@/store/readerStore';
 import { Article } from '@/types';
 import { formatRelativeTime, cn } from '@/utils/helpers';
 import { BookmarkButton } from '@/components/BookmarkButton';
@@ -56,8 +57,14 @@ const getTagColor = (index: number) => {
 
 export const ArticleCard = memo(function ArticleCard({ article }: ArticleCardProps) {
   const router = useRouter();
+  const openReader = useReaderStore(s => s.open);
 
   const handleCardClick = useCallback(() => window.open(article.url, '_blank'), [article.url]);
+
+  const handleQuickRead = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    openReader({ ...article, content_type: 'article' });
+  }, [article, openReader]);
 
   const handleAskAI = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -150,17 +157,27 @@ export const ArticleCard = memo(function ArticleCard({ article }: ArticleCardPro
         </div>
       )}
 
-      {/* Bottom row: Ask AI button + BookmarkButton only */}
-      <div className="flex items-center justify-end gap-1 pt-2.5 border-t border-slate-100 dark:border-slate-700/50">
+      {/* Bottom row: Quick Read + Ask AI + Bookmark */}
+      <div className="flex items-center justify-between gap-1 pt-2.5 border-t border-slate-100 dark:border-slate-700/50">
         <button
-          onClick={handleAskAI}
-          title="Ask AI about this article"
-          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-indigo-500 dark:text-indigo-400 hover:text-white hover:bg-indigo-600 transition-all border border-indigo-400/30 hover:border-indigo-500 whitespace-nowrap"
+          onClick={handleQuickRead}
+          title="Open reader view"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-violet-600 dark:text-violet-400 hover:text-white hover:bg-violet-600 transition-all border border-violet-400/30 hover:border-violet-500 whitespace-nowrap"
         >
-          <MessageSquare size={11} />
-          <span className="hidden xs:inline">Ask AI</span>
+          <BookOpen size={11} />
+          <span className="hidden xs:inline">Read</span>
         </button>
-        <BookmarkButton contentType="article" objectId={article.id} size={15} />
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleAskAI}
+            title="Ask AI about this article"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-indigo-500 dark:text-indigo-400 hover:text-white hover:bg-indigo-600 transition-all border border-indigo-400/30 hover:border-indigo-500 whitespace-nowrap"
+          >
+            <MessageSquare size={11} />
+            <span className="hidden xs:inline">Ask AI</span>
+          </button>
+          <BookmarkButton contentType="article" objectId={article.id} size={15} />
+        </div>
       </div>
     </div>
   );

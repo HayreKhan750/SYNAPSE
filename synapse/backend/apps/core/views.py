@@ -47,7 +47,7 @@ def health_check(request):
         health["services"]["database"] = "error"
         health["status"] = "degraded"
     try:
-        r = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6380/0"))
+        r = redis.from_url(os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0"))
         r.ping()
         health["services"]["redis"] = "ok"
     except Exception:
