@@ -120,7 +120,21 @@ function TodayBriefCard() {
     );
   }
 
-  if (isError || !data) {
+  if (isError) {
+    return (
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-6 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+          <Sun size={20} className="text-amber-500" />
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">{greeting}! Your daily brief couldn't load.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Check your connection or try again in a moment.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
     return (
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-6 flex items-center gap-4">
         <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
@@ -128,7 +142,7 @@ function TodayBriefCard() {
         </div>
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">{greeting}! Your daily brief isn't ready yet.</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Briefings are generated at 06:30 UTC. Check back soon.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Briefings are generated automatically when content is available.</p>
         </div>
       </div>
     );
