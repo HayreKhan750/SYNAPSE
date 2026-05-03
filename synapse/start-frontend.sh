@@ -10,9 +10,13 @@ export NEXT_PUBLIC_WS_URL=
 export NEXT_PUBLIC_APP_URL=
 export NEXT_PUBLIC_APP_NAME=SYNAPSE
 
+# Robustly free the port — kill all processes, then wait until the port is actually free
 echo "Freeing port $PORT..."
 fuser -k ${PORT}/tcp 2>/dev/null || true
-sleep 1
+for i in $(seq 1 10); do
+  fuser ${PORT}/tcp 2>/dev/null || break
+  sleep 1
+done
 
 cd /home/runner/workspace/synapse/frontend
 

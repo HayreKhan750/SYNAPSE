@@ -8,10 +8,13 @@ export DB_PASSWORD=password
 export DB_HOST=helium
 export DB_PORT=5432
 
-# Kill any existing process on port 8000 to prevent "Address already in use" errors
+# Robustly free port 8000 — kill all processes, then wait until the port is actually free
 echo "Freeing port 8000..."
 fuser -k 8000/tcp 2>/dev/null || true
-sleep 2
+for i in $(seq 1 10); do
+  fuser 8000/tcp 2>/dev/null || break
+  sleep 1
+done
 
 cd /home/runner/workspace/synapse/backend
 

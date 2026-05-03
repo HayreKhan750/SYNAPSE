@@ -43,12 +43,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [handleGlobalKey])
 
   useEffect(() => {
-    if (useAuthStore.persist.hasHydrated()) {
+    // Fast path: check localStorage directly (synchronous) — most reliable signal.
+    // The authStore always writes synapse_access_token on login.
+    const hasToken = !!localStorage.getItem('synapse_access_token')
+    if (hasToken || useAuthStore.persist.hasHydrated()) {
       setHydrated(true)
       return
     }
+    // Slow path: wait for Zustand to finish reading from storage
     const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true))
-    return () => unsub()
+    // Absolute safety net — never spin forever; 800ms max wait
+    const timeout = setTimeout(() => setHydrated(true), 800)
+    return () => { unsub(); clearTimeout(timeout) }
   }, [])
 
   useEffect(() => {
