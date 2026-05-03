@@ -30,8 +30,9 @@ class ArticleListView(ListAPIView):
 
     def get_queryset(self):
         qs = Article.objects.select_related("source").all()
-        # ── Personalization: scope to articles linked via UserArticle junction ──
-        if self.request.user and self.request.user.is_authenticated:
+        # ── Saved feed: only show bookmarked articles when ?saved=1 ──
+        saved = self.request.GET.get("saved") == "1"
+        if saved and self.request.user and self.request.user.is_authenticated:
             qs = qs.filter(user_articles__user=self.request.user)
         # Tag filtering
         tag = self.request.GET.get("tag")
@@ -50,8 +51,7 @@ class ArticleListView(ListAPIView):
                 | Q(author__icontains=q)
                 | Q(topic__icontains=q)
             )
-        # Interest-based filtering (TASK-001-B3)
-        # Applied when for_you=1 is passed and user is authenticated with onboarding prefs
+        # Interest-based filtering: applied when ?for_you=1 and user has onboarding prefs
         for_you = self.request.GET.get("for_you") == "1"
         if for_you and self.request.user and self.request.user.is_authenticated:
             try:
@@ -60,13 +60,14 @@ class ArticleListView(ListAPIView):
                 prefs = OnboardingPreferences.objects.get(
                     user=self.request.user, completed=True
                 )
-                interests = (
-                    prefs.interests
-                )  # list of topic strings e.g. ["AI", "Security"]
+                interests = prefs.interests  # list of topic strings e.g. ["AI", "Python"]
                 if interests:
-                    # Build OR query: any article whose topic or tags matches any interest
+                    # Match by title, summary, topic, or tags — since HN articles
+                    # all have generic topic="tech", title-matching is most effective.
                     interest_q = Q()
                     for interest in interests:
+                        interest_q |= Q(title__icontains=interest)
+                        interest_q |= Q(summary__icontains=interest)
                         interest_q |= Q(topic__icontains=interest)
                         interest_q |= Q(tags__icontains=interest.lower())
                     personalized = qs.filter(interest_q)
@@ -80,7 +81,7 @@ class ArticleListView(ListAPIView):
                         qs.count(),
                     )
             except Exception:
-                # Any error (no prefs, not completed, etc.) → just return unfiltered feed
+                # Any error (no prefs, not completed, etc.) → return unfiltered feed
                 pass
         return qs
 

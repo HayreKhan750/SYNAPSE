@@ -45,21 +45,22 @@ Browser always uses relative paths — never `http://localhost:8000` directly.
 
 ## Live Scraped Data (no seeds/fixtures)
 
+All seed data has been cleared. All content is real scraped data. Background scheduler: `synapse/scraper_scheduler.py`.
+
 | Content Type | Count | Source | Refresh |
 |---|---|---|---|
-| Articles | 96+ | HackerNews API (real-time) | Every 30 min |
-| Repositories | 125+ | GitHub Search API | Every 2 hrs |
-| Research Papers | 70+ | arXiv API | Every 6 hrs |
-| Tweets | 7 | Twitter API (needs bearer token) | Every 4 hrs |
-| Videos | 7 | YouTube API (needs API key) | Every 6 hrs |
+| Articles | 161 | HackerNews API (top/new/best) | Every 30 min |
+| Repositories | 359 | GitHub Search API (all langs + Python + TypeScript) | Every 2 hrs |
+| Research Papers | 296 | arXiv API (cs.AI, cs.LG, cs.CL, cs.CV) | Every 6 hrs |
+| Tech Trends | 67 | Analyzed from articles/repos/papers | Daily |
+| Tweets | 0 | Needs `TWITTER_BEARER_TOKEN` env var — nitter blocked | On key provision |
+| Videos | 0 | Needs `YOUTUBE_API_KEY` env var | On key provision |
 
-All data is live scraped. No seed files or fixtures. Background scheduler: `synapse/scraper_scheduler.py`.
-| arXiv Papers | 20 | cs.AI, cs.LG, cs.CL — direct insert |
-| YouTube Videos | 7 | Demo data with real YouTube IDs |
-| Tweets | 7 | Demo data (karpathy, swyx, LangChain, etc.) |
-| Automation Workflows | 2 | Daily Tech Digest + AI Research Monitor |
-| Trending Topics | 22 | Tech trends for today's date |
-| Daily Briefing | 1 | articles=5, repos=5, papers=5, videos=5, tweets=5 |
+### Critical Bug Fixed
+Articles/Repos/Papers views previously filtered all authenticated requests to only show bookmarked items (a `user_articles__user=request.user` filter was always applied). Fixed: junction-table filter now only applies when `?saved=1` is explicitly passed.
+
+### Personalization
+Demo user (`demo@synapse.dev`) has `OnboardingPreferences` with interests: `["AI", "machine learning", "Python", "LLM", "open source", "RAG", "GitHub", "TypeScript"]`. The `?for_you=1` filter now matches articles by title/summary (since all HN articles have generic `topic="tech"`) — returns 35 personalized articles from 161 total.
 
 ## API Endpoints — All Working
 

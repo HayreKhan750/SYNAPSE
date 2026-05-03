@@ -51,8 +51,9 @@ class PaperListView(generics.ListAPIView):
         from django.db.models import Q
 
         qs = ResearchPaper.objects.all()
-        # ── Personalization: scope to papers linked via UserPaper junction ──
-        if self.request.user and self.request.user.is_authenticated:
+        # ── Saved feed: only filter to bookmarked papers when ?saved=1 ──
+        saved = self.request.GET.get("saved") == "1"
+        if saved and self.request.user and self.request.user.is_authenticated:
             qs = qs.filter(user_papers__user=self.request.user)
         return qs
 

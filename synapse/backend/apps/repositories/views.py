@@ -39,8 +39,9 @@ class RepositoryListView(generics.ListAPIView):
         from django.db.models import Q
 
         qs = Repository.objects.all()
-        # ── Personalization: scope to repos linked via UserRepository junction ──
-        if self.request.user and self.request.user.is_authenticated:
+        # ── Saved feed: only filter to bookmarked repos when ?saved=1 ──
+        saved = self.request.GET.get("saved") == "1"
+        if saved and self.request.user and self.request.user.is_authenticated:
             qs = qs.filter(user_repositories__user=self.request.user)
         return qs
 
@@ -63,7 +64,8 @@ class TrendingRepositoryListView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = Repository.objects.filter(is_trending=True).order_by("-stars_today")
-        if self.request.user and self.request.user.is_authenticated:
+        saved = self.request.GET.get("saved") == "1"
+        if saved and self.request.user and self.request.user.is_authenticated:
             qs = qs.filter(user_repositories__user=self.request.user)
         return qs
 
