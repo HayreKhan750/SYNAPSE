@@ -315,11 +315,31 @@ def _get_groq_key() -> str:
     return key if key and not key.startswith("your-") else ""
 
 
+def _get_replit_openai_pipeline(model: str = None):
+    """
+    Return a pipeline backed by Replit's built-in OpenAI proxy.
+    Uses AI_INTEGRATIONS_OPENAI_BASE_URL and AI_INTEGRATIONS_OPENAI_API_KEY env vars.
+    """
+    import os
+
+    base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "")
+    api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "")
+    if not base_url or not api_key:
+        return None
+    resolved_model = model or "gpt-4o-mini"
+    return _OpenRouterDirectPipeline(
+        api_key=api_key,
+        model=resolved_model,
+        base_url=base_url,
+    )
+
+
 def _get_pipeline(model: str = None, user=None):
     """
     Lazy-import RAG pipeline to avoid loading at Django startup.
 
     Provider priority (when no user-supplied key):
+      0. Replit built-in OpenAI (AI_INTEGRATIONS_OPENAI_BASE_URL) — no user key needed
       1. Vercel AI Gateway   — capable + single-key access to many models
       2. Groq                — fast inference for snappier chat
       3. Scitely             — legacy
@@ -339,11 +359,12 @@ def _get_pipeline(model: str = None, user=None):
     gemini_keys = _get_gemini_keys(user=user)
     gateway_key = _get_gateway_key()
     groq_key = _get_groq_key()
+    replit_base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "")
 
     default_model = os.environ.get(
         "SCITELY_MODEL",
         os.environ.get(
-            "OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "deepseek-v3")
+            "OPENROUTER_MODEL", os.environ.get("GEMINI_MODEL", "gpt-4o-mini")
         ),
     )
     resolved_model = model or default_model
@@ -354,10 +375,10 @@ def _get_pipeline(model: str = None, user=None):
         and not gemini_keys
         and not gateway_key
         and not groq_key
+        and not replit_base_url
     ):
         logger.error(
-            "No LLM API key configured (set AI_GATEWAY_API_KEY, GROQ_API_KEY, "
-            "SCITELY_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY) — chat unavailable."
+            "No LLM API key configured — chat unavailable."
         )
         return None
 
@@ -406,6 +427,13 @@ def _get_pipeline(model: str = None, user=None):
         return _GeminiDirectPipeline(
             api_key=api_key, model=resolved_model, all_keys=gemini_keys
         )
+
+    # Priority 0: Replit built-in OpenAI — no user API key required
+    if replit_base_url:
+        replit_pipeline = _get_replit_openai_pipeline(model=model)
+        if replit_pipeline:
+            logger.info("_get_pipeline: using Replit built-in OpenAI (model=%s)", model or "gpt-4o-mini")
+            return replit_pipeline
 
     # Server-wide providers — preferred order
     if gateway_key:

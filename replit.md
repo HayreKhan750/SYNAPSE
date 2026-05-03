@@ -10,6 +10,7 @@ AI-Powered Technology Intelligence Platform. Full-stack app cloned from GitHub (
 - **Backend**: Django 4.2 (ASGI/Daphne) — `synapse/backend/`
 - **AI Engine**: LangChain-based agent framework — `synapse/ai_engine/`
 - **Database**: Replit PostgreSQL (host: helium, db: heliumdb)
+- **AI Provider**: Replit built-in OpenAI (via `AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY`)
 - **Workspace**: pnpm monorepo
 
 ## Running Services
