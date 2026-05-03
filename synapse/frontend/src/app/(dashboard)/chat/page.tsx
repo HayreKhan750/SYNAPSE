@@ -43,41 +43,23 @@ import { cn } from '@/utils/helpers';
 import { useApiKeyStatus } from '@/hooks/useApiKeyStatus';
 import Link from 'next/link';
 
-// ─── Available models via OpenRouter (free + low-cost tiers) ─────────────────
-// IDs must match OpenRouter's model identifiers: provider/model-name
+// ─── Available models (powered by Replit AI — OpenAI-compatible) ─────────────
+// All models route through Replit's built-in AI gateway (gpt-4o-mini default).
+// User-supplied OpenRouter/Gemini keys unlock additional models in Settings.
 const GEMINI_MODELS = [
-  // ── Google Gemini (free/low-cost via OpenRouter) ──────────────────────────
-  { id: 'google/gemini-2.0-flash-001',            label: 'Gemini 2.0 Flash',              badge: '⚡ Default' },
-  { id: 'google/gemini-2.5-flash-preview',        label: 'Gemini 2.5 Flash Preview',      badge: '🆕 Latest' },
-  { id: 'google/gemini-2.0-flash-lite-001',       label: 'Gemini 2.0 Flash Lite',         badge: '🚀 Fast' },
-  { id: 'google/gemini-flash-1.5',                label: 'Gemini 1.5 Flash',              badge: null },
-  { id: 'google/gemini-flash-1.5-8b',             label: 'Gemini 1.5 Flash 8B',           badge: '🆓 Free' },
-  // ── Meta Llama (free via OpenRouter) ─────────────────────────────────────
-  { id: 'meta-llama/llama-3.3-70b-instruct',     label: 'Llama 3.3 70B',                badge: '🆓 Free' },
-  { id: 'meta-llama/llama-3.1-8b-instruct',      label: 'Llama 3.1 8B',                 badge: '🆓 Free' },
-  { id: 'meta-llama/llama-3.2-11b-vision-instruct', label: 'Llama 3.2 11B Vision',       badge: '👁 Free' },
-  // ── Mistral (free via OpenRouter) ────────────────────────────────────────
-  { id: 'mistralai/mistral-7b-instruct',         label: 'Mistral 7B',                    badge: '🆓 Free' },
-  { id: 'mistralai/mistral-nemo',                label: 'Mistral Nemo',                  badge: '🆓 Free' },
-  // ── DeepSeek (free via OpenRouter) ───────────────────────────────────────
-  { id: 'deepseek/deepseek-chat',                label: 'DeepSeek Chat',                 badge: '🆓 Free' },
-  { id: 'deepseek/deepseek-r1',                  label: 'DeepSeek R1 (Reasoning)',       badge: '🧠 Free' },
-  // ── Qwen (free via OpenRouter) ────────────────────────────────────────────
-  { id: 'qwen/qwen-2.5-72b-instruct',            label: 'Qwen 2.5 72B',                 badge: '🆓 Free' },
-  // ── OpenAI (paid) ─────────────────────────────────────────────────────────
-  { id: 'openai/gpt-4o-mini',                    label: 'GPT-4o Mini',                   badge: '💳 Paid' },
-  { id: 'openai/gpt-4o',                         label: 'GPT-4o',                        badge: '💳 Paid' },
-  // ── Anthropic Claude (paid, Pro/Enterprise plans) ────────────────────────
-  { id: 'anthropic/claude-3.5-haiku',            label: 'Claude 3.5 Haiku',              badge: '💳 Pro', provider: 'anthropic' },
-  { id: 'anthropic/claude-3.5-sonnet',           label: 'Claude 3.5 Sonnet',             badge: '💳 Pro', provider: 'anthropic' },
-  { id: 'anthropic/claude-3-haiku',              label: 'Claude 3 Haiku',                badge: '💳 Pro', provider: 'anthropic' },
-  // ── Ollama (local, free — requires Ollama running locally) ───────────────
-  { id: 'llama3.2',    label: 'Llama 3.2 (Local)',    badge: '🏠 Local', provider: 'ollama' },
-  { id: 'mistral',     label: 'Mistral (Local)',       badge: '🏠 Local', provider: 'ollama' },
-  { id: 'codellama',   label: 'CodeLlama (Local)',     badge: '🏠 Local', provider: 'ollama' },
-  { id: 'deepseek-r1', label: 'DeepSeek R1 (Local)',   badge: '🏠 Local', provider: 'ollama' },
+  // ── Replit AI (built-in, no key needed) ──────────────────────────────────
+  { id: 'gpt-4o-mini',   label: 'GPT-4o Mini',     badge: '⚡ Default' },
+  { id: 'gpt-4o',        label: 'GPT-4o',           badge: '🧠 Smart' },
+  { id: 'o1-mini',       label: 'o1 Mini',           badge: '🔬 Reasoning' },
+  // ── Models available with your own OpenRouter key (add in Settings) ──────
+  { id: 'google/gemini-2.0-flash-001',            label: 'Gemini 2.0 Flash',        badge: '🔑 Key needed' },
+  { id: 'google/gemini-2.5-flash-preview',        label: 'Gemini 2.5 Flash Preview', badge: '🔑 Key needed' },
+  { id: 'meta-llama/llama-3.3-70b-instruct',     label: 'Llama 3.3 70B',           badge: '🔑 Key needed' },
+  { id: 'deepseek/deepseek-r1',                  label: 'DeepSeek R1 (Reasoning)',  badge: '🔑 Key needed' },
+  { id: 'anthropic/claude-3.5-sonnet',           label: 'Claude 3.5 Sonnet',        badge: '🔑 Key needed' },
+  { id: 'openai/gpt-4o',                         label: 'GPT-4o (OpenRouter)',       badge: '🔑 Key needed' },
 ];
-const DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
+const DEFAULT_MODEL = 'gpt-4o-mini';
 
 // ─── Suggested prompts shown on empty chat ────────────────────────────────────
 const SUGGESTED_PROMPTS = [
@@ -831,9 +813,9 @@ export default function ChatPage() {
                     <p className="text-[10px] text-slate-500 mt-0.5">Choose the model for this conversation</p>
                   </div>
                   <div className="max-h-80 overflow-y-auto py-1.5">
-                    {/* Group: Free */}
-                    <p className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-500/70">🆓 Free</p>
-                    {GEMINI_MODELS.filter(m => m.badge?.includes('Free') || m.badge?.includes('Default') || m.badge?.includes('Latest') || m.badge?.includes('Fast') || m.badge?.includes('👁')).map(m => (
+                    {/* Group: Built-in (no key needed) */}
+                    <p className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-indigo-500/70">⚡ Built-in</p>
+                    {GEMINI_MODELS.filter(m => !m.badge?.includes('Key needed')).map(m => (
                       <button
                         key={m.id}
                         onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}
@@ -855,8 +837,8 @@ export default function ChatPage() {
                           <span className={cn(
                             'text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-2 border',
                             m.badge.includes('Default') ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30' :
-                            m.badge.includes('Latest') ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' :
-                            m.badge.includes('Fast')   ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30' :
+                            m.badge.includes('Smart')   ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 border-violet-500/30' :
+                            m.badge.includes('Reason')  ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30' :
                             'bg-slate-100 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600/50'
                           )}>
                             {m.badge}
@@ -864,9 +846,9 @@ export default function ChatPage() {
                         )}
                       </button>
                     ))}
-                    {/* Group: Paid */}
-                    <p className="px-3 pt-2 pb-1.5 text-[9px] font-black uppercase tracking-widest text-amber-500/70">💳 Paid</p>
-                    {GEMINI_MODELS.filter(m => m.badge?.includes('Paid')).map(m => (
+                    {/* Group: Bring your own key */}
+                    <p className="px-3 pt-2 pb-1.5 text-[9px] font-black uppercase tracking-widest text-amber-500/70">🔑 Your key (Settings → AI Engine)</p>
+                    {GEMINI_MODELS.filter(m => m.badge?.includes('Key needed')).map(m => (
                       <button
                         key={m.id}
                         onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}

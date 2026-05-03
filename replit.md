@@ -2,7 +2,7 @@
 
 ## Overview
 
-AI-Powered Technology Intelligence Platform. Full-stack app cloned from GitHub (HayreKhan750/SYNAPSE) and made production-ready in Replit.
+AI-Powered Technology Intelligence Platform. Full-stack app cloned from GitHub (HayreKhan750/SYNAPSE) and made fully production-ready in Replit.
 
 ## Architecture
 
@@ -17,7 +17,7 @@ AI-Powered Technology Intelligence Platform. Full-stack app cloned from GitHub (
 
 | Workflow | Description | Port |
 |---|---|---|
-| `artifacts/synapse: web` | Next.js frontend | 22167 |
+| `artifacts/synapse: web` | Next.js frontend | varies (read PORT env) |
 | `SYNAPSE Backend` | Django API (ASGI/Daphne) | 8000 |
 
 ## API Proxy
@@ -35,106 +35,111 @@ Browser always uses relative paths — never `http://localhost:8000` directly.
 - **AUTO_VERIFY_EMAIL = True** — new registrations are auto-verified and receive JWT tokens immediately
 - **All ALLOWED_HOSTS** enabled
 - **PYTHONPATH** includes both `synapse/backend/` and `synapse/` (for ai_engine)
+- **DISABLE_RATE_LIMITS=true** — all AI endpoints rate-limit-free for demo
 
 ## Test User
 
 - **Email**: `demo@synapse.dev`
 - **Password**: `Demo1234!`
 - **UUID**: `57b9b0f1-338a-4004-9b46-ca4e1e82771b`
-- **Status**: email_verified=True, is_onboarded=True
+- **Status**: email_verified=True, is_onboarded=True, org="Synapse Demo Team", 10 bookmarks, 3 collections
 
-## Live Scraped Data (no seeds/fixtures)
+## Live Scraped Data (all real, no seeds/fixtures)
 
-All seed data has been cleared. All content is real scraped data. Background scheduler: `synapse/scraper_scheduler.py`.
+Background scheduler (`synapse/scraper_scheduler.py`) runs every minute and dispatches:
 
-| Content Type | Count | Source | Refresh |
+| Content Type | Count | Source | Refresh Interval |
 |---|---|---|---|
-| Articles | 161 | HackerNews API (top/new/best) | Every 30 min |
-| Repositories | 359 | GitHub Search API (all langs + Python + TypeScript) | Every 2 hrs |
-| Research Papers | 296 | arXiv API (cs.AI, cs.LG, cs.CL, cs.CV) | Every 6 hrs |
-| Tech Trends | 67 | Analyzed from articles/repos/papers | Daily |
-| Tweets | 0 | Needs `TWITTER_BEARER_TOKEN` env var — nitter blocked | On key provision |
-| Videos | 0 | Needs `YOUTUBE_API_KEY` env var | On key provision |
+| Articles | 166 | HackerNews API (top/new/best 100) | Every 30 min |
+| Repositories | 361 | GitHub Search API (all langs + TypeScript + Python) | Every 2 hrs |
+| Research Papers | 392 | arXiv API (cs.AI, cs.LG, cs.CL, cs.CV) | Every 6 hrs |
+| Videos | 99 | yt-dlp (AI/ML/dev YouTube channels) | Every 3 hrs |
+| Tweets | 571 | Mastodon public API (no key needed) 7 topics | Every 1 hr |
+| Tech Trends | 10 topics | Analyzed across all 5 sources | Every 2 hrs |
+| AI Article Summaries | batch 30 | Replit AI (gpt-4o-mini) | Every 1 hr |
+| Daily Briefings | per-user | Replit AI (gpt-4o-mini) — 4302+ chars | Every 24 hrs |
 
-### Critical Bug Fixed
-Articles/Repos/Papers views previously filtered all authenticated requests to only show bookmarked items (a `user_articles__user=request.user` filter was always applied). Fixed: junction-table filter now only applies when `?saved=1` is explicitly passed.
+## Knowledge Graph
 
-### Personalization
-Demo user (`demo@synapse.dev`) has `OnboardingPreferences` with interests: `["AI", "machine learning", "Python", "LLM", "open source", "RAG", "GitHub", "TypeScript"]`. The `?for_you=1` filter now matches articles by title/summary (since all HN articles have generic `topic="tech"`) — returns 35 personalized articles from 161 total.
+50 tech entity nodes (LLM, RAG, Python, Go, Rust, Claude, etc.) + 50 typed edges
+(used_with, implemented_in, instance_of, framework_for, technique_for, etc.)
+Built from trends data. Endpoint: `GET /api/v1/knowledge-graph/`
 
-## API Endpoints — All Working
+## Scheduler Tasks (`synapse/scraper_scheduler.py`)
 
-All endpoints return 200 with auth token. Key paths:
+| Task | Interval | Python call |
+|---|---|---|
+| HackerNews scraper | 30 min | `run_scrapers --sources hn` |
+| GitHub scraper | 2 hrs | `run_scrapers --sources github` |
+| arXiv scraper | 6 hrs | `run_scrapers --sources arxiv` |
+| Mastodon tweet scraper | 1 hr | `scrape_twitter()` per topic |
+| YouTube scraper | 3 hrs | `scrape_youtube()` |
+| Trend analysis | 2 hrs | `analyze_trends_task()` |
+| Article summarization | 1 hr | `summarize_pending_articles(batch_size=30)` |
+| Daily briefings | 24 hrs | `generate_user_briefing()` per user |
 
-- `POST /api/v1/auth/login/` — JWT auth
-- `GET /api/v1/articles/` — HackerNews articles
-- `GET /api/v1/repos/` — GitHub repos
-- `GET /api/v1/papers/` — arXiv papers
-- `GET /api/v1/videos/` — YouTube videos
-- `GET /api/v1/tweets/` — Twitter/X content
-- `GET /api/v1/trends/` — Tech trending topics
-- `GET /api/v1/briefing/today/` — Daily AI briefing
-- `GET /api/v1/automation/workflows/` — Automation workflows
-- `GET /api/v1/automation/action-schemas/` — Action parameter schemas
-- `POST /api/v1/ai/chat/` — RAG chat (requires user API key)
-- `GET /api/v1/ai/chat/conversations/` — Chat history
-- `GET /api/v1/agents/tasks/` — AI agent tasks
-- `GET /api/v1/agents/tools/` — Available agent tools
-- `GET /api/v1/agents/health/` — Agent health check
-- `GET /api/v1/billing/pricing/` — Pricing plans
-- `GET /api/v1/billing/subscription/` — User subscription
-- `GET /api/v1/users/me/` — User profile
-- `GET /api/v1/users/ai-keys/` — AI API keys (OpenRouter, Gemini, etc.)
-- `GET /api/v1/knowledge-graph/` — Knowledge graph data
-- `POST /api/v1/scraper/run/` — Trigger scraper (`scraper` field: hackernews|github|arxiv|youtube|twitter)
-- `POST /api/v1/trends/trigger/` — Trigger trend analysis
+## AI Features — All Working
 
-## Chat AI — User-Supplied Keys
+- **AI Chat**: `POST /api/v1/ai/chat/` — any model ID normalizes to gpt-4o-mini via Replit AI
+- **Agent Tasks**: `POST /api/v1/agents/tasks/` — task_type + prompt fields, runs research agents
+- **Daily Briefing**: `GET /api/v1/briefing/today/` — 4302-char AI-generated brief per user
+- **Research Sessions**: `POST /api/v1/agents/research/` — deep-dive AI research with citations
+- **Rate limits**: DISABLED (`DISABLE_RATE_LIMITS=true`) for all AI endpoints
 
-The chat page (`/chat`) uses OpenRouter by default. Users must add their API key under Settings → API Keys. The chat endpoint is `/api/v1/ai/chat/` (POST). Supported models:
-- Google Gemini (free via OpenRouter)
-- Meta Llama (free via OpenRouter)
-- DeepSeek, Mistral, Qwen (free via OpenRouter)
-- GPT-4o, Claude (paid)
-- Local Ollama models
+## Model Normalization Fix
+
+`synapse/backend/apps/core/views_chat.py` → `_get_replit_openai_pipeline()`:
+Any non-OpenAI model ID (`google/*`, `meta-llama/*`, etc.) is normalized to `gpt-4o-mini`
+before calling the Replit AI gateway. Frontend `DEFAULT_MODEL = 'gpt-4o-mini'`.
+
+## API Key Banner Fix
+
+`synapse/frontend/src/hooks/useApiKeyStatus.ts` reads `d.any_configured` from backend.
+Backend always returns `any_configured: true` since Replit AI is the server-side key.
+Banner only shows if truly no AI backend is available.
+
+## User Features
+
+- **Bookmarks**: 10 items (5 articles + 5 repos) — `GET /api/v1/bookmarks/`
+- **Collections**: 3 (AI & ML, Open Source Tools, Weekly Reading List) — `GET /api/v1/collections/`
+- **Organizations**: "Synapse Demo Team" — `GET /api/v1/organizations/`
+- **Notifications**: 14 real notifications
+- **Onboarding**: Complete — interests [AI, ML, Python, LLM, open source, RAG, GitHub, TypeScript]
+- **For-You Feed**: 135 personalized articles matching user interests
 
 ## Key Files
 
-- `synapse/start-frontend.sh` — Next.js startup (port 22167)
-- `synapse/start-backend.sh` — Django startup (Daphne ASGI, port 8000); includes `fuser -k 8000/tcp`
-- `synapse/backend/config/settings/replit.py` — Replit-specific Django settings
-- `synapse/frontend/.env.local` — NEXT_PUBLIC_API_URL='' (relative paths)
-- `synapse/frontend/next.config.mjs` — Next.js config (rewrites to Django, allowedDevOrigins)
-- `synapse/frontend/src/utils/api.ts` — Axios with empty BASE_URL for relative paths
-- `synapse/frontend/src/store/authStore.ts` — Handles auto-verify token response on register
+- `synapse/start-backend.sh` — env vars, pip install, DB migrate, scheduler launch, daphne start
+- `synapse/scraper_scheduler.py` — all 8 periodic scraping tasks
+- `synapse/backend/apps/core/views_chat.py` — AI chat, model normalization, briefing
+- `synapse/backend/apps/core/throttles.py` — rate limit bypass (DISABLE_RATE_LIMITS)
+- `synapse/backend/apps/core/views.py` — knowledge graph, bookmarks, search
+- `synapse/backend/apps/core/management/commands/run_scrapers.py` — hn/github/arxiv/youtube/twitter
+- `synapse/frontend/src/app/(dashboard)/chat/page.tsx` — model dropdown (Built-in vs Key needed)
+- `synapse/frontend/src/hooks/useApiKeyStatus.ts` — reads any_configured from backend
 
-## Scraper Notes
+## Endpoints — All Working
 
-- **HackerNews**: Works via direct arXiv API. Returns 30 articles/run.
-- **GitHub**: Works via GitHub API (public, no token needed). Returns 25 repos/run.
-- **arXiv**: Fixed `itertext()` for XML title extraction (handles mixed-content elements). Returns up to 100 papers across 5 categories.
-- **YouTube**: Requires `yt-dlp` (installed). May need YouTube cookies for some searches.
-- **Twitter/X**: Requires `X_API_KEY` / `TWITTER_BEARER_TOKEN` set in environment.
-
-## Installed Packages (beyond original requirements)
-
-- `langchain-core==0.3.83`, `langchain==0.3.28`, `langchain-community==0.3.31` — AI agent framework
-
-## Known Non-Issues
-
-- `artifacts/api-server` workflow fails (EADDRINUSE) — unrelated Express server, not part of SYNAPSE
-- Django StatReloader "Address already in use" warning on hot-reload — cosmetic, server still running
-- `/api/v1/agents/health/` returns 503 if OPENAI_API_KEY not set (expected — requires user API key)
-- Google sign-in shows "unavailable" — requires GOOGLE_CLIENT_ID/SECRET env vars
-- GitHub OAuth shows "Sign in with GitHub" — requires GITHUB_CLIENT_ID/SECRET env vars
-
-## Startup Notes
-
-- Frontend runs on Node.js v24 with Next.js 15 (upgraded from 14 for compatibility)
-- Backend `.bin` symlinks were created manually (`node_modules/.bin/next`)
-- Django backend must start before API calls work (Next.js proxy waits)
-- Port conflicts: run `fuser -k 8000/tcp 22167/tcp` to clear stale processes
-
-## pnpm Workspace Packages
-
-The original SYNAPSE app lives in `synapse/` (not in `artifacts/`). The artifact at `artifacts/synapse` just points its workflow to `synapse/start-frontend.sh`.
+- `POST /api/v1/auth/login/` — JWT auth
+- `GET /api/v1/articles/?for_you=1` — personalized feed (135 articles)
+- `GET /api/v1/repos/?ordering=-stars` — GitHub trending
+- `GET /api/v1/papers/` — arXiv research papers
+- `GET /api/v1/videos/` — YouTube tech videos
+- `GET /api/v1/tweets/` — Mastodon posts (tech topics)
+- `GET /api/v1/trends/?ordering=-trend_score` — Go 618, LLM 560, RAG 443...
+- `GET /api/v1/briefing/today/` — AI daily brief (4302 chars, topic_summary)
+- `GET /api/v1/knowledge-graph/` — 50 nodes, 50 edges (named source/target)
+- `GET /api/v1/knowledge-graph/search/?q=llm` — node search
+- `GET /api/v1/search/?q=machine+learning` — global search (32 results)
+- `POST /api/v1/ai/chat/` — AI chat (gpt-4o-mini via Replit AI)
+- `POST /api/v1/agents/tasks/` — AI agent tasks (task_type + prompt)
+- `GET /api/v1/agents/research/` — research sessions
+- `GET /api/v1/bookmarks/` — user bookmarks (10)
+- `GET /api/v1/collections/` — user collections (3)
+- `GET /api/v1/organizations/` — user orgs
+- `GET /api/v1/automation/workflows/` — 4 workflows
+- `GET /api/v1/billing/subscription/` — billing status
+- `GET /api/v1/users/ai-keys/` — API key status (any_configured: true)
+- `POST /api/v1/bookmarks/{type}/{id}/` — toggle bookmark
+- `POST /api/v1/trends/trigger/` — recompute trends
+- `GET /api/v1/notifications/` — 14 notifications

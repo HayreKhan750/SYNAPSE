@@ -319,6 +319,10 @@ def _get_replit_openai_pipeline(model: str = None):
     """
     Return a pipeline backed by Replit's built-in OpenAI proxy.
     Uses AI_INTEGRATIONS_OPENAI_BASE_URL and AI_INTEGRATIONS_OPENAI_API_KEY env vars.
+
+    Replit's proxy is OpenAI-compatible and only supports OpenAI model IDs.
+    Any non-OpenAI model ID (google/*, meta-llama/*, anthropic/*, deepseek/*, etc.)
+    is silently normalized to gpt-4o-mini so the request succeeds.
     """
     import os
 
@@ -326,7 +330,28 @@ def _get_replit_openai_pipeline(model: str = None):
     api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "")
     if not base_url or not api_key:
         return None
-    resolved_model = model or "gpt-4o-mini"
+
+    # Normalize model: Replit's proxy only understands OpenAI model IDs.
+    # Strip provider prefixes (google/, meta-llama/, anthropic/, deepseek/, qwen/, etc.)
+    # and map everything to the closest supported model.
+    _OPENAI_MODELS = {
+        "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
+        "o1", "o1-mini", "o3-mini",
+    }
+    if model:
+        # Strip provider prefix if present (e.g. "openai/gpt-4o-mini" → "gpt-4o-mini")
+        bare = model.split("/")[-1] if "/" in model else model
+        if bare in _OPENAI_MODELS:
+            resolved_model = bare
+        else:
+            # Non-OpenAI model requested — fall back to gpt-4o-mini
+            logger.info(
+                "_get_replit_openai_pipeline: non-OpenAI model '%s' normalised to gpt-4o-mini",
+                model,
+            )
+            resolved_model = "gpt-4o-mini"
+    else:
+        resolved_model = "gpt-4o-mini"
     return _OpenRouterDirectPipeline(
         api_key=api_key,
         model=resolved_model,

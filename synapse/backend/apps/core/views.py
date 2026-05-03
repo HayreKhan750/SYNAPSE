@@ -1194,10 +1194,20 @@ def _serialize_node(node: KnowledgeNode) -> dict:
 
 
 def _serialize_edge(edge: KnowledgeEdge) -> dict:
+    try:
+        src_name = edge.source.name
+    except Exception:
+        src_name = ""
+    try:
+        tgt_name = edge.target.name
+    except Exception:
+        tgt_name = ""
     return {
         "id": str(edge.id),
         "source": str(edge.source_id),
         "target": str(edge.target_id),
+        "source_name": src_name,
+        "target_name": tgt_name,
         "relation_type": edge.relation_type,
         "weight": edge.weight,
     }
@@ -1261,7 +1271,7 @@ class KnowledgeGraphView(APIView):
             all_edges = list(
                 KnowledgeEdge.objects.filter(
                     source_id__in=ids, target_id__in=ids
-                ).order_by("-weight")[: limit * 2]
+                ).select_related("source", "target").order_by("-weight")[: limit * 2]
             )
 
         return Response(
