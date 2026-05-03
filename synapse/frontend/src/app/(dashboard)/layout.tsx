@@ -12,6 +12,7 @@ import { OrganizationProvider } from '@/contexts/OrganizationContext'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useLiveContent } from '@/hooks/useLiveContent'
 import { useReaderStore } from '@/store/readerStore'
+import { useAccentTheme } from '@/components/ui/AccentTheme'
 
 // ── Lazy-loaded overlays — only downloaded when needed ────────────────────────
 const CommandPalette = dynamic(
@@ -47,6 +48,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Reader modal state via Zustand
   const { article: readerArticle, close: closeReader } = useReaderStore()
+
+  // Feature #28: Initialize accent theme from localStorage on mount
+  useAccentTheme()
 
   // ── Theme toggle ──────────────────────────────────────────────────────────
   const handleThemeToggle = useCallback(() => {

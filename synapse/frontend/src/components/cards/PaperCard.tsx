@@ -3,6 +3,7 @@
 import React, { memo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, ExternalLink, MessageSquare } from 'lucide-react';
+import { PaperToBlog } from '@/components/ui/PaperToBlog';
 import { ResearchPaper } from '@/types';
 import { formatRelativeTime, cn } from '@/utils/helpers';
 import { BookmarkButton } from '@/components/BookmarkButton';
@@ -120,6 +121,12 @@ export const PaperCard = memo(function PaperCard({ paper }: PaperCardProps) {
           >
             <ExternalLink size={15} />
           </button>
+          <PaperToBlog
+            paperId={String(paper.id)}
+            title={paper.title || 'Untitled Paper'}
+            abstract={paper.abstract || ''}
+            url={paper.url || paper.pdf_url || `https://arxiv.org/abs/${paper.arxiv_id}`}
+          />
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button

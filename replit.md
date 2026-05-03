@@ -98,25 +98,99 @@ before calling the Replit AI gateway. Frontend `DEFAULT_MODEL = 'gpt-4o-mini'`.
 Backend always returns `any_configured: true` since Replit AI is the server-side key.
 Banner only shows if truly no AI backend is available.
 
-## User Features
+## 40-Feature Pack — All Implemented
 
-- **Bookmarks**: 10 items (5 articles + 5 repos) — `GET /api/v1/bookmarks/`
-- **Collections**: 3 (AI & ML, Open Source Tools, Weekly Reading List) — `GET /api/v1/collections/`
-- **Organizations**: "Synapse Demo Team" — `GET /api/v1/organizations/`
-- **Notifications**: 14 real notifications
-- **Onboarding**: Complete — interests [AI, ML, Python, LLM, open source, RAG, GitHub, TypeScript]
-- **For-You Feed**: 135 personalized articles matching user interests
+### Home Dashboard (`/home`)
+- **CatchMeUp** — `src/components/ui/CatchMeUp.tsx` — AI "since you were gone" digest via `/ai/catch-up/`
+- **ReadingGoals** — `src/components/ui/ReadingGoals.tsx` — daily/weekly targets with progress ring
+- **TopicWatchlist** — `src/components/ui/TopicWatchlist.tsx` — persistent topic monitoring (localStorage + `/social/watchlist/`)
+- **NetworkReading** — `src/components/ui/NetworkReading.tsx` — "what your network is reading" via `/social/network-reading/`
+- **InterestProfileBuilder** — `src/components/ui/InterestProfileBuilder.tsx` — first-run AI interest calibration modal
+- **ActivityHeatmap** — `src/components/ui/ActivityHeatmap.tsx` — GitHub-style contribution heatmap
 
-## Key Files
+### Analytics Page (`/analytics`)
+- **ActivityHeatmapCalendar** — `src/components/ui/ActivityHeatmapCalendar.tsx` — full-page heatmap calendar
+- 14-day reading volume AreaChart, source breakdown PieChart, top topics BarChart
+- ReadingGoals embedded, ReadingSpeedCalibration modal
+- Achievement badges (streak, books, speed)
 
-- `synapse/start-backend.sh` — env vars, pip install, DB migrate, scheduler launch, daphne start
-- `synapse/scraper_scheduler.py` — all 8 periodic scraping tasks
-- `synapse/backend/apps/core/views_chat.py` — AI chat, model normalization, briefing
-- `synapse/backend/apps/core/throttles.py` — rate limit bypass (DISABLE_RATE_LIMITS)
-- `synapse/backend/apps/core/views.py` — knowledge graph, bookmarks, search
-- `synapse/backend/apps/core/management/commands/run_scrapers.py` — hn/github/arxiv/youtube/twitter
-- `synapse/frontend/src/app/(dashboard)/chat/page.tsx` — model dropdown (Built-in vs Key needed)
-- `synapse/frontend/src/hooks/useApiKeyStatus.ts` — reads any_configured from backend
+### Library Page (`/library`)
+- **SmartCollections** — `src/components/ui/SmartCollections.tsx` — AI-auto-organizes bookmarks by topic
+- **NotionExport** — `src/components/ui/NotionExport.tsx` — export reading list as Markdown/Obsidian format
+- **ShareDigest** — `src/components/ui/ShareDigest.tsx` — generate shareable reading digest link
+
+### Research Page (`/research`)
+- **ResearchBrief** — `src/components/ui/ResearchBrief.tsx` — AI autonomous research brief generator
+- **PaperToBlog** — `src/components/ui/PaperToBlog.tsx` — convert arXiv paper to readable blog post (per PaperCard)
+
+### ContentReaderModal (6 Tabs + Features)
+- Tabs: Summary 📝, AI Deep-Dive 🤖, Debate ⚔️, Translate 🌍, Code Extractor 💻, TTS Listen 🔊
+- **RelatedArticles** embedded in summary tab
+- **CommentsSection** with upvoting on every tab
+- **ContentHighlighter** — highlight + save text snippets per article (localStorage)
+- **FocusModeButton** — enter distraction-free focus mode
+- **SourceQualityBadge** — credibility score for article source
+- **ReadingTimer** — imported and available
+
+### Command Palette
+- Prefix modes: `>` AI commands, `@` Articles search, `#` Topics/nav
+- Footer shows prefix mode hints
+- `@articles` search sends `content_type=article` param
+
+### Settings Page (`/settings`)
+- **AccentThemePicker** — `src/components/ui/AccentTheme.tsx` — 8 accent color presets, CSS vars, localStorage
+- **SourceQualityManager** — rate/block individual sources
+
+### Global Layout
+- **FocusModeProvider** — wraps root layout, keyboard shortcut `F` enters focus mode
+- **useAccentTheme()** — initialized in dashboard layout to restore accent color on mount
+- **PWAUpdateBanner** — `src/components/ui/PWAUpdateBanner.tsx` — service worker update notification
+- **KeyboardShortcutsModal** — `src/components/ui/KeyboardShortcutsModal.tsx` — `?` shows all shortcuts
+- Vim-style shortcuts: `g h` home, `g f` feed, `g r` research, `g a` analytics, `g c` chat, etc.
+
+### Reading Experience
+- **ReadingSpeedCalibration** — `src/components/ui/ReadingSpeedCalibration.tsx`
+- **ReadingTimer** — `src/components/ui/ReadingTimer.tsx` — elapsed timer + estimated read time
+- **ContentHighlighter** — `src/components/ui/ContentHighlighter.tsx` — 4 color highlight, saved per article
+
+### New Standalone Components
+- **AIQuickActions** — `src/components/ui/AIQuickActions.tsx` — floating AI action bar (summarize, deep-dive, translate, debate)
+- **SourceQualityBadge/Manager** — `src/components/ui/SourceQuality.tsx`
+
+## Backend AI Endpoints (all in `views_ai.py`)
+
+| Endpoint | Feature |
+|---|---|
+| `POST /api/v1/ai/catch-up/` | CatchMeUp digest |
+| `POST /api/v1/ai/summarize/` | Article summary |
+| `POST /api/v1/ai/deep-dive/` | Deep-dive analysis |
+| `POST /api/v1/ai/debate/` | Steelman debate |
+| `POST /api/v1/ai/translate/` | Article translation |
+| `POST /api/v1/ai/code-extract/` | Code extraction |
+| `POST /api/v1/ai/tts/` | Text-to-speech |
+| `POST /api/v1/ai/paper-to-blog/` | Paper → blog post |
+| `POST /api/v1/ai/research/` | Research brief |
+| `POST /api/v1/ai/podcast/` | Podcast script generation |
+| `GET /api/v1/ai/related/` | Related articles |
+
+## Backend Social Endpoints (all in `views_social.py`)
+
+| Endpoint | Feature |
+|---|---|
+| `POST /api/v1/social/upvote/` | Upvote/downvote articles |
+| `GET /api/v1/social/upvotes/` | Get upvote counts |
+| `GET/POST /api/v1/social/comments/` | Get/post comments |
+| `DELETE /api/v1/social/comments/{cid}/` | Delete comment |
+| `GET/POST /api/v1/social/watchlist/` | Topic watchlist CRUD |
+| `DELETE /api/v1/social/watchlist/{id}/` | Remove topic |
+| `POST /api/v1/social/digest/share/` | Create shareable digest |
+| `GET /api/v1/social/digest/{share_id}/` | View shared digest |
+| `GET /api/v1/social/network-reading/` | Network reading feed |
+| `GET /api/v1/social/source-quality/{domain}/` | Source credibility |
+
+## User Activity
+
+- `GET /api/v1/users/activity/?days=120` — daily activity counts for heatmap (new)
 
 ## Endpoints — All Working
 
@@ -129,17 +203,35 @@ Banner only shows if truly no AI backend is available.
 - `GET /api/v1/trends/?ordering=-trend_score` — Go 618, LLM 560, RAG 443...
 - `GET /api/v1/briefing/today/` — AI daily brief (4302 chars, topic_summary)
 - `GET /api/v1/knowledge-graph/` — 50 nodes, 50 edges (named source/target)
-- `GET /api/v1/knowledge-graph/search/?q=llm` — node search
 - `GET /api/v1/search/?q=machine+learning` — global search (32 results)
 - `POST /api/v1/ai/chat/` — AI chat (gpt-4o-mini via Replit AI)
 - `POST /api/v1/agents/tasks/` — AI agent tasks (task_type + prompt)
-- `GET /api/v1/agents/research/` — research sessions
 - `GET /api/v1/bookmarks/` — user bookmarks (10)
 - `GET /api/v1/collections/` — user collections (3)
 - `GET /api/v1/organizations/` — user orgs
 - `GET /api/v1/automation/workflows/` — 4 workflows
 - `GET /api/v1/billing/subscription/` — billing status
-- `GET /api/v1/users/ai-keys/` — API key status (any_configured: true)
-- `POST /api/v1/bookmarks/{type}/{id}/` — toggle bookmark
-- `POST /api/v1/trends/trigger/` — recompute trends
-- `GET /api/v1/notifications/` — 14 notifications
+- `GET /api/v1/users/activity/?days=120` — activity heatmap data
+
+## Key Files
+
+- `synapse/start-backend.sh` — env vars, pip install, DB migrate, scheduler launch, daphne start
+- `synapse/scraper_scheduler.py` — all 8 periodic scraping tasks
+- `synapse/backend/apps/core/views_chat.py` — AI chat, model normalization, briefing
+- `synapse/backend/apps/core/views_ai.py` — all new AI feature endpoints (11 endpoints)
+- `synapse/backend/apps/core/views_social.py` — all new social endpoints (10 endpoints)
+- `synapse/backend/apps/core/urls_nlp.py` — AI endpoint routing
+- `synapse/backend/apps/core/urls.py` — social endpoint routing
+- `synapse/backend/apps/users/views.py` — user activity heatmap endpoint
+- `synapse/backend/apps/users/urls.py` — users URL routing (activity route added)
+- `synapse/backend/apps/core/throttles.py` — rate limit bypass (DISABLE_RATE_LIMITS)
+- `synapse/frontend/src/app/layout.tsx` — root layout (FocusModeProvider, PWAUpdateBanner)
+- `synapse/frontend/src/app/(dashboard)/layout.tsx` — dashboard layout (useAccentTheme, useKeyboardShortcuts)
+- `synapse/frontend/src/app/(dashboard)/home/page.tsx` — Dashboard with all 5 new widgets
+- `synapse/frontend/src/app/(dashboard)/library/page.tsx` — SmartCollections, ShareDigest, NotionExport
+- `synapse/frontend/src/app/(dashboard)/analytics/page.tsx` — ActivityHeatmapCalendar + charts
+- `synapse/frontend/src/app/(dashboard)/settings/page.tsx` — AccentThemePicker, SourceQualityManager
+- `synapse/frontend/src/app/(dashboard)/research/page.tsx` — ResearchBrief button
+- `synapse/frontend/src/components/modals/ContentReaderModal.tsx` — 6-tab reader (all AI tabs)
+- `synapse/frontend/src/components/ui/CommandPalette.tsx` — prefix-mode command palette (>, @, #)
+- `synapse/frontend/src/components/Providers.tsx` — QueryClient, ThemeProvider, FocusModeProvider export

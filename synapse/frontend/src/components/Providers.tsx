@@ -14,6 +14,7 @@
 import React, { useState } from 'react'
 import { ThemeProvider } from 'next-themes'
 import { UpgradeModalProvider } from '@/components/modals/UpgradeModal'
+import { FocusModeProvider } from '@/components/ui/FocusMode'
 import {
   QueryClient,
   QueryClientProvider,
@@ -99,5 +100,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </UpgradeModalProvider>
       </QueryClientProvider>
     </ThemeProvider>
+  )
+}
+
+export function ProvidersWithFocus({ children }: { children: React.ReactNode }) {
+  return (
+    <Providers>
+      <FocusModeProvider>
+        {children}
+      </FocusModeProvider>
+    </Providers>
   )
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
+import { ResearchBrief } from '@/components/ui/ResearchBrief';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -445,6 +446,9 @@ export default function ResearchPage() {
               </p>
             </div>
           </div>
+
+          {/* Research Brief AI Button */}
+          <ResearchBrief />
 
           {/* Search — fills remaining space */}
           <div className="flex gap-2 flex-1 min-w-0">

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import { Providers } from '@/components/Providers'
+import { FocusModeProvider } from '@/components/ui/FocusMode'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 import { RateLimitBanner } from '@/components/RateLimitBanner'
+import { PWAUpdateBanner } from '@/components/ui/PWAUpdateBanner'
 import '@/styles/globals.css'
 import 'katex/dist/katex.min.css'
 
@@ -48,9 +50,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         <ServiceWorkerRegistration />
-        <Providers>{children}</Providers>
+        <Providers>
+          <FocusModeProvider>
+            {children}
+          </FocusModeProvider>
+        </Providers>
         {/* TASK-501-F1: Rate limit exceeded banner with countdown + upgrade CTA */}
         <RateLimitBanner />
+        {/* Feature #20: PWA Service Worker update notification */}
+        <PWAUpdateBanner />
         {/* TASK-104-3: Portal root for React modal portals */}
         <div id="modal-root" />
       </body>

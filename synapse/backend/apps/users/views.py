@@ -713,3 +713,50 @@ def google_auth(request):
             },
         }
     )
+
+
+# ── Feature: User Activity Heatmap API ────────────────────────────────────────
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response as DRFResponse
+from apps.core.models import UserActivity
+from django.db.models.functions import TruncDate
+from django.db.models import Count
+from datetime import timedelta
+from django.utils import timezone
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_activity_heatmap(request):
+    """
+    Return daily activity counts for the authenticated user.
+    Query params: days (int, default 120), page_size (int, ignored - return all)
+    Used by ActivityHeatmapCalendar component.
+    """
+    try:
+        days = int(request.query_params.get("days", 120))
+        days = min(max(days, 7), 365)
+    except (ValueError, TypeError):
+        days = 120
+
+    since = timezone.now() - timedelta(days=days)
+
+    qs = (
+        UserActivity.objects
+        .filter(user=request.user, timestamp__gte=since)
+        .annotate(date=TruncDate("timestamp"))
+        .values("date", "interaction_type")
+        .annotate(count=Count("id"))
+        .order_by("date")
+    )
+
+    # Aggregate by date
+    by_date: dict = {}
+    for row in qs:
+        d = row["date"].isoformat()
+        by_date[d] = by_date.get(d, 0) + row["count"]
+
+    results = [{"date": d, "count": c} for d, c in sorted(by_date.items())]
+    return DRFResponse({"success": True, "results": results, "days": days})

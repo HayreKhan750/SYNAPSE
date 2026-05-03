@@ -20,6 +20,6 @@ cd /home/runner/workspace/synapse/frontend
 
 # Always run in dev mode — avoids build timeout and .next/ conflicts.
 # Next.js dev mode (with Turbopack) is fast, fully functional, and port-ready in <5s.
-echo "Starting SYNAPSE in dev mode on port $PORT..."
+echo "Starting SYNAPSE in dev mode on port $PORT (Turbopack)..."
 export NODE_ENV=development
-exec $NEXT_BIN dev --port $PORT --hostname 0.0.0.0
+exec $NEXT_BIN dev --turbopack --port $PORT --hostname 0.0.0.0

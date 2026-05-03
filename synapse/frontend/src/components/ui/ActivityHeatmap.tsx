@@ -48,8 +48,14 @@ export function ActivityHeatmap() {
       Array.isArray(data)          ? data          : []
 
     for (const a of activities) {
-      const day = (a.created_at || a.date || '').slice(0, 10)
-      if (day) map[day] = (map[day] || 0) + 1
+      const day = (a.date || a.created_at || '').slice(0, 10)
+      if (!day) continue
+      // Support both pre-aggregated {date, count} and raw activity objects
+      if (typeof a.count === 'number') {
+        map[day] = (map[day] || 0) + a.count
+      } else {
+        map[day] = (map[day] || 0) + 1
+      }
     }
     return map
   }, [data])

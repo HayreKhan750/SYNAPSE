@@ -13,6 +13,11 @@ import { ActivityHeatmap } from '@/components/ui/ActivityHeatmap';
 import { VideoCard, type Video } from '@/components/cards/VideoCard';
 import { VideoPlayerModal } from '@/components/modals/VideoPlayerModal';
 import { ArticleSkeleton, RepositorySkeleton, PaperSkeleton } from '@/components/cards/SkeletonCard';
+import { CatchMeUp } from '@/components/ui/CatchMeUp';
+import { ReadingGoals } from '@/components/ui/ReadingGoals';
+import { TopicWatchlist } from '@/components/ui/TopicWatchlist';
+import { NetworkReading } from '@/components/ui/NetworkReading';
+import { InterestProfileBuilder, useInterestProfile } from '@/components/ui/InterestProfileBuilder';
 
 const StatCard = ({ icon: Icon, label, value, gradient, href }: any) => (
   <Link href={href || '#'} className="group">
@@ -267,6 +272,14 @@ const SectionHeader = ({ title, subtitle, href }: { title: string; subtitle?: st
 export default function Dashboard() {
   const [playingVideo, setPlayingVideo] = useState<Video | null>(null);
   const queryClient = useQueryClient();
+  const { needsBuild } = useInterestProfile();
+  const [showProfileBuilder, setShowProfileBuilder] = useState(false);
+  useEffect(() => {
+    if (needsBuild) {
+      const t = setTimeout(() => setShowProfileBuilder(true), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [needsBuild]);
 
   // When a workflow completes, invalidate home content queries so new data appears.
   useEffect(() => {
@@ -355,6 +368,9 @@ export default function Dashboard() {
       <VideoPlayerModal video={playingVideo} onClose={() => setPlayingVideo(null)} />
       <div className="pb-10">
 
+        {/* ── Interest Profile Builder (first-run prompt) ─────────── */}
+        {showProfileBuilder && <InterestProfileBuilder onClose={() => setShowProfileBuilder(false)} />}
+
         {/* ── Hero Banner ──────────────────────────────────────────── */}
         <div className="relative bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:from-slate-900 dark:via-indigo-950/80 dark:to-slate-900 px-4 sm:px-6 pt-6 sm:pt-8 pb-10 sm:pb-12 overflow-hidden border-b border-indigo-100 dark:border-transparent">
           <div className="absolute inset-0 bg-grid-pattern opacity-10 dark:opacity-20" />
@@ -368,9 +384,17 @@ export default function Dashboard() {
             <h1 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white mb-2 tracking-tight leading-tight">
               Welcome to <span className="gradient-text">SYNAPSE</span>
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base max-w-lg">
+            <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base max-w-lg mb-5">
               Your personal AI-curated feed of articles, papers, repos, and videos — all searchable and summarized.
             </p>
+            {/* ── Action row: CatchMeUp + Watchlist ─────────────────── */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <CatchMeUp />
+              <TopicWatchlist />
+              <Link href="/analytics" className="flex items-center gap-2 px-4 py-2.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:border-indigo-400 transition-colors shadow-sm">
+                <BarChart3 size={15} className="text-emerald-500" /> Analytics
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -412,7 +436,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div>
+            <div className="space-y-6">
               <SectionHeader title="Trending on GitHub" subtitle="Hot repos today" href="/github" />
               {reposLoading ? (
                 <div className="space-y-4">
@@ -429,6 +453,14 @@ export default function Dashboard() {
                   <p className="text-slate-500 dark:text-slate-400">No repos yet</p>
                 </div>
               )}
+
+              {/* ── Reading Goals Widget ─────────────────────────────── */}
+              <ReadingGoals />
+
+              {/* ── What My Network Is Reading ───────────────────────── */}
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+                <NetworkReading />
+              </div>
             </div>
           </div>
 

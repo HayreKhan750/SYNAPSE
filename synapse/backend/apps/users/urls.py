@@ -67,4 +67,5 @@ urlpatterns = [
         onboarding_views.onboarding_finish,
         name="onboarding-finish",
     ),
+    path("activity/", views.user_activity_heatmap, name="user-activity"),
 ]

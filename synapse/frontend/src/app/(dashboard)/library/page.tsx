@@ -11,6 +11,9 @@ import { api } from '@/utils/api'
 import { cn } from '@/utils/helpers'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { SmartCollections } from '@/components/ui/SmartCollections'
+import { NotionExport } from '@/components/ui/NotionExport'
+import { ShareDigest } from '@/components/ui/ShareDigest'
 
 type ContentTab = 'all' | 'article' | 'repository' | 'researchpaper' | 'tweet'
 
@@ -525,18 +528,22 @@ export default function LibraryPage() {
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
     <div className="space-y-6 sm:space-y-8 pb-8">
       {/* Header */}
-      <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white truncate">Knowledge Library</h1>
           <p className="text-slate-400 mt-1 text-xs sm:text-sm">Your saved articles, repos, and papers</p>
         </div>
-        <button
-          onClick={() => setShowNewCollection(true)}
-          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-white text-xs sm:text-sm font-semibold transition-colors shrink-0 self-start xs:self-auto"
-        >
-          <FolderPlus size={14} />
-          <span>New Collection</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <ShareDigest articles={bookmarks.map((b: any) => ({ id: String(b.object_id || ''), title: b.content_title || b.title || 'Untitled', url: b.content_url || b.url || '#', summary: b.content_summary || b.summary || '' }))} label="Share" />
+          <NotionExport articles={bookmarks.map((b: any) => ({ id: String(b.object_id || ''), title: b.content_title || b.title || 'Untitled', url: b.content_url || b.url || '#', summary: b.content_summary || b.summary || '', tags: b.tags || [] }))} label="Export" />
+          <button
+            onClick={() => setShowNewCollection(true)}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-white text-xs sm:text-sm font-semibold transition-colors"
+          >
+            <FolderPlus size={14} />
+            <span>New Collection</span>
+          </button>
+        </div>
       </div>
 
       {/* Collections */}
@@ -612,6 +619,11 @@ export default function LibraryPage() {
             </button>
           </div>
         )}
+      </section>
+
+      {/* Smart Collections */}
+      <section>
+        <SmartCollections />
       </section>
 
       {/* Bookmarks */}

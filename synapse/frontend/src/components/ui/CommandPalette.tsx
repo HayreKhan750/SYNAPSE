@@ -42,6 +42,16 @@ const QUICK_ACTIONS: CommandItem[] = [
   { id: 'new-auto',   label: 'New Automation',  subtitle: 'Create a workflow',             icon: Zap,           iconColor: 'text-yellow-500', group: 'Actions', href: '/automation' },
 ];
 
+// ── Prefix-mode AI commands (type "> " to activate) ───────────────────────────
+const AI_COMMANDS: CommandItem[] = [
+  { id: 'ai-research',   label: '> Research Brief',    subtitle: 'Generate a research brief on a topic',      icon: BookOpen,     iconColor: 'text-violet-500', group: 'AI Commands', href: '/chat?q=research+brief' },
+  { id: 'ai-summarize',  label: '> Summarize Article', subtitle: 'Paste URL to get AI summary',              icon: FileText,     iconColor: 'text-cyan-500',   group: 'AI Commands', href: '/chat?q=summarize' },
+  { id: 'ai-debate',     label: '> Debate Mode',       subtitle: 'Get pro/con on any topic',                 icon: MessageSquare, iconColor: 'text-pink-500',  group: 'AI Commands', href: '/chat?q=debate' },
+  { id: 'ai-translate',  label: '> Translate',         subtitle: 'Translate content to another language',    icon: TrendingUp,   iconColor: 'text-emerald-500',group: 'AI Commands', href: '/chat?q=translate' },
+  { id: 'ai-catchup',    label: '> Catch Me Up',       subtitle: 'Brief on what you missed',                 icon: Zap,          iconColor: 'text-amber-500',  group: 'AI Commands', href: '/?catchup=1' },
+  { id: 'ai-analytics',  label: '> View Analytics',    subtitle: 'See your reading stats',                   icon: Clock,        iconColor: 'text-indigo-500', group: 'AI Commands', href: '/analytics' },
+];
+
 const NAV_ITEMS: CommandItem[] = [
   { id: 'nav-home',   label: 'Home',           icon: Home,         iconColor: 'text-indigo-500', group: 'Navigation', href: '/' },
   { id: 'nav-feed',   label: 'Tech Feed',      icon: Newspaper,    iconColor: 'text-cyan-500',   group: 'Navigation', href: '/feed' },
@@ -140,7 +150,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [results, setResults]   = useState<CommandItem[]>([]);
   const [loading, setLoading]   = useState(false);
-  const debouncedQuery = useDebounce(query, 200);
+  // debouncedQuery kept for backwards compat — search now uses debouncedSearchQ below
+  const _debouncedQueryUnused = useDebounce(query, 200);
 
   // Focus input when opened
   useEffect(() => {
@@ -152,15 +163,25 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     }
   }, [open]);
 
-  // Fetch search results
+  // Fetch search results — also handles @articles prefix mode
+  const searchQ = useMemo(() => {
+    const q = query.trimStart()
+    if (q.startsWith('@')) return q.slice(1).trimStart()
+    if (q.startsWith('>') || q.startsWith('#')) return ''
+    return query
+  }, [query])
+  const debouncedSearchQ = useDebounce(searchQ, 220)
+
   useEffect(() => {
-    if (!debouncedQuery.trim() || debouncedQuery.length < 2) {
+    if (!debouncedSearchQ.trim() || debouncedSearchQ.length < 2) {
       setResults([]);
       setLoading(false);
       return;
     }
     setLoading(true);
-    api.get('/search/', { params: { q: debouncedQuery, limit: 5 } })
+    const params: Record<string,string|number> = { q: debouncedSearchQ, limit: 5 }
+    if (query.trimStart().startsWith('@')) params['content_type'] = 'article'
+    api.get('/search/', { params })
       .then(r => {
         const hits: any[] = r.data?.results ?? r.data?.data ?? [];
         const mapped: CommandItem[] = hits.map((h: any) => {
@@ -180,11 +201,38 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       })
       .catch(() => setResults([]))
       .finally(() => setLoading(false));
-  }, [debouncedQuery]);
+  }, [debouncedSearchQ, query]);
+
+  // Detect prefix mode
+  const prefixMode = useMemo(() => {
+    const q = query.trimStart()
+    if (q.startsWith('>')) return 'ai'
+    if (q.startsWith('@')) return 'articles'
+    if (q.startsWith('#')) return 'topics'
+    return null
+  }, [query])
+
+  const bareQuery = useMemo(() => {
+    if (!prefixMode) return query
+    return query.trimStart().slice(1).trimStart()
+  }, [query, prefixMode])
 
   // Build visible items list
   const items = useMemo<CommandItem[]>(() => {
-    if (query.trim().length >= 2) {
+    // AI prefix mode
+    if (prefixMode === 'ai') {
+      if (!bareQuery) return AI_COMMANDS
+      return AI_COMMANDS.filter(c => c.label.toLowerCase().includes(bareQuery.toLowerCase()) || c.subtitle?.toLowerCase().includes(bareQuery.toLowerCase()))
+    }
+
+    // Topic prefix mode
+    if (prefixMode === 'topics') {
+      if (!bareQuery) return NAV_ITEMS.map(n => ({ ...n, group: 'Topics' }))
+      return NAV_ITEMS.filter(n => n.label.toLowerCase().includes(bareQuery.toLowerCase())).map(n => ({ ...n, group: 'Topics' }))
+    }
+
+    // Article prefix mode or regular search
+    if (bareQuery.trim().length >= 2 || (prefixMode === 'articles' && bareQuery.trim().length >= 2)) {
       if (results.length === 0 && !loading) return [];
       return results;
     }
@@ -195,7 +243,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         )
       : [...QUICK_ACTIONS, ...NAV_ITEMS];
     return filtered;
-  }, [query, results, loading]);
+  }, [query, bareQuery, prefixMode, results, loading]);
 
   // Keyboard nav
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -252,7 +300,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search or jump to…"
+            placeholder="Search… or type > AI  @ Articles  # Topics"
             className="flex-1 bg-transparent text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:outline-none"
           />
           {query && (
@@ -304,10 +352,15 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500">
-          <span className="flex items-center gap-1"><kbd className="font-mono px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700">↑↓</kbd> Navigate</span>
+        <div className="flex items-center gap-3 px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500 flex-wrap">
+          <span className="flex items-center gap-1"><kbd className="font-mono px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700">↑↓</kbd> Nav</span>
           <span className="flex items-center gap-1"><kbd className="font-mono px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700">↵</kbd> Open</span>
           <span className="flex items-center gap-1"><kbd className="font-mono px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700">Esc</kbd> Close</span>
+          <span className="ml-auto flex items-center gap-2">
+            <span className="px-1.5 py-0.5 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded font-mono font-bold">&gt;</span> AI
+            <span className="px-1.5 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded font-mono font-bold">@</span> Articles
+            <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded font-mono font-bold">#</span> Topics
+          </span>
         </div>
       </div>
     </div>

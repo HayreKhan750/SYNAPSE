@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Newspaper, GitBranch, BookOpen,
   MessageSquare, Zap, Library, LogOut, User as UserIcon,
-  ChevronLeft, ChevronRight, Bot, Youtube, TrendingUp, Twitter, CreditCard, Building2,
+  ChevronLeft, ChevronRight, Bot, Youtube, TrendingUp, Twitter, CreditCard, Building2, BarChart3,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -30,6 +30,7 @@ const NAV_LINKS = [
   { href: '/automation', label: 'Automation',    icon: Zap,             accent: '#eab308' },
   { href: '/agents',     label: 'AI Agents',     icon: Bot,             accent: '#ec4899' },
   { href: '/library',    label: 'Library',       icon: Library,         accent: '#14b8a6' },
+  { href: '/analytics',  label: 'Analytics',     icon: BarChart3,       accent: '#10b981' },
   { href: '/billing',        label: 'Billing',        icon: CreditCard,  accent: '#f59e0b' },
   { href: '/organizations',  label: 'Organizations',  icon: Building2,   accent: '#8b5cf6' },
 ]
