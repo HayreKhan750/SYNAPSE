@@ -5,11 +5,11 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 
-export default function GitHubSuccessPage() {
+function GitHubSuccessContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { refreshUser, setTokens } = useAuthStore();
@@ -37,7 +37,6 @@ export default function GitHubSuccessPage() {
       return;
     }
 
-    // Store tokens and load user
     setTokens(access, refresh);
     refreshUser?.().then(() => {
       if (isOnboarded) {
@@ -46,7 +45,7 @@ export default function GitHubSuccessPage() {
         router.replace('/wizard');
       }
     });
-  }, [searchParams, router, refreshUser]);
+  }, [searchParams, router, refreshUser, setTokens]);
 
   if (error) {
     return (
@@ -73,5 +72,19 @@ export default function GitHubSuccessPage() {
         <p className="text-slate-400">Signing you in with GitHub…</p>
       </div>
     </div>
+  );
+}
+
+export default function GitHubSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <GitHubSuccessContent />
+    </Suspense>
   );
 }

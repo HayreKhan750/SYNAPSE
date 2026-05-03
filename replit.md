@@ -30,7 +30,8 @@ Browser always uses relative paths — never `http://localhost:8000` directly.
 - **Settings module**: `config.settings.replit`
 - **In-memory channels** (no Redis needed)
 - **Console email backend** (no SMTP needed)
-- **Celery eager mode** (no broker needed)
+- **Celery eager mode** (no broker needed) — agent tasks use background threads to avoid blocking HTTP
+- **Background scraper scheduler** — runs `synapse/scraper_scheduler.py` for periodic real data scraping
 - **AUTO_VERIFY_EMAIL = True** — new registrations are auto-verified and receive JWT tokens immediately
 - **All ALLOWED_HOSTS** enabled
 - **PYTHONPATH** includes both `synapse/backend/` and `synapse/` (for ai_engine)
@@ -42,12 +43,17 @@ Browser always uses relative paths — never `http://localhost:8000` directly.
 - **UUID**: `57b9b0f1-338a-4004-9b46-ca4e1e82771b`
 - **Status**: email_verified=True, is_onboarded=True
 
-## Demo Data (seeded)
+## Live Scraped Data (no seeds/fixtures)
 
-| Content Type | Count | Notes |
-|---|---|---|
-| HackerNews Articles | 30 | Scraped via API |
-| GitHub Repos | 25 | Scraped via API |
+| Content Type | Count | Source | Refresh |
+|---|---|---|---|
+| Articles | 96+ | HackerNews API (real-time) | Every 30 min |
+| Repositories | 125+ | GitHub Search API | Every 2 hrs |
+| Research Papers | 70+ | arXiv API | Every 6 hrs |
+| Tweets | 7 | Twitter API (needs bearer token) | Every 4 hrs |
+| Videos | 7 | YouTube API (needs API key) | Every 6 hrs |
+
+All data is live scraped. No seed files or fixtures. Background scheduler: `synapse/scraper_scheduler.py`.
 | arXiv Papers | 20 | cs.AI, cs.LG, cs.CL — direct insert |
 | YouTube Videos | 7 | Demo data with real YouTube IDs |
 | Tweets | 7 | Demo data (karpathy, swyx, LangChain, etc.) |

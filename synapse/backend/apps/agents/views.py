@@ -106,16 +106,40 @@ class AgentTaskListCreateView(APIView):
             status=AgentTask.TaskStatus.PENDING,
         )
 
-        # Queue the Celery task
+        # Queue the Celery task.
+        # When CELERY_ALWAYS_EAGER=True (Replit, no Redis) tasks run synchronously,
+        # which would block this HTTP response for up to 5 minutes. We detect this
+        # and run the task in a daemon thread so the response returns immediately
+        # while the agent executes in the background.
         try:
             from .tasks import execute_agent_task
+            from django.conf import settings as _dj_settings
 
-            celery_result = execute_agent_task.delay(str(task_obj.id))
-            task_obj.celery_task_id = celery_result.id
-            task_obj.save(update_fields=["celery_task_id"])
-            logger.info(
-                "Queued AgentTask %s → Celery %s", task_obj.id, celery_result.id
-            )
+            _eager = getattr(_dj_settings, "CELERY_TASK_ALWAYS_EAGER", False) or \
+                     getattr(_dj_settings, "CELERY_ALWAYS_EAGER", False)
+
+            if _eager:
+                import threading
+                import uuid as _uuid
+
+                fake_task_id = str(_uuid.uuid4())
+                task_obj.celery_task_id = fake_task_id
+                task_obj.save(update_fields=["celery_task_id"])
+
+                def _run():
+                    try:
+                        execute_agent_task(str(task_obj.id))
+                    except Exception as _exc:
+                        logger.error("Background AgentTask %s failed: %s", task_obj.id, _exc)
+
+                t = threading.Thread(target=_run, daemon=True, name=f"agent-{task_obj.id}")
+                t.start()
+                logger.info("Dispatched AgentTask %s in background thread %s", task_obj.id, fake_task_id)
+            else:
+                celery_result = execute_agent_task.delay(str(task_obj.id))
+                task_obj.celery_task_id = celery_result.id
+                task_obj.save(update_fields=["celery_task_id"])
+                logger.info("Queued AgentTask %s → Celery %s", task_obj.id, celery_result.id)
         except Exception as exc:
             logger.error("Failed to queue AgentTask %s: %s", task_obj.id, exc)
             task_obj.status = AgentTask.TaskStatus.FAILED

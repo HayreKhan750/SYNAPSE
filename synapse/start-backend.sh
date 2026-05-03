@@ -27,5 +27,12 @@ python manage.py migrate --noinput 2>&1 | tail -5 || true
 echo "Collecting static files..."
 python manage.py collectstatic --noinput -v 0 2>&1 | tail -3 || true
 
+# ── Background scraper scheduler ─────────────────────────────────────────────
+# Runs HackerNews (every 30min), GitHub (every 2hrs), arXiv (every 6hrs)
+# in a background process. No Redis or Celery Beat required.
+echo "Starting background scraper scheduler..."
+python /home/runner/workspace/synapse/scraper_scheduler.py &> /tmp/scraper_scheduler.log &
+echo "Scraper scheduler PID: $!"
+
 echo "Starting Django backend on port 8000..."
 exec daphne -b 0.0.0.0 -p 8000 config.asgi:application

@@ -226,8 +226,27 @@ def build_llm(
             streaming=streaming,
         )
 
-    # In auto mode, prefer the new server-side providers FIRST
-    # (AI Gateway → Groq) before falling back to legacy keys.
+    # In auto mode, prefer the new server-side providers FIRST.
+    # Priority 0: Replit built-in OpenAI proxy — no user key needed.
+    replit_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "")
+    replit_base = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "")
+    replit_model = model or os.environ.get("REPLIT_AI_MODEL", "gpt-4o-mini")
+    if replit_key and replit_base and _OPENAI_AVAILABLE and ChatOpenAI is not None:
+        logger.info(
+            "llm_factory provider=replit_openai model=%s streaming=%s",
+            replit_model,
+            streaming,
+        )
+        return ChatOpenAI(
+            model=replit_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_api_key=replit_key,
+            openai_api_base=replit_base,
+            streaming=streaming,
+        )
+
+    # Priority 1+: AI Gateway → Groq → OpenRouter → Scitely → Gemini
     if gw_key and _OPENAI_AVAILABLE and ChatOpenAI is not None:
         logger.info(
             "llm_factory provider=ai_gateway_auto model=%s streaming=%s",
